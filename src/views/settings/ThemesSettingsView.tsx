@@ -24,13 +24,14 @@ import {
   SliderRow,
   TextArea,
   TextField,
+  ToggleCard,
 } from '../../components/ui';
 import { highlightTones, iconTileTones } from '../../components/ui/tones';
 import { type Language, type Translations } from '../../i18n';
 import { LanguageSelector } from '../../components/common/LanguageSelector';
 import { type Theme } from '../../types/theme';
 import { cn } from '../../utils/cn';
-import { SettingsPage, ToggleCard } from './SettingsPage';
+import { SettingsPage } from './SettingsPage';
 
 export interface ThemesSettingsViewProps {
   language: Language;

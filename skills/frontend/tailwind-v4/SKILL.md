@@ -115,11 +115,14 @@ All primitives live in `components/ui/` (import from `components/ui`). Each take
 | Readout / status | `Badge`, `StatusDot` | `tone` (+ neutral), `size` xs·sm, `mono`; dot `pulse` |
 | Key / shortcut | `Kbd` | `size` sm (shortcut lists) · xs (inline hints) |
 | Slider | `SliderRow`, `NudgeButtons` | `label`, `value`, `min`/`max`/`step`, `format`, `tone`, `nudges` |
+| Bare slider (hand-laid label/readout) | `RangeSlider` | `value`, `min`/`max`/`step`, `onChange(number)`, `aria-label`; draws the gradient fill |
 | Menu | `Popover` + `MenuItem` | `align` start·end, `side` bottom·top; item `selected` (→ `menuitemradio`) |
 | Loading / empty | `Spinner`, `ProgressBar`, `EmptyState` | `size`, `tone`, `label` |
 | Info box | `Callout` | `tone` (+ `danger`), `icon` |
 | Switch | `common/ToggleSwitch` | the only switch; style comes from the checkbox (`peer-checked:`) |
-| Settings tab | `views/settings/SettingsPage` + `ToggleCard` | page `title`, `icon`, `actions`; a switchable feature is a `ToggleCard` (`checked`, `tone`, `badges`, dependent controls as children) |
+| Page heading | `PageHeader` | `title`, `description`, `icon`, `tone`, `actions` (the h2 of a view or settings tab) |
+| Switchable feature | `ToggleCard` | `title`, `icon`, `tone`, `checked`, `onChange`, `badges`; dependent controls as children (settings options, DSP modules) |
+| Settings tab | `views/settings/SettingsPage` | page `title`, `icon`, `actions`, cards as children |
 
 **States belong to the base layer.** `styles/base.css` gives every button its hover lift, focus outline, press scale, transition and disabled look (opacity .45, no pointer events), and every text field and select its pink focus ring. Never add `transition-*`, `cursor-*`, a disabled opacity, `outline-none`, or `border-0` / `m-0` resets to a button or field.
 

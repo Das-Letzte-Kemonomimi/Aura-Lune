@@ -35,6 +35,13 @@ describe('NudgeButtons', () => {
     expect(onChange).toHaveBeenCalledWith(0.3);
   });
 
+  it('keeps the precision of the current value', () => {
+    const onChange = vi.fn();
+    render(<NudgeButtons value={1.05} steps={[0.1]} min={0} max={3} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: '+0.1' }));
+    expect(onChange).toHaveBeenCalledWith(1.15);
+  });
+
   it('clamps to the range and disables a step that cannot move the value', () => {
     const onChange = vi.fn();
     render(<NudgeButtons value={11.5} steps={[-1, 1]} min={-12} max={12} onChange={onChange} />);

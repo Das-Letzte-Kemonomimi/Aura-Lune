@@ -11,6 +11,7 @@ import {
   SliderRow,
   Spinner,
   TextField,
+  ToggleCard,
 } from '../../components/ui';
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type TrackBookmarkDto } from '../../types/player';
@@ -20,7 +21,7 @@ import { TranscodeRangeOption } from './transcode/TranscodeRangeOption';
 import { TranscodeDspOption } from './transcode/TranscodeDspOption';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { SettingsPage, ToggleCard } from './SettingsPage';
+import { SettingsPage } from './SettingsPage';
 
 export interface TranscodeSettingsViewProps {
   language: Language;

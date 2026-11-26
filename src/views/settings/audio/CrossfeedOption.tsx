@@ -1,8 +1,7 @@
 import React from 'react';
 import { Headphones } from '../../../components/ui/icons';
-import { Chip, SliderRow } from '../../../components/ui';
+import { Chip, SliderRow, ToggleCard } from '../../../components/ui';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
-import { ToggleCard } from '../SettingsPage';
 
 export type CrossfeedOptionProps = Pick<
   AudioDevicesSettingsViewProps,

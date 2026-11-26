@@ -4,7 +4,7 @@ import { Upload, AlertTriangle, Copy, Check } from '../../ui/icons';
 import type { Dispatch, SetStateAction } from 'react';
 import { Button, ModalBody, ModalFooter, ModalHeader, ModalShell, TextArea } from '../../ui';
 
-export type PeqImportExportDialogProps = {} & {
+export type PeqImportExportDialogProps = {
   setIsImportModalOpen: Dispatch<SetStateAction<boolean>>;
   loc: Translations;
   importText: string;

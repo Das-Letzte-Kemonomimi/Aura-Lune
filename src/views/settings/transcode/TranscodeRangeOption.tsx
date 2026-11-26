@@ -1,12 +1,11 @@
 import React, { useId } from 'react';
 import { Scissors, Repeat, Bookmark, AlertTriangle } from '../../../components/ui/icons';
-import { Badge, Button, Card, TextField, type Tone } from '../../../components/ui';
+import { Badge, Button, Card, TextField, ToggleCard, type Tone } from '../../../components/ui';
 import { textTones } from '../../../components/ui/tones';
 import { formatTimeMs } from '../../../utils/timeFormat';
 import { cn } from '../../../utils/cn';
 import { fmt } from '../../../utils/fmt';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
-import { ToggleCard } from '../SettingsPage';
 
 export type TranscodeRangeOptionProps = Pick<
   TranscodeSettingsViewProps,

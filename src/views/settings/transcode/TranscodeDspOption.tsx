@@ -1,8 +1,7 @@
 import React from 'react';
 import { Wand2 } from '../../../components/ui/icons';
-import { Badge } from '../../../components/ui';
+import { Badge, ToggleCard } from '../../../components/ui';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
-import { ToggleCard } from '../SettingsPage';
 
 export type TranscodeDspOptionProps = Pick<
   TranscodeSettingsViewProps,

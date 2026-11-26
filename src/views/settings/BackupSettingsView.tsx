@@ -23,11 +23,12 @@ import {
   SliderRow,
   StatusDot,
   TextField,
+  ToggleCard,
 } from '../../components/ui';
 import { type Language, type Translations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { SettingsPage, ToggleCard } from './SettingsPage';
+import { SettingsPage } from './SettingsPage';
 
 const DEFAULT_DISCORD_CLIENT_ID = '1563876157387186226';
 const CROSSFADE_PRESETS_MS = [0, 1000, 1500, 3000, 5000] as const;

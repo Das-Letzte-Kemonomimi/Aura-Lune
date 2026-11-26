@@ -88,6 +88,37 @@ export function SectionHeader({
   );
 }
 
+export interface PageHeaderProps {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  /** Icon shown in a tinted tile before the title. */
+  icon?: React.ReactNode;
+  tone?: Tone;
+  /** Buttons aligned to the right of the heading; they wrap below it on narrow windows. */
+  actions?: React.ReactNode;
+  className?: string;
+}
+
+/** The h2 heading at the top of a view or settings tab. */
+export function PageHeader({ title, description, icon, tone = 'pink', actions, className }: PageHeaderProps) {
+  return (
+    <div className={cn('flex flex-wrap items-center justify-between gap-3', className)}>
+      <div className="flex min-w-0 items-center gap-3">
+        {icon && (
+          <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', iconTileTones[tone])}>
+            {icon}
+          </span>
+        )}
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-fg">{title}</h2>
+          {description && <p className="mt-0.5 text-ui text-fg-secondary">{description}</p>}
+        </div>
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
 export interface SettingRowProps {
   title: React.ReactNode;
   description?: React.ReactNode;

@@ -3,9 +3,11 @@ export { Button, IconButton, type ButtonProps, type IconButtonProps } from './Bu
 export { Callout, type CalloutProps, type CalloutTone } from './Callout';
 export {
   Card,
+  PageHeader,
   SectionHeader,
   SettingRow,
   type CardProps,
+  type PageHeaderProps,
   type SectionHeaderProps,
   type SettingRowProps,
 } from './Card';
@@ -40,5 +42,13 @@ export {
 } from './Modal';
 export { MenuItem, Popover, type MenuItemProps, type PopoverProps } from './Popover';
 export { SegmentedControl, type SegmentedControlProps, type SegmentedItem } from './SegmentedControl';
-export { NudgeButtons, SliderRow, type NudgeButtonsProps, type SliderRowProps } from './SliderRow';
+export {
+  NudgeButtons,
+  RangeSlider,
+  SliderRow,
+  type NudgeButtonsProps,
+  type RangeSliderProps,
+  type SliderRowProps,
+} from './SliderRow';
+export { ToggleCard, type ToggleCardProps } from './ToggleCard';
 export type { Tone, ToneOrNeutral } from './tones';

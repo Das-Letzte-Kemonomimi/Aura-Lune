@@ -40,19 +40,17 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
       <div
         className={cn(
           'pointer-events-none absolute top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-3xl border px-3 py-1 text-xs font-bold shadow-lift shadow-black/35 backdrop-blur-xs',
-          state.enabled ? 'bg-accent-green/15' : 'bg-accent-red/20',
-          state.enabled ? 'border-accent-green/45' : 'border-accent-red/50',
-          state.enabled ? 'text-emerald-300' : 'text-red-300',
+          state.enabled ? 'border-accent-green/35 bg-accent-green/15 text-accent-green' : 'border-accent-red/35 bg-accent-red/15 text-accent-red',
         )}
       >
         {state.enabled ? (
           <>
-            <Check size={12} className="text-emerald-400" />
+            <Check size={12} />
             {loc.parametricEq.peqActiveMsg}
           </>
         ) : (
           <>
-            <AlertTriangle size={12} className="text-red-400" />
+            <AlertTriangle size={12} />
             {loc.parametricEq.peqBypassMsg}
           </>
         )}

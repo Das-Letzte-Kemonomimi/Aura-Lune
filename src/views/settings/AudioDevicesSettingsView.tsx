@@ -1,6 +1,6 @@
 import React from 'react';
 import { Radio, Activity, RefreshCw, VolumeX, History, ListMusic, Check, Cpu, Power, Tv, Waves } from '../../components/ui/icons';
-import { Badge, Button, Card, Chip, SectionHeader, Select, SliderRow } from '../../components/ui';
+import { Badge, Button, Card, Chip, SectionHeader, Select, SliderRow, ToggleCard } from '../../components/ui';
 import { type Language, type Translations } from '../../i18n';
 import {
   type AudioCard,
@@ -14,7 +14,7 @@ import { ReplayGainOption } from './audio/ReplayGainOption';
 import { DspBlockSizeOption } from './audio/DspBlockSizeOption';
 import { OutputBufferOption } from './audio/OutputBufferOption';
 import { VolumeAndOsdCard } from './audio/VolumeAndOsdCard';
-import { SettingsPage, ToggleCard } from './SettingsPage';
+import { SettingsPage } from './SettingsPage';
 
 export interface AudioDevicesSettingsViewProps {
   language: Language;

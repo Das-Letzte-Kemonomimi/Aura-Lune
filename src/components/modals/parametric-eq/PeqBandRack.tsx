@@ -5,8 +5,9 @@ import { normalizeFilterType, PEQ_BAND_COLORS, type ParametricBandDto, type Para
 import type { Dispatch, SetStateAction } from 'react';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
+import { Button, IconButton, RangeSlider, Select, TextField } from '../../ui';
 
-export type PeqBandRackProps = {} & {
+export type PeqBandRackProps = {
   loc: Translations;
   state: ParametricEqStateDto;
   handleAddBand: () => void;
@@ -36,13 +37,10 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
           </span>
         </div>
 
-        <button
-          onClick={handleAddBand}
-          className="flex items-center gap-1.5 rounded-lg border border-sky-400/35 bg-sky-400/15 px-3 py-1.5 text-xs font-bold text-sky-400"
-        >
+        <Button variant="tinted" tone="cyan" size="sm" onClick={handleAddBand}>
           <Plus size={13} />
           {loc.parametricEq.addBand}
-        </button>
+        </Button>
       </div>
 
       {/* Band list */}
@@ -71,6 +69,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 checked={band.enabled}
                 onChange={(e) => handleUpdateBand(band.id, { enabled: e.target.checked })}
                 onClick={(e) => e.stopPropagation()}
+                aria-label={`${loc.parametricEq.enabled} #${idx + 1}`}
                 className="cursor-pointer"
               />
 
@@ -83,7 +82,9 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
               </div>
 
               {/* Filter type */}
-              <select
+              <Select
+                size="sm"
+                aria-label={`#${idx + 1}`}
                 value={normalizeFilterType(band.filter_type)}
                 onChange={(e) =>
                   handleUpdateBand(band.id, {
@@ -91,7 +92,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                   })
                 }
                 onClick={(e) => e.stopPropagation()}
-                className="rounded-md border border-line bg-white/6 px-2 py-1 text-xs font-semibold text-fg outline-none"
+                className="w-auto"
               >
                 <option value="peak">
                   {loc.parametricEq.peakBell}
@@ -102,13 +103,15 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 <option value="high-shelf">
                   {loc.parametricEq.highShelf}
                 </option>
-              </select>
+              </Select>
 
               {/* Frequency (Hz) */}
               <div className="flex w-37.5 items-center gap-1.5">
                 <span className="text-xxs text-fg-muted">Freq:</span>
-                <input
+                <TextField
                   type="number"
+                  size="sm"
+                  mono
                   min="20"
                   max="20000"
                   step="1"
@@ -117,7 +120,8 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                     handleUpdateBand(band.id, { freq: parseFloat(e.target.value) || 20 })
                   }
                   onClick={(e) => e.stopPropagation()}
-                  className="w-17.5 rounded-md border border-line bg-white/6 px-1.5 py-1 text-right font-mono text-xs text-fg"
+                  aria-label="Freq (Hz)"
+                  className="w-20 text-right"
                 />
                 <span className="text-xxs text-fg-muted">Hz</span>
               </div>
@@ -125,22 +129,20 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
               {/* Gain (dB) */}
               <div className="flex w-52.5 items-center gap-1.5">
                 <span className="text-xxs text-fg-muted">Gain:</span>
-                <input
-                  type="range"
-                  min="-24"
-                  max="12"
-                  step="0.5"
+                <RangeSlider
+                  aria-label="Gain (dB)"
+                  min={-24}
+                  max={12}
+                  step={0.5}
                   value={band.gain_db}
-                  onChange={(e) =>
-                    handleUpdateBand(band.id, { gain_db: parseFloat(e.target.value) })
-                  }
+                  onChange={(v) => handleUpdateBand(band.id, { gain_db: v })}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-25 cursor-pointer"
+                  className="w-25"
                 />
                 <span
                   className={cn(
                     'w-14 text-right font-mono text-xs font-bold',
-                    band.gain_db > 0 ? 'text-sky-400' : band.gain_db < 0 ? 'text-accent-pink' : 'text-fg-muted',
+                    band.gain_db > 0 ? 'text-accent-cyan' : band.gain_db < 0 ? 'text-accent-pink' : 'text-fg-muted',
                   )}
                 >
                   {band.gain_db > 0 ? `+${band.gain_db.toFixed(1)}` : band.gain_db.toFixed(1)} dB
@@ -150,8 +152,10 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
               {/* Q factor */}
               <div className="flex w-35 items-center gap-1.5">
                 <span className="text-xxs text-fg-muted">Q:</span>
-                <input
+                <TextField
                   type="number"
+                  size="sm"
+                  mono
                   min="0.1"
                   max="10.0"
                   step="0.05"
@@ -160,18 +164,20 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                     handleUpdateBand(band.id, { q: parseFloat(e.target.value) || 0.1 })
                   }
                   onClick={(e) => e.stopPropagation()}
-                  className="w-15 rounded-md border border-line bg-white/6 px-1.5 py-1 text-right font-mono text-xs text-fg"
+                  aria-label="Q"
+                  className="w-20 text-right"
                 />
               </div>
 
               {/* Delete */}
-              <button
+              <IconButton
+                size="sm"
+                label={loc.parametricEq.deleteBand}
                 onClick={(e) => handleDeleteBand(band.id, e)}
-                title={loc.parametricEq.deleteBand}
-                className="ml-auto rounded-sm border-0 bg-transparent p-1 text-fg-muted"
+                className="ml-auto hover:text-accent-red"
               >
                 <Trash2 size={14} />
-              </button>
+              </IconButton>
             </div>
           );
         })}

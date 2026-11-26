@@ -9,9 +9,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-/** Rounds away float noise from repeated steps (0.1 + 0.2 → 0.3). */
-function roundToStep(value: number, step: number): number {
-  const decimals = (String(step).split('.')[1] ?? '').length;
+function decimalsOf(n: number): number {
+  return (String(n).split('.')[1] ?? '').length;
+}
+
+/**
+ * Rounds away float noise from a nudge (0.2 + 0.1 → 0.3) while keeping the finer of the two
+ * precisions, so +0.1 on 1.05 gives 1.15 and not 1.2.
+ */
+function roundNudge(value: number, current: number, step: number): number {
+  const decimals = Math.min(6, Math.max(decimalsOf(step), decimalsOf(current)));
   return Number(value.toFixed(decimals));
 }
 
@@ -44,7 +51,7 @@ export function NudgeButtons({
   return (
     <div className={cn('flex gap-1', className)}>
       {steps.map((step) => {
-        const next = clamp(roundToStep(value + step, Math.abs(step)), min, max);
+        const next = clamp(roundNudge(value + step, value, step), min, max);
         return (
           <button
             key={step}
@@ -58,6 +65,34 @@ export function NudgeButtons({
         );
       })}
     </div>
+  );
+}
+
+export interface RangeSliderProps
+  extends Omit<React.ComponentProps<'input'>, 'type' | 'value' | 'onChange' | 'min' | 'max'> {
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+}
+
+/**
+ * Bare range input with the gradient fill up to the thumb. Use it where the label and readout
+ * are laid out by hand (EQ bands, the speed cards); otherwise use `SliderRow`.
+ */
+export function RangeSlider({ value, onChange, min, max, className, style, ...props }: RangeSliderProps) {
+  const pct = max > min ? ((clamp(value, min, max) - min) / (max - min)) * 100 : 0;
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className={cn('range-fill w-full', className)}
+      style={{ ...cssVars({ '--fill': `${pct}%` }), ...style }}
+      {...props}
+    />
   );
 }
 
@@ -96,7 +131,6 @@ export function SliderRow({
   className,
 }: SliderRowProps) {
   const id = useId();
-  const pct = max > min ? ((clamp(value, min, max) - min) / (max - min)) * 100 : 0;
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <div className="flex items-center justify-between gap-3">
@@ -107,18 +141,15 @@ export function SliderRow({
           {format(value)}
         </Badge>
       </div>
-      <input
+      <RangeSlider
         id={id}
-        type="range"
         aria-label={ariaLabel}
         min={min}
         max={max}
         step={step}
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="range-fill w-full"
-        style={cssVars({ '--fill': `${pct}%` })}
+        onChange={onChange}
       />
       {nudges && nudges.length > 0 && (
         <NudgeButtons
