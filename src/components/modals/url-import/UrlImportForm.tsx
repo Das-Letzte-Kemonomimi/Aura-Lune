@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { Translations } from '../../../i18n';
 import type { FormEvent } from 'react';
-import { Download, FolderOpen, AlertCircle, Loader2, Clipboard, Sparkles, ListMusic, SlidersHorizontal } from '../../ui/icons';
+import { Download, FolderOpen, AlertCircle, Clipboard, Sparkles, ListMusic, SlidersHorizontal } from '../../ui/icons';
 import type { UrlAudioImportModalProps } from '../UrlAudioImportModal';
 import type { Dispatch, SetStateAction } from 'react';
-import { cn } from '../../../utils/cn';
+import { Badge, Button, Callout, Card, Chip, FieldLabel, OptionCard, Select, Spinner, TextField, ToggleCard } from '../../ui';
 
 export type UrlImportFormProps = Pick<UrlAudioImportModalProps, 'onClose'> & {
   handleImport: (e: FormEvent<Element>) => Promise<void>;
@@ -29,6 +29,35 @@ export type UrlImportFormProps = Pick<UrlAudioImportModalProps, 'onClose'> & {
   errorMessage: string | null;
 };
 
+/** Encoder settings offered per lossy format (FLAC has none). `0` is MP3 V0 VBR. */
+const BITRATES: Record<string, readonly { id: string; label: string; desc: string }[]> = {
+  mp3: [
+    { id: '320k', label: '320 kbps (CBR)', desc: 'Studio' },
+    { id: '256k', label: '256 kbps (CBR)', desc: 'High' },
+    { id: '192k', label: '192 kbps (CBR)', desc: 'Standard' },
+    { id: '0', label: 'V0 VBR (~245k)', desc: 'Variable' },
+  ],
+  opus: [
+    { id: '160k', label: '160 kbps (Studio)', desc: 'Transparent Hi-Fi' },
+    { id: '128k', label: '128 kbps (Standard)', desc: 'Optimal' },
+    { id: '96k', label: '96 kbps (Compact)', desc: 'Light' },
+  ],
+  m4a: [
+    { id: '256k', label: '256 kbps (AAC)', desc: 'iTunes Plus' },
+    { id: '192k', label: '192 kbps (AAC)', desc: 'Standard' },
+    { id: '128k', label: '128 kbps (AAC)', desc: 'Compact' },
+  ],
+};
+
+const TRACK_LIMITS = [
+  [0, 'limitUnlimited'],
+  [5, 'limit5'],
+  [10, 'limit10'],
+  [25, 'limit25'],
+  [50, 'limit50'],
+  [100, 'limit100'],
+] as const satisfies readonly (readonly [number, keyof Translations['urlImport']])[];
+
 export const UrlImportForm: React.FC<UrlImportFormProps> = ({
   bitrate,
   downloadPlaylist,
@@ -51,337 +80,180 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
   setUrl,
   targetDir,
   url,
-}) => (
+}) => {
+  const id = useId();
+  const formats = [
+    { id: 'flac', name: 'FLAC', desc: loc.urlImport.formatFlacDesc },
+    { id: 'mp3', name: 'MP3', desc: loc.urlImport.formatMp3Desc },
+    { id: 'opus', name: 'OPUS', desc: loc.urlImport.formatOpusDesc },
+    { id: 'm4a', name: 'M4A', desc: loc.urlImport.formatM4aDesc },
+  ];
+  const bitrates = BITRATES[format] ?? [];
+
+  return (
     <form onSubmit={handleImport} className="flex flex-col gap-4.5">
-      {/* Input URL */}
+      {/* Source URL */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-fg">
-          {loc.urlImport.urlLabel}
-        </label>
+        <FieldLabel htmlFor={`${id}-url`}>{loc.urlImport.urlLabel}</FieldLabel>
         <div className="flex gap-2">
-          <input
-            type="text"
+          <TextField
+            id={`${id}-url`}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="e.g. https://soundcloud.com/... or YouTube, Bandcamp, Mixcloud"
             disabled={isLoading}
             autoFocus
-            className="flex-1 rounded-lg border border-line bg-black/35 px-3.5 py-2.5 text-sm text-fg outline-none transition-[border-color] duration-200"
+            aria-describedby={`${id}-url-hint`}
+            className="flex-1"
           />
-          <button
-            type="button"
-            onClick={handlePasteClipboard}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/8 px-3 py-0 text-ui whitespace-nowrap text-slate-200"
-            title={loc.urlImport.pasteTooltip}
-          >
+          <Button onClick={handlePasteClipboard} disabled={isLoading} title={loc.urlImport.pasteTooltip}>
             <Clipboard size={15} />
             {loc.urlImport.paste}
-          </button>
+          </Button>
         </div>
-        <span className="mt-1 block text-xs text-fg-secondary">
+        <span id={`${id}-url-hint`} className="mt-1 block text-xs text-fg-secondary">
           {loc.urlImport.urlHint}
         </span>
       </div>
 
-      {/* Audio format choice */}
-      <div>
-        <label className="mb-2 block text-sm font-medium">
+      {/* Target format */}
+      <div role="group" aria-labelledby={`${id}-format`}>
+        <span id={`${id}-format`} className="label-caps mb-1.5 block">
           {loc.urlImport.targetFormat}
-        </label>
+        </span>
         <div className="grid grid-cols-4 gap-2">
-          {[
-            { id: 'flac', name: 'FLAC', desc: loc.urlImport.formatFlacDesc },
-            { id: 'mp3', name: 'MP3', desc: loc.urlImport.formatMp3Desc },
-            { id: 'opus', name: 'OPUS', desc: loc.urlImport.formatOpusDesc },
-            { id: 'm4a', name: 'M4A', desc: loc.urlImport.formatM4aDesc },
-          ].map((fmt) => (
-            <button
-              key={fmt.id}
-              type="button"
-              onClick={() => handleFormatChange(fmt.id)}
+          {formats.map((f) => (
+            <OptionCard
+              key={f.id}
+              tone="purple"
+              pressed={format === f.id}
+              onClick={() => handleFormatChange(f.id)}
               disabled={isLoading}
-              className={cn(
-                'flex flex-col items-center gap-0.5 rounded-lg border px-1.5 py-2 transition-all duration-150',
-                format === fmt.id ? 'bg-linear-135 from-accent-purple/40 to-pink-500/30' : 'bg-black/25',
-                format === fmt.id ? 'border-purple-400' : 'border-white/10',
-              )}
+              className="items-center gap-0.5 px-1.5 py-2 text-center"
             >
-              <span className="text-sm font-semibold text-fg">
-                {fmt.name}
-              </span>
-              <span className="text-xxs text-slate-300">
-                {fmt.desc}
-              </span>
-            </button>
+              <span className="text-sm font-semibold">{f.name}</span>
+              <span className="text-xxs text-fg-secondary">{f.desc}</span>
+            </OptionCard>
           ))}
         </div>
       </div>
 
-      {/* Audio bitrate / quality choice */}
-      {format !== 'flac' ? (
-        <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+      {/* Encoder quality (lossy formats only) */}
+      {bitrates.length > 0 ? (
+        <Card variant="inset" padding="none" className="p-3" role="group" aria-labelledby={`${id}-quality`}>
           <div className="mb-2 flex items-center gap-2">
-            <SlidersHorizontal size={15} className="text-purple-400" />
-            <span className="text-ui font-medium text-fg">
+            <SlidersHorizontal size={15} className="text-accent-purple" />
+            <span id={`${id}-quality`} className="text-ui font-medium text-fg">
               {loc.urlImport.encodingQuality}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {format === 'mp3' && (
-              <>
-                {[
-                  { id: '320k', label: '320 kbps (CBR)', desc: 'Studio' },
-                  { id: '256k', label: '256 kbps (CBR)', desc: 'High' },
-                  { id: '192k', label: '192 kbps (CBR)', desc: 'Standard' },
-                  { id: '0', label: 'V0 VBR (~245k)', desc: 'Variable' },
-                ].map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setBitrate(b.id)}
-                    disabled={isLoading}
-                    className={cn(
-                      'flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-ui',
-                      bitrate === b.id ? 'bg-accent-purple/35' : 'bg-white/5',
-                      bitrate === b.id ? 'border-purple-400' : 'border-white/10',
-                      bitrate === b.id ? 'text-fg' : 'text-slate-300',
-                    )}
-                  >
-                    <span className="font-semibold">{b.label}</span>
-                    <span className="text-xxs opacity-60">• {b.desc}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {format === 'opus' && (
-              <>
-                {[
-                  { id: '160k', label: '160 kbps (Studio)', desc: 'Transparent Hi-Fi' },
-                  { id: '128k', label: '128 kbps (Standard)', desc: 'Optimal' },
-                  { id: '96k', label: '96 kbps (Compact)', desc: 'Light' },
-                ].map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setBitrate(b.id)}
-                    disabled={isLoading}
-                    className={cn(
-                      'flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-ui',
-                      bitrate === b.id ? 'bg-accent-purple/35' : 'bg-white/5',
-                      bitrate === b.id ? 'border-purple-400' : 'border-white/10',
-                      bitrate === b.id ? 'text-fg' : 'text-slate-300',
-                    )}
-                  >
-                    <span className="font-semibold">{b.label}</span>
-                    <span className="text-xxs opacity-60">• {b.desc}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            {format === 'm4a' && (
-              <>
-                {[
-                  { id: '256k', label: '256 kbps (AAC)', desc: 'iTunes Plus' },
-                  { id: '192k', label: '192 kbps (AAC)', desc: 'Standard' },
-                  { id: '128k', label: '128 kbps (AAC)', desc: 'Compact' },
-                ].map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setBitrate(b.id)}
-                    disabled={isLoading}
-                    className={cn(
-                      'flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-ui',
-                      bitrate === b.id ? 'bg-accent-purple/35' : 'bg-white/5',
-                      bitrate === b.id ? 'border-purple-400' : 'border-white/10',
-                      bitrate === b.id ? 'text-fg' : 'text-slate-300',
-                    )}
-                  >
-                    <span className="font-semibold">{b.label}</span>
-                    <span className="text-xxs opacity-60">• {b.desc}</span>
-                  </button>
-                ))}
-              </>
-            )}
+            {bitrates.map((b) => (
+              <Chip key={b.id} tone="purple" pressed={bitrate === b.id} onClick={() => setBitrate(b.id)} disabled={isLoading}>
+                <span className="font-semibold">{b.label}</span>
+                <span className="text-xxs opacity-60">• {b.desc}</span>
+              </Chip>
+            ))}
           </div>
-        </div>
+        </Card>
       ) : (
-        <div
-          className="flex items-center gap-2 rounded-xl border border-sky-400/25 bg-sky-400/8 px-3 py-2.5 text-ui text-sky-200"
-        >
-          <Sparkles size={16} className="shrink-0 text-sky-400" />
-          <span>
-            {loc.urlImport.flacLosslessNotice}
-          </span>
-        </div>
+        <Callout tone="cyan" icon={<Sparkles size={16} />} className="py-2.5 text-ui text-fg">
+          {loc.urlImport.flacLosslessNotice}
+        </Callout>
       )}
 
-      {/* Download a whole playlist / album / SoundCloud channel */}
-      <div
-        className={cn(
-          'flex flex-col gap-3 rounded-xl border p-3.5 transition-all duration-200',
-          downloadPlaylist ? 'bg-accent-purple/15' : 'bg-black/20',
-          downloadPlaylist ? 'border-accent-purple/45' : 'border-white/8',
-        )}
+      {/* Download a whole playlist, album or channel */}
+      <ToggleCard
+        icon={<ListMusic size={18} />}
+        tone="purple"
+        title={loc.urlImport.downloadPlaylistLabel}
+        description={loc.urlImport.downloadPlaylistDesc}
+        badges={downloadPlaylist && <Badge tone="purple">{loc.urlImport.batchMode}</Badge>}
+        checked={downloadPlaylist}
+        onChange={setDownloadPlaylist}
+        disabled={isLoading}
       >
-        <div className="flex items-center justify-between">
-          <label className="flex cursor-pointer select-none items-center gap-2.5">
-            <input
-              type="checkbox"
-              checked={downloadPlaylist}
-              onChange={(e) => setDownloadPlaylist(e.target.checked)}
-              disabled={isLoading}
-              className="h-4.5 w-4.5 cursor-pointer accent-accent-purple"
-            />
-            <div>
-              <div className="text-sm font-semibold text-fg">
-                {loc.urlImport.downloadPlaylistLabel}
-              </div>
-              <div className="mt-px text-xs text-slate-300">
-                {loc.urlImport.downloadPlaylistDesc}
-              </div>
-            </div>
-          </label>
-          {downloadPlaylist && (
-            <span
-              className="flex items-center gap-1 rounded-md bg-accent-purple/30 px-2 py-1 text-xs font-semibold text-purple-300"
-            >
-              <ListMusic size={13} />
-              {loc.urlImport.batchMode}
-            </span>
-          )}
-        </div>
-
-        {/* Extra options when the playlist option is on */}
         {downloadPlaylist && (
-          <div className="grid grid-cols-2 gap-3 border-t border-white/8 pt-2">
-            {/* Downloaded track limit */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-300">
-                {loc.urlImport.trackLimit}
-              </label>
-              <select
+              <FieldLabel htmlFor={`${id}-limit`}>{loc.urlImport.trackLimit}</FieldLabel>
+              <Select
+                id={`${id}-limit`}
+                size="sm"
                 value={maxItems}
                 onChange={(e) => setMaxItems(Number(e.target.value))}
                 disabled={isLoading}
-                className="w-full rounded-md border border-white/15 bg-black/35 px-2 py-1.5 text-ui text-fg outline-none"
               >
-                <option value={0}>{loc.urlImport.limitUnlimited}</option>
-                <option value={5}>{loc.urlImport.limit5}</option>
-                <option value={10}>{loc.urlImport.limit10}</option>
-                <option value={25}>{loc.urlImport.limit25}</option>
-                <option value={50}>{loc.urlImport.limit50}</option>
-                <option value={100}>{loc.urlImport.limit100}</option>
-              </select>
+                {TRACK_LIMITS.map(([value, key]) => (
+                  <option key={value} value={value}>
+                    {loc.urlImport[key]}
+                  </option>
+                ))}
+              </Select>
             </div>
-
-            {/* Folder structure */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-300">
-                {loc.urlImport.folderHierarchy}
-              </label>
-              <select
+              <FieldLabel htmlFor={`${id}-folders`}>{loc.urlImport.folderHierarchy}</FieldLabel>
+              <Select
+                id={`${id}-folders`}
+                size="sm"
                 value={folderStructure}
                 onChange={(e) => setFolderStructure(e.target.value)}
                 disabled={isLoading}
-                className="w-full rounded-md border border-white/15 bg-black/35 px-2 py-1.5 text-ui text-fg outline-none"
               >
-                <option value="playlist">
-                  {loc.urlImport.hierarchyAlbum}
-                </option>
-                <option value="artist_album">
-                  {loc.urlImport.hierarchyArtistAlbum}
-                </option>
-                <option value="flat">
-                  {loc.urlImport.hierarchyFlat}
-                </option>
-              </select>
+                <option value="playlist">{loc.urlImport.hierarchyAlbum}</option>
+                <option value="artist_album">{loc.urlImport.hierarchyArtistAlbum}</option>
+                <option value="flat">{loc.urlImport.hierarchyFlat}</option>
+              </Select>
             </div>
           </div>
         )}
-      </div>
+      </ToggleCard>
 
       {/* Target folder */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium">
-          {loc.urlImport.destFolder}
-        </label>
+        <FieldLabel htmlFor={`${id}-dir`}>{loc.urlImport.destFolder}</FieldLabel>
         <div className="flex items-center gap-2">
-          <input
-            type="text"
+          <TextField
+            id={`${id}-dir`}
+            mono
             value={targetDir}
             onChange={(e) => setTargetDir(e.target.value)}
             disabled={isLoading}
-            className="flex-1 rounded-lg border border-white/10 bg-black/25 px-3 py-2 font-mono text-ui text-slate-300"
+            className="flex-1"
           />
-          <button
-            type="button"
-            onClick={handlePickDirectory}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-ui whitespace-nowrap text-slate-200"
-          >
+          <Button onClick={handlePickDirectory} disabled={isLoading}>
             <FolderOpen size={15} />
             {loc.urlImport.browse}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* yt-dlp engine info */}
-      <div
-        className="flex items-center gap-2 rounded-lg border border-accent-purple/20 bg-accent-purple/8 px-3 py-2.5 text-ui text-purple-200"
-      >
-        <Sparkles size={16} className="shrink-0 text-purple-400" />
-        <span>
-          {loc.urlImport.sqliteIndexingHint}
-        </span>
-      </div>
+      {/* Library indexing note */}
+      <Callout tone="purple" icon={<Sparkles size={16} />} className="py-2.5 text-ui text-fg">
+        {loc.urlImport.sqliteIndexingHint}
+      </Callout>
 
-      {/* Error */}
       {errorMessage && (
-        <div
-          className="flex gap-2.5 rounded-lg border border-accent-red/40 bg-accent-red/15 p-3 text-ui whitespace-pre-line text-red-300"
-        >
-          <AlertCircle size={18} className="mt-0.5 shrink-0" />
-          <div>{errorMessage}</div>
-        </div>
+        <Callout tone="danger" icon={<AlertCircle size={18} />} role="alert" className="text-ui whitespace-pre-line text-fg">
+          {errorMessage}
+        </Callout>
       )}
 
-      {/* Action button */}
       <div className="mt-1.5 flex justify-end gap-2.5">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={isLoading}
-          className="rounded-lg border border-white/15 bg-transparent px-4 py-2.5 text-sm text-slate-300"
-        >
+        <Button variant="ghost" size="lg" onClick={onClose} disabled={isLoading}>
           {loc.common.cancel}
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading || !url.trim()}
-          className={cn(
-            'flex items-center gap-2 rounded-lg border-0 bg-linear-135 from-accent-purple to-pink-500 px-5 py-2.5 text-sm font-semibold text-fg shadow-lift shadow-accent-purple/40',
-            isLoading || !url.trim() ? 'cursor-not-allowed' : 'cursor-pointer',
-            isLoading || !url.trim() ? 'opacity-60' : 'opacity-100',
-          )}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              {downloadPlaylist
-                ? loc.urlImport.loadingPlaylist
-                : loc.urlImport.loadingTrack}
-            </>
-          ) : (
-            <>
-              <Download size={16} />
-              {downloadPlaylist
-                ? loc.urlImport.btnDownloadPlaylist
-                : loc.urlImport.btnDownloadTrack}
-            </>
-          )}
-        </button>
+        </Button>
+        <Button type="submit" variant="primary" size="lg" disabled={isLoading || !url.trim()}>
+          {isLoading ? <Spinner size="sm" className="text-current" /> : <Download size={16} />}
+          {isLoading
+            ? downloadPlaylist
+              ? loc.urlImport.loadingPlaylist
+              : loc.urlImport.loadingTrack
+            : downloadPlaylist
+              ? loc.urlImport.btnDownloadPlaylist
+              : loc.urlImport.btnDownloadTrack}
+        </Button>
       </div>
     </form>
-);
+  );
+};

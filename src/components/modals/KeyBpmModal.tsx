@@ -1,20 +1,24 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import {
-  Activity,
-  ArrowRight,
-  RotateCcw,
-  Plus,
-  Minus,
-  Check,
-  Wand2,
-  Sparkles,
-  Loader2,
-} from '../ui/icons';
-import { invoke } from '../../api/ipc';
-import type { Language } from '../../i18n';
+import { Activity, ArrowRight, RotateCcw, Plus, Minus, Check, Wand2, Sparkles } from '../ui/icons';
+import { errorMessage, invoke } from '../../api/ipc';
+import type { Language, Translations } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { Button, ModalBody, ModalFooter, ModalHeader, ModalShell } from '../ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  IconButton,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalShell,
+  SegmentedControl,
+  Spinner,
+  TextField,
+  type Tone,
+} from '../ui';
 
 interface KeyBpmModalProps {
   isOpen: boolean;
@@ -59,6 +63,49 @@ const CAMELOT_MINOR: Record<string, string> = {
   'E': '9A', 'B': '10A', 'F#': '11A', 'C#': '12A',
 };
 
+type DetectionSource = 'tag' | 'acoustic' | 'database' | 'manual';
+
+const SOURCE_TONES: Record<DetectionSource, Tone> = {
+  tag: 'green',
+  acoustic: 'cyan',
+  database: 'purple',
+  manual: 'amber',
+};
+
+const SOURCE_LABELS = {
+  tag: 'sourceMetadata',
+  acoustic: 'sourceAcoustic',
+  database: 'sourceSqlite',
+  manual: 'sourceManual',
+} as const satisfies Record<DetectionSource, keyof Translations['keyBpm']>;
+
+/** Key name with its Camelot code, as shown on the original and output cards. */
+function KeyReadout({
+  label,
+  keyName,
+  camelot,
+  camelotTone,
+  camelotTitle,
+}: {
+  label: string;
+  keyName: string;
+  camelot: string;
+  camelotTone: Tone;
+  camelotTitle: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1 text-xs text-fg-muted">{label}</div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-3xl font-extrabold tracking-tight text-fg">{keyName}</span>
+        <Badge tone={camelotTone} mono className="text-sm" title={camelotTitle}>
+          {camelot}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
 export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   isOpen,
   onClose,
@@ -81,7 +128,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   const [isMinor, setIsMinor] = useState<boolean>(false);
   const [baseBpm, setBaseBpm] = useState<number>(128.0);
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
-  const [detectionSource, setDetectionSource] = useState<'tag' | 'acoustic' | 'database' | 'manual' | null>(null);
+  const [detectionSource, setDetectionSource] = useState<DetectionSource | null>(null);
   const [detectError, setDetectError] = useState<string | null>(null);
 
   // Tap Tempo state
@@ -103,7 +150,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         camelot: string;
         base_key_index: number;
         is_minor: boolean;
-        source: string;
+        source: DetectionSource;
       }>('detect_track_key_bpm', {
         path: targetPath,
         trackId: trackId ?? currentTrackId ?? null,
@@ -114,7 +161,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         setBaseKeyIndex(res.base_key_index);
         setIsMinor(res.is_minor);
         setBaseBpm(res.bpm);
-        setDetectionSource(res.source as any);
+        setDetectionSource(res.source);
 
         const targetId = trackId ?? currentTrackId;
         if (targetId) {
@@ -138,7 +185,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
       }
     } catch (e: unknown) {
       console.warn('Key/BPM detection failed:', e);
-      setDetectError(String(e));
+      setDetectError(errorMessage(e));
     } finally {
       setIsDetecting(false);
     }
@@ -206,7 +253,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           bpm: baseBpm,
           keyName,
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('Failed to save Key/BPM to the database:', err);
       }
     }
@@ -265,278 +312,164 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
       />
 
       <ModalBody className="flex flex-col gap-5">
-      {/* Automatic detection status bar */}
-      <div
-        className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/3 px-3.5 py-2.5"
-      >
-        <div className="flex items-center gap-2 text-ui">
-          {isDetecting ? (
-            <>
-              <Loader2 size={16} className="animate-spin text-accent-cyan" />
-              <span className="font-semibold text-accent-cyan">
-                {loc.keyBpm.analyzing}
-              </span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={16} className="text-accent-pink" />
-              <span className="text-fg-secondary">
-                {loc.keyBpm.detectionSource}
-              </span>
-              <span
-                className={cn(
-                  'rounded-md border border-white/10 px-2 py-0.5 text-xs font-bold',
-                  detectionSource === 'tag' ? 'bg-green-500/20' : detectionSource === 'acoustic' ? 'bg-accent-cyan/20' : detectionSource === 'database' ? 'bg-accent-purple/20' : 'bg-accent-amber/20',
-                  detectionSource === 'tag' ? 'text-green-400' : detectionSource === 'acoustic' ? 'text-accent-cyan' : detectionSource === 'database' ? 'text-accent-purple' : 'text-accent-amber',
+        {/* Where the key and BPM came from, and re-detection */}
+        <Card padding="none" className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+          <div className="flex items-center gap-2 text-ui" role="status">
+            {isDetecting ? (
+              <>
+                <Spinner size="sm" tone="cyan" />
+                <span className="font-semibold text-accent-cyan">{loc.keyBpm.analyzing}</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} className="text-accent-pink" />
+                <span className="text-fg-secondary">{loc.keyBpm.detectionSource}</span>
+                <Badge tone={SOURCE_TONES[detectionSource ?? 'manual']}>{loc.keyBpm[SOURCE_LABELS[detectionSource ?? 'manual']]}</Badge>
+                {detectError && <span className="ml-1.5 text-xs text-accent-red">({detectError})</span>}
+              </>
+            )}
+          </div>
+
+          <Button size="sm" onClick={() => handleAutoDetect(currentTrackPath, currentTrackId, true)} disabled={isDetecting || !currentTrackPath}>
+            <Wand2 size={13} className="text-accent-cyan" />
+            {loc.keyBpm.autoDetect}
+          </Button>
+        </Card>
+
+        {/* The original key and tempo next to the result after pitch, tempo and rate */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <Card padding="none" className="flex flex-col gap-3 p-4.5">
+            <div className="flex items-center justify-between">
+              <span className="label-caps">{loc.keyBpm.originalSource}</span>
+              <Badge size="xs">1.0x • 0.0 st</Badge>
+            </div>
+            <KeyReadout label={loc.keyBpm.baseKey} keyName={originalKeyName} camelot={originalCamelot} camelotTone="pink" camelotTitle={loc.keyBpm.camelotNotation} />
+            <div className="border-t border-line pt-2.5">
+              <div className="mb-1 text-xs text-fg-muted">BPM (Tempo)</div>
+              <div className="text-2xl font-bold text-accent-cyan">
+                {baseBpm.toFixed(1)} <span className="text-sm font-semibold">BPM</span>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex flex-col items-center gap-1.5" aria-hidden="true">
+            <ArrowRight size={24} className="text-accent-cyan" />
+            <span className="text-xxs font-semibold text-fg-secondary">DSP</span>
+          </div>
+
+          <Card padding="none" highlight="pink" className="flex flex-col gap-3 p-4.5">
+            <div className="flex items-center justify-between">
+              <span className="label-caps text-accent-pink">{loc.keyBpm.outputDsp}</span>
+              <Badge tone="pink" size="xs" mono>
+                {pitchSemitones > 0 ? `+${pitchSemitones.toFixed(1)}` : pitchSemitones.toFixed(1)} st
+              </Badge>
+            </div>
+            <KeyReadout label={loc.keyBpm.transposedKey} keyName={transposedKeyName} camelot={transposedCamelot} camelotTone="cyan" camelotTitle={loc.keyBpm.camelotNotation} />
+            <div className="border-t border-line pt-2.5">
+              <div className="mb-1 text-xs text-fg-muted">{loc.keyBpm.effectiveBpm}</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-accent-pink">
+                  {effectiveBpm.toFixed(1)} <span className="text-sm font-semibold">BPM</span>
+                </span>
+                {bpmDeltaPercent !== 0 && (
+                  <span className={cn('text-xs font-bold', bpmDeltaPercent > 0 ? 'text-accent-cyan' : 'text-accent-amber')}>
+                    ({bpmDeltaPercent > 0 ? `+${bpmDeltaPercent}` : bpmDeltaPercent}%)
+                  </span>
                 )}
-              >
-                {detectionSource === 'tag'
-                  ? loc.keyBpm.sourceMetadata
-                  : detectionSource === 'acoustic'
-                  ? loc.keyBpm.sourceAcoustic
-                  : detectionSource === 'database'
-                  ? loc.keyBpm.sourceSqlite
-                  : loc.keyBpm.sourceManual}
-              </span>
-              {detectError && (
-                <span className="ml-1.5 text-xs text-accent-pink">
-                  ({detectError})
-                </span>
-              )}
-            </>
-          )}
+              </div>
+            </div>
+          </Card>
         </div>
 
-        <button
-          onClick={() => handleAutoDetect(currentTrackPath, currentTrackId, true)}
-          disabled={isDetecting || !currentTrackPath}
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/8 px-3 py-1.5 text-ui font-semibold transition-all duration-200',
-            isDetecting ? 'text-fg-muted' : 'text-fg',
-            isDetecting || !currentTrackPath ? 'cursor-not-allowed' : 'cursor-pointer',
-          )}
-        >
-          <Wand2 size={13} className="text-accent-cyan" />
-          {loc.keyBpm.autoDetect}
-        </button>
-      </div>
-
-      {/* A/B comparison: original vs DSP-modified */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-        {/* Left card: original */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white/3 p-4.5">
+        {/* Manual key: scale and root note */}
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
-              {loc.keyBpm.originalSource}
+            <span id={`${titleId}-key`} className="text-sm font-semibold">
+              {loc.keyBpm.manualOverride}
             </span>
-            <span className="rounded-xl bg-white/8 px-2 py-0.5 text-xxs text-fg-secondary">
-              1.0x • 0.0 st
-            </span>
-          </div>
-
-          <div>
-            <div className="mb-1 text-xs text-fg-muted">
-              {loc.keyBpm.baseKey}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold tracking-tight text-fg">
-                {originalKeyName}
-              </span>
-              <span
-                className="rounded-md bg-accent-pink/20 px-2 py-0.5 font-mono text-sm font-bold text-accent-pink"
-                title={loc.keyBpm.camelotNotation}
-              >
-                {originalCamelot}
-              </span>
-            </div>
-          </div>
-
-          <div className="border-t border-white/6 pt-2.5">
-            <div className="mb-1 text-xs text-fg-muted">
-              BPM (Tempo)
-            </div>
-            <div className="text-2xl font-bold text-accent-cyan">
-              {baseBpm.toFixed(1)} <span className="text-sm font-semibold">BPM</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Transition arrow */}
-        <div className="flex flex-col items-center gap-1.5 text-fg-muted">
-          <ArrowRight size={24} className="text-accent-cyan" />
-          <span className="text-xxs font-semibold text-fg-secondary">
-            DSP
-          </span>
-        </div>
-
-        {/* Right card: after DSP (pitch / tempo / rate) */}
-        <div
-          className="flex flex-col gap-3 rounded-2xl border border-accent-pink/30 bg-linear-135 from-accent-pink/8 to-accent-cyan/8 p-4.5"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold tracking-wider text-accent-pink uppercase">
-              {loc.keyBpm.outputDsp}
-            </span>
-            <span className="rounded-xl bg-accent-pink/20 px-2 py-0.5 text-xxs font-semibold text-accent-pink">
-              {pitchSemitones > 0 ? `+${pitchSemitones.toFixed(1)}` : pitchSemitones.toFixed(1)} st
-            </span>
-          </div>
-
-          <div>
-            <div className="mb-1 text-xs text-fg-muted">
-              {loc.keyBpm.transposedKey}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold tracking-tight text-fg">
-                {transposedKeyName}
-              </span>
-              <span
-                className="rounded-md bg-accent-cyan/20 px-2 py-0.5 font-mono text-sm font-bold text-accent-cyan"
-                title={loc.keyBpm.camelotNotation}
-              >
-                {transposedCamelot}
-              </span>
-            </div>
-          </div>
-
-          <div className="border-t border-white/6 pt-2.5">
-            <div className="mb-1 text-xs text-fg-muted">
-              {loc.keyBpm.effectiveBpm}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-accent-pink">
-                {effectiveBpm.toFixed(1)} <span className="text-sm font-semibold">BPM</span>
-              </span>
-              {bpmDeltaPercent !== 0 && (
-                <span
-                  className={cn(
-                    'text-xs font-bold',
-                    bpmDeltaPercent > 0 ? 'text-accent-cyan' : 'text-accent-amber',
-                  )}
-                >
-                  ({bpmDeltaPercent > 0 ? `+${bpmDeltaPercent}` : bpmDeltaPercent}%)
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Base key control panel */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold">
-            {loc.keyBpm.manualOverride}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                setIsMinor(false);
+            <SegmentedControl
+              size="sm"
+              label={loc.keyBpm.scaleLabel}
+              value={isMinor ? 'minor' : 'major'}
+              onChange={(v) => {
+                setIsMinor(v === 'minor');
                 setDetectionSource('manual');
               }}
-              className={cn(
-                'rounded-md border-0 px-2.5 py-1 text-xs font-bold',
-                !isMinor ? 'bg-accent-pink' : 'bg-white/6',
-                !isMinor ? 'text-fg' : 'text-fg-muted',
-              )}
-            >
-              Major (Dur)
-            </button>
-            <button
-              onClick={() => {
-                setIsMinor(true);
-                setDetectionSource('manual');
-              }}
-              className={cn(
-                'rounded-md border-0 px-2.5 py-1 text-xs font-bold',
-                isMinor ? 'bg-accent-cyan' : 'bg-white/6',
-                isMinor ? 'text-black' : 'text-fg-muted',
-              )}
-            >
-              Minor (Moll)
-            </button>
+              items={[
+                { value: 'major', label: 'Major (Dur)' },
+                { value: 'minor', label: 'Minor (Moll)' },
+              ]}
+            />
           </div>
-        </div>
-
-        {/* Grid of the 12 chromatic semitones */}
-        <div className="grid grid-cols-12 gap-1">
-          {CHROMATIC_SCALE.map((note, idx) => {
-            const isSelected = baseKeyIndex === idx;
-            return (
-              <button
+          <div role="group" aria-labelledby={`${titleId}-key`} className="grid grid-cols-12 gap-1">
+            {CHROMATIC_SCALE.map((note, idx) => (
+              <Chip
                 key={note}
+                pressed={baseKeyIndex === idx}
                 onClick={() => {
                   setBaseKeyIndex(idx);
                   setDetectionSource('manual');
                 }}
-                className={cn(
-                  'rounded-lg border px-0.5 py-2 text-ui transition-all duration-150',
-                  isSelected ? 'border-accent-pink' : 'border-white/8',
-                  isSelected ? 'bg-linear-135 from-accent-pink/40 to-accent-purple/40' : 'bg-white/3',
-                  isSelected ? 'text-fg' : 'text-fg-secondary',
-                  isSelected ? 'font-extrabold' : 'font-semibold',
-                )}
+                className="justify-center px-0.5 py-2 text-ui"
               >
                 {note}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Manual BPM + tap tempo */}
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white/2 px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm font-semibold">
-            {loc.keyBpm.baseBpm}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                setBaseBpm((prev) => Math.max(40, prev - 1));
-                setDetectionSource('manual');
-              }}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-white/6 text-fg"
-            >
-              <Minus size={14} />
-            </button>
-            <input
-              type="number"
-              step="0.5"
-              min="40"
-              max="280"
-              value={baseBpm}
-              onChange={(e) => {
-                setBaseBpm(Number(e.target.value) || 128);
-                setDetectionSource('manual');
-              }}
-              className="w-17.5 rounded-md border border-line bg-black/40 px-2 py-1 text-center text-sm font-bold text-accent-cyan"
-            />
-            <button
-              onClick={() => {
-                setBaseBpm((prev) => Math.min(280, prev + 1));
-                setDetectionSource('manual');
-              }}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-white/6 text-fg"
-            >
-              <Plus size={14} />
-            </button>
+              </Chip>
+            ))}
           </div>
         </div>
 
-        {/* Tap Tempo Button */}
-        <button
-          onClick={handleTap}
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-accent-pink/40 px-4 py-2 text-ui font-bold transition-colors duration-100',
-            tapActive ? 'bg-accent-pink' : 'bg-accent-pink/15',
-            tapActive ? 'text-fg' : 'text-accent-pink',
-          )}
-        >
-          <Activity size={14} />
-          {loc.keyBpm.tapTempo}
-        </button>
-      </div>
+        {/* Manual BPM and tap tempo */}
+        <Card padding="none" className="flex items-center justify-between gap-4 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <label htmlFor={`${titleId}-bpm`} className="text-sm font-semibold">
+              {loc.keyBpm.baseBpm}
+            </label>
+            <div className="flex items-center gap-1">
+              <IconButton
+                size="sm"
+                variant="secondary"
+                label="−1 BPM"
+                onClick={() => {
+                  setBaseBpm((prev) => Math.max(40, prev - 1));
+                  setDetectionSource('manual');
+                }}
+              >
+                <Minus size={14} />
+              </IconButton>
+              <TextField
+                id={`${titleId}-bpm`}
+                size="sm"
+                type="number"
+                step={0.5}
+                min={40}
+                max={280}
+                value={baseBpm}
+                onChange={(e) => {
+                  setBaseBpm(Number(e.target.value) || 128);
+                  setDetectionSource('manual');
+                }}
+                className="w-17.5 text-center font-bold text-accent-cyan"
+              />
+              <IconButton
+                size="sm"
+                variant="secondary"
+                label="+1 BPM"
+                onClick={() => {
+                  setBaseBpm((prev) => Math.min(280, prev + 1));
+                  setDetectionSource('manual');
+                }}
+              >
+                <Plus size={14} />
+              </IconButton>
+            </div>
+          </div>
+
+          {/* Flashes on each tap */}
+          <Button variant={tapActive ? 'primary' : 'tinted'} tone="pink" onClick={handleTap}>
+            <Activity size={14} />
+            {loc.keyBpm.tapTempo}
+          </Button>
+        </Card>
       </ModalBody>
 
       {/* Quick transposition and save */}

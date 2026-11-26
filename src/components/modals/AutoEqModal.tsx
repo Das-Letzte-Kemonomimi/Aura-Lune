@@ -1,35 +1,28 @@
 import React, { useId, useMemo, useState } from 'react';
-import {
-  X,
-  Headphones,
-  Search,
-  Check,
-  RotateCcw,
-  Sparkles,
-  ShieldCheck,
-  ChevronRight,
-} from '../ui/icons';
+import { X, Headphones, Search, Check, RotateCcw, Sparkles, ShieldCheck, ChevronRight } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
-import {
-  AUTO_EQ_PROFILES,
-  AUTO_EQ_BRANDS,
-  type AutoEqProfile,
-} from '../../utils/autoEqDatabase';
+import { AUTO_EQ_PROFILES, AUTO_EQ_BRANDS, type AutoEqProfile } from '../../utils/autoEqDatabase';
 import { cn } from '../../utils/cn';
-import { ModalHeader, ModalShell } from '../ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  IconButton,
+  ModalHeader,
+  ModalShell,
+  OptionCard,
+  SegmentedControl,
+  SettingRow,
+  TextField,
+} from '../ui';
+import { ToggleSwitch } from '../common/ToggleSwitch';
 
-const EQUALIZER_LABELS = [
-  '31 Hz',
-  '62 Hz',
-  '125 Hz',
-  '250 Hz',
-  '500 Hz',
-  '1 kHz',
-  '2 kHz',
-  '4 kHz',
-  '8 kHz',
-  '16 kHz',
-];
+/** Short labels of the ten graphic-EQ bands, low to high. */
+const BAND_LABELS = ['31', '62', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
+
+const HEADPHONE_TYPES = ['All', 'Over-Ear', 'In-Ear', 'Wireless'];
 
 interface AutoEqModalProps {
   isOpen: boolean;
@@ -95,6 +88,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
     );
     setAppliedProfileName(profile.name);
   };
+  const typeItems = HEADPHONE_TYPES.map((type) => ({ value: type, label: type === 'All' ? loc.autoEq.all : type }));
 
   return (
     <ModalShell onClose={onClose} layer="tool" size="2xl" labelledBy={titleId}>
@@ -107,234 +101,162 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
         closeLabel={loc.common.close}
       />
 
-      {/* TOP BAR: SEARCH AND TYPE FILTERS */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
-        <div className="flex min-w-55 flex-1 items-center gap-2 rounded-lg border border-line bg-white/5 px-3 py-1.5">
-          <Search size={16} className="text-fg-muted" />
-          <input
-            type="text"
+      {/* Search, headphone type and reset */}
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-6 py-3">
+        <div className="relative min-w-55 flex-1">
+          <TextField
+            size="sm"
+            icon={<Search size={16} />}
+            aria-label={loc.autoEq.searchPlaceholder}
             placeholder={loc.autoEq.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 border-0 bg-transparent text-sm text-inherit outline-none"
           />
           {searchQuery && (
-            <button
+            <IconButton
+              size="sm"
+              label={loc.common.clear}
               onClick={() => setSearchQuery('')}
-              className="border-0 bg-transparent text-gray-400"
+              className="absolute top-1/2 right-0.5 size-6 -translate-y-1/2"
             >
               <X size={14} />
-            </button>
+            </IconButton>
           )}
         </div>
 
-        {/* Type filters */}
-        <div className="flex gap-1.5">
-          {['All', 'Over-Ear', 'In-Ear', 'Wireless'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setSelectedType(type)}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-ui font-semibold',
-                selectedType === type ? 'bg-pink-500' : 'bg-white/5',
-                selectedType === type ? 'text-fg' : 'text-gray-400',
-              )}
-              style={{
-                border: '1px solid ' + (selectedType === type ? '#f472b6' : 'rgba(255, 255, 255, 0.1)'),
-              }}
-            >
-              {type === 'All' ? loc.autoEq.all : type}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          size="sm"
+          label={loc.autoEq.typeFilterLabel}
+          items={typeItems}
+          value={selectedType}
+          onChange={setSelectedType}
+        />
 
-        <button
+        <Button
+          size="sm"
           onClick={() => {
             onResetFlat();
             setAppliedProfileName(loc.autoEq.flatProfile);
           }}
-          className="flex items-center gap-1 rounded-md border border-white/10 bg-white/6 px-3 py-1.5 text-ui text-gray-400"
         >
-          <RotateCcw size={12} /> Reset Flat
-        </button>
+          <RotateCcw size={12} /> {loc.autoEq.resetFlat}
+        </Button>
       </div>
 
-      {/* SCROLLABLE BRAND LIST */}
-      <div className="flex gap-2 overflow-x-auto border-b border-line bg-black/15 px-6 py-2">
+      {/* Brands (scroll sideways) */}
+      <div
+        role="group"
+        aria-label={loc.autoEq.brandFilterLabel}
+        className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-line bg-black/15 px-6 py-2"
+      >
         {AUTO_EQ_BRANDS.map((brand) => (
-          <button
-            key={brand}
-            onClick={() => setSelectedBrand(brand)}
-            className={cn(
-              'rounded-md border px-2.5 py-1 text-xs font-semibold whitespace-nowrap',
-              selectedBrand === brand ? 'bg-pink-500/20' : 'bg-transparent',
-              selectedBrand === brand ? 'text-pink-500' : 'text-fg-muted',
-              selectedBrand === brand ? 'border-pink-500' : 'border-transparent',
-            )}
-          >
+          <Chip key={brand} size="xs" pressed={selectedBrand === brand} onClick={() => setSelectedBrand(brand)} className="shrink-0">
             {brand === 'All' ? loc.autoEq.all : brand}
-          </button>
+          </Chip>
         ))}
       </div>
 
-      {/* MAIN CONTENT: TWO COLUMNS (PROFILE LIST + CHART PREVIEW) */}
+      {/* Profile list and preview of the selected profile */}
       <div className="grid flex-1 grid-cols-2 overflow-hidden">
-        {/* LEFT COLUMN: HEADPHONE LIST */}
         <div className="flex flex-col gap-2 overflow-y-auto border-r border-line px-5 py-4">
           {filteredProfiles.length === 0 ? (
-            <div className="px-0 py-7.5 text-center text-gray-400">
-              {loc.autoEq.noModels}
-            </div>
+            <EmptyState icon={<Headphones size={28} />} title={loc.autoEq.noModels} />
           ) : (
             filteredProfiles.map((profile) => {
               const isSelected = profile.id === selectedProfileId;
               const isApplied = appliedProfileName === profile.name;
               return (
-                <div
+                <OptionCard
                   key={profile.id}
+                  pressed={isSelected}
                   onClick={() => setSelectedProfileId(profile.id)}
-                  className={cn(
-                    'flex cursor-pointer items-center justify-between rounded-xl border px-3.5 py-3 transition-all duration-100',
-                    isSelected ? 'bg-pink-500/15' : 'bg-white/3',
-                    isSelected ? 'border-pink-500' : 'border-white/6',
-                  )}
+                  className="w-full flex-row items-center justify-between px-3.5 py-3"
                 >
-                  <div>
-                    <div className="text-sm font-semibold">
-                      {profile.name}
-                    </div>
-                    <div className="mt-0.5 text-xs text-fg-muted">
+                  <span>
+                    <span className="block text-sm font-semibold">{profile.name}</span>
+                    <span className="mt-0.5 block text-xs text-fg-muted">
                       {profile.brand} • {profile.type} • {profile.target}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
                     {isApplied && (
-                      <span className="flex items-center gap-0.5 text-xxs font-bold text-accent-green">
+                      <Badge tone="green" size="xs">
                         <Check size={12} /> {loc.autoEq.active}
-                      </span>
+                      </Badge>
                     )}
-                    <ChevronRight size={16} color={isSelected ? '#ec4899' : '#6b7280'} />
-                  </div>
-                </div>
+                    <ChevronRight size={16} className={isSelected ? 'text-accent-pink' : 'text-fg-muted'} />
+                  </span>
+                </OptionCard>
               );
             })
           )}
         </div>
 
-        {/* RIGHT COLUMN: VISUALISATION AND APPLYING THE SELECTED PROFILE */}
         <div className="flex flex-col justify-between overflow-y-auto bg-black/20 px-6 py-5">
           <div>
-            {/* TITLE AND METRICS */}
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="rounded-sm bg-pink-500/20 px-2 py-0.5 text-xxs font-bold text-pink-500">
-                  {activeProfile.brand} • {activeProfile.type}
-                </span>
-                <h3 className="mx-0 mt-1.5 mb-0.5 text-lg font-bold">
-                  {activeProfile.name}
-                </h3>
-                <div className="text-ui text-gray-400">
-                  {loc.autoEq.targetCurve} <strong>{activeProfile.target}</strong>
-                </div>
-              </div>
+            <Badge tone="pink" size="xs">
+              {activeProfile.brand} • {activeProfile.type}
+            </Badge>
+            <h3 className="mx-0 mt-1.5 mb-0.5 text-lg font-bold">{activeProfile.name}</h3>
+            <div className="text-ui text-fg-secondary">
+              {loc.autoEq.targetCurve} <strong className="text-fg">{activeProfile.target}</strong>
             </div>
 
             {activeProfile.description && (
-              <div
-                className="mx-0 my-3 rounded-lg border-l-3 border-pink-500 bg-white/4 px-3 py-2.5 text-ui leading-snug text-gray-200"
-              >
+              <p className="my-3 rounded-lg border-l-3 border-accent-pink bg-white/4 px-3 py-2.5 text-ui leading-snug text-fg">
                 {activeProfile.description}
-              </div>
+              </p>
             )}
 
-            {/* 10-BAND VISUALISATION */}
+            {/* The ten band gains */}
             <div className="mt-4">
-              <div className="mb-2 flex justify-between text-xs font-semibold text-gray-400">
+              <div className="mb-2 flex justify-between text-xs font-semibold text-fg-secondary">
                 <span>{loc.autoEq.bandGain}</span>
                 <span>{loc.autoEq.range}</span>
               </div>
-
-              <div
-                className="grid h-35 grid-cols-10 items-center gap-1.5 rounded-lg border border-white/6 bg-black/30 p-2"
-              >
+              <Card variant="inset" padding="none" className="grid h-35 grid-cols-10 items-center gap-1.5 p-2">
                 {activeProfile.bands.map((gain, idx) => {
-                  // Bar scaling: 0 dB is the middle (50%)
+                  // 0 dB sits in the middle; 10 dB fills one half.
                   const heightPercent = Math.min(100, Math.abs(gain) * 10);
                   const isPositive = gain >= 0;
                   return (
-                    <div
-                      key={idx}
-                      className="relative flex h-full flex-col items-center justify-end"
-                    >
-                      {/* dB value */}
-                      <span
-                        className={cn(
-                          'mb-1 text-2xs font-bold',
-                          isPositive ? 'text-pink-400' : 'text-blue-400',
-                        )}
-                      >
+                    <div key={idx} className="relative flex h-full flex-col items-center justify-end">
+                      <span className={cn('mb-1 text-2xs font-bold', isPositive ? 'text-accent-pink' : 'text-accent-cyan')}>
                         {gain > 0 ? `+${gain.toFixed(1)}` : gain.toFixed(1)}
                       </span>
-
-                      {/* Bar container */}
                       <div className="relative h-17.5 w-3 overflow-hidden rounded-sm bg-white/5">
-                        {/* 0 dB line */}
-                        <div className="absolute top-1/2 left-0 right-0 h-px bg-white/25" />
-                        {/* Bar fill */}
+                        <div className="absolute top-1/2 right-0 left-0 h-px bg-white/25" />
                         <div
                           className={cn(
-                            'absolute left-0 right-0 rounded-xs',
-                            isPositive && 'bottom-1/2',
-                            !isPositive && 'top-1/2',
-                            isPositive ? 'bg-linear-to-t from-pink-500 to-pink-400' : 'bg-linear-to-b from-blue-500 to-blue-400',
+                            'absolute right-0 left-0 rounded-xs',
+                            isPositive ? 'bottom-1/2 bg-accent-pink' : 'top-1/2 bg-accent-cyan',
                           )}
                           style={{ height: `${heightPercent / 2}%` }}
                         />
                       </div>
-
-                      {/* Frequency label */}
-                      <span className="mt-1.5 text-2xs whitespace-nowrap text-gray-400">
-                        {EQUALIZER_LABELS[idx].replace(' Hz', '').replace(' kHz', 'k')}
-                      </span>
+                      <span className="mt-1.5 text-2xs whitespace-nowrap text-fg-secondary">{BAND_LABELS[idx]}</span>
                     </div>
                   );
                 })}
-              </div>
+              </Card>
             </div>
 
-            {/* PREAMP OPTION */}
-            <div className="mt-4 flex items-center justify-between rounded-lg bg-white/4 px-3.5 py-2.5">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-accent-green" />
-                <div>
-                  <div className="text-ui font-semibold">
-                    {loc.autoEq.preampCompensation} ({activeProfile.preampDb.toFixed(1)} dB)
-                  </div>
-                  <div className="text-xxs text-gray-400">
-                    {loc.autoEq.preampDesc}
-                  </div>
-                </div>
-              </div>
-
-              <input
-                type="checkbox"
-                checked={applyPreamp}
-                onChange={(e) => setApplyPreamp(e.target.checked)}
-                className="h-4 w-4 cursor-pointer accent-pink-500"
+            {/* Preamp compensation */}
+            <Card padding="none" className="mt-4 px-3.5">
+              <SettingRow
+                icon={<ShieldCheck size={16} className="text-accent-green" />}
+                title={`${loc.autoEq.preampCompensation} (${activeProfile.preampDb.toFixed(1)} dB)`}
+                description={loc.autoEq.preampDesc}
+                control={
+                  <ToggleSwitch checked={applyPreamp} onChange={setApplyPreamp} label={loc.autoEq.preampCompensation} />
+                }
               />
-            </div>
+            </Card>
           </div>
 
-          {/* APPLY BUTTON */}
-          <div className="mt-5">
-            <button
-              onClick={() => handleApply(activeProfile)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-linear-135 from-pink-500 to-blue-500 p-3 text-sm font-bold text-fg shadow-lift shadow-pink-500/35 transition-opacity duration-150"
-            >
-              <Sparkles size={16} /> {`${loc.autoEq.applyBtn} ${activeProfile.name}`}
-            </button>
-          </div>
+          <Button variant="primary" size="lg" onClick={() => handleApply(activeProfile)} className="mt-5 w-full">
+            <Sparkles size={16} /> {`${loc.autoEq.applyBtn} ${activeProfile.name}`}
+          </Button>
         </div>
       </div>
     </ModalShell>

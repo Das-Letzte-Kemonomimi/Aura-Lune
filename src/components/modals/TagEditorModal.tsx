@@ -1,18 +1,24 @@
 import React, { useEffect, useId, useState } from 'react';
 import { invoke, errorMessage } from '../../api/ipc';
-import {
-  Save,
-  Tag as TagIcon,
-  Check,
-  AlertCircle,
-  Loader2,
-  Sparkles,
-} from '../ui/icons';
+import { Save, Tag as TagIcon, Check, AlertCircle, Sparkles } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { formatBytes } from '../../utils/fileSizeFormat';
-import { cn } from '../../utils/cn';
-import { Button, ModalBody, ModalFooter, ModalHeader, ModalShell, Spinner } from '../ui';
+import {
+  Badge,
+  Button,
+  Callout,
+  Card,
+  FieldLabel,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalShell,
+  OptionCard,
+  Spinner,
+  TextArea,
+  TextField,
+} from '../ui';
 
 export interface TrackMetadataFullDto {
   title: string;
@@ -56,6 +62,54 @@ interface TagEditorModalProps {
   onSaveSuccess: () => void;
 }
 
+/** Label above one tag field. */
+function TagField({ id, label, className, children }: { id: string; label: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={className}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {children}
+    </div>
+  );
+}
+
+/** "Number / total" pair (track 3 / 12, disc 1 / 2). The first field takes the label's id. */
+function NumberPair({
+  id,
+  value,
+  onChange,
+  total,
+  onTotalChange,
+  totalLabel,
+  totalPlaceholder,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  total: string;
+  onTotalChange: (value: string) => void;
+  totalLabel: string;
+  totalPlaceholder: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <TextField id={id} type="number" min={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder="1" className="flex-1" />
+      <span aria-hidden="true" className="text-fg-muted">
+        /
+      </span>
+      <TextField
+        type="number"
+        min={1}
+        aria-label={`${totalLabel} (total)`}
+        value={total}
+        onChange={(e) => onTotalChange(e.target.value)}
+        placeholder={totalPlaceholder}
+        className="flex-1"
+      />
+    </div>
+  );
+}
+
+
 export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   trackId,
   filePath,
@@ -70,6 +124,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
 }) => {
   const loc = getTranslations(currentLang);
   const titleId = useId();
+  const formId = useId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +267,17 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
     }
   };
 
+  // Audio properties shown above the form; unknown ones are left out.
+  const specs = (
+    [
+      ['Format', format?.toUpperCase() || 'AUDIO'],
+      bitDepth ? ['Bit depth', `${bitDepth}-bit`] : null,
+      sampleRate ? ['Sample rate', `${(sampleRate / 1000).toFixed(1)} kHz`] : null,
+      channels ? ['Channels', channels === 2 ? 'Stereo (2ch)' : `${channels} ch`] : null,
+      ['File size', fileSize ? formatBytes(fileSize) : '-'],
+    ] as const
+  ).filter((spec) => spec !== null);
+
   return (
     <ModalShell onClose={onClose} layer="studio" size="lg" labelledBy={titleId}>
       <ModalHeader
@@ -229,284 +295,147 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
       />
 
       <ModalBody>
-        {/* File Audio Specs Banner & AcoustID Trigger */}
-        <div
-          className="mb-4.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/30 px-4 py-3"
-        >
-          <div className="flex flex-wrap gap-3.5 text-ui text-slate-300">
-            <div>
-              <span className="text-fg-muted">Format: </span>
-              <strong>{format?.toUpperCase() || 'AUDIO'}</strong>
-            </div>
-            {bitDepth && (
-              <div>
-                <span className="text-fg-muted">Bit depth: </span>
-                <strong>{bitDepth}-bit</strong>
+        {/* Audio format of the file, and AcoustID identification */}
+        <Card variant="inset" padding="none" className="mb-4.5 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <dl className="m-0 flex flex-wrap gap-3.5 text-ui text-fg-secondary">
+            {specs.map(([label, value]) => (
+              <div key={label} className="flex gap-1">
+                <dt className="text-fg-muted">{label}:</dt>
+                <dd className="m-0 font-bold">{value}</dd>
               </div>
-            )}
-            {sampleRate && (
-              <div>
-                <span className="text-fg-muted">Sample rate: </span>
-                <strong>{(sampleRate / 1000).toFixed(1)} kHz</strong>
-              </div>
-            )}
-            {channels && (
-              <div>
-                <span className="text-fg-muted">Channels: </span>
-                <strong>{channels === 2 ? 'Stereo (2ch)' : `${channels} ch`}</strong>
-              </div>
-            )}
-            <div>
-              <span className="text-fg-muted">File size: </span>
-              <strong>{(fileSize ? formatBytes(fileSize) : '-')}</strong>
-            </div>
-          </div>
+            ))}
+          </dl>
 
-          <button
-            type="button"
+          <Button
+            variant="tinted"
+            tone="purple"
             onClick={handleIdentifyFingerprint}
             disabled={loading || saving || identifying}
-            className={cn(
-              'flex items-center gap-2 rounded-lg border border-accent-purple/45 bg-linear-135 from-accent-purple/25 to-pink-500/25 px-3.5 py-2 text-ui font-semibold text-fg shadow-lg shadow-accent-purple/20 transition-all duration-200',
-              loading || saving || identifying ? 'cursor-default' : 'cursor-pointer',
-            )}
             title={loc.tagEditor.acoustIdTooltip}
           >
-            {identifying ? (
-              <>
-                <Loader2 size={15} className="animate-spin text-purple-400" />
-                <span>{loc.tagEditor.identifying}</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={15} className="text-fuchsia-400" />
-                <span>{loc.tagEditor.identifyAcoustId}</span>
-              </>
-            )}
-          </button>
-        </div>
+            {identifying ? <Spinner size="sm" tone="purple" /> : <Sparkles size={15} />}
+            {identifying ? loc.tagEditor.identifying : loc.tagEditor.identifyAcoustId}
+          </Button>
+        </Card>
 
         {identifyMessage && (
-          <div
-            className="mb-4 flex items-center gap-2 rounded-lg border border-accent-green/40 bg-accent-green/15 px-3.5 py-2.5 text-ui text-emerald-300"
-          >
-            <Sparkles size={16} />
-            <span>{identifyMessage}</span>
-          </div>
+          <Callout tone="green" role="status" icon={<Sparkles size={16} />} className="mb-4 py-2.5 text-ui text-fg">
+            {identifyMessage}
+          </Callout>
         )}
 
         {fingerprintMatches.length > 1 && (
-          <div className="mb-4.5 rounded-xl border border-accent-purple/25 bg-accent-purple/8 px-3.5 py-3">
-            <div className="mb-2 flex items-center gap-1.5 text-ui font-semibold text-purple-300">
+          <Callout tone="purple" className="mb-4.5">
+            <div className="mb-2 flex items-center gap-1.5 text-ui font-semibold text-accent-purple">
               <TagIcon size={14} />
-              <span>
-                {fmt(loc.tagEditor.selectReleaseCandidate, String(fingerprintMatches.length))}
-              </span>
+              {fmt(loc.tagEditor.selectReleaseCandidate, String(fingerprintMatches.length))}
             </div>
             <div className="flex max-h-35 flex-col gap-1.5 overflow-y-auto">
               {fingerprintMatches.map((m, idx) => (
-                <button
+                <OptionCard
                   key={`${m.release_mbid || idx}`}
-                  type="button"
+                  tone="purple"
+                  pressed={selectedMatchIndex === idx}
                   onClick={() => {
                     setSelectedMatchIndex(idx);
                     applyCandidate(m);
                   }}
-                  className={cn(
-                    'flex items-center justify-between rounded-lg border px-3 py-2 text-left text-ui text-fg transition-colors duration-150',
-                    selectedMatchIndex === idx ? 'bg-accent-purple/30' : 'bg-black/35',
-                    selectedMatchIndex === idx ? 'border-accent-purple' : 'border-white/8',
-                  )}
+                  className="flex-row items-center justify-between rounded-lg bg-black/35 px-3 py-2 text-ui"
                 >
-                  <div className="mr-2.5 truncate">
-                    <strong>{m.title}</strong> — {m.artist} • <span className="text-slate-300">{m.album || 'Single/Release'}</span> {m.year ? `(${m.year})` : ''}
-                  </div>
-                  <span
-                    className={cn(
-                      'shrink-0 rounded-xl border px-2 py-0.5 text-xs font-semibold',
-                      m.score >= 80 ? 'bg-accent-green/20' : 'bg-yellow-500/20',
-                      m.score >= 80 ? 'text-emerald-400' : 'text-yellow-400',
-                      m.score >= 80 ? 'border-accent-green/30' : 'border-yellow-500/30',
-                    )}
-                  >
-                    {m.score}% match
+                  <span className="mr-2.5 truncate">
+                    <strong>{m.title}</strong> — {m.artist} •{' '}
+                    <span className="text-fg-secondary">{m.album || 'Single/Release'}</span> {m.year ? `(${m.year})` : ''}
                   </span>
-                </button>
+                  <Badge tone={m.score >= 80 ? 'green' : 'amber'} className="shrink-0">
+                    {m.score}% match
+                  </Badge>
+                </OptionCard>
               ))}
             </div>
-          </div>
+          </Callout>
         )}
 
         {error && (
-          <div
-            className="mb-4 flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-3 text-sm text-red-300"
-          >
-            <AlertCircle size={18} />
-            <span>{error}</span>
-          </div>
+          <Callout tone="danger" role="alert" icon={<AlertCircle size={18} />} className="mb-4 text-sm text-fg">
+            {error}
+          </Callout>
         )}
 
         {loading ? (
-          <div className="px-0 py-10 text-center text-accent-purple">
-            <Loader2 size={32} className="animate-spin" />
-            <p className="mt-3 text-sm text-fg-secondary">
-              {loc.tagEditor.reading}
-            </p>
+          <div className="flex flex-col items-center px-0 py-10">
+            <Spinner size="lg" tone="purple" />
+            <p className="mt-3 text-sm text-fg-secondary">{loc.tagEditor.reading}</p>
           </div>
         ) : (
-          <form id="tag-editor-form" onSubmit={handleSave}>
-            <div className="grid grid-cols-2 gap-4">
-              {/* Title */}
-              <div className="col-span-2">
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.trackTitle}
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-
-              {/* Artist */}
-              <div>
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.artist}
-                </label>
-                <input
-                  type="text"
-                  value={artist}
-                  onChange={(e) => setArtist(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-
-              {/* Album Artist */}
-              <div>
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.albumArtist}
-                </label>
-                <input
-                  type="text"
-                  value={albumArtist}
-                  onChange={(e) => setAlbumArtist(e.target.value)}
-                  placeholder={artist}
-                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-
-              {/* Album */}
-              <div className="col-span-2">
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.albumTitle}
-                </label>
-                <input
-                  type="text"
-                  value={album}
-                  onChange={(e) => setAlbum(e.target.value)}
-                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-
-              {/* Year / release year */}
-              <div>
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.year}
-                </label>
-                <input
-                  type="number"
-                  min="1900"
-                  max="2099"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  placeholder="2024"
-                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-
-              {/* Genre */}
-              <div>
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.genre}
-                </label>
-                <input
-                  type="text"
-                  value={genre}
-                  onChange={(e) => setGenre(e.target.value)}
-                  placeholder="Anime, J-Pop, OST..."
-                  className="w-full rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-
-              {/* Track number and total */}
-              <div>
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.trackNumber}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={trackNo}
-                    onChange={(e) => setTrackNo(e.target.value)}
-                    placeholder="1"
-                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                  />
-                  <span className="text-fg-muted">/</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={trackTotal}
-                    onChange={(e) => setTrackTotal(e.target.value)}
-                    placeholder="12"
-                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Disc number and total */}
-              <div>
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.discNumber}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={discNo}
-                    onChange={(e) => setDiscNo(e.target.value)}
-                    placeholder="1"
-                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                  />
-                  <span className="text-fg-muted">/</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={discTotal}
-                    onChange={(e) => setDiscTotal(e.target.value)}
-                    placeholder="1"
-                    className="flex-1 rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Comment */}
-              <div className="col-span-2">
-                <label className="mb-1.5 block text-ui font-semibold text-slate-200">
-                  {loc.tagEditor.comment}
-                </label>
-                <textarea
-                  rows={2}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder={loc.tagEditor.commentPlaceholder}
-                  className="w-full resize-none rounded-lg border border-white/15 bg-black/35 px-3 py-2.5 text-sm text-fg outline-none"
-                />
-              </div>
-            </div>
+          <form id={formId} onSubmit={handleSave} className="grid grid-cols-2 gap-4">
+            <TagField id={`${formId}-title`} label={loc.tagEditor.trackTitle} className="col-span-2">
+              <TextField id={`${formId}-title`} value={title} onChange={(e) => setTitle(e.target.value)} required />
+            </TagField>
+            <TagField id={`${formId}-artist`} label={loc.tagEditor.artist}>
+              <TextField id={`${formId}-artist`} value={artist} onChange={(e) => setArtist(e.target.value)} required />
+            </TagField>
+            <TagField id={`${formId}-album-artist`} label={loc.tagEditor.albumArtist}>
+              <TextField
+                id={`${formId}-album-artist`}
+                value={albumArtist}
+                onChange={(e) => setAlbumArtist(e.target.value)}
+                placeholder={artist}
+              />
+            </TagField>
+            <TagField id={`${formId}-album`} label={loc.tagEditor.albumTitle} className="col-span-2">
+              <TextField id={`${formId}-album`} value={album} onChange={(e) => setAlbum(e.target.value)} />
+            </TagField>
+            <TagField id={`${formId}-year`} label={loc.tagEditor.year}>
+              <TextField
+                id={`${formId}-year`}
+                type="number"
+                min={1900}
+                max={2099}
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                placeholder="2024"
+              />
+            </TagField>
+            <TagField id={`${formId}-genre`} label={loc.tagEditor.genre}>
+              <TextField
+                id={`${formId}-genre`}
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                placeholder="Anime, J-Pop, OST..."
+              />
+            </TagField>
+            <TagField id={`${formId}-track`} label={loc.tagEditor.trackNumber}>
+              <NumberPair
+                id={`${formId}-track`}
+                value={trackNo}
+                onChange={setTrackNo}
+                total={trackTotal}
+                onTotalChange={setTrackTotal}
+                totalLabel={loc.tagEditor.trackNumber}
+                totalPlaceholder="12"
+              />
+            </TagField>
+            <TagField id={`${formId}-disc`} label={loc.tagEditor.discNumber}>
+              <NumberPair
+                id={`${formId}-disc`}
+                value={discNo}
+                onChange={setDiscNo}
+                total={discTotal}
+                onTotalChange={setDiscTotal}
+                totalLabel={loc.tagEditor.discNumber}
+                totalPlaceholder="1"
+              />
+            </TagField>
+            <TagField id={`${formId}-comment`} label={loc.tagEditor.comment} className="col-span-2">
+              <TextArea
+                id={`${formId}-comment`}
+                rows={2}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder={loc.tagEditor.commentPlaceholder}
+                className="resize-none"
+              />
+            </TagField>
           </form>
         )}
       </ModalBody>
@@ -517,14 +446,14 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         </Button>
         <Button
           type="submit"
-          form="tag-editor-form"
+          form={formId}
           variant={savedSuccess ? 'tinted' : 'primary'}
           tone="green"
           disabled={loading || saving || savedSuccess}
         >
           {saving ? (
             <>
-              <Spinner size="sm" tone="neutral" />
+              <Spinner size="sm" className="text-current" />
               {loc.tagEditor.saving}
             </>
           ) : savedSuccess ? (

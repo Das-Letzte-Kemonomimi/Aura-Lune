@@ -12,6 +12,8 @@ export interface ToggleCardProps {
   badges?: React.ReactNode;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  /** Locks the switch (for example while a job that reads the setting runs). */
+  disabled?: boolean;
   /** Controls that only apply while the feature is on (sliders, presets). */
   children?: React.ReactNode;
 }
@@ -20,7 +22,17 @@ export interface ToggleCardProps {
  * A feature that is switched on or off (a settings option, a DSP module): the card lights up in
  * its tone while it is on, and its dependent controls render below the header.
  */
-export function ToggleCard({ title, description, icon, tone, badges, checked, onChange, children }: ToggleCardProps) {
+export function ToggleCard({
+  title,
+  description,
+  icon,
+  tone,
+  badges,
+  checked,
+  onChange,
+  disabled,
+  children,
+}: ToggleCardProps) {
   return (
     <Card highlight={checked && tone}>
       <SectionHeader
@@ -37,7 +49,7 @@ export function ToggleCard({ title, description, icon, tone, badges, checked, on
           )
         }
         description={description}
-        actions={<ToggleSwitch checked={checked} onChange={onChange} label={title} />}
+        actions={<ToggleSwitch checked={checked} onChange={onChange} label={title} disabled={disabled} />}
       />
       {/* Children.toArray drops false/null, so a set of unmet conditions renders no empty gap. */}
       {React.Children.toArray(children).length > 0 && <div className="mt-4">{children}</div>}
