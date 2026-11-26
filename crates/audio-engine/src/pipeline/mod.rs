@@ -72,6 +72,8 @@ struct PipelineInner {
     _saturator: gst::Element,
     saturator_config: Arc<AtomicCell<SaturatorConfig>>,
     bs2b: Option<gst::Element>,
+    /// Desired bs2b passthrough, read by `probes::install_crossfeed_passthrough_guard`.
+    crossfeed_bypass: Arc<AtomicBool>,
     rgvolume: gst::Element,
     rgvolume_child: Option<gst_base::BaseTransform>,
     rglimiter: gst::Element,

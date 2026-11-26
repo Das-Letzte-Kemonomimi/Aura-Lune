@@ -145,3 +145,33 @@ fn add_clip_probe(pad: &gst::Pad, latch: Arc<AtomicBool>) {
         gst::PadProbeReturn::Ok
     });
 }
+
+/// Keeps bs2b's bypass in step with the crossfeed switch.
+///
+/// bs2b clears its own `passthrough` flag whenever caps are negotiated (at every play start and
+/// format change), so a bypass set only at build time or in `set_crossfeed` is silently lost and
+/// crossfeed runs, clamping to ±1.0, while the user has it off. The flag is applied again once
+/// the new caps leave bs2b's src pad, i.e. after the element has configured itself.
+/// This runs on Caps events only, never per buffer.
+pub(super) fn install_crossfeed_passthrough_guard(bs2b: &gst::Element, bypass: Arc<AtomicBool>) {
+    let Some(src_pad) = bs2b.static_pad("src") else {
+        return;
+    };
+    src_pad.add_probe(gst::PadProbeType::EVENT_DOWNSTREAM, move |pad, info| {
+        let Some(gst::PadProbeData::Event(ref event)) = info.data else {
+            return gst::PadProbeReturn::Ok;
+        };
+        if event.type_() != gst::EventType::Caps {
+            return gst::PadProbeReturn::Ok;
+        }
+        // The parent is looked up per event (not captured) so the closure holds no strong ref
+        // to its own element.
+        if let Some(transform) = pad
+            .parent_element()
+            .and_then(|el| el.dynamic_cast::<gst_base::BaseTransform>().ok())
+        {
+            transform.set_passthrough(bypass.load(Ordering::Relaxed));
+        }
+        gst::PadProbeReturn::Ok
+    });
+}

@@ -252,6 +252,8 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audioconvert"))?;
 
+        // Crossfeed bypass wanted by the user (off by default), re-applied after every caps negotiation.
+        let crossfeed_bypass = Arc::new(AtomicBool::new(true));
         // Bauer stereophonic-to-binaural element (crossfeed, bs2b) for headphone listening
         let bs2b = match gst::ElementFactory::make("bs2b")
             .name("bs2b_crossfeed")
@@ -263,6 +265,10 @@ impl AudioEngine {
                 if let Ok(transform) = el.clone().dynamic_cast::<gst_base::BaseTransform>() {
                     transform.set_passthrough(true); // Bypass by default
                 }
+                super::probes::install_crossfeed_passthrough_guard(
+                    &el,
+                    Arc::clone(&crossfeed_bypass),
+                );
                 Some(el)
             }
             Err(e) => {
@@ -394,6 +400,7 @@ impl AudioEngine {
             _saturator: saturator,
             saturator_config,
             bs2b,
+            crossfeed_bypass,
             rgvolume: rgvolume.clone(),
             rgvolume_child,
             rglimiter,

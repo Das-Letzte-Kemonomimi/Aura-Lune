@@ -162,6 +162,9 @@ impl AudioEngine {
     pub fn set_crossfeed(&self, config: CrossfeedConfig) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         inner.crossfeed_config = config;
+        inner
+            .crossfeed_bypass
+            .store(!config.enabled, Ordering::Relaxed);
         if let Some(ref bs) = inner.bs2b {
             bs.set_property("fcut", config.fcut_hz as i32);
             bs.set_property("feed", config.feed_tenth_db as i32);
@@ -181,6 +184,18 @@ impl AudioEngine {
     /// Returns the current crossfeed configuration.
     pub fn crossfeed_config(&self) -> CrossfeedConfig {
         self.inner.lock_safe().crossfeed_config
+    }
+
+    /// Whether bs2b is actually processing (its live passthrough flag), as opposed to the setting.
+    /// `false` when the bs2b element is missing.
+    pub fn is_crossfeed_processing(&self) -> bool {
+        let inner = self.inner.lock_safe();
+        let Some(ref bs) = inner.bs2b else {
+            return false;
+        };
+        bs.clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+            .is_ok_and(|t| !t.is_passthrough())
     }
 
     /// Configures automatic silence trimming (auto-skip silence).

@@ -227,6 +227,13 @@
         "de": "Das Ausschalten von ReplayGain schaltet den selbst aktivierten Spitzenbegrenzer nicht mehr ab, und die ReplayGain-Einstellungen zeigen jetzt, ob der Begrenzer wirklich läuft.",
         "fi": "ReplayGainin poistaminen käytöstä ei enää sammuta itse käyttöön otettua huippurajoitinta, ja ReplayGain-asetukset näyttävät nyt, onko rajoitin todella päällä.",
         "la": "ReplayGain exstinctum moderatorem culminum a te accensum iam non exstinguit, et optiones ReplayGain nunc monstrant num moderator vere operetur."
+      },
+      {
+        "en": "Crossfeed now really stays off when you switch it off. Before, it quietly kept shaping the sound and could flatten loud peaks.",
+        "pl": "Crossfeed naprawdę się wyłącza, gdy go wyłączysz. Wcześniej po cichu dalej zmieniał brzmienie i mógł spłaszczać głośne szczyty.",
+        "de": "Crossfeed bleibt jetzt wirklich aus, wenn du ihn ausschaltest. Vorher hat er den Klang still weiter verändert und laute Spitzen abgeflacht.",
+        "fi": "Crossfeed pysyy nyt oikeasti pois päältä, kun sammutat sen. Aiemmin se muokkasi ääntä hiljaa ja saattoi litistää kovia huippuja.",
+        "la": "Crossfeed nunc vere quiescit cum eum exstinguis. Antea sonum tacite mutabat et apices fortes complanare poterat."
       }
     ]
   },
