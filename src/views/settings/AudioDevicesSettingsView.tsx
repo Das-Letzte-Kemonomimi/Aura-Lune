@@ -111,22 +111,22 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
   return (
     <SettingsPage
       title={loc.settings.audioDevices}
-      icon={<Radio size={18} />}
+      icon={<Radio size={22} />}
       tone="green"
       actions={
         <>
           <Button variant="tinted" tone="green" onClick={onOpenHealthCheck}>
-            <Activity size={14} /> {loc.settings.runHealthCheck}
+            <Activity size={16} /> {loc.settings.runHealthCheck}
           </Button>
           <Button onClick={onRefreshDevices}>
-            <RefreshCw size={14} /> {loc.library.refresh}
+            <RefreshCw size={16} /> {loc.library.refresh}
           </Button>
         </>
       }
     >
       {/* Smooth fade when seeking */}
       <ToggleCard
-        icon={<Waves size={18} />}
+        icon={<Waves size={20} />}
         tone="pink"
         title={loc.player.seekFadeTitle}
         description={loc.player.seekFadeDesc}
@@ -139,7 +139,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Remember the playback session on restart */}
       <ToggleCard
-        icon={<History size={18} />}
+        icon={<History size={20} />}
         tone="purple"
         title={loc.settings.restoreSessionTitle}
         description={loc.settings.restoreSessionDesc}
@@ -149,7 +149,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Remember the DSP settings at app start-up */}
       <ToggleCard
-        icon={<Power size={18} />}
+        icon={<Power size={20} />}
         tone="green"
         title={loc.dsp.dspAutostart}
         description={loc.dsp.bypassActiveNotice}
@@ -160,7 +160,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
       {/* Default DSP engine at start-up */}
       <Card>
         <SectionHeader
-          icon={<Cpu size={18} />}
+          icon={<Cpu size={20} />}
           tone="purple"
           title={loc.settings.dspStartupTitle}
           description={loc.settings.dspStartupDesc}
@@ -187,7 +187,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Desktop notifications (libnotify / D-Bus) */}
       <ToggleCard
-        icon={<Tv size={18} />}
+        icon={<Tv size={20} />}
         tone="cyan"
         title={loc.settings.desktopNotificationsTitle}
         description={loc.settings.desktopNotificationsDesc}
@@ -198,7 +198,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
       {/* Album and playlist playback behaviour (autoplay and queue) */}
       <Card>
         <SectionHeader
-          icon={<ListMusic size={18} />}
+          icon={<ListMusic size={20} />}
           tone="pink"
           title={loc.settings.albumPlaybackTitle}
           description={loc.settings.albumPlaybackDesc}
@@ -214,7 +214,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
                 onClick={() => onSetAlbumPlaybackMode(mode.id)}
                 className="justify-start px-3.5 py-2.5 text-left text-ui whitespace-normal"
               >
-                {isActive && <Check size={12} className="shrink-0" />}
+                {isActive && <Check size={14} className="shrink-0" />}
                 {mode.label}
               </Chip>
             );
@@ -230,7 +230,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
 
       {/* Automatic silence skipping (silence trimming) */}
       <ToggleCard
-        icon={<VolumeX size={18} />}
+        icon={<VolumeX size={20} />}
         tone="green"
         title={loc.settings.silenceTrimmingTitle}
         description={loc.settings.silenceTrimmingDesc}

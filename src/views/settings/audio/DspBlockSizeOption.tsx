@@ -10,7 +10,7 @@ const DEFAULT_BLOCK_SIZE = 2048;
 
 export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({ dspBlockSize, loc, onSetDspBlockSize }) => (
   <PresetOptionCard
-    icon={<Activity size={18} />}
+    icon={<Activity size={20} />}
     tone="cyan"
     title={loc.settings.dspBlockSizeTitle}
     description={loc.settings.dspBlockSizeDesc}

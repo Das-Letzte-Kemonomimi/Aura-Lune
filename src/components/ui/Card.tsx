@@ -88,7 +88,23 @@ export function SectionHeader({
   );
 }
 
-export interface PageHeaderProps {
+const pageHeaderTile = cva('flex shrink-0 items-center justify-center', {
+  variants: {
+    size: {
+      md: 'size-9 rounded-lg',
+      /** Settings pages: the tile matches `ModalHeader` and carries a 22px icon. */
+      lg: 'size-10 rounded-xl',
+    },
+  },
+  defaultVariants: { size: 'md' },
+});
+
+const pageHeaderTitle = cva('font-bold text-fg', {
+  variants: { size: { md: 'text-lg', lg: 'text-xl' } },
+  defaultVariants: { size: 'md' },
+});
+
+export interface PageHeaderProps extends VariantProps<typeof pageHeaderTile> {
   title: React.ReactNode;
   description?: React.ReactNode;
   /** Icon shown in a tinted tile before the title. */
@@ -100,17 +116,15 @@ export interface PageHeaderProps {
 }
 
 /** The h2 heading at the top of a view or settings tab. */
-export function PageHeader({ title, description, icon, tone = 'pink', actions, className }: PageHeaderProps) {
+export function PageHeader({ title, description, icon, tone = 'pink', size, actions, className }: PageHeaderProps) {
   return (
     <div className={cn('flex flex-wrap items-center justify-between gap-3', className)}>
       <div className="flex min-w-0 items-center gap-3">
         {icon && (
-          <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', iconTileTones[tone])}>
-            {icon}
-          </span>
+          <span className={cn(pageHeaderTile({ size }), iconTileTones[tone])}>{icon}</span>
         )}
         <div className="min-w-0">
-          <h2 className="text-lg font-bold text-fg">{title}</h2>
+          <h2 className={pageHeaderTitle({ size })}>{title}</h2>
           {description && <p className="mt-0.5 text-ui text-fg-secondary">{description}</p>}
         </div>
       </div>

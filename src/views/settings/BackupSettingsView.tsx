@@ -134,7 +134,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
       {/* Profile backup */}
       <Card>
         <SectionHeader
-          icon={<Save size={18} />}
+          icon={<Save size={20} />}
           tone="purple"
           title={loc.settings.backupTitle}
           description={loc.settings.backupDesc}
@@ -151,7 +151,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
 
       {/* Linux system tray */}
       <ToggleCard
-        icon={<Headphones size={18} />}
+        icon={<Headphones size={20} />}
         tone="cyan"
         title={loc.settings.closeToTray}
         description={loc.settings.closeToTrayDesc}
@@ -220,7 +220,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
       {/* Smooth crossfade between tracks */}
       <Card>
         <SectionHeader
-          icon={<Zap size={18} />}
+          icon={<Zap size={20} />}
           tone="pink"
           title={loc.settings.crossfadeTitle}
           description={loc.settings.crossfadeDesc}
@@ -257,7 +257,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
 
       {/* ListenBrainz scrobbler (MetaBrainz ecosystem) */}
       <ToggleCard
-        icon={<Radio size={18} className="text-listenbrainz" />}
+        icon={<Radio size={20} className="text-listenbrainz" />}
         tone="amber"
         title={loc.settings.listenbrainzTitle}
         badges={<Badge tone="amber">OPEN SOURCE</Badge>}
@@ -297,7 +297,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
               rel="noreferrer"
               className="flex items-center gap-1 text-listenbrainz no-underline"
             >
-              {loc.settings.listenbrainzGetToken} <ExternalLink size={12} />
+              {loc.settings.listenbrainzGetToken} <ExternalLink size={14} />
             </a>
           </div>
         </Card>
@@ -305,7 +305,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
 
       {/* Last.fm scrobbler (official 2.0 API) */}
       <ToggleCard
-        icon={<Flame size={18} className="text-lastfm" />}
+        icon={<Flame size={20} className="text-lastfm" />}
         tone="red"
         title={loc.settings.lastfmTitle}
         badges={
@@ -330,12 +330,12 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
             <div className="flex gap-2">
               {!lastfmPendingToken ? (
                 <Button variant="tinted" tone="red" disabled={lastfmTesting} onClick={onConnectLastfm}>
-                  <ExternalLink size={14} />
+                  <ExternalLink size={16} />
                   {loc.settings.lastfmConnectBtn}
                 </Button>
               ) : (
                 <Button variant="tinted" tone="green" disabled={lastfmTesting} onClick={onConfirmLastfmAuth}>
-                  <CheckCircle size={14} />
+                  <CheckCircle size={16} />
                   {loc.settings.lastfmConfirmAuthBtn}
                 </Button>
               )}
@@ -375,7 +375,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
               onClick={() => setLastfmShowAdvanced(!lastfmShowAdvanced)}
               className="px-0"
             >
-              {lastfmShowAdvanced ? <ChevronDown size={13} /> : <ChevronRight size={13} />}{' '}
+              {lastfmShowAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}{' '}
               {loc.settings.lastfmAdvancedKeys}
             </Button>
 

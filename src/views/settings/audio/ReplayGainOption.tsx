@@ -53,14 +53,14 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
   return (
     <Card highlight={active && 'purple'}>
       <SectionHeader
-        icon={<Sliders size={18} />}
+        icon={<Sliders size={20} />}
         tone="purple"
         title={loc.settings.replaygainTitle}
         description={loc.settings.replaygainDesc}
         actions={
           active && (
             <Badge tone="purple">
-              <Zap size={11} /> {modeLabels[replaygainMode]}
+              <Zap size={12} /> {modeLabels[replaygainMode]}
             </Badge>
           )
         }
@@ -102,7 +102,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
           onChange={(v) => set(replaygainMode, replaygainPreAmp, v)}
         />
         <SettingRow
-          icon={<ShieldCheck size={14} className="text-accent-green" />}
+          icon={<ShieldCheck size={16} className="text-accent-green" />}
           title={loc.settings.replaygainPreventClipping}
           control={
             <ToggleSwitch
@@ -124,7 +124,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
             <strong className="font-mono text-fg">{signedDb(replaygainStatus[0])}</strong>
           </div>
           <div className="flex items-center gap-1 font-semibold text-accent-green">
-            <ShieldCheck size={13} /> {loc.settings.replaygainLimiterActive}
+            <ShieldCheck size={14} /> {loc.settings.replaygainLimiterActive}
           </div>
         </Card>
       )}
@@ -140,7 +140,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
           <span aria-hidden="true">{loc.settings.scanReplayGainWriteTags}</span>
         </div>
         <Button variant="tinted" tone="purple" onClick={onScanLibraryReplayGain} disabled={isReplaygainScanning}>
-          {isReplaygainScanning ? <Spinner size="sm" tone="purple" /> : <Activity size={14} />}
+          {isReplaygainScanning ? <Spinner size="sm" tone="purple" /> : <Activity size={16} />}
           {isReplaygainScanning ? loc.settings.scanReplayGainScanning : loc.settings.scanReplayGainLibrary}
         </Button>
       </div>

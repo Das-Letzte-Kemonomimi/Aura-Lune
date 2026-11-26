@@ -151,7 +151,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       {/* UI language */}
       <Card>
         <SectionHeader
-          icon={<Globe size={18} />}
+          icon={<Globe size={20} />}
           tone="cyan"
           title={loc.settings.language}
           description="English • Polski • Deutsch • Suomi • Latina"
@@ -161,7 +161,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
 
       {/* Button hover glow */}
       <ToggleCard
-        icon={<Sparkles size={18} />}
+        icon={<Sparkles size={20} />}
         tone="pink"
         title={loc.settings.buttonHoverGlowTitle}
         description={loc.settings.buttonHoverGlowDesc}
@@ -172,7 +172,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       {/* UI scale and working width */}
       <Card>
         <SectionHeader
-          icon={<Maximize2 size={18} />}
+          icon={<Maximize2 size={20} />}
           tone="cyan"
           title={loc.settings.uiScaleLayoutTitle}
           description={loc.settings.uiScaleLayoutDesc}
@@ -207,7 +207,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       {/* Anime theme presets */}
       <Card>
         <SectionHeader
-          icon={<Palette size={18} />}
+          icon={<Palette size={20} />}
           tone="purple"
           title={loc.settings.themes}
           description={loc.settings.themesSubtitle}
@@ -265,7 +265,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
 
       {/* Custom anime background */}
       <Card>
-        <SectionHeader icon={<ImageIcon size={18} />} tone="cyan" title={loc.settings.appearance} />
+        <SectionHeader icon={<ImageIcon size={20} />} tone="cyan" title={loc.settings.appearance} />
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-6">
           <div className="flex flex-col gap-4">
@@ -369,7 +369,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       {/* App icon style (Neon Lineout vs Classic Anime) */}
       <Card>
         <SectionHeader
-          icon={<Sparkles size={18} />}
+          icon={<Sparkles size={20} />}
           tone="pink"
           title={loc.settings.appIconTitle}
           description={loc.settings.appIconDesc}
@@ -403,7 +403,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
 
       {/* Safe JSON import and export */}
       <Card>
-        <SectionHeader icon={<Download size={18} />} tone="pink" title={loc.settings.themePortability} />
+        <SectionHeader icon={<Download size={20} />} tone="pink" title={loc.settings.themePortability} />
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-5">
           {/* Export */}
@@ -428,7 +428,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
             />
             {jsonExportContent && (
               <Button onClick={handleCopyJson}>
-                {copiedJson ? <Check size={14} className="text-accent-green" /> : <Copy size={14} />}
+                {copiedJson ? <Check size={16} className="text-accent-green" /> : <Copy size={16} />}
                 {copiedJson ? loc.settings.copiedJson : loc.settings.copyJson}
               </Button>
             )}

@@ -15,7 +15,7 @@ export interface SettingsPageProps {
 export function SettingsPage({ title, icon, tone = 'pink', actions, children }: SettingsPageProps) {
   return (
     <div className="mx-auto flex max-w-200 flex-col gap-3.5">
-      {title && <PageHeader title={title} icon={icon} tone={tone} actions={actions} className="mb-1" />}
+      {title && <PageHeader size="lg" title={title} icon={icon} tone={tone} actions={actions} className="mb-1" />}
       {children}
     </div>
   );

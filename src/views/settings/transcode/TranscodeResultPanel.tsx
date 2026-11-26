@@ -21,23 +21,23 @@ export const TranscodeResultPanel: React.FC<TranscodeResultPanelProps> = ({
 }) => (
   <Card highlight="green" className="flex flex-col gap-3">
     <SectionHeader
-      icon={<CheckCircle size={18} />}
+      icon={<CheckCircle size={20} />}
       tone="green"
       title={loc.settings.transcodeCompletedTitle}
       description={<span className="font-mono break-all">{lastExportedTrack.path}</span>}
       actions={
         <IconButton label={loc.common.close} size="sm" onClick={onDismissLastExported}>
-          <X size={15} />
+          <X size={16} />
         </IconButton>
       }
     />
     <div className="flex flex-wrap gap-2">
       <Button variant="primary" onClick={() => onPlayLibraryTrack(lastExportedTrack)}>
-        <Play size={14} fill="currentColor" />
+        <Play size={16} fill="currentColor" />
         {loc.settings.playRenderedNow}
       </Button>
       <Button onClick={(e) => onAddTrackToQueue(lastExportedTrack, e)}>
-        <Plus size={14} />
+        <Plus size={16} />
         {loc.settings.addRenderedToQueue}
       </Button>
       <Button
@@ -46,11 +46,11 @@ export const TranscodeResultPanel: React.FC<TranscodeResultPanelProps> = ({
           onAddToPlaylist(lastExportedTrack);
         }}
       >
-        <ListPlus size={14} />
+        <ListPlus size={16} />
         {loc.settings.addRenderedToPlaylist}
       </Button>
       <Button onClick={(e) => onOpenContainingFolder(lastExportedTrack.path, e)}>
-        <FolderOpen size={14} />
+        <FolderOpen size={16} />
         {loc.settings.openRenderedFolder}
       </Button>
     </div>

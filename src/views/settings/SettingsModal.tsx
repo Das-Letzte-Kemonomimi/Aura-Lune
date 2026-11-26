@@ -37,9 +37,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   const tabs: SegmentedItem<SettingsTab>[] = [
-    { value: 'themes', label: loc.settings.themes, icon: <Palette size={15} /> },
-    { value: 'devices', label: loc.settings.audioDevices, icon: <Radio size={15} /> },
-    { value: 'transcode', label: loc.settings.exportOpus, icon: <FileAudio size={15} /> },
+    { value: 'themes', label: loc.settings.themes, icon: <Palette size={18} /> },
+    { value: 'devices', label: loc.settings.audioDevices, icon: <Radio size={18} /> },
+    { value: 'transcode', label: loc.settings.exportOpus, icon: <FileAudio size={18} /> },
     {
       value: 'updates',
       label: (
@@ -53,10 +53,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </>
       ),
       ariaLabel: updateAvailable ? `${loc.updates.tab} (${loc.updates.badge})` : loc.updates.tab,
-      icon: <Download size={15} />,
+      icon: <Download size={18} />,
     },
-    { value: 'about', label: loc.settings.about, icon: <Info size={15} /> },
-    { value: 'backup', label: loc.settings.backupTitle, icon: <Save size={15} /> },
+    { value: 'about', label: loc.settings.about, icon: <Info size={18} /> },
+    { value: 'backup', label: loc.settings.backupTitle, icon: <Save size={18} /> },
   ];
 
   return (
@@ -65,14 +65,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         titleId="settings-title"
         title={loc.settings.title}
         subtitle={loc.settings.subtitle}
-        icon={<Settings size={20} />}
+        icon={<Settings size={22} />}
         tone="purple"
         onClose={onClose}
         closeLabel={loc.settings.close}
       />
 
-      {/* Settings tab bar */}
-      <div className="shrink-0 border-b border-line px-6 py-2.5">
+      {/* Settings tab bar. Below 3xl (narrow windows, large UI scale) the icon stacks above the label so six tabs still fit. */}
+      <div className="@container shrink-0 border-b border-line px-6 py-2.5">
         <SegmentedControl
           label={loc.settings.title}
           tone="purple"
@@ -80,7 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           value={activeTab}
           onChange={onSelectTab}
           fullWidth
-          className="*:whitespace-normal *:leading-tight"
+          className="*:whitespace-normal *:leading-tight @max-3xl:*:flex-col @max-3xl:*:gap-1"
         />
       </div>
 

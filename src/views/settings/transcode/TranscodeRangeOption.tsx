@@ -111,7 +111,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
   const hasLoop = loopPointA !== null || loopPointB !== null;
   return (
     <ToggleCard
-      icon={<Scissors size={18} />}
+      icon={<Scissors size={20} />}
       tone="cyan"
       title={loc.settings.transcodeApplyRange}
       description={loc.settings.transcodeApplyRangeDesc}
@@ -131,14 +131,14 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               {hasLoop && (
                 <Button variant="tinted" tone="cyan" size="sm" onClick={handleApplyLoopFromPlayer}>
-                  <Repeat size={12} />
+                  <Repeat size={14} />
                   {loc.settings.transcodeFromPlayer} (A: {loopPointA !== null ? formatTimeMs(loopPointA) : '0ms'} → B:{' '}
                   {loopPointB !== null ? formatTimeMs(loopPointB) : '—'})
                 </Button>
               )}
               {currentTrackBookmarks.length >= 2 && (
                 <Button variant="tinted" tone="pink" size="sm" onClick={handleApplyBookmarksRange}>
-                  <Bookmark size={12} />
+                  <Bookmark size={14} />
                   {fmt(loc.settings.transcodeApplySavedBookmarks, String(currentTrackBookmarks.length))}
                 </Button>
               )}
@@ -211,14 +211,14 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
           {/* Range summary and validation */}
           {isOrderInvalid ? (
             <div role="alert" className="flex items-center gap-1.5 text-xs font-semibold text-accent-red">
-              <AlertTriangle size={13} />
+              <AlertTriangle size={14} />
               <span>{loc.settings.transcodeEndMustBeGreater}</span>
             </div>
           ) : (
             <div
               className={cn('flex items-center gap-1.5 font-mono text-xs', parsedB !== null ? 'text-accent-cyan' : 'text-fg-muted')}
             >
-              <Scissors size={13} />
+              <Scissors size={14} />
               <span>
                 {parsedB !== null
                   ? fmt(

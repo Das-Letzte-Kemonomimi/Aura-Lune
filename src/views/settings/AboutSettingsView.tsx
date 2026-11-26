@@ -85,11 +85,11 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
           </p>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <Button variant="tinted" tone="green" size="sm" onClick={onOpenHealthCheck}>
-              <Activity size={13} />
+              <Activity size={14} />
               {loc.healthCheck.title}
             </Button>
             <Button variant="primary" size="sm" onClick={onOpenChangelog}>
-              <History size={13} />
+              <History size={14} />
               {loc.settings.changelog}
             </Button>
           </div>
@@ -100,7 +100,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-3.5">
         <Card highlight="purple" className="flex flex-col justify-between gap-3.5">
           <SectionHeader
-            icon={<Music size={18} />}
+            icon={<Music size={20} />}
             tone="purple"
             title={
               <span className="flex flex-wrap items-center gap-2">
@@ -114,14 +114,14 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
             variant="primary"
             onClick={() => handleOpenExternalUrl('https://dasletztekemonomimi.bandcamp.com/track/skrzyd-a-bia-e')}
           >
-            <ExternalLink size={14} />
+            <ExternalLink size={16} />
             {loc.settings.aboutBandcampBtn}
           </Button>
         </Card>
 
         <Card highlight="cyan" className="flex flex-col justify-between gap-3.5">
           <SectionHeader
-            icon={<HeartHandshake size={18} />}
+            icon={<HeartHandshake size={20} />}
             tone="cyan"
             title={
               <span className="flex flex-wrap items-center gap-2">
@@ -132,7 +132,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
             description={loc.settings.aboutSortaDesc}
           />
           <Button variant="primary" onClick={() => handleOpenExternalUrl('https://sortaofficial.lovable.app/')}>
-            <ExternalLink size={14} />
+            <ExternalLink size={16} />
             {loc.settings.aboutSortaBtn}
           </Button>
         </Card>
@@ -152,7 +152,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
 
       {/* Keyboard shortcuts */}
       <Card>
-        <SectionHeader icon={<Keyboard size={18} />} tone="pink" title={loc.shortcuts.title} />
+        <SectionHeader icon={<Keyboard size={20} />} tone="pink" title={loc.shortcuts.title} />
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-2.5 text-ui">
           {shortcuts.map((item) => (
             <Card
@@ -169,7 +169,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
       </Card>
 
       {/* Disclaimer / no warranty */}
-      <Callout tone="amber" icon={<AlertTriangle size={16} />}>
+      <Callout tone="amber" icon={<AlertTriangle size={18} />}>
         <h4 className="mb-1.5 text-md font-extrabold text-accent-amber">{loc.settings.disclaimerTitle}</h4>
         <p className="text-ui leading-relaxed text-fg-secondary">{loc.settings.disclaimerBody}</p>
       </Callout>

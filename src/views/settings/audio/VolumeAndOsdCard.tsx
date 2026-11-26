@@ -30,7 +30,7 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   volumeUnit,
 }) => (
   <Card>
-    <SectionHeader icon={<Volume2 size={18} />} tone="cyan" title={loc.settings.volumeSectionTitle} />
+    <SectionHeader icon={<Volume2 size={20} />} tone="cyan" title={loc.settings.volumeSectionTitle} />
 
     <div className="mt-2 divide-y divide-line">
       {/* Volume mode: instant vs smooth */}

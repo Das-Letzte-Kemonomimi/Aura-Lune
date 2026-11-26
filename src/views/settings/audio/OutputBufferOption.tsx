@@ -15,7 +15,7 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({ audioBuf
   const fill = ((Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, audioBufferMs)) - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
   return (
     <PresetOptionCard
-      icon={<Layers size={18} />}
+      icon={<Layers size={20} />}
       tone="pink"
       title={loc.settings.audioBufferTitle}
       description={loc.settings.audioBufferDesc}
