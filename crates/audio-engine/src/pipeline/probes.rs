@@ -103,3 +103,45 @@ pub(super) fn build_stereo_widener() -> Result<
 
     Ok((stereo_widener, stereo_widener_config))
 }
+
+/// Clip detection: read-only F32LE buffer probes that add no element. They share one latch, which
+/// sets on the first sample above 0 dBFS and stays set until the host clears it:
+///
+/// - on the stereo widener's src pad, after the preamp, EQ and dynamics: `bs2b`, which follows,
+///   hard-clips its float output to ±1.0, so overs from the preamp or EQ are only visible here;
+/// - on rglimiter's sink pad, the signal the limiter receives, which adds ReplayGain boosts.
+pub(super) fn install_clip_probes(
+    stereo_widener: &gst::Element,
+    rglimiter: &gst::Element,
+) -> Arc<AtomicBool> {
+    let clip_latched = Arc::new(AtomicBool::new(false));
+    for (element, pad_name) in [(stereo_widener, "src"), (rglimiter, "sink")] {
+        match element.static_pad(pad_name) {
+            Some(pad) => add_clip_probe(&pad, Arc::clone(&clip_latched)),
+            None => warn!(
+                "{} has no {pad_name} pad; clip detection there is unavailable",
+                element.name()
+            ),
+        }
+    }
+    clip_latched
+}
+
+/// While latched the probe returns before mapping, so a clipped stream costs almost nothing.
+fn add_clip_probe(pad: &gst::Pad, latch: Arc<AtomicBool>) {
+    pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, info| {
+        if latch.load(Ordering::Relaxed) {
+            return gst::PadProbeReturn::Ok;
+        }
+        let Some(gst::PadProbeData::Buffer(ref buffer)) = info.data else {
+            return gst::PadProbeReturn::Ok;
+        };
+        let Ok(map) = buffer.map_readable() else {
+            return gst::PadProbeReturn::Ok;
+        };
+        if crate::rt::bytes_exceed_full_scale(map.as_slice()) {
+            latch.store(true, Ordering::Relaxed);
+        }
+        gst::PadProbeReturn::Ok
+    });
+}

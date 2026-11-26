@@ -42,6 +42,8 @@ export interface PlaybackStatus {
   compressor_enabled?: boolean;
   saturator_enabled?: boolean;
   limiter_enabled?: boolean;
+  /** A sample above 0 dBFS was seen since the last `reset_clip_indicator`. */
+  clip_detected?: boolean;
   spectrum?: number[];
   replaygain_config?: {
     mode: 'Off' | 'Track' | 'Album';

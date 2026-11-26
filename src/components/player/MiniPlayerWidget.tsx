@@ -4,8 +4,6 @@ import {
   SkipBack,
   SkipForward,
   Maximize2,
-  Volume2,
-  VolumeX,
   Disc,
   Zap,
 } from '../ui/icons';
@@ -13,7 +11,10 @@ import { type Language, getTranslations } from '../../i18n';
 import { formatTime } from '../../utils/timeFormat';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
-import { Badge, Button, IconButton, RangeSlider } from '../ui';
+import { Badge, Button, IconButton } from '../ui';
+import { useVolumeCurve } from '../../hooks/useVolumeCurve';
+import { formatVolume } from '../../utils/volumeCurve';
+import { VolumeIcon, VolumeSlider } from './VolumeSlider';
 
 interface MiniPlayerWidgetProps {
   title: string;
@@ -32,6 +33,8 @@ interface MiniPlayerWidgetProps {
   onNext: () => void;
   onSeek: (positionMs: number) => void;
   onVolumeChange: (volume: number) => void;
+  /** Mute / unmute that remembers the last level (`usePlaybackController().handleToggleMute`). */
+  onToggleMute: () => void;
   onToggleVolumeUnit?: () => void;
   onRestore: () => void;
 }
@@ -53,9 +56,11 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   onNext,
   onSeek,
   onVolumeChange,
+  onToggleMute,
   onToggleVolumeUnit,
   onRestore,
 }) => {
+  const [volumeCurve] = useVolumeCurve();
   // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const positionMs = useLivePositionMs(positionMsProp);
   const t = getTranslations(currentLang);
@@ -139,23 +144,10 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
       {/* Control buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={() => onVolumeChange(volume === 0 ? 0.8 : 0)} className="size-6">
-            {volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={onToggleMute} className="size-6">
+            <VolumeIcon gain={volume} size={14} />
           </IconButton>
-          <RangeSlider
-            aria-label={t.player.volume}
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={onVolumeChange}
-            onPointerUp={(e) => e.currentTarget.blur()}
-            onKeyDown={(e) => {
-              // Hand the arrow keys and Space back to the global shortcuts.
-              if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.currentTarget.blur();
-            }}
-            className="h-1 w-12.5"
-          />
+          <VolumeSlider ariaLabel={t.player.volume} gain={volume} onGainChange={onVolumeChange} className="h-1 w-12.5" />
           <Button
             variant="ghost"
             size="sm"
@@ -164,9 +156,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
             title={t.player.volumeToggleUnitTooltip}
             className={cn('px-0.5 py-0 font-mono text-xxs', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
           >
-            {volumeUnit === 'db'
-              ? (volume <= 0.0001 ? '-∞' : `${(20 * Math.log10(volume)).toFixed(0)}dB`)
-              : `${Math.round(volume * 100)}%`}
+            {formatVolume(volume, volumeUnit, volumeCurve, { compact: true })}
           </Button>
         </div>
 

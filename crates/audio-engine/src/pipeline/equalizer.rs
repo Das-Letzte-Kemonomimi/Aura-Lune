@@ -94,6 +94,29 @@ impl AudioEngine {
         inner.eq_preamp_db
     }
 
+    /// Sets the user preamp in dB (-15.0 to +15.0). It is always applied, even with both
+    /// equalizers off, and adds to the EQ-coupled preamps on the shared preamp element.
+    pub fn set_user_preamp(&self, preamp_db: f64) {
+        let mut inner = self.inner.lock_safe();
+        inner.user_preamp_db = preamp_db.clamp(
+            domain::equalizer::USER_PREAMP_MIN_DB,
+            domain::equalizer::USER_PREAMP_MAX_DB,
+        );
+        inner.update_preamp_volume();
+    }
+
+    /// Returns the current user preamp in dB.
+    pub fn get_user_preamp(&self) -> f64 {
+        self.inner.lock_safe().user_preamp_db
+    }
+
+    /// Returns the gain (dB) the shared preamp element currently applies: user preamp plus
+    /// the preamps of the enabled equalizers, clamped to the total range.
+    pub fn effective_preamp_db(&self) -> f64 {
+        let linear: f64 = self.inner.lock_safe().peq_preamp.property("volume");
+        20.0 * linear.log10()
+    }
+
     // ==========================================
     // PARAMETRIC EQUALIZER (PEQ)
     // ==========================================

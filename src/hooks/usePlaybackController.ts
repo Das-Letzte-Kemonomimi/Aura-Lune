@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '../api/ipc';
+import { setSetting } from '../api/settings';
 import { livePlayback } from '../state/livePlayback';
 import { shouldCommitStatus } from '../state/statusCommit';
 import { useTauriEvent } from './useTauriEvent';
@@ -39,6 +40,11 @@ export interface UsePlaybackControllerOptions {
   showMessage: (msg: string, isError?: boolean) => void;
   loc: Translations;
 }
+
+/** Engine ramp for "instant" volume: short enough to feel immediate, long enough to avoid clicks. */
+export const INSTANT_VOLUME_RAMP_MS = 15;
+/** The volume is saved this long after the last change, so a drag writes the database once. */
+export const VOLUME_SAVE_DEBOUNCE_MS = 750;
 
 export function usePlaybackController({
   status,
@@ -84,6 +90,7 @@ export function usePlaybackController({
   const volumeInteractionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const volumeThrottleTimerRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
   const pendingVolumeRef = useRef<number | null>(null);
+  const volumeSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A-B Repeat Loop State
   const [loopPointA, setLoopPointA] = useState<number | null>(null);
@@ -170,6 +177,10 @@ export function usePlaybackController({
       }
       if (volumeInteractionTimerRef.current) {
         clearTimeout(volumeInteractionTimerRef.current);
+      }
+      // Quitting saves the engine volume anyway (src-tauri/src/setup/shutdown.rs).
+      if (volumeSaveTimerRef.current) {
+        clearTimeout(volumeSaveTimerRef.current);
       }
     };
   }, []);
@@ -541,6 +552,17 @@ export function usePlaybackController({
         volumeInteractionTimerRef.current = null;
       }, 400);
 
+      // Persist while running, not only on quit: a crash or a kill keeps the last level.
+      if (volumeSaveTimerRef.current) {
+        clearTimeout(volumeSaveTimerRef.current);
+      }
+      volumeSaveTimerRef.current = setTimeout(() => {
+        volumeSaveTimerRef.current = null;
+        setSetting('playback_volume', String(clamped)).catch((e: unknown) => {
+          console.warn('Failed to save the volume:', e);
+        });
+      }, VOLUME_SAVE_DEBOUNCE_MS);
+
       // Cancel any ongoing smooth animation to prevent jitter
       if (smoothVolumeAnimRef.current) {
         if (typeof cancelAnimationFrame !== 'undefined') {
@@ -565,7 +587,7 @@ export function usePlaybackController({
             volumeThrottleTimerRef.current = null;
           }
           pendingVolumeRef.current = null;
-          invoke('set_volume', { volume: clamped }).catch((e: unknown) => {
+          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: INSTANT_VOLUME_RAMP_MS }).catch((e: unknown) => {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
           return;
@@ -574,7 +596,7 @@ export function usePlaybackController({
         // Display-synced high-frequency dispatch (0ms initial, coalesced intermediate moves)
         pendingVolumeRef.current = clamped;
         if (!volumeThrottleTimerRef.current) {
-          invoke('set_volume', { volume: clamped }).catch((e: unknown) => {
+          invoke('set_volume', { volume: clamped, smooth: true, fadeMs: INSTANT_VOLUME_RAMP_MS }).catch((e: unknown) => {
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
           const scheduleNext = typeof requestAnimationFrame !== 'undefined'
@@ -586,7 +608,7 @@ export function usePlaybackController({
             if (pendingVolumeRef.current !== null && pendingVolumeRef.current !== clamped) {
               const latestVol = pendingVolumeRef.current;
               pendingVolumeRef.current = null;
-              invoke('set_volume', { volume: latestVol }).catch((e: unknown) => {
+              invoke('set_volume', { volume: latestVol, smooth: true, fadeMs: INSTANT_VOLUME_RAMP_MS }).catch((e: unknown) => {
                 showMessage(`${loc.common.errorPrefix} ${e}`, true);
               });
             }

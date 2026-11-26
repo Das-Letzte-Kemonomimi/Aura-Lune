@@ -20,6 +20,7 @@ export interface UseBottomPlaybackDockPropsOptions {
   currentCover: string | null;
   queue: PlaybackQueue;
   formatTime: (ms: number) => string;
+  formatVolumeValue: (gain: number) => string;
   mainContentRef: React.RefObject<HTMLElement | null>;
   setActiveTab: (tab: AppTab) => void;
   handleOpenContainingFolder: (path: string, e: React.MouseEvent) => void;
@@ -44,6 +45,7 @@ export function useBottomPlaybackDockProps(
     currentCover,
     queue,
     formatTime,
+    formatVolumeValue,
     mainContentRef,
     setActiveTab,
     handleOpenContainingFolder,
@@ -76,6 +78,7 @@ export function useBottomPlaybackDockProps(
       filePath,
       queue,
       formatTime,
+      formatVolumeValue,
       onScrollToTopOrSwitchTab: () => {
         if (activeTab === 'player') {
           mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -112,6 +115,7 @@ export function useBottomPlaybackDockProps(
       filePath,
       queue,
       formatTime,
+      formatVolumeValue,
       mainContentRef,
       setActiveTab,
       handleOpenContainingFolder,

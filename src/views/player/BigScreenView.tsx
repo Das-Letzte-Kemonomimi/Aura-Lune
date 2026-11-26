@@ -46,6 +46,10 @@ export interface BigScreenViewProps {
   onSeekPreview?: (positionMs: number) => void;
   onSeekCommit?: (positionMs: number) => void;
   onVolumeChange: (volume: number) => void;
+  /** Mute / unmute that remembers the last level (`usePlaybackController().handleToggleMute`). */
+  onToggleMute: () => void;
+  /** Volume readout in the user's unit (`useVolumeUnit().formatVolumeValue`). */
+  formatVolumeValue: (gain: number) => string;
   onToggleVolumeUnit?: () => void;
   onClose: () => void;
   onFetchCover?: () => void;

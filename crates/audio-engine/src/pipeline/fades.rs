@@ -40,7 +40,8 @@ impl AudioEngine {
         let _ = std::thread::Builder::new()
             .name("aura-volume-smooth".into())
             .spawn(move || {
-                let total_ms = duration.as_millis().clamp(20, 500) as u64;
+                // 10 ms floor: the UI's "instant" mode asks for 15 ms, a click-free ramp that still feels immediate.
+                let total_ms = duration.as_millis().clamp(10, 500) as u64;
                 let step_ms = 8u64;
                 let steps = (total_ms / step_ms).clamp(4, 40) as usize;
                 let step_time = Duration::from_millis((total_ms / steps as u64).max(1));

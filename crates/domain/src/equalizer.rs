@@ -114,3 +114,35 @@ impl EqualizerPreset {
         ]
     }
 }
+
+/// Range of the user preamp (always applied, independent of either equaliser).
+pub const USER_PREAMP_MIN_DB: f64 = -15.0;
+pub const USER_PREAMP_MAX_DB: f64 = 15.0;
+/// Range of the combined gain applied by the shared preamp element.
+pub const TOTAL_PREAMP_MIN_DB: f64 = -30.0;
+pub const TOTAL_PREAMP_MAX_DB: f64 = 15.0;
+
+/// Combined preamp gain in dB for the single preamp element of the pipeline.
+///
+/// The user preamp always counts; the graphic EQ preamp (manual, AutoEQ or Auto) and the
+/// parametric EQ preamp count only while their equaliser is enabled.
+pub fn combined_preamp_db(
+    user_preamp_db: f64,
+    graphic_eq_enabled: bool,
+    graphic_eq_preamp_db: f64,
+    parametric_eq_enabled: bool,
+    parametric_eq_preamp_db: f64,
+) -> f64 {
+    let user = user_preamp_db.clamp(USER_PREAMP_MIN_DB, USER_PREAMP_MAX_DB);
+    let geq = if graphic_eq_enabled {
+        graphic_eq_preamp_db
+    } else {
+        0.0
+    };
+    let peq = if parametric_eq_enabled {
+        parametric_eq_preamp_db
+    } else {
+        0.0
+    };
+    (user + geq + peq).clamp(TOTAL_PREAMP_MIN_DB, TOTAL_PREAMP_MAX_DB)
+}

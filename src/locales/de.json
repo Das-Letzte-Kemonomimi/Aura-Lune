@@ -363,7 +363,15 @@
     "defaultEngineStartup": "Standard-DSP-Engine beim Programmstart geladen",
     "enterValuePitch": "Wert eingeben und Enter drücken (oder Pfeiltasten oben/unten nutzen)",
     "enterValueTempo": "Tempo eingeben (z.B. 1.25) und Enter drücken",
-    "enterValueSpeed": "Geschwindigkeit eingeben (z.B. 1.15) und Enter drücken"
+    "enterValueSpeed": "Geschwindigkeit eingeben (z.B. 1.15) und Enter drücken",
+    "preamp": "Vorverstärker",
+    "preampDesc": "(immer aktiv, auch mit ausgeschaltetem EQ)",
+    "preampAuto": "Auto",
+    "preampAutoReadout": "Auto: {0}",
+    "preampAutoTooltip": "Senkt den EQ um die größte Bandanhebung, damit angehobene Bänder nicht übersteuern",
+    "preampResetTooltip": "Doppelklick setzt auf 0 dB zurück. Mausrad oder Pfeiltasten: 0,5 dB, Umschalt: 0,1 dB",
+    "clipIndicatorClipped": "Übersteuerung erkannt: Das Signal lag über 0 dBFS. Klicken zum Zurücksetzen",
+    "clipIndicatorClear": "Keine Übersteuerung seit dem letzten Zurücksetzen"
   },
   "library": {
     "title": "Musikbibliothek",
@@ -555,6 +563,11 @@
     "volumeUnitDesc": "Lautstärke in Prozent (0% – 100%) oder Studio-Dezibel (-∞ dB bis 0.0 dB) anzeigen",
     "volumeUnitPercent": "Prozent (%)",
     "volumeUnitDb": "Dezibel (dB)",
+    "volumeCurveTitle": "Kurve des Lautstärkereglers",
+    "volumeCurveCubic": "Kubisch",
+    "volumeCurveDbLinear": "dB-linear",
+    "volumeCurveCubicDesc": "Kubische Kurve: die Lautstärke ändert sich gleichmäßig über den ganzen Regler; 50 % sind etwa -18 dB",
+    "volumeCurveDbLinearDesc": "Dezibel-lineare Kurve: jeder Schritt ist gleich viele Dezibel, von -60 dB bis 0 dB; 50 % sind -30 dB",
     "restoreSessionTitle": "Wiedergabesitzung beim Start wiederherstellen",
     "restoreSessionDesc": "Merkt sich den aktuellen Titel, die Wiedergabeposition, die Lautstärke (dB), die DSP-Parameter und die Warteschlange beim Neustart.",
     "exportOpus": "Export & Opus",
@@ -607,7 +620,6 @@
     "replaygainModeTrack": "Titel",
     "replaygainModeAlbum": "Album",
     "replaygainModeAuto": "Intelligent (Auto Track/Album)",
-    "replaygainFallbackGain": "Fallback-Verstärkung für untagged Titel",
     "replaygainPreventClipping": "True-Peak-Limiter (Übersteuerungsschutz)",
     "crossfeedTitle": "Bauer Kopfhörer-Crossfeed (bs2b)",
     "crossfeedDesc": "Binaurale Lautsprecher-Simulation zur Reduzierung von Hörermüdung bei Stereo-Aufnahmen.",
@@ -622,8 +634,8 @@
     "silenceTrimmingDesc": "Sofortiges Überspringen stummer Intros, Outros und langer Pausen.",
     "silenceTrimmingEnabled": "Stillekürzung aktiv",
     "silenceTrimmingThreshold": "Stille-Erkennungsschwelle",
-    "replaygainPreAmp": "Vorverstärkung (Pre-Amp)",
     "replaygainLimiterActive": "Spitzenbegrenzer aktiv",
+    "replaygainLimiterOff": "Spitzenbegrenzer aus",
     "replaygainTargetAdjustment": "Zielanpassung",
     "scanReplayGainLibrary": "Bibliothekslautstärke scannen (EBU R128)",
     "scanReplayGainTrack": "ReplayGain berechnen",
@@ -808,7 +820,9 @@
     "transcodeApplySavedBookmarks": "Gespeicherte A-B-Lesezeichen anwenden ({0})",
     "transcodeSavedMarkers": "Gespeicherte Marker des Titels:",
     "transcodeGstreamerBgDesc": "GStreamer rendert Audio asynchron im Hintergrund. Die App wird nicht blockiert — Sie können weiter Musik hören oder dieses Fenster schließen.",
-    "transcodeRenderingProgress": "Rendern im Hintergrund ({0}%)..."
+    "transcodeRenderingProgress": "Rendern im Hintergrund ({0}%)...",
+    "replaygainPreampTagged": "Vorverstärker: Dateien mit RG-Tags",
+    "replaygainPreampUntagged": "Vorverstärker: Dateien ohne RG-Tags"
   },
   "shortcuts": {
     "title": "Tastaturkürzel",
@@ -1124,6 +1138,7 @@
     "volumeUnitChanged": "Lautstärkeanzeigeformat eingestellt auf: {0}",
     "volumeUnitDb": "Dezibel (dB)",
     "volumeUnitPercent": "Prozent (%)",
+    "volumeCurveChanged": "Kurve des Lautstärkereglers eingestellt auf: {0}",
     "restoreSessionMsgOn": "Wiedergabesitzung beim Start wiederherstellen aktiviert",
     "restoreSessionMsgOff": "Wiedergabesitzung beim Start wiederherstellen deaktiviert",
     "ambienceGothicEmbers": "Ambiente: Gotische Glutasche 🔥",
@@ -1486,7 +1501,8 @@
     "peqActiveMsg": "PEQ Aktiv — Echtzeit-Audioentzerrung eingeschaltet",
     "peqBypassMsg": "PEQ im Bypass-Modus (aus) — Aktivieren klicken oder Band anpassen",
     "filterBandsSubtitle": "Knoten im Diagramm anklicken oder Zeile zum Bearbeiten auswählen",
-    "importExportDesc": "EqualizerAPO / AutoEQ / Peace-Konfiguration einfügen oder kopieren:"
+    "importExportDesc": "EqualizerAPO / AutoEQ / Peace-Konfiguration einfügen oder kopieren:",
+    "preamp": "Vorverstärker"
   },
   "dynamicsStudio": {
     "title": "Dynamik- & Röhren-Studio",

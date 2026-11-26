@@ -363,7 +363,15 @@
     "defaultEngineStartup": "Default DSP engine loaded on application startup",
     "enterValuePitch": "Enter value and press Enter (or use Up/Down arrows)",
     "enterValueTempo": "Enter tempo (e.g. 1.25) and press Enter (or use Up/Down arrows)",
-    "enterValueSpeed": "Enter speed (e.g. 1.15) and press Enter (or use Up/Down arrows)"
+    "enterValueSpeed": "Enter speed (e.g. 1.15) and press Enter (or use Up/Down arrows)",
+    "preamp": "Preamp",
+    "preampDesc": "(always on, even with the EQ off)",
+    "preampAuto": "Auto",
+    "preampAutoReadout": "Auto: {0}",
+    "preampAutoTooltip": "Lowers the EQ by its largest band boost so boosted bands cannot clip",
+    "preampResetTooltip": "Double-click to reset to 0 dB. Wheel or arrow keys: 0.5 dB, Shift: 0.1 dB",
+    "clipIndicatorClipped": "Clipping detected: the signal went above 0 dBFS. Click to reset",
+    "clipIndicatorClear": "No clipping since the last reset"
   },
   "library": {
     "title": "Music Library",
@@ -555,6 +563,11 @@
     "volumeUnitDesc": "Display volume as percentage (0% - 100%) or studio decibels (-∞ dB to 0.0 dB)",
     "volumeUnitPercent": "Percentage (%)",
     "volumeUnitDb": "Decibels (dB)",
+    "volumeCurveTitle": "Volume Slider Curve",
+    "volumeCurveCubic": "Cubic",
+    "volumeCurveDbLinear": "dB-linear",
+    "volumeCurveCubicDesc": "Cubic curve: loudness changes evenly along the whole slider; 50% is about -18 dB",
+    "volumeCurveDbLinearDesc": "Decibel-linear curve: every step is the same number of decibels, from -60 dB to 0 dB; 50% is -30 dB",
     "restoreSessionTitle": "Restore Playback Session on Startup",
     "restoreSessionDesc": "Remembers the current track, playback position, volume level (dB), DSP parameters, and queue upon restarting.",
     "exportOpus": "Export & Opus",
@@ -607,7 +620,6 @@
     "replaygainModeTrack": "Track Gain",
     "replaygainModeAlbum": "Album Gain",
     "replaygainModeAuto": "Smart (Auto Track/Album)",
-    "replaygainFallbackGain": "Untagged fallback gain",
     "replaygainPreventClipping": "True-Peak limiter (Anti-clipping)",
     "crossfeedTitle": "Bauer Headphone Crossfeed (bs2b)",
     "crossfeedDesc": "Virtual speaker binauralization reducing ear fatigue on hard-panned stereo recordings.",
@@ -622,8 +634,8 @@
     "silenceTrimmingDesc": "Instant skip over silent intros, outros, and excessive gaps between tracks.",
     "silenceTrimmingEnabled": "Silence trimming active",
     "silenceTrimmingThreshold": "Silence detection threshold",
-    "replaygainPreAmp": "Pre-Amp Gain",
     "replaygainLimiterActive": "Peak Limiter Active",
+    "replaygainLimiterOff": "Peak Limiter Off",
     "replaygainTargetAdjustment": "Target Adjustment",
     "scanReplayGainLibrary": "Scan Library Loudness (EBU R128)",
     "scanReplayGainTrack": "Calculate ReplayGain",
@@ -808,7 +820,9 @@
     "transcodeApplySavedBookmarks": "Apply saved A-B bookmarks ({0})",
     "transcodeSavedMarkers": "Saved track markers:",
     "transcodeGstreamerBgDesc": "GStreamer is rendering audio asynchronously in the background. The app is never blocked — feel free to listen to music or close this window.",
-    "transcodeRenderingProgress": "Rendering in background ({0}%)..."
+    "transcodeRenderingProgress": "Rendering in background ({0}%)...",
+    "replaygainPreampTagged": "Preamp: files with RG tags",
+    "replaygainPreampUntagged": "Preamp: files without RG tags"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
@@ -1124,6 +1138,7 @@
     "volumeUnitChanged": "Volume display format set to: {0}",
     "volumeUnitDb": "Decibels (dB)",
     "volumeUnitPercent": "Percentage (%)",
+    "volumeCurveChanged": "Volume slider curve set to: {0}",
     "restoreSessionMsgOn": "Enabled restoring playback session on startup",
     "restoreSessionMsgOff": "Disabled restoring playback session on startup",
     "ambienceGothicEmbers": "Ambience: Gothic Burning Embers 🔥",
@@ -1486,7 +1501,8 @@
     "peqActiveMsg": "PEQ Active — real-time audio equalization enabled",
     "peqBypassMsg": "PEQ in Bypass mode (off) — click Enable or adjust a band",
     "filterBandsSubtitle": "Click a node on the graph or select a row to edit",
-    "importExportDesc": "Paste EqualizerAPO / AutoEQ / Peace config or copy current settings:"
+    "importExportDesc": "Paste EqualizerAPO / AutoEQ / Peace config or copy current settings:",
+    "preamp": "Preamp"
   },
   "dynamicsStudio": {
     "title": "Dynamics & Analog Warmth Studio",

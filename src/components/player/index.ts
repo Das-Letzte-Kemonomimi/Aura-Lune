@@ -9,4 +9,5 @@ export * from './DesktopLyricsOverlay';
 export * from './LyricsView';
 export * from './MiniPlayerWidget';
 export * from './VolumeOsd';
+export * from './VolumeSlider';
 export * from './AnimeAmbienceFX';

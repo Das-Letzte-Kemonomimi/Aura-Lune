@@ -97,6 +97,14 @@ export interface DspStudioViewProps {
   handleResetEq: () => void | Promise<void>;
   handleEqToggle: () => void | Promise<void>;
   handleEqBandChange: (bandIndex: number, gainDb: number) => void | Promise<void>;
+  /** Always-on preamp (dB, ±15) and the graphic EQ Auto preamp. */
+  preampDb: number;
+  preampAuto: boolean;
+  autoPreampValue: number;
+  handlePreampChange: (db: number) => void | Promise<void>;
+  handleTogglePreampAuto: () => void | Promise<void>;
+  /** Clears the clip LED latch. */
+  handleResetClipIndicator: () => void | Promise<void>;
   setIsParametricEqOpen: (open: boolean) => void;
   setIsAutoEqOpen: (open: boolean) => void;
   setIsDynamicsStudioOpen: (open: boolean) => void;

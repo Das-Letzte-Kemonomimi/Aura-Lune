@@ -1,18 +1,17 @@
 import React from 'react';
-import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Sliders, Square, Volume2, VolumeX, X } from '../../../components/ui/icons';
+import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Sliders, Square, X } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs } from '../../../state/livePlayback';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
-import { Button, Chip, IconButton, RangeSlider } from '../../../components/ui';
+import { Button, Chip, IconButton } from '../../../components/ui';
+import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
 
 export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
 };
 
-/** Keys the volume slider hands back to the global shortcuts (seek, volume, play/pause). */
-const SHORTCUT_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
 
 /** Round transport button (previous, stop, next). */
 const transportClass = 'size-9.5 rounded-full border-transparent bg-white/8 text-fg';
@@ -262,22 +261,14 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           label={status.volume === 0 ? loc.player.unmute : loc.player.mute}
           onClick={handleToggleMute}
         >
-          {status.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} className="text-fg-secondary" />}
+          <VolumeIcon gain={status.volume} size={16} className={status.volume === 0 ? undefined : 'text-fg-secondary'} />
         </IconButton>
-        <RangeSlider
-          aria-label={loc.player.volume}
-          min={0}
-          max={1}
-          step={0.01}
-          value={status.volume}
-          onChange={handleVolumeChange}
-          onPointerUp={(e) => e.currentTarget.blur()}
-          onKeyDown={(e) => {
-            // Hand the arrow keys and Space back to the global shortcuts.
-            if (SHORTCUT_KEYS.includes(e.key)) e.currentTarget.blur();
-          }}
+        <VolumeSlider
+          ariaLabel={loc.player.volume}
+          gain={status.volume}
+          onGainChange={handleVolumeChange}
           className="w-30"
-          title={`${loc.player.volume}: ${formatVolumeValue(status.volume)} (${Math.round(status.volume * 100)}%)`}
+          title={`${loc.player.volume}: ${formatVolumeValue(status.volume, 'db')} (${formatVolumeValue(status.volume, 'percent')})`}
         />
         <Button
           size="sm"

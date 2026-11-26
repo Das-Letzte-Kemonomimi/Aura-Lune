@@ -453,6 +453,10 @@ fn test_replaygain_toggle_modes_while_playing() {
     engine.load_uri(&uri).expect("load_uri");
     engine.play().expect("play");
 
+    // The status reports the effective limiter; with the user's own limiter off, only the
+    // ReplayGain clipping guard can switch it on.
+    engine.set_limiter_enabled(false);
+
     // Default status (Off)
     let (tgt, res, lim) = engine.replaygain_status();
     assert_eq!((tgt, res, lim), (0.0, 0.0, false));

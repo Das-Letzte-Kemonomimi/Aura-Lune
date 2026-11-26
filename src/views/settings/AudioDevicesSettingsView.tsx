@@ -15,6 +15,7 @@ import { DspBlockSizeOption } from './audio/DspBlockSizeOption';
 import { OutputBufferOption } from './audio/OutputBufferOption';
 import { VolumeAndOsdCard } from './audio/VolumeAndOsdCard';
 import { SettingsPage } from './SettingsPage';
+import type { VolumeCurve } from '../../utils/volumeCurve';
 
 export interface AudioDevicesSettingsViewProps {
   language: Language;
@@ -27,6 +28,8 @@ export interface AudioDevicesSettingsViewProps {
   onToggleInstantVolume: () => void;
   volumeUnit: 'percent' | 'db';
   onSetVolumeUnit: (unit: 'percent' | 'db') => void;
+  volumeCurve: VolumeCurve;
+  onSetVolumeCurve: (curve: VolumeCurve) => void;
   volumeOsdPosition: VolumeOsdPosition;
   onSetVolumeOsdPosition: (pos: VolumeOsdPosition) => void;
   recapOptIn: boolean;

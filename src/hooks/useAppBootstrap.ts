@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '../api/ipc';
 import { getSetting, setSetting } from '../api/settings';
+import { clampPreampDb, parseFiniteSetting } from '../utils/preamp';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
@@ -132,6 +133,14 @@ export function useAppBootstrap({
         invoke('set_limiter_enabled', { enabled }).catch(() => {});
       })
       .catch((e) => console.warn('Failed to read limiter_enabled:', e));
+
+    // The always-on preamp (DSP Studio); its controls are restored by useDspManager.
+    getSetting('preamp_db')
+      .then((val) => {
+        const preampDb = clampPreampDb(parseFiniteSetting(val, 0));
+        if (preampDb !== 0) invoke('set_preamp', { preampDb }).catch(() => {});
+      })
+      .catch((e) => console.warn('Failed to read preamp_db:', e));
     // Settings are loaded once on mount; the dependencies are stable setters and initial values.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -315,6 +315,7 @@ pub fn snapshot_status(state: &AppState) -> PlaybackStatusDto {
         compressor_enabled: state.engine.is_compressor_enabled(),
         saturator_enabled: state.engine.is_saturator_enabled(),
         limiter_enabled: state.engine.is_limiter_enabled(),
+        clip_detected: state.engine.clip_detected(),
         spectrum,
         replaygain_config: state.engine.replaygain_config(),
         replaygain_status: state.engine.replaygain_status(),

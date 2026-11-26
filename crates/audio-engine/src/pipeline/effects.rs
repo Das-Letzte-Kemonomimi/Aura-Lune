@@ -60,10 +60,8 @@ impl AudioEngine {
         // 2. Analog saturator
         inner.saturator_config.store(state.saturator.clamped());
 
-        // 3. Headphone limiter (rglimiter)
-        inner
-            .rglimiter
-            .set_property("enabled", state.limiter.enabled);
+        // 3. Headphone limiter (rglimiter), combined with the ReplayGain clipping guard
+        inner.apply_limiter_state();
 
         Ok(())
     }
@@ -95,7 +93,7 @@ impl AudioEngine {
                 }
                 inner.rgvolume.set_property("pre-amp", 0.0f64);
                 inner.rgvolume.set_property("fallback-gain", 0.0f64);
-                inner.rglimiter.set_property("enabled", false);
+                inner.rgvolume.set_property("headroom", 0.0f64);
             }
             ReplayGainMode::Track | ReplayGainMode::Album | ReplayGainMode::Auto => {
                 if let Some(ref child) = inner.rgvolume_child {
@@ -105,17 +103,19 @@ impl AudioEngine {
                 // `apply_auto_replaygain` switches to Album Gain when a whole album plays.
                 let album_mode = config.mode == ReplayGainMode::Album;
                 inner.rgvolume.set_property("album-mode", album_mode);
-                inner.rgvolume.set_property("pre-amp", config.pre_amp_db);
+                let params = config.rgvolume_params();
+                inner.rgvolume.set_property("pre-amp", params.pre_amp_db);
                 inner
                     .rgvolume
-                    .set_property("fallback-gain", config.fallback_gain_db);
-                inner
-                    .rglimiter
-                    .set_property("enabled", config.prevent_clipping);
+                    .set_property("fallback-gain", params.fallback_gain_db);
+                // Raised headroom lets untagged boosts through; rglimiter guards the peaks.
+                inner.rgvolume.set_property("headroom", params.headroom_db);
             }
         }
+        // RG Off drops only the ReplayGain clipping guard, never a user-enabled limiter.
+        inner.apply_limiter_state();
         debug!(
-            "ReplayGain updated: mode={:?}, pre_amp={:.1} dB, fallback={:.1} dB, limiter={}",
+            "ReplayGain updated: mode={:?}, tagged preamp={:.1} dB, untagged preamp={:.1} dB, limiter={}",
             config.mode, config.pre_amp_db, config.fallback_gain_db, config.prevent_clipping
         );
         Ok(())
@@ -147,16 +147,15 @@ impl AudioEngine {
         self.inner.lock_safe().replaygain_config
     }
 
-    /// Returns the current ReplayGain status: (target_gain_db, result_gain_db, limiter_enabled).
+    /// Returns the current ReplayGain status: (target_gain_db, result_gain_db, effective limiter state).
     pub fn replaygain_status(&self) -> (f64, f64, bool) {
         let inner = self.inner.lock_safe();
         if inner.replaygain_config.mode == ReplayGainMode::Off {
-            return (0.0, 0.0, false);
+            return (0.0, 0.0, inner.effective_limiter_enabled());
         }
         let target: f64 = inner.rgvolume.property("target-gain");
         let result: f64 = inner.rgvolume.property("result-gain");
-        let limiter: bool = inner.rglimiter.property("enabled");
-        (target, result, limiter)
+        (target, result, inner.effective_limiter_enabled())
     }
 
     /// Configures the Bauer stereophonic-to-binaural filter (crossfeed, bs2b) for headphone listening.
@@ -242,12 +241,27 @@ impl AudioEngine {
     pub fn set_limiter_enabled(&self, enabled: bool) {
         let mut inner = self.inner.lock_safe();
         inner.dynamics_state.limiter.enabled = enabled;
-        inner.rglimiter.set_property("enabled", enabled);
+        inner.apply_limiter_state();
     }
 
-    /// Whether the true-peak limiter (rglimiter) is enabled.
+    /// Whether the user switched the true-peak limiter on (Dynamics Studio), regardless of ReplayGain.
     pub fn is_limiter_enabled(&self) -> bool {
         let inner = self.inner.lock_safe();
         inner.dynamics_state.limiter.enabled
+    }
+
+    /// Whether rglimiter is actually running: the user switch or the ReplayGain clipping guard.
+    pub fn effective_limiter_enabled(&self) -> bool {
+        self.inner.lock_safe().rglimiter.property::<bool>("enabled")
+    }
+
+    /// Whether a sample above 0 dBFS reached the limiter since the last reset.
+    pub fn clip_detected(&self) -> bool {
+        self.clip_latched.load(Ordering::Relaxed)
+    }
+
+    /// Clears the clip indicator latch.
+    pub fn reset_clip_indicator(&self) {
+        self.clip_latched.store(false, Ordering::Relaxed);
     }
 }

@@ -17,6 +17,7 @@ import {
 } from '../../../components/ui';
 import { cn } from '../../../utils/cn';
 import { presetLabel } from '../../../utils/dspPresetLabels';
+import { PreampControl } from './PreampControl';
 
 export type DspGraphicEqRackProps = Pick<
   DspStudioViewProps,
@@ -32,6 +33,12 @@ export type DspGraphicEqRackProps = Pick<
   | 'handleToggleEqAutoStartup'
   | 'eqAutoStartup'
   | 'handleEqBandChange'
+  | 'preampDb'
+  | 'preampAuto'
+  | 'autoPreampValue'
+  | 'handlePreampChange'
+  | 'handleTogglePreampAuto'
+  | 'handleResetClipIndicator'
 > & {
   status: PlaybackStatus;
 };
@@ -39,14 +46,20 @@ export type DspGraphicEqRackProps = Pick<
 const formatGain = (gain: number) => `${gain > 0 ? '+' : ''}${gain.toFixed(1)} dB`;
 
 export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
+  autoPreampValue,
   eqAutoStartup,
   eqPresets,
   handleApplyEqPreset,
   handleEqBandChange,
   handleEqToggle,
+  handlePreampChange,
+  handleResetClipIndicator,
   handleResetEq,
   handleToggleEqAutoStartup,
+  handleTogglePreampAuto,
   loc,
+  preampAuto,
+  preampDb,
   selectedEqPreset,
   setIsAutoEqOpen,
   setIsDynamicsStudioOpen,
@@ -158,6 +171,18 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
           <Power size={12} /> {loc.dsp.eqAutostartShort}
         </Chip>
       </div>
+
+      <PreampControl
+        loc={loc}
+        preampDb={preampDb}
+        preampAuto={preampAuto}
+        autoPreampValue={autoPreampValue}
+        equalizerEnabled={Boolean(status.equalizer_enabled)}
+        onPreampChange={handlePreampChange}
+        onToggleAuto={handleTogglePreampAuto}
+        clipDetected={Boolean(status.clip_detected)}
+        onResetClip={handleResetClipIndicator}
+      />
 
       {/* 10 bands in two columns */}
       <div className="mt-4 grid grid-cols-2 gap-3">

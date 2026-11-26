@@ -1,5 +1,5 @@
 //! Helpers for code that runs on the GStreamer streaming thread
-//! (the DSP element's `chain` function, the saturator and stereo widener pad probes).
+//! (the DSP element's `chain` function, the saturator, stereo widener and clip-detection pad probes).
 //!
 //! Rules (crates/AGENTS.md, "Real-Time Audio Safety"): no heap allocation, no I/O and no long-held locks
 //! on the hot path. Buffer bytes are cast to `f32` with an alignment check
@@ -64,6 +64,24 @@ pub fn map_stereo_frames_in_place(bytes: &mut [u8], mut f: impl FnMut(f32, f32) 
         lb.copy_from_slice(&l.to_ne_bytes());
         rb.copy_from_slice(&r.to_ne_bytes());
     }
+}
+
+/// Whether any sample is above full scale (|s| > 1.0, i.e. past 0 dBFS). NaN never counts.
+pub fn exceeds_full_scale(samples: &[f32]) -> bool {
+    samples.iter().any(|s| s.abs() > 1.0)
+}
+
+/// [`exceeds_full_scale`] on raw buffer bytes, also for unaligned buffers (no copy, no allocation);
+/// trailing excess bytes (< 4) are skipped.
+pub fn bytes_exceed_full_scale(bytes: &[u8]) -> bool {
+    if let Some(samples) = f32_samples(bytes) {
+        return exceeds_full_scale(samples);
+    }
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .any(|c| f32::from_ne_bytes(*c).abs() > 1.0)
 }
 
 /// Rate-limits warnings on the hot path: log the first occurrence

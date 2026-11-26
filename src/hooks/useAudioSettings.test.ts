@@ -16,6 +16,18 @@ describe('useAudioSettings hook', () => {
     mockInvoke.mockResolvedValue(null);
   });
 
+  it('pushes a saved 0 dB untagged preamp as 0, not the -6 dB default', () => {
+    localStorage.setItem('auralune_replaygain_mode', 'Track');
+    localStorage.setItem('auralune_replaygain_preamp', '2');
+    localStorage.setItem('auralune_replaygain_fallback', '0');
+    const { result } = renderHook(() => useAudioSettings({ showMessage, loc }));
+
+    expect(result.current.replaygainFallbackGain).toBe(0);
+    expect(mockInvoke).toHaveBeenCalledWith('set_replaygain_config', {
+      config: expect.objectContaining({ mode: 'Track', pre_amp_db: 2, fallback_gain_db: 0 }),
+    });
+  });
+
   it('initializes with default audio settings and loads config on mount', () => {
     const { result } = renderHook(() =>
       useAudioSettings({ showMessage, loc })

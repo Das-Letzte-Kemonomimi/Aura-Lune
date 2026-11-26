@@ -86,6 +86,8 @@ struct PipelineInner {
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     eq_preamp_db: f64,
+    /// User preamp (dB), always applied regardless of the equalisers.
+    user_preamp_db: f64,
     parametric_eq_state: ParametricEqState,
     dynamics_state: DynamicsState,
     replaygain_config: ReplayGainConfig,
@@ -116,19 +118,31 @@ struct StemMixerHandles {
 
 impl PipelineInner {
     fn update_preamp_volume(&self) {
-        let eq_p = if self.equalizer_state.enabled {
-            self.eq_preamp_db
-        } else {
-            0.0
-        };
-        let peq_p = if self.parametric_eq_state.enabled {
-            self.parametric_eq_state.preamp_db
-        } else {
-            0.0
-        };
-        let total_db = (eq_p + peq_p).clamp(-24.0, 12.0);
+        let total_db = domain::equalizer::combined_preamp_db(
+            self.user_preamp_db,
+            self.equalizer_state.enabled,
+            self.eq_preamp_db,
+            self.parametric_eq_state.enabled,
+            self.parametric_eq_state.preamp_db,
+        );
         let linear = 10.0f64.powf(total_db / 20.0);
         self.peq_preamp.set_property("volume", linear);
+    }
+
+    /// Whether the limiter should run, from the user switch and the ReplayGain settings.
+    fn effective_limiter_enabled(&self) -> bool {
+        domain::replaygain::effective_limiter_enabled(
+            self.dynamics_state.limiter.enabled,
+            self.replaygain_config.mode,
+            self.replaygain_config.prevent_clipping,
+        )
+    }
+
+    /// The only writer of `rglimiter.enabled`: every limiter or ReplayGain change goes through here,
+    /// so the order of those changes no longer decides the result.
+    fn apply_limiter_state(&self) {
+        self.rglimiter
+            .set_property("enabled", self.effective_limiter_enabled());
     }
 }
 
@@ -142,6 +156,8 @@ pub struct AudioEngine {
     is_fading_in: Arc<AtomicBool>,
     volume_element: gst::Element,
     atomic_volume: Arc<AtomicU64>,
+    /// Latched by the clip probes (`probes::install_clip_probes`) when a sample exceeds 0 dBFS.
+    clip_latched: Arc<AtomicBool>,
 }
 
 /// Releases the GStreamer resources safely when the pipeline controller is dropped.

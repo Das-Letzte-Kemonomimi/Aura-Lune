@@ -293,3 +293,85 @@ fn test_replaygain_modes_display() {
         "Smart (Auto Track/Album)"
     );
 }
+
+#[test]
+fn test_combined_preamp_combination_table() {
+    use domain::equalizer::combined_preamp_db;
+    // (user, geq_on, geq, peq_on, peq) -> total
+    let cases = [
+        (3.0, false, -6.0, false, -4.0, 3.0),
+        (3.0, true, -6.0, false, -4.0, -3.0),
+        (3.0, false, -6.0, true, -4.0, -1.0),
+        (3.0, true, -6.0, true, -4.0, -7.0),
+        (0.0, false, -6.0, false, -4.0, 0.0),
+        (-2.5, false, 0.0, false, 0.0, -2.5),
+    ];
+    for (user, geq_on, geq, peq_on, peq, expected) in cases {
+        assert_eq!(
+            combined_preamp_db(user, geq_on, geq, peq_on, peq),
+            expected,
+            "user={user} geq_on={geq_on} geq={geq} peq_on={peq_on} peq={peq}"
+        );
+    }
+}
+
+#[test]
+fn test_combined_preamp_clamps() {
+    use domain::equalizer::{
+        combined_preamp_db, TOTAL_PREAMP_MAX_DB, TOTAL_PREAMP_MIN_DB, USER_PREAMP_MAX_DB,
+        USER_PREAMP_MIN_DB,
+    };
+    // The user preamp alone is clamped to ±15 dB.
+    assert_eq!(
+        combined_preamp_db(40.0, false, 0.0, false, 0.0),
+        USER_PREAMP_MAX_DB
+    );
+    assert_eq!(
+        combined_preamp_db(-40.0, false, 0.0, false, 0.0),
+        USER_PREAMP_MIN_DB
+    );
+    // The total is clamped to -30..+15 dB.
+    assert_eq!(
+        combined_preamp_db(-15.0, true, -24.0, true, -30.0),
+        TOTAL_PREAMP_MIN_DB
+    );
+    assert_eq!(
+        combined_preamp_db(15.0, true, 12.0, true, 12.0),
+        TOTAL_PREAMP_MAX_DB
+    );
+    // The user boost survives an EQ cut below the cap.
+    assert_eq!(combined_preamp_db(15.0, true, -5.0, false, 0.0), 10.0);
+}
+
+#[test]
+fn test_replaygain_two_preamps_map_to_rgvolume() {
+    let params = |tagged: f64, untagged: f64| {
+        ReplayGainConfig {
+            mode: ReplayGainMode::Track,
+            pre_amp_db: tagged,
+            fallback_gain_db: untagged,
+            prevent_clipping: true,
+        }
+        .rgvolume_params()
+    };
+    let p = params(0.0, 3.0);
+    assert_eq!(
+        (p.pre_amp_db, p.fallback_gain_db, p.headroom_db),
+        (0.0, 3.0, 3.0)
+    );
+    let p = params(2.0, -4.0);
+    assert_eq!(
+        (p.pre_amp_db, p.fallback_gain_db, p.headroom_db),
+        (2.0, -6.0, 0.0)
+    );
+    // rgvolume computes untagged = pre-amp + fallback-gain: always the untagged preamp.
+    for (tagged, untagged) in [(5.0, -6.0), (-12.0, 15.0), (12.0, -15.0), (0.0, 0.0)] {
+        let p = params(tagged, untagged);
+        assert_eq!(p.pre_amp_db + p.fallback_gain_db, untagged);
+        assert!(p.headroom_db >= untagged);
+    }
+    // Out-of-range values are clamped: tagged ±12, untagged ±15.
+    let p = params(20.0, -40.0);
+    assert_eq!(p.pre_amp_db, 12.0);
+    assert_eq!(p.pre_amp_db + p.fallback_gain_db, -15.0);
+}
