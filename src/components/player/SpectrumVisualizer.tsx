@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { type Language, getTranslations } from '../../i18n';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
+import { usePersistedState } from '../../hooks/usePersistedState';
 import { livePlayback } from '../../state/livePlayback';
 import { GradientCache } from '../../utils/canvasDraw';
 import { foldBands, updateBands, type BandState } from '../../utils/spectrumBands';
@@ -32,12 +33,9 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   currentLang = 'en',
 }) => {
   const loc = getTranslations(currentLang);
-  const [mode, setMode] = useState<VisualizerMode>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_visualizer_mode');
-      if (isVisualizerMode(saved)) return saved;
-    } catch {}
-    return 'bars';
+  // Shared by every visualizer on screen (player, BigScreen, DSP studio): a change in one shows in all.
+  const [mode, setMode] = usePersistedState<VisualizerMode>('auralune_visualizer_mode', 'bars', {
+    parse: (raw) => (isVisualizerMode(raw) ? raw : undefined),
   });
 
   // Animation state kept in refs (no React renders per frame)
@@ -97,11 +95,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   }, [isPlaying, mode, invalidate]);
 
   const cycleMode = () => {
-    const next = nextVisualizerMode(mode);
-    setMode(next);
-    try {
-      localStorage.setItem('auralune_visualizer_mode', next);
-    } catch {}
+    setMode(nextVisualizerMode(mode));
   };
 
   return (

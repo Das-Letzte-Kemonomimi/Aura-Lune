@@ -446,12 +446,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       {/* Floating desktop lyrics widget (Desktop Lyrics Overlay) */}
       <DesktopLyricsOverlay
         isOpen={showDesktopLyrics}
-        onClose={() => {
-          setShowDesktopLyrics(false);
-          try {
-            localStorage.setItem('auralune_desktop_lyrics_open', 'false');
-          } catch { }
-        }}
+        onClose={() => setShowDesktopLyrics(false)}
         trackTitle={effectiveDisplayTitle}
         trackArtist={effectiveDisplayArtist}
         trackAlbum={currentAlbum?.title || status.current_track?.album || null}
@@ -866,10 +861,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
           onToggleShuffle={handleToggleShuffle}
           onToggleStopAfterCurrent={handleToggleStopAfterCurrent}
           onOpenUrlImportModal={() => setIsUrlImportModalOpen(true)}
-          onSetAmbience={(m) => {
-            setAmbienceMode(m);
-            localStorage.setItem('auralune_ambience_mode', m);
-          }}
+          onSetAmbience={setAmbienceMode}
           onSetDspEngine={(eng) => handleEngineChange(eng)}
           onResetDsp={handleResetDsp}
           onOpenBigScreen={() => setIsBigScreen(true)}

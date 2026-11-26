@@ -60,7 +60,7 @@ import { BackgroundExportBadge } from './components/layout/BackgroundExportBadge
 import { useSleepTimer } from './hooks/useSleepTimer';
 import { cn } from './utils/cn';
 import { fmt } from './utils/fmt';
-import { parseBoolean, usePersistedState } from './hooks/usePersistedState';
+import { parseBoolean, parseOneOf, usePersistedState } from './hooks/usePersistedState';
 import { useToasts } from './hooks/useToasts';
 import { useUpdateManager } from './hooks/useUpdateManager';
 import { usePlaybackErrorToasts } from './hooks/usePlaybackErrorToasts';
@@ -198,66 +198,25 @@ export default function App() {
   } = dspManager;
 
   // Now Playing visual mode: cover, hi-fi vinyl, reel-to-reel/cassette or analog VU meter
-  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<NowPlayingVisualMode>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_nowplaying_visual_mode');
-      if (isNowPlayingVisualMode(saved)) return saved;
-    } catch { }
-    return 'cover';
-  });
-
-  const handleSelectNowPlayingVisualMode = (mode: NowPlayingVisualMode) => {
-    setNowPlayingVisualMode(mode);
-    try {
-      localStorage.setItem('auralune_nowplaying_visual_mode', mode);
-    } catch { }
-  };
+  const [nowPlayingVisualMode, handleSelectNowPlayingVisualMode] = usePersistedState<NowPlayingVisualMode>(
+    'auralune_nowplaying_visual_mode',
+    'cover',
+    { parse: (raw) => (isNowPlayingVisualMode(raw) ? raw : undefined) },
+  );
+  // Session restore sets the mode through the same persisted setter
+  const setNowPlayingVisualMode = handleSelectNowPlayingVisualMode;
 
   // Visual parameters: vinyl RPM, tape speed, tape type
-  const [vinylRpm, setVinylRpm] = useState<33 | 45>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_vinyl_rpm');
-      if (saved === '33' || saved === '45') return Number(saved) as 33 | 45;
-    } catch { }
-    return 33;
+  const [vinylRpm, handleSelectVinylRpm] = usePersistedState<33 | 45>('auralune_vinyl_rpm', 33, {
+    parse: (raw) => (raw === '33' ? 33 : raw === '45' ? 45 : undefined),
+  });
+  const [tapeSpeed, handleSelectTapeSpeed] = usePersistedState<'7.5' | '3.75'>('auralune_tape_speed', '7.5', {
+    parse: parseOneOf(['7.5', '3.75'] as const),
+  });
+  const [tapeType, handleSelectTapeType] = usePersistedState<TapeType>('auralune_tape_type', 'TYPE_II', {
+    parse: parseOneOf(['TYPE_I', 'TYPE_II', 'METAL'] as const),
   });
 
-  const handleSelectVinylRpm = (rpm: 33 | 45) => {
-    setVinylRpm(rpm);
-    try {
-      localStorage.setItem('auralune_vinyl_rpm', String(rpm));
-    } catch { }
-  };
-
-  const [tapeSpeed, setTapeSpeed] = useState<'7.5' | '3.75'>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_tape_speed');
-      if (saved === '7.5' || saved === '3.75') return saved;
-    } catch { }
-    return '7.5';
-  });
-
-  const handleSelectTapeSpeed = (speed: '7.5' | '3.75') => {
-    setTapeSpeed(speed);
-    try {
-      localStorage.setItem('auralune_tape_speed', speed);
-    } catch { }
-  };
-
-  const [tapeType, setTapeType] = useState<TapeType>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_tape_type');
-      if (saved === 'TYPE_I' || saved === 'TYPE_II' || saved === 'METAL') return saved;
-    } catch { }
-    return 'TYPE_II';
-  });
-
-  const handleSelectTapeType = (type: TapeType) => {
-    setTapeType(type);
-    try {
-      localStorage.setItem('auralune_tape_type', type);
-    } catch { }
-  };
   const [activeTab, setActiveTab] = useState<AppTab>('player');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
 

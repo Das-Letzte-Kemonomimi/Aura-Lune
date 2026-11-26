@@ -1,84 +1,45 @@
-import { useState, useCallback } from 'react';
-import type { AmbienceMode } from '../components/player/AnimeAmbienceFX';
+import { useCallback } from 'react';
+import { AMBIENCE_MODES, type AmbienceMode } from '../components/player/ambienceModes';
 import type { Translations } from '../i18n';
 import { soundscapeEngine } from '../utils/soundscapeAudio';
+import { parseOneOf, usePersistedState } from './usePersistedState';
 
 export interface UseAmbienceModeOptions {
   loc: Translations;
   showMessage: (msg: string, isError?: boolean) => void;
 }
 
+/** The toast shown after switching to each mode. */
+const AMBIENCE_MESSAGE_KEYS: Record<AmbienceMode, keyof Translations['notifications']> = {
+  off: 'ambienceOff',
+  sakura: 'ambienceSakura',
+  neon_rain: 'ambienceNeon',
+  fireflies: 'ambienceFireflies',
+  snow: 'ambienceSnow',
+  meteor_shower: 'ambienceMeteor',
+  matrix_rain: 'ambienceMatrix',
+  momiji: 'ambienceMomiji',
+  embers: 'ambienceGothicEmbers',
+};
+
+function nextAmbienceMode(mode: AmbienceMode): AmbienceMode {
+  return AMBIENCE_MODES[(AMBIENCE_MODES.indexOf(mode) + 1) % AMBIENCE_MODES.length];
+}
+
 export function useAmbienceMode({ loc, showMessage }: UseAmbienceModeOptions) {
-  const [ambienceMode, setAmbienceMode] = useState<AmbienceMode>(() => {
-    try {
-      const saved = localStorage.getItem('auralune_ambience_mode');
-      if (
-        saved === 'sakura' ||
-        saved === 'neon_rain' ||
-        saved === 'fireflies' ||
-        saved === 'snow' ||
-        saved === 'meteor_shower' ||
-        saved === 'matrix_rain' ||
-        saved === 'momiji' ||
-        saved === 'embers' ||
-        saved === 'off'
-      ) {
-        return saved as AmbienceMode;
-      }
-    } catch {}
-    return 'off';
+  // Persisted by the hook itself: callers must not write the key again.
+  const [ambienceMode, setAmbienceMode] = usePersistedState<AmbienceMode>('auralune_ambience_mode', 'off', {
+    parse: parseOneOf(AMBIENCE_MODES),
   });
 
   const cycleAmbienceMode = useCallback(() => {
-    setAmbienceMode((prev: AmbienceMode) => {
-      const next: AmbienceMode =
-        prev === 'off'
-          ? 'sakura'
-          : prev === 'sakura'
-            ? 'neon_rain'
-            : prev === 'neon_rain'
-              ? 'fireflies'
-              : prev === 'fireflies'
-                ? 'snow'
-                : prev === 'snow'
-                  ? 'meteor_shower'
-                  : prev === 'meteor_shower'
-                    ? 'matrix_rain'
-                    : prev === 'matrix_rain'
-                      ? 'momiji'
-                      : prev === 'momiji'
-                        ? 'embers'
-                        : 'off';
-      try {
-        localStorage.setItem('auralune_ambience_mode', next);
-      } catch {}
-
-      const notif = loc.notifications;
-      showMessage(
-        next === 'sakura'
-          ? notif.ambienceSakura
-          : next === 'neon_rain'
-            ? notif.ambienceNeon
-            : next === 'fireflies'
-              ? notif.ambienceFireflies
-              : next === 'snow'
-                ? notif.ambienceSnow
-                : next === 'meteor_shower'
-                  ? notif.ambienceMeteor
-                  : next === 'matrix_rain'
-                    ? notif.ambienceMatrix
-                    : next === 'momiji'
-                      ? notif.ambienceMomiji
-                      : next === 'embers'
-                        ? notif.ambienceGothicEmbers
-                        : notif.ambienceOff
-      );
-      try {
-        soundscapeEngine.syncWithVisualAmbience(next);
-      } catch { }
-      return next;
-    });
-  }, [loc.notifications, showMessage]);
+    const next = nextAmbienceMode(ambienceMode);
+    setAmbienceMode(next);
+    showMessage(loc.notifications[AMBIENCE_MESSAGE_KEYS[next]]);
+    try {
+      soundscapeEngine.syncWithVisualAmbience(next);
+    } catch {}
+  }, [ambienceMode, setAmbienceMode, loc.notifications, showMessage]);
 
   return {
     ambienceMode,

@@ -4,7 +4,7 @@ import { errorMessage, invoke } from '../../../api/ipc';
 import type { TrackTranscriptionData } from '../../../types/analysis';
 import { getTranslations, type Language } from '../../../i18n';
 import { fmt } from '../../../utils/fmt';
-import { usePersistedState } from '../../../hooks/usePersistedState';
+import { parseBoolean, usePersistedState } from '../../../hooks/usePersistedState';
 import { PianoRollCanvas, type PianoRollViewChange, type PianoRollViewMode } from './PianoRollCanvas';
 import {
   DEFAULT_PX_PER_SEC,
@@ -84,9 +84,7 @@ export const PianoRollView = React.memo(function PianoRollView({
     serialize: (v) => (v === null ? 'auto' : String(Math.round(v * 10) / 10)),
   });
   const [mode, setMode] = useState<PianoRollViewMode>('follow');
-  const [showLabels, setShowLabels] = usePersistedState('auralune_piano_roll_labels', true, {
-    parse: (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined),
-  });
+  const [showLabels, setShowLabels] = usePersistedState('auralune_piano_roll_labels', true, { parse: parseBoolean });
 
   useEffect(() => {
     if (!trackId && !trackPath) return;
