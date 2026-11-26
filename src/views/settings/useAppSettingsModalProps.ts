@@ -15,6 +15,7 @@ import type { TranscodeSettingsViewProps } from './TranscodeSettingsView';
 import type { ThemesSettingsViewProps } from './ThemesSettingsView';
 import type { UpdatesSettingsViewProps } from './UpdatesSettingsView';
 import type { AboutSettingsViewProps } from './AboutSettingsView';
+import type { SettingsTab } from './SettingsModal';
 import type { BackupSettingsViewProps } from './BackupSettingsView';
 
 export interface UseAppSettingsModalPropsParams {
@@ -82,9 +83,9 @@ export interface UseAppSettingsModalPropsParams {
     handleImportTheme: () => Promise<void>;
   }>;
   about?: Partial<{
-    appIconStyle: any;
+    appIconStyle: AboutSettingsViewProps['appIconStyle'];
     setIsHealthCheckModalOpen: (v: boolean) => void;
-    setSettingsTab: (t: any) => void;
+    setSettingsTab: (t: SettingsTab) => void;
     setIsOnboardingOpen: (v: boolean) => void;
   }>;
   backup?: Partial<{

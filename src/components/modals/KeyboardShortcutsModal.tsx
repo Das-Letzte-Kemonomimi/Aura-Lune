@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 import { Keyboard } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
-import { Card, ModalBody, ModalHeader, ModalShell } from '../ui';
+import { Card, Kbd, ModalBody, ModalHeader, ModalShell } from '../ui';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -85,9 +85,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
               {cat.items.map((it) => (
                 <div key={it.key} className="flex items-center justify-between gap-2 text-ui">
                   <span className="text-fg-secondary">{it.desc}</span>
-                  <kbd className="rounded-md border border-line bg-white/8 px-2 py-0.5 font-mono text-xs font-bold whitespace-nowrap text-accent-pink">
-                    {it.key}
-                  </kbd>
+                  <Kbd>{it.key}</Kbd>
                 </div>
               ))}
             </div>

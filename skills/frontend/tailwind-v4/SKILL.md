@@ -107,16 +107,19 @@ All primitives live in `components/ui/` (import from `components/ui`). Each take
 | Action | `Button` | `variant` primary·secondary·tinted·danger·ghost, `tone` (tinted), `size` sm·md·lg; `type="button"` by default |
 | Icon-only action | `IconButton` | `variant` ghost·secondary, `size` sm·md; **required** `label` (aria-label + tooltip) |
 | On/off option | `Chip` | `pressed` (→ `aria-pressed`), `tone`, `size` xs·sm |
+| Large choice with a description | `OptionCard` | `pressed`, `tone`; the card-sized `Chip` (UI scale, icon style) |
 | One of many / tab bar | `SegmentedControl` | `items`, `value`, `onChange`, `label`, `tone`, `size`, `fullWidth`; arrow keys, Home, End |
-| Surface | `Card` | `variant` panel·card·inset, `padding` none·sm·md·lg, `interactive` |
+| Surface | `Card` | `variant` panel·card·inset, `padding` none·sm·md·lg, `interactive`, `highlight` (tone while its feature is on) |
 | Section / setting | `SectionHeader`, `SettingRow` | `icon`, `title`, `description`, `actions` / `control` |
 | Field | `TextField`, `TextArea`, `Select`, `FieldLabel` | `size` sm·md, `mono`, `icon` |
 | Readout / status | `Badge`, `StatusDot` | `tone` (+ neutral), `size` xs·sm, `mono`; dot `pulse` |
+| Key / shortcut | `Kbd` | `size` sm (shortcut lists) · xs (inline hints) |
 | Slider | `SliderRow`, `NudgeButtons` | `label`, `value`, `min`/`max`/`step`, `format`, `tone`, `nudges` |
 | Menu | `Popover` + `MenuItem` | `align` start·end, `side` bottom·top; item `selected` (→ `menuitemradio`) |
 | Loading / empty | `Spinner`, `ProgressBar`, `EmptyState` | `size`, `tone`, `label` |
 | Info box | `Callout` | `tone` (+ `danger`), `icon` |
 | Switch | `common/ToggleSwitch` | the only switch; style comes from the checkbox (`peer-checked:`) |
+| Settings tab | `views/settings/SettingsPage` + `ToggleCard` | page `title`, `icon`, `actions`; a switchable feature is a `ToggleCard` (`checked`, `tone`, `badges`, dependent controls as children) |
 
 **States belong to the base layer.** `styles/base.css` gives every button its hover lift, focus outline, press scale, transition and disabled look (opacity .45, no pointer events), and every text field and select its pink focus ring. Never add `transition-*`, `cursor-*`, a disabled opacity, `outline-none`, or `border-0` / `m-0` resets to a button or field.
 

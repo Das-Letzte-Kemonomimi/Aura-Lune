@@ -6,6 +6,7 @@
  *   info box / tinted button  `bg-X/15 border-X/35 text-accent-X`
  *   pressed chip / tab        `bg-X/20 border-X text-accent-X`
  *   badge                     `bg-X/20 text-accent-X`
+ *   highlighted card          `border-X/45 bg-X/5`
  */
 export type Tone = 'pink' | 'purple' | 'cyan' | 'green' | 'amber' | 'red';
 
@@ -61,6 +62,16 @@ export const badgeTones: Record<ToneOrNeutral, string> = {
   amber: 'bg-accent-amber/20 text-accent-amber',
   red: 'bg-accent-red/20 text-accent-red',
   neutral: 'bg-white/8 text-fg-secondary',
+};
+
+/** Card whose feature is switched on: a soft outline and wash, quieter than an info box. */
+export const highlightTones: Record<Tone, string> = {
+  pink: 'border-accent-pink/45 bg-accent-pink/5',
+  purple: 'border-accent-purple/45 bg-accent-purple/5',
+  cyan: 'border-accent-cyan/45 bg-accent-cyan/5',
+  green: 'border-accent-green/45 bg-accent-green/5',
+  amber: 'border-accent-amber/45 bg-accent-amber/5',
+  red: 'border-accent-red/45 bg-accent-red/5',
 };
 
 /** Icon tile next to a heading: the badge tint at the info-box strength. */

@@ -1,8 +1,13 @@
 import React from 'react';
+import { Wand2 } from '../../../components/ui/icons';
+import { Badge } from '../../../components/ui';
 import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
-import { cn } from '../../../utils/cn';
+import { ToggleCard } from '../SettingsPage';
 
-export type TranscodeDspOptionProps = Pick<TranscodeSettingsViewProps, 'transcodeApplyDsp' | 'onTranscodeApplyDspChange' | 'loc' | 'status' | 'reverbEnabled' | 'reverbLevel'>;
+export type TranscodeDspOptionProps = Pick<
+  TranscodeSettingsViewProps,
+  'transcodeApplyDsp' | 'onTranscodeApplyDspChange' | 'loc' | 'status' | 'reverbEnabled' | 'reverbLevel'
+>;
 
 export const TranscodeDspOption: React.FC<TranscodeDspOptionProps> = ({
   loc,
@@ -11,48 +16,36 @@ export const TranscodeDspOption: React.FC<TranscodeDspOptionProps> = ({
   reverbLevel,
   status,
   transcodeApplyDsp,
-}) => (
-    <div
-      className={cn(
-        'mt-2.5 flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all duration-200',
-        transcodeApplyDsp ? 'bg-accent-pink/10' : 'bg-white/3',
-        transcodeApplyDsp ? 'border-accent-pink' : 'border-line',
-      )}
+}) => {
+  const pitch = status.pitch_semitones ?? 0;
+  return (
+    <ToggleCard
+      icon={<Wand2 size={18} />}
+      tone="pink"
+      title={loc.settings.transcodeApplyDsp}
+      description={loc.settings.transcodeApplyDspDesc}
+      checked={transcodeApplyDsp}
+      onChange={onTranscodeApplyDspChange}
     >
-      <label
-        className={cn(
-          'flex cursor-pointer select-none items-center gap-2.5 text-sm font-semibold',
-          transcodeApplyDsp ? 'text-accent-pink' : 'text-fg',
-        )}
-      >
-        <input
-          type="checkbox"
-          checked={transcodeApplyDsp}
-          onChange={(e) => onTranscodeApplyDspChange(e.target.checked)}
-          className="h-4 w-4 accent-accent-pink"
-        />
-        <span>{loc.settings.transcodeApplyDsp}</span>
-      </label>
-      <p className="m-0 pl-6.5 text-ui text-fg-muted">
-        {loc.settings.transcodeApplyDspDesc}
-      </p>
       {transcodeApplyDsp && (
-        <div className="flex flex-wrap gap-2 pl-6.5 font-mono text-ui">
-          <span className="rounded-sm bg-accent-pink/20 px-2 py-0.5 text-accent-pink">
-            Pitch: {(status.pitch_semitones ?? 0) > 0 ? `+${(status.pitch_semitones ?? 0).toFixed(1)}` : (status.pitch_semitones ?? 0).toFixed(1)} st
-          </span>
-          <span className="rounded-sm bg-accent-cyan/20 px-2 py-0.5 text-accent-cyan">
+        <div className="flex flex-wrap gap-2">
+          <Badge tone="pink" mono>
+            Pitch: {pitch > 0 ? '+' : ''}
+            {pitch.toFixed(1)} st
+          </Badge>
+          <Badge tone="cyan" mono>
             Tempo: {(status.tempo_ratio ?? 1.0).toFixed(2)}x
-          </span>
-          <span className="rounded-sm bg-accent-purple/20 px-2 py-0.5 text-accent-purple">
+          </Badge>
+          <Badge tone="purple" mono>
             Speed: {(status.rate_ratio ?? 1.0).toFixed(2)}x
-          </span>
+          </Badge>
           {reverbEnabled && (
-            <span className="rounded-sm bg-yellow-500/20 px-2 py-0.5 text-yellow-400">
+            <Badge tone="amber" mono>
               Reverb: {Math.round(reverbLevel * 100)}%
-            </span>
+            </Badge>
           )}
         </div>
       )}
-    </div>
-);
+    </ToggleCard>
+  );
+};

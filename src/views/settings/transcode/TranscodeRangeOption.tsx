@@ -1,17 +1,95 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Scissors, Repeat, Bookmark, AlertTriangle } from '../../../components/ui/icons';
+import { Badge, Button, Card, TextField, type Tone } from '../../../components/ui';
+import { textTones } from '../../../components/ui/tones';
 import { formatTimeMs } from '../../../utils/timeFormat';
-import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
-import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
+import { fmt } from '../../../utils/fmt';
+import type { TranscodeSettingsViewProps } from '../TranscodeSettingsView';
+import { ToggleCard } from '../SettingsPage';
 
-export type TranscodeRangeOptionProps = Pick<TranscodeSettingsViewProps, 'transcodeApplyRange' | 'onTranscodeApplyRangeChange' | 'loc' | 'loopPointA' | 'loopPointB' | 'currentTrackBookmarks' | 'onTranscodeRangeAChange' | 'onTranscodeRangeBChange' | 'transcodeRangeA' | 'status' | 'transcodeRangeB'> & {
+export type TranscodeRangeOptionProps = Pick<
+  TranscodeSettingsViewProps,
+  | 'transcodeApplyRange'
+  | 'onTranscodeApplyRangeChange'
+  | 'loc'
+  | 'loopPointA'
+  | 'loopPointB'
+  | 'currentTrackBookmarks'
+  | 'onTranscodeRangeAChange'
+  | 'onTranscodeRangeBChange'
+  | 'transcodeRangeA'
+  | 'status'
+  | 'transcodeRangeB'
+> & {
   handleApplyLoopFromPlayer: () => void;
   handleApplyBookmarksRange: () => void;
   parsedA: number;
   parsedB: number | null;
   isOrderInvalid: boolean;
 };
+
+interface RangePointFieldProps {
+  label: string;
+  /** Resolved time shown next to the label. */
+  resolved: string;
+  tone: Tone;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onSetCurrent: () => void;
+  setCurrentLabel: string;
+  setCurrentTitle: string;
+  /** The player's loop point for this end, offered as a one-click fill. */
+  loopPoint: number | null;
+  loopLetter: 'A' | 'B';
+  loopTitle: string;
+}
+
+/** One end of the export range: a time field, "set current position" and the player's loop point. */
+function RangePointField({
+  label,
+  resolved,
+  tone,
+  value,
+  placeholder,
+  onChange,
+  onSetCurrent,
+  setCurrentLabel,
+  setCurrentTitle,
+  loopPoint,
+  loopLetter,
+  loopTitle,
+}: RangePointFieldProps) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <label htmlFor={id} className={cn('text-ui font-semibold', textTones[tone])}>
+          {label}
+        </label>
+        <span className="font-mono text-xs text-fg-muted">{resolved}</span>
+      </div>
+      <div className="flex gap-1.5">
+        <TextField id={id} mono placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+        <Button size="sm" onClick={onSetCurrent} title={setCurrentTitle}>
+          {setCurrentLabel}
+        </Button>
+        {loopPoint !== null && (
+          <Button
+            variant="tinted"
+            tone={tone}
+            size="sm"
+            onClick={() => onChange(formatTimeMs(loopPoint))}
+            title={loopTitle}
+          >
+            {loopLetter}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
   currentTrackBookmarks,
@@ -30,197 +108,130 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
   transcodeApplyRange,
   transcodeRangeA,
   transcodeRangeB,
-}) => (
-    <div
-      className={cn(
-        'mt-2.5 flex flex-col gap-2 rounded-xl border px-3.5 py-3 transition-all duration-200',
-        transcodeApplyRange ? 'bg-accent-cyan/10' : 'bg-white/3',
-        transcodeApplyRange ? 'border-accent-cyan' : 'border-line',
-      )}
+}) => {
+  const hasLoop = loopPointA !== null || loopPointB !== null;
+  return (
+    <ToggleCard
+      icon={<Scissors size={18} />}
+      tone="cyan"
+      title={loc.settings.transcodeApplyRange}
+      description={loc.settings.transcodeApplyRangeDesc}
+      checked={transcodeApplyRange}
+      onChange={onTranscodeApplyRangeChange}
     >
-      <label
-        className={cn(
-          'flex cursor-pointer select-none items-center gap-2.5 text-sm font-semibold',
-          transcodeApplyRange ? 'text-accent-cyan' : 'text-fg',
-        )}
-      >
-        <input
-          type="checkbox"
-          checked={transcodeApplyRange}
-          onChange={(e) => onTranscodeApplyRangeChange(e.target.checked)}
-          className="h-4 w-4 accent-accent-cyan"
-        />
-        <span className="flex flex-wrap items-center gap-1.5">
-          <Scissors className={cn(transcodeApplyRange ? 'text-accent-cyan' : 'text-fg-muted')} size={15} />
-          {loc.settings.transcodeApplyRange}
-          {(loopPointA !== null || loopPointB !== null) && (
-            <span
-              className="rounded-xl border border-accent-cyan/35 bg-accent-cyan/20 px-2 py-px text-xs font-bold text-accent-cyan"
-            >
-              {loc.settings.transcodeLoopAB} {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
-            </span>
-          )}
-        </span>
-      </label>
-      <p className="m-0 pl-6.5 text-ui text-fg-muted">
-        {loc.settings.transcodeApplyRangeDesc}
-      </p>
+      {hasLoop && !transcodeApplyRange && (
+        <Badge tone="cyan">
+          {loc.settings.transcodeLoopAB} {formatTimeMs(loopPointA ?? 0)} → {formatTimeMs(loopPointB)}
+        </Badge>
+      )}
 
       {transcodeApplyRange && (
-        <div className="mt-1 flex flex-col gap-2.5 pl-6.5">
-          {/* Buttons that sync with the player's A-B loop and the saved markers */}
-          <div className="flex flex-wrap items-center gap-2">
-            {(loopPointA !== null || loopPointB !== null) && (
-              <button
-                type="button"
-                onClick={handleApplyLoopFromPlayer}
-                className="flex items-center gap-1.5 rounded-md border border-accent-cyan/30 bg-accent-cyan/15 px-2.5 py-1 text-xs font-semibold text-accent-cyan"
-              >
-                <Repeat size={12} />
-                {loc.settings.transcodeFromPlayer} ({loopPointA !== null ? `A: ${formatTimeMs(loopPointA)}` : 'A: 0ms'} → {loopPointB !== null ? `B: ${formatTimeMs(loopPointB)}` : 'B: —'})
-              </button>
-            )}
-
-            {currentTrackBookmarks.length >= 2 && (
-              <button
-                type="button"
-                onClick={handleApplyBookmarksRange}
-                className="flex items-center gap-1.5 rounded-md border border-pink-500/35 bg-pink-500/15 px-2.5 py-1 text-xs font-semibold text-accent-pink"
-              >
-                <Bookmark size={12} />
-                {fmt(loc.settings.transcodeApplySavedBookmarks, String(currentTrackBookmarks.length))}
-              </button>
-            )}
-          </div>
+        <div className="flex flex-col gap-3">
+          {/* Fill the range from the player's A-B loop or the saved markers */}
+          {(hasLoop || currentTrackBookmarks.length >= 2) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {hasLoop && (
+                <Button variant="tinted" tone="cyan" size="sm" onClick={handleApplyLoopFromPlayer}>
+                  <Repeat size={12} />
+                  {loc.settings.transcodeFromPlayer} (A: {loopPointA !== null ? formatTimeMs(loopPointA) : '0ms'} → B:{' '}
+                  {loopPointB !== null ? formatTimeMs(loopPointB) : '—'})
+                </Button>
+              )}
+              {currentTrackBookmarks.length >= 2 && (
+                <Button variant="tinted" tone="pink" size="sm" onClick={handleApplyBookmarksRange}>
+                  <Bookmark size={12} />
+                  {fmt(loc.settings.transcodeApplySavedBookmarks, String(currentTrackBookmarks.length))}
+                </Button>
+              )}
+            </div>
+          )}
 
           {currentTrackBookmarks.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/5 bg-white/2 px-2.5 py-1.5">
-              <span className="text-xs text-fg-muted">Zapisane znaczniki utworu:</span>
+            <Card variant="inset" padding="none" className="flex flex-wrap items-center gap-1.5 px-2.5 py-1.5">
+              <span className="text-xs text-fg-muted">{loc.settings.transcodeSavedMarkers}</span>
               {currentTrackBookmarks.map((bm) => (
-                <div key={bm.id} className="flex items-center gap-1 rounded-sm bg-white/6 px-1.5 py-0.5 text-xxs">
+                <span key={bm.id} className="flex items-center gap-1 rounded-md bg-white/6 px-1.5 py-0.5 text-xxs">
                   <span className="font-semibold text-fg">{bm.name}</span>
                   <span className="font-mono text-accent-cyan">({formatTimeMs(bm.position_ms)})</span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="tinted"
+                    tone="cyan"
+                    size="sm"
+                    className="px-1.5 py-0 text-xxs"
                     onClick={() => onTranscodeRangeAChange(formatTimeMs(bm.position_ms))}
                     title={`Set "${bm.name}" as point A`}
-                    className="rounded-sm border-0 bg-accent-cyan/20 px-1 py-px text-xxs font-bold text-accent-cyan"
                   >
                     A
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="tinted"
+                    tone="pink"
+                    size="sm"
+                    className="px-1.5 py-0 text-xxs"
                     onClick={() => onTranscodeRangeBChange(formatTimeMs(bm.position_ms))}
                     title={`Set "${bm.name}" as point B`}
-                    className="rounded-sm border-0 bg-pink-500/20 px-1 py-px text-xxs font-bold text-accent-pink"
                   >
                     B
-                  </button>
-                </div>
+                  </Button>
+                </span>
               ))}
-            </div>
+            </Card>
           )}
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-2.5">
-            {/* Punkt A */}
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <span className="text-ui font-semibold text-accent-cyan">
-                  {loc.settings.transcodePointA}
-                </span>
-                <span className="font-mono text-xs text-fg-muted">
-                  {formatTimeMs(parsedA)}
-                </span>
-              </div>
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  placeholder="e.g. 0:00.000, 0:22.449, 860ms"
-                  value={transcodeRangeA}
-                  onChange={(e) => onTranscodeRangeAChange(e.target.value)}
-                  className="flex-1 rounded-md border border-line bg-black/30 px-2.5 py-1.5 font-mono text-ui text-fg"
-                />
-                <button
-                  type="button"
-                  onClick={() => onTranscodeRangeAChange(formatTimeMs(status.position_ms))}
-                  title={loc.settings.transcodeSetCurrentPos}
-                  className="rounded-md border border-line bg-white/6 px-2 py-1.5 text-xs whitespace-nowrap text-fg-secondary"
-                >
-                  {loc.settings.transcodeSetCurrentTime}
-                </button>
-                {loopPointA !== null && (
-                  <button
-                    type="button"
-                    onClick={() => onTranscodeRangeAChange(formatTimeMs(loopPointA))}
-                    title={loc.settings.transcodeGetLoopA}
-                    className="rounded-md border border-accent-cyan bg-accent-cyan/20 px-2 py-1.5 text-xs font-semibold text-accent-cyan"
-                  >
-                    A
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Punkt B */}
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <span className="text-ui font-semibold text-accent-pink">
-                  {loc.settings.transcodePointB}
-                </span>
-                <span className="font-mono text-xs text-fg-muted">
-                  {parsedB !== null
-                    ? formatTimeMs(parsedB)
-                    : loc.settings.transcodeEndOfTrack}
-                </span>
-              </div>
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  placeholder={loc.settings.transcodeTimePlaceholder}
-                  value={transcodeRangeB}
-                  onChange={(e) => onTranscodeRangeBChange(e.target.value)}
-                  className="flex-1 rounded-md border border-line bg-black/30 px-2.5 py-1.5 font-mono text-ui text-fg"
-                />
-                <button
-                  type="button"
-                  onClick={() => onTranscodeRangeBChange(formatTimeMs(status.position_ms))}
-                  title={loc.settings.transcodeSetCurrentPos}
-                  className="rounded-md border border-line bg-white/6 px-2 py-1.5 text-xs whitespace-nowrap text-fg-secondary"
-                >
-                  {loc.settings.transcodeSetCurrentTime}
-                </button>
-                {loopPointB !== null && (
-                  <button
-                    type="button"
-                    onClick={() => onTranscodeRangeBChange(formatTimeMs(loopPointB))}
-                    title={loc.settings.transcodeGetLoopB}
-                    className="rounded-md border border-accent-pink bg-accent-pink/20 px-2 py-1.5 text-xs font-semibold text-accent-pink"
-                  >
-                    B
-                  </button>
-                )}
-              </div>
-            </div>
+            <RangePointField
+              label={loc.settings.transcodePointA}
+              resolved={formatTimeMs(parsedA)}
+              tone="cyan"
+              value={transcodeRangeA}
+              placeholder="e.g. 0:00.000, 0:22.449, 860ms"
+              onChange={onTranscodeRangeAChange}
+              onSetCurrent={() => onTranscodeRangeAChange(formatTimeMs(status.position_ms))}
+              setCurrentLabel={loc.settings.transcodeSetCurrentTime}
+              setCurrentTitle={loc.settings.transcodeSetCurrentPos}
+              loopPoint={loopPointA}
+              loopLetter="A"
+              loopTitle={loc.settings.transcodeGetLoopA}
+            />
+            <RangePointField
+              label={loc.settings.transcodePointB}
+              resolved={parsedB !== null ? formatTimeMs(parsedB) : loc.settings.transcodeEndOfTrack}
+              tone="pink"
+              value={transcodeRangeB}
+              placeholder={loc.settings.transcodeTimePlaceholder}
+              onChange={onTranscodeRangeBChange}
+              onSetCurrent={() => onTranscodeRangeBChange(formatTimeMs(status.position_ms))}
+              setCurrentLabel={loc.settings.transcodeSetCurrentTime}
+              setCurrentTitle={loc.settings.transcodeSetCurrentPos}
+              loopPoint={loopPointB}
+              loopLetter="B"
+              loopTitle={loc.settings.transcodeGetLoopB}
+            />
           </div>
 
           {/* Range summary and validation */}
           {isOrderInvalid ? (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-accent-pink">
+            <div role="alert" className="flex items-center gap-1.5 text-xs font-semibold text-accent-red">
               <AlertTriangle size={13} />
               <span>{loc.settings.transcodeEndMustBeGreater}</span>
             </div>
-          ) : parsedB !== null ? (
-            <div className="flex items-center gap-1.5 font-mono text-xs text-accent-cyan">
-              <Scissors size={13} />
-              <span>{fmt(loc.settings.transcodeRangeDuration, `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`)}</span>
-            </div>
           ) : (
-            <div className="flex items-center gap-1.5 font-mono text-xs text-fg-muted">
+            <div
+              className={cn('flex items-center gap-1.5 font-mono text-xs', parsedB !== null ? 'text-accent-cyan' : 'text-fg-muted')}
+            >
               <Scissors size={13} />
-              <span>{fmt(loc.settings.transcodeExportRangeText, formatTimeMs(parsedA))}</span>
+              <span>
+                {parsedB !== null
+                  ? fmt(
+                      loc.settings.transcodeRangeDuration,
+                      `${((parsedB - parsedA) / 1000).toFixed(3)}s (${formatTimeMs(parsedB - parsedA)})`,
+                    )
+                  : fmt(loc.settings.transcodeExportRangeText, formatTimeMs(parsedA))}
+              </span>
             </div>
           )}
         </div>
       )}
-    </div>
-);
+    </ToggleCard>
+  );
+};

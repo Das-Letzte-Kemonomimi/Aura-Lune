@@ -18,6 +18,16 @@ describe('Card', () => {
     expect(className).toContain('hover:border-line-accent');
   });
 
+  it('tints the card only while highlight is set', () => {
+    const { rerender } = render(<Card highlight="purple">body</Card>);
+    const className = () => screen.getByText('body').className;
+    expect(className()).toContain('border-accent-purple/45');
+    expect(className()).not.toContain('border-line');
+    rerender(<Card highlight={false}>body</Card>);
+    expect(className()).toContain('border-line');
+    expect(className()).not.toContain('accent-purple');
+  });
+
   it("lets the caller's className win", () => {
     render(<Card className="p-2">body</Card>);
     const className = screen.getByText('body').className;

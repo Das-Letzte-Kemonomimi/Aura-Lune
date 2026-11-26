@@ -1,10 +1,22 @@
 import React from 'react';
 import { Volume2 } from '../../../components/ui/icons';
 import { type VolumeOsdPosition } from '../../../components/player/VolumeOsd';
+import { Card, SectionHeader, SegmentedControl, Select, SettingRow } from '../../../components/ui';
+import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
-import { cn } from '../../../utils/cn';
 
-export type VolumeAndOsdCardProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'instantVolume' | 'onToggleInstantVolume' | 'volumeUnit' | 'onSetVolumeUnit' | 'volumeOsdPosition' | 'onSetVolumeOsdPosition' | 'onToggleRecapOptIn' | 'recapOptIn'>;
+export type VolumeAndOsdCardProps = Pick<
+  AudioDevicesSettingsViewProps,
+  | 'loc'
+  | 'instantVolume'
+  | 'onToggleInstantVolume'
+  | 'volumeUnit'
+  | 'onSetVolumeUnit'
+  | 'volumeOsdPosition'
+  | 'onSetVolumeOsdPosition'
+  | 'onToggleRecapOptIn'
+  | 'recapOptIn'
+>;
 
 export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   instantVolume,
@@ -17,87 +29,60 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   volumeOsdPosition,
   volumeUnit,
 }) => (
-    <div className="glass-card mb-3.5 rounded-xl p-5">
-      <h4 className="mx-0 mt-0 mb-4 flex items-center gap-2 text-base font-bold text-fg">
-        <Volume2 size={18} className="text-accent-cyan" /> {loc.settings.volumeSectionTitle}
-      </h4>
+  <Card>
+    <SectionHeader icon={<Volume2 size={18} />} tone="cyan" title={loc.settings.volumeSectionTitle} />
 
-      <div className="flex flex-col gap-3.5 text-ui">
-        {/* Volume mode: instant vs smooth */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-fg">
-              {loc.settings.volumeSliderResponse}
-            </div>
-            <div className="text-xs text-fg-muted">
-              {instantVolume
-                ? loc.settings.volumeSliderInstantDesc
-                : loc.settings.volumeSliderSmoothDesc}
-            </div>
-          </div>
-          <button
-            onClick={onToggleInstantVolume}
-            className={cn(
-              'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
-              instantVolume ? 'bg-accent-cyan/25' : 'bg-white/6',
-              instantVolume ? 'border-accent-cyan' : 'border-line',
-              instantVolume ? 'text-accent-cyan' : 'text-fg-muted',
-            )}
-          >
-            {instantVolume ? loc.settings.volumeSliderInstant : loc.settings.volumeSliderSmooth}
-          </button>
-        </div>
+    <div className="mt-2 divide-y divide-line">
+      {/* Volume mode: instant vs smooth */}
+      <SettingRow
+        title={loc.settings.volumeSliderResponse}
+        description={instantVolume ? loc.settings.volumeSliderInstantDesc : loc.settings.volumeSliderSmoothDesc}
+        control={
+          <SegmentedControl
+            size="sm"
+            tone="cyan"
+            label={loc.settings.volumeSliderResponse}
+            items={[
+              { value: 'smooth', label: loc.settings.volumeSliderSmooth },
+              { value: 'instant', label: loc.settings.volumeSliderInstant },
+            ]}
+            value={instantVolume ? 'instant' : 'smooth'}
+            onChange={(mode) => {
+              if ((mode === 'instant') !== instantVolume) onToggleInstantVolume();
+            }}
+          />
+        }
+      />
 
-        {/* Volume display unit: percent vs decibels */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-fg">
-              {loc.settings.volumeUnitTitle}
-            </div>
-            <div className="text-xs text-fg-muted">
-              {volumeUnit === 'db' ? loc.settings.volumeUnitDb : loc.settings.volumeUnitPercent}
-            </div>
-          </div>
-          <div className="flex gap-1 rounded-lg border border-line bg-black/30 p-1">
-            <button
-              type="button"
-              onClick={() => onSetVolumeUnit('percent')}
-              className={cn(
-                'rounded-md border-0 px-2.5 py-1 text-xs font-bold',
-                volumeUnit === 'percent' ? 'bg-accent-pink' : 'bg-transparent',
-                volumeUnit === 'percent' ? 'text-fg' : 'text-fg-muted',
-              )}
-            >
-              %
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetVolumeUnit('db')}
-              className={cn(
-                'rounded-md border-0 px-2.5 py-1 text-xs font-bold',
-                volumeUnit === 'db' ? 'bg-accent-cyan' : 'bg-transparent',
-                volumeUnit === 'db' ? 'text-fg' : 'text-fg-muted',
-              )}
-            >
-              dB
-            </button>
-          </div>
-        </div>
+      {/* Volume display unit: percent vs decibels */}
+      <SettingRow
+        title={loc.settings.volumeUnitTitle}
+        description={volumeUnit === 'db' ? loc.settings.volumeUnitDb : loc.settings.volumeUnitPercent}
+        control={
+          <SegmentedControl
+            size="sm"
+            tone="cyan"
+            label={loc.settings.volumeUnitTitle}
+            items={[
+              { value: 'percent', label: '%' },
+              { value: 'db', label: 'dB' },
+            ]}
+            value={volumeUnit}
+            onChange={onSetVolumeUnit}
+          />
+        }
+      />
 
-        {/* Volume OSD position */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-fg">
-              {loc.settings.volumeOsdPosTitle}
-            </div>
-            <div className="text-xs text-fg-muted">
-              {loc.settings.volumeOsdPosDesc}
-            </div>
-          </div>
-          <select
+      {/* Volume OSD position */}
+      <SettingRow
+        title={loc.settings.volumeOsdPosTitle}
+        description={loc.settings.volumeOsdPosDesc}
+        control={
+          <Select
+            aria-label={loc.settings.volumeOsdPosTitle}
             value={volumeOsdPosition}
             onChange={(e) => onSetVolumeOsdPosition(e.target.value as VolumeOsdPosition)}
-            className="rounded-lg"
+            className="w-auto"
           >
             <option value="bottom-center">{loc.settings.volumeOsdBottomCenter}</option>
             <option value="center">{loc.settings.volumeOsdCenter}</option>
@@ -106,31 +91,17 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
             <option value="bottom-right">{loc.settings.volumeOsdBottomRight}</option>
             <option value="bottom-left">{loc.settings.volumeOsdBottomLeft}</option>
             <option value="off">{loc.settings.volumeOsdOff}</option>
-          </select>
-        </div>
+          </Select>
+        }
+      />
 
-        {/* Auralune Recap consent (opt-in) */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-fg">
-              {loc.settings.recapTitle}
-            </div>
-            <div className="text-xs text-fg-muted">
-              {loc.settings.recapDesc}
-            </div>
-          </div>
-          <button
-            onClick={onToggleRecapOptIn}
-            className={cn(
-              'rounded-lg border px-3.5 py-1.5 text-xs font-bold',
-              recapOptIn ? 'bg-accent-pink/25' : 'bg-white/6',
-              recapOptIn ? 'border-accent-pink' : 'border-line',
-              recapOptIn ? 'text-accent-pink' : 'text-fg-muted',
-            )}
-          >
-            {recapOptIn ? loc.settings.recapEnabled : loc.settings.recapDisabled}
-          </button>
-        </div>
-      </div>
+      {/* Auralune Recap consent (opt-in) */}
+      <SettingRow
+        title={loc.settings.recapTitle}
+        description={loc.settings.recapDesc}
+        control={<ToggleSwitch checked={recapOptIn} onChange={onToggleRecapOptIn} label={loc.settings.recapTitle} />}
+        className="pb-0"
+      />
     </div>
+  </Card>
 );

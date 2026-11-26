@@ -1,103 +1,66 @@
 import React from 'react';
-import { Layers, RotateCcw } from '../../../components/ui/icons';
+import { Layers } from '../../../components/ui/icons';
+import { TextField } from '../../../components/ui';
 import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
-import { cn } from '../../../utils/cn';
+import { cssVars } from '../../../utils/cssVars';
+import { PresetOptionCard } from './PresetOptionCard';
 
 export type OutputBufferOptionProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'audioBufferMs' | 'onSetAudioBuffer'>;
 
-export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
-  audioBufferMs,
-  loc,
-  onSetAudioBuffer,
-}) => (
-    <div className="glass-card mb-3.5 rounded-xl border border-line px-5 py-4.5">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-md font-bold text-fg">
-            <Layers size={17} className="text-accent-cyan" />
-            {loc.settings.audioBufferTitle}
-            {audioBufferMs === 600 && (
-              <span className="rounded-xl bg-accent-green/20 px-2 py-0.5 text-xxs font-semibold text-accent-green">
-                {loc.settings.audioBufferDefault}
-              </span>
-            )}
-          </div>
-          <div className="max-w-130 text-ui leading-snug text-fg-secondary">
-            {loc.settings.audioBufferDesc}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={cn(
-            'text-base font-bold',
-            audioBufferMs === 600 ? 'text-accent-green' : 'text-accent-pink',
-          )}>
-            {audioBufferMs} ms
-          </span>
-          <button
-            onClick={() => onSetAudioBuffer(600)}
-            disabled={audioBufferMs === 600}
-            className={cn(
-              'glass-card flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-accent-green',
-              audioBufferMs === 600 ? 'opacity-40' : 'opacity-100',
-              audioBufferMs === 600 ? 'cursor-default' : 'cursor-pointer',
-            )}
-            title={loc.settings.audioBufferReset}
-          >
-            <RotateCcw size={12} /> {loc.settings.audioBufferDefaultLabel}
-          </button>
-        </div>
-      </div>
+const DEFAULT_BUFFER_MS = 600;
+const SLIDER_MIN = 50;
+const SLIDER_MAX = 2000;
 
-      {/* Slider + presets */}
-      <div className="mt-2 flex items-center gap-3.5">
+export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({ audioBufferMs, loc, onSetAudioBuffer }) => {
+  const fill = ((Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, audioBufferMs)) - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+  return (
+    <PresetOptionCard
+      icon={<Layers size={18} />}
+      tone="pink"
+      title={loc.settings.audioBufferTitle}
+      description={loc.settings.audioBufferDesc}
+      value={audioBufferMs}
+      readout={`${audioBufferMs} ms`}
+      defaultValue={DEFAULT_BUFFER_MS}
+      defaultBadge={loc.settings.audioBufferDefault}
+      resetLabel={loc.settings.audioBufferDefaultLabel}
+      resetTitle={loc.settings.audioBufferReset}
+      presets={[
+        { label: '80 ms (Ultra-low)', value: 80 },
+        { label: loc.settings.audioBufferPreset250, value: 250 },
+        { label: loc.settings.audioBufferPreset600, value: 600 },
+        { label: loc.settings.audioBufferPreset1000, value: 1000 },
+        { label: loc.settings.audioBufferPreset2000, value: 2000 },
+      ]}
+      onChange={onSetAudioBuffer}
+    >
+      <div className="flex items-center gap-3.5">
         <input
           type="range"
-          min={50}
-          max={2000}
+          aria-label={loc.settings.audioBufferTitle}
+          min={SLIDER_MIN}
+          max={SLIDER_MAX}
           step={25}
           value={audioBufferMs}
           onChange={(e) => onSetAudioBuffer(Number(e.target.value))}
-          className="flex-1 cursor-pointer accent-accent-pink"
+          className="range-fill flex-1"
+          style={cssVars({ '--fill': `${fill}%` })}
         />
-        <div className="flex items-center gap-1">
-          <input
+        <div className="flex items-center gap-1.5">
+          <TextField
             type="number"
-            min={50}
+            size="sm"
+            mono
+            aria-label={loc.settings.audioBufferTitle}
+            min={SLIDER_MIN}
             max={4000}
             value={audioBufferMs}
             onChange={(e) => onSetAudioBuffer(Number(e.target.value))}
-            className="w-17.5 rounded-md border border-line bg-white/5 px-2 py-1.5 text-center text-ui text-fg"
+            className="w-18 text-center"
           />
           <span className="text-ui text-fg-muted">ms</span>
         </div>
       </div>
-
-      {/* Quick audio buffer presets */}
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        {[
-          { label: '80 ms (Ultra-low)', value: 80 },
-          { label: loc.settings.audioBufferPreset250, value: 250 },
-          { label: loc.settings.audioBufferPreset600, value: 600, isDefault: true },
-          { label: loc.settings.audioBufferPreset1000, value: 1000 },
-          { label: loc.settings.audioBufferPreset2000, value: 2000 },
-        ].map((preset) => {
-          const isActive = audioBufferMs === preset.value;
-          return (
-            <button
-              key={preset.value}
-              onClick={() => onSetAudioBuffer(preset.value)}
-              className={cn(
-                'rounded-md border px-2.5 py-1 text-xs transition-all duration-150',
-                isActive ? 'font-bold' : 'font-medium',
-                isActive ? preset.isDefault ? 'bg-accent-green/25' : 'bg-pink-500/25' : 'bg-white/4',
-                isActive ? preset.isDefault ? 'border-accent-green' : 'border-accent-pink' : 'border-line',
-                isActive ? preset.isDefault ? 'text-accent-green' : 'text-accent-pink' : 'text-fg-secondary',
-              )}
-            >
-              {preset.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-);
+    </PresetOptionCard>
+  );
+};

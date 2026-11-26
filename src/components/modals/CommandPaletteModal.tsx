@@ -22,7 +22,7 @@ import {
 } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { ModalShell } from '../ui';
+import { Kbd, ModalShell } from '../ui';
 
 export interface CommandItem {
   id: string;
@@ -585,11 +585,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             placeholder={loc.commandPalette.placeholder}
             className="w-full border-0 bg-transparent text-base font-medium text-fg outline-none"
           />
-          <kbd
-            className="rounded-md border border-white/10 bg-white/8 px-2 py-1 font-mono text-xs font-semibold text-fg-secondary"
-          >
-            ESC
-          </kbd>
+          <Kbd size="xs">ESC</Kbd>
         </div>
 
         {/* Results list */}
@@ -666,10 +662,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         >
           <div className="flex gap-3.5">
             <span>
-              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↑↓</kbd> Navigate
+              <Kbd size="xs">↑↓</Kbd> Navigate
             </span>
             <span>
-              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↵</kbd> Select
+              <Kbd size="xs">↵</Kbd> Select
             </span>
           </div>
           <div>

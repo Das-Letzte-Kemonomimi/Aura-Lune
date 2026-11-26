@@ -35,3 +35,28 @@ export function Chip({ pressed, tone = 'pink', size, type = 'button', className,
     />
   );
 }
+
+export interface OptionCardProps extends Omit<React.ComponentProps<'button'>, 'aria-pressed'> {
+  /** The selected option. Rendered as `aria-pressed`, which also drives the selected look. */
+  pressed: boolean;
+  tone?: Tone;
+}
+
+/**
+ * A large selectable option with a title and description (UI scale, icon style). It is the
+ * card-sized sibling of `Chip`: the same pressed tint, laid out as a column.
+ */
+export function OptionCard({ pressed, tone = 'pink', type = 'button', className, ...props }: OptionCardProps) {
+  return (
+    <button
+      type={type}
+      aria-pressed={pressed}
+      className={cn(
+        'flex flex-col items-start gap-1 rounded-xl border border-line bg-card p-4 text-left text-fg hover:border-line-accent',
+        pressedTones[tone],
+        className,
+      )}
+      {...props}
+    />
+  );
+}

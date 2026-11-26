@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Button, IconButton } from './Button';
-import { Chip } from './Chip';
-import { Badge } from './Badge';
+import { Chip, OptionCard } from './Chip';
+import { Badge, Kbd } from './Badge';
 
 afterEach(cleanup);
 
@@ -97,6 +97,35 @@ describe('Chip', () => {
     const className = screen.getByRole('button', { name: 'A' }).className.split(' ');
     expect(className).toContain('px-4');
     expect(className).not.toContain('px-2');
+  });
+});
+
+describe('OptionCard', () => {
+  it('is a pressed-state button that calls onClick', () => {
+    const onClick = vi.fn();
+    render(
+      <OptionCard pressed tone="cyan" onClick={onClick}>
+        <span>110%</span>
+        <span>Comfortable</span>
+      </OptionCard>,
+    );
+    const card = screen.getByRole('button', { name: /110%/ });
+    expect(card.getAttribute('aria-pressed')).toBe('true');
+    expect(card.getAttribute('type')).toBe('button');
+    expect(card.className).toContain('aria-pressed:border-accent-cyan');
+    fireEvent.click(card);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Kbd', () => {
+  it('renders a kbd element in the list or hint size', () => {
+    const { rerender } = render(<Kbd>Ctrl + K</Kbd>);
+    const key = screen.getByText('Ctrl + K');
+    expect(key.tagName).toBe('KBD');
+    expect(key.className).toContain('text-xs');
+    rerender(<Kbd size="xs">Ctrl + K</Kbd>);
+    expect(screen.getByText('Ctrl + K').className).toContain('text-2xs');
   });
 });
 

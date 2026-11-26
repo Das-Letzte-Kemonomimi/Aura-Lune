@@ -23,3 +23,22 @@ export interface BadgeProps extends React.ComponentProps<'span'>, VariantProps<t
 export function Badge({ tone = 'neutral', size, mono, className, ...props }: BadgeProps) {
   return <span className={cn(badgeVariants({ size, mono }), badgeTones[tone], className)} {...props} />;
 }
+
+export interface KbdProps extends React.ComponentProps<'kbd'> {
+  /** `xs` for inline hints (palette footer), `sm` for shortcut lists. */
+  size?: 'xs' | 'sm';
+}
+
+/** A key or key combination ("Ctrl + F"). */
+export function Kbd({ size = 'sm', className, ...props }: KbdProps) {
+  return (
+    <kbd
+      className={cn(
+        'rounded-md border border-line bg-white/8 font-mono font-bold whitespace-nowrap',
+        size === 'sm' ? 'px-2 py-0.5 text-xs text-accent-pink' : 'px-1.5 py-0.5 text-2xs text-fg-secondary',
+        className,
+      )}
+      {...props}
+    />
+  );
+}

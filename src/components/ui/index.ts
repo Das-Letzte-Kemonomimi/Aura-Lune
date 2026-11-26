@@ -1,4 +1,4 @@
-export { Badge, type BadgeProps } from './Badge';
+export { Badge, Kbd, type BadgeProps, type KbdProps } from './Badge';
 export { Button, IconButton, type ButtonProps, type IconButtonProps } from './Button';
 export { Callout, type CalloutProps, type CalloutTone } from './Callout';
 export {
@@ -9,7 +9,7 @@ export {
   type SectionHeaderProps,
   type SettingRowProps,
 } from './Card';
-export { Chip, type ChipProps } from './Chip';
+export { Chip, OptionCard, type ChipProps, type OptionCardProps } from './Chip';
 export {
   EmptyState,
   ProgressBar,

@@ -1,7 +1,7 @@
 import type React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils/cn';
-import { iconTileTones, type Tone } from './tones';
+import { highlightTones, iconTileTones, type Tone } from './tones';
 
 const cardVariants = cva('border border-line', {
   variants: {
@@ -28,11 +28,19 @@ const cardVariants = cva('border border-line', {
   defaultVariants: { variant: 'card', padding: 'md', interactive: false },
 });
 
-export interface CardProps extends React.ComponentProps<'div'>, VariantProps<typeof cardVariants> {}
+export interface CardProps extends React.ComponentProps<'div'>, VariantProps<typeof cardVariants> {
+  /** Tint the card while the feature it controls is on (`false` or unset: no tint). */
+  highlight?: Tone | false;
+}
 
 /** Surface container. Use it instead of `glass-panel` / `glass-card` and hand-written card classes. */
-export function Card({ variant, padding, interactive, className, ...props }: CardProps) {
-  return <div className={cn(cardVariants({ variant, padding, interactive }), className)} {...props} />;
+export function Card({ variant, padding, interactive, highlight, className, ...props }: CardProps) {
+  return (
+    <div
+      className={cn(cardVariants({ variant, padding, interactive }), highlight && highlightTones[highlight], className)}
+      {...props}
+    />
+  );
 }
 
 export interface SectionHeaderProps {
