@@ -137,7 +137,7 @@ export function useLibraryPlaybackActions({
             title: matchingTrack?.title || fname,
             artist: matchingTrack?.artist || 'Local File',
             album: alb?.title || null,
-            duration_ms: (matchingTrack?.duration_ms || 0) as any,
+            duration_ms: matchingTrack?.duration_ms || 0,
           };
         });
 
@@ -220,7 +220,7 @@ export function useLibraryPlaybackActions({
             title: t.title,
             artist: t.artist,
             album: alb?.title || t.album_artist || null,
-            duration_ms: (t.duration_ms || 0) as any,
+            duration_ms: t.duration_ms || 0,
           };
         });
         await invoke('set_queue', { items: queueItems, startIndex });
@@ -237,7 +237,7 @@ export function useLibraryPlaybackActions({
             title: t.title,
             artist: t.artist,
             album: alb?.title || t.album_artist || null,
-            duration_ms: (t.duration_ms || 0) as any,
+            duration_ms: t.duration_ms || 0,
           };
         });
         const currentLen = queue.items.length;

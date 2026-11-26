@@ -188,7 +188,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
               </div>
 
               {/* Technical info */}
-              <div className="flex items-center gap-3.5 border-t border-white/5 pt-2 text-xs text-fg-muted">
+              <div className="flex items-center gap-3.5 border-t border-line pt-2 text-xs text-fg-muted">
                 <span className="flex items-center gap-1">
                   <Layers size={13} /> {fmt(t.stems.tracksCount, String(project.channels.length))}
                 </span>

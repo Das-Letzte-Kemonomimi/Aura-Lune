@@ -183,7 +183,7 @@ export interface AppModalsContainerProps {
   handleToggleShuffle: () => void;
   handleToggleStopAfterCurrent: () => void;
   setAmbienceMode: (mode: AmbienceMode) => void;
-  handleEngineChange: (engine: any) => void;
+  handleEngineChange: (engine: PlaybackStatus['engine']) => void;
   handleResetDsp: () => void;
   setIsBigScreen: (open: boolean) => void;
   setActiveTab: (tab: AppTab) => void;
@@ -585,7 +585,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
                 title: fullTrack.title,
                 artist: fullTrack.artist,
                 album: matchingAlbum?.title || null,
-                duration_ms: (fullTrack.duration_ms || 0) as any,
+                duration_ms: fullTrack.duration_ms || 0,
               };
 
               await invoke('add_next_to_queue', { item: queueItem });

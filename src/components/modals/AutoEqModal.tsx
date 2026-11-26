@@ -203,7 +203,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
             </div>
 
             {activeProfile.description && (
-              <p className="my-3 rounded-lg border-l-3 border-accent-pink bg-white/4 px-3 py-2.5 text-ui leading-snug text-fg">
+              <p className="my-3 rounded-lg border-l-3 border-accent-pink bg-white/5 px-3 py-2.5 text-ui leading-snug text-fg">
                 {activeProfile.description}
               </p>
             )}

@@ -203,7 +203,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
               {!coverUrl && (
                 <div
                   className={cn(
-                    'flex h-4/5 w-4/5 items-center justify-center rounded-full border-3 border-white/8',
+                    'flex h-4/5 w-4/5 items-center justify-center rounded-full border-3 border-line',
                     isPlaying && 'animate-spin',
                   )}
                   style={{

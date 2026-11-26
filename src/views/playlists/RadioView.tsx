@@ -162,7 +162,7 @@ function StationCard({ station, playing, tone, title, body, footerStart, onPlay,
         </div>
         {body}
       </div>
-      <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
+      <div className="flex items-center justify-between border-t border-line pt-2.5">
         {footerStart}
         <PlayStopButton playing={playing} onPlay={onPlay} onStop={onStop} loc={loc} />
       </div>

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '../api/ipc';
-import type { AlbumRecord, ReleaseCandidateDto } from '../types/library';
+import type { AlbumRecord, ReleaseCandidateDto, TrackRecord } from '../types/library';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
@@ -13,7 +13,7 @@ export interface UseMusicBrainzManagerOptions {
   status?: PlaybackStatus;
   albums?: AlbumRecord[];
   currentAlbum?: AlbumRecord | null;
-  currentPlayingTrack?: any;
+  currentPlayingTrack?: TrackRecord | null;
   setTrackDirectCover?: React.Dispatch<React.SetStateAction<string | null>>;
 }
 

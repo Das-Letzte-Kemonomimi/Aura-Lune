@@ -353,7 +353,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
       </div>
 
       {/* Bottom control bar and reel-to-reel selectors */}
-      <div className="z-20 flex items-center justify-between border-t border-white/8 pt-1.5 text-xxs font-bold">
+      <div className="z-20 flex items-center justify-between border-t border-line pt-1.5 text-xxs font-bold">
         {/* Tape speed choice & Lo-Fi */}
         <div className="flex items-center gap-1 rounded-md bg-black/50 p-0.5">
           <Chip size="xs" tone="purple" pressed={tapeSpeed === '7.5'} onClick={() => setTapeSpeed('7.5')} title={t.player.tapeSpeedStudio} className="px-1.5 text-2xs">

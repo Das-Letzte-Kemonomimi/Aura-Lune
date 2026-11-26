@@ -202,7 +202,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
 
           <div className="overflow-hidden rounded-xl border border-line bg-black/30">
             <div
-              className="grid grid-cols-[1fr_--spacing(6)_1fr_--spacing(22.5)] gap-3 border-b border-line bg-white/4 px-3.5 py-2 text-xs font-bold text-fg-muted"
+              className="grid grid-cols-[1fr_--spacing(6)_1fr_--spacing(22.5)] gap-3 border-b border-line bg-white/5 px-3.5 py-2 text-xs font-bold text-fg-muted"
             >
               <span>{loc.fileRenamer.currentName}</span>
               <span></span>

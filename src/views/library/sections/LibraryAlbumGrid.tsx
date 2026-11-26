@@ -255,7 +255,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                       handleOpenCoverPicker(album);
                     }}
                     title={loc.covers.matchCoverTitle}
-                    className="absolute right-1.5 bottom-1.5 flex items-center gap-1 rounded-sm border-0 bg-black/70 px-1.5 py-0.5 text-2xs font-semibold text-accent-pink backdrop-blur-xs"
+                    className="absolute right-1.5 bottom-1.5 flex items-center gap-1 rounded-sm bg-black/70 px-1.5 py-0.5 text-2xs font-semibold text-accent-pink backdrop-blur-xs"
                   >
                     <Sparkles size={10} /> {loc.covers.matchCover}
                   </button>

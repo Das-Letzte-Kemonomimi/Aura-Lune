@@ -31,3 +31,13 @@ const MAIN_TABS: ReadonlySet<string> = new Set<MainTabType>([
 export function isMainTab(tab: string): tab is MainTabType {
   return MAIN_TABS.has(tab);
 }
+
+/** What the player view shows next to the controls. */
+export type NowPlayingVisualMode = 'cover' | 'turntable' | 'tape' | 'vumeter';
+
+const NOW_PLAYING_VISUAL_MODES: ReadonlySet<unknown> = new Set<NowPlayingVisualMode>(['cover', 'turntable', 'tape', 'vumeter']);
+
+/** Whether a stored value (saved session, `localStorage`) is a known visual mode. */
+export function isNowPlayingVisualMode(value: unknown): value is NowPlayingVisualMode {
+  return NOW_PLAYING_VISUAL_MODES.has(value);
+}

@@ -13,7 +13,7 @@ import {
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
-import { Button, IconButton, ModalBody, ModalFooter, ModalShell } from '../ui';
+import { Button, Callout, Chip, IconButton, ModalBody, ModalFooter, ModalShell, OptionCard, ToggleCard } from '../ui';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -70,7 +70,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <div
               key={s}
               className={cn(
-                'h-2 rounded-sm transition-all duration-300',
+                'h-2 rounded-sm motion-safe:transition-[width] motion-safe:duration-300',
                 step === s ? 'w-8' : 'w-2.5',
                 step === s ? 'bg-accent-pink' : 'bg-white/15',
               )}
@@ -98,30 +98,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
 
             {/* The author's personal note */}
-            <div
-              className="mb-4.5 rounded-2xl border border-accent-purple/25 bg-accent-purple/8 p-4 text-sm leading-normal text-slate-200"
-            >
-              <div className="mb-2 flex items-center gap-2 font-bold text-accent-purple">
-                <Heart className="fill-accent-purple" size={16} />
-                {loc.onboarding.whyAuralune}
-              </div>
-              <p className="m-0 italic">
-                {loc.onboarding.whyAuraluneDesc}
-              </p>
-            </div>
+            <Callout tone="purple" icon={<Heart size={16} fill="currentColor" />} className="mb-4.5 text-sm leading-normal">
+              <div className="mb-1.5 font-bold text-accent-purple">{loc.onboarding.whyAuralune}</div>
+              <p className="m-0 text-fg-secondary italic">{loc.onboarding.whyAuraluneDesc}</p>
+            </Callout>
 
             {/* No warranty / as-is disclaimer */}
-            <div
-              className="mb-5 rounded-2xl border border-accent-red/30 bg-accent-red/8 px-4 py-3.5 text-ui leading-normal text-red-300"
-            >
-              <div className="mb-1.5 flex items-center gap-2 font-bold text-accent-red">
-                <ShieldAlert size={16} />
-                {loc.onboarding.disclaimer}
-              </div>
-              <p className="m-0">
-                {loc.onboarding.disclaimerDesc}
-              </p>
-            </div>
+            <Callout tone="danger" icon={<ShieldAlert size={16} />} className="mb-5 text-ui leading-normal">
+              <div className="mb-1.5 font-bold text-accent-red">{loc.onboarding.disclaimer}</div>
+              <p className="m-0 text-fg-secondary">{loc.onboarding.disclaimerDesc}</p>
+            </Callout>
           </div>
         )}
 
@@ -144,36 +130,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Toggle Opt-in Recap */}
-            <div
-              className={cn(
-                'mb-5 flex cursor-pointer items-center justify-between rounded-2xl border p-4',
-                recapOptIn ? 'bg-accent-cyan/10' : 'bg-white/4',
-                recapOptIn ? 'border-accent-cyan' : 'border-line',
-              )}
-              onClick={() => onRecapOptInChange(!recapOptIn)}
-            >
-              <div className="flex-1 pr-3.5">
-                <div className={cn('mb-1 text-md font-bold', recapOptIn ? 'text-accent-cyan' : 'text-fg')}>
-                  {loc.onboarding.enableRecap}
-                </div>
-                <div className="text-ui leading-snug text-fg-secondary">
-                  {loc.onboarding.enableRecapDesc}
-                </div>
-              </div>
-              <div
-                className={cn(
-                  'relative h-6.5 w-11.5 shrink-0 rounded-xl transition-colors duration-200',
-                  recapOptIn ? 'bg-accent-cyan' : 'bg-white/20',
-                )}
-              >
-                <div
-                  className={cn(
-                    'absolute top-1 h-5 w-5 rounded-full bg-white transition-[left] duration-200',
-                    recapOptIn ? 'left-6' : 'left-1',
-                  )}
-                />
-              </div>
+            {/* Recap opt-in */}
+            <div className="mb-5">
+              <ToggleCard
+                icon={<BarChart2 size={18} />}
+                tone="cyan"
+                title={loc.onboarding.enableRecap}
+                description={loc.onboarding.enableRecapDesc}
+                checked={recapOptIn}
+                onChange={onRecapOptInChange}
+              />
             </div>
 
             {/* Language choice */}
@@ -189,19 +155,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   { id: 'fi', label: 'Suomi 🇫🇮' },
                   { id: 'la', label: 'Latina 🏛️' },
                 ].map((item) => (
-                  <button
+                  <Chip
                     key={item.id}
+                    pressed={currentLang === item.id}
+                    tone="purple"
                     onClick={() => onLanguageChange(item.id as Language)}
-                    className={cn(
-                      'rounded-lg border px-3 py-2 text-ui',
-                      currentLang === item.id ? 'bg-accent-purple/25' : 'bg-white/5',
-                      currentLang === item.id ? 'border-accent-purple' : 'border-line',
-                      currentLang === item.id ? 'text-fg' : 'text-fg-secondary',
-                      currentLang === item.id ? 'font-bold' : 'font-medium',
-                    )}
+                    className="py-2 text-ui"
                   >
                     {item.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -233,37 +195,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {loc.onboarding.volumeMode}
               </label>
               <div className="grid grid-cols-2 gap-2.5">
-                <div
-                  onClick={() => onInstantVolumeChange(false)}
-                  className={cn(
-                    'cursor-pointer rounded-xl border p-3',
-                    !instantVolume ? 'bg-accent-purple/20' : 'bg-white/4',
-                    !instantVolume ? 'border-accent-purple' : 'border-line',
-                  )}
-                >
-                  <div className="mb-1 text-sm font-bold">
-                    {loc.onboarding.volumeSmooth}
-                  </div>
-                  <div className="text-xs text-fg-muted">
-                    {loc.onboarding.volumeSmoothDesc}
-                  </div>
-                </div>
+                <OptionCard pressed={!instantVolume} tone="purple" onClick={() => onInstantVolumeChange(false)} className="p-3">
+                  <span className="text-sm font-bold">{loc.onboarding.volumeSmooth}</span>
+                  <span className="text-xs text-fg-muted">{loc.onboarding.volumeSmoothDesc}</span>
+                </OptionCard>
 
-                <div
-                  onClick={() => onInstantVolumeChange(true)}
-                  className={cn(
-                    'cursor-pointer rounded-xl border p-3',
-                    instantVolume ? 'bg-accent-pink/20' : 'bg-white/4',
-                    instantVolume ? 'border-accent-pink' : 'border-line',
-                  )}
-                >
-                  <div className="mb-1 text-sm font-bold">
-                    {loc.onboarding.volumeInstant}
-                  </div>
-                  <div className="text-xs text-fg-muted">
-                    {loc.onboarding.volumeInstantDesc}
-                  </div>
-                </div>
+                <OptionCard pressed={instantVolume} tone="pink" onClick={() => onInstantVolumeChange(true)} className="p-3">
+                  <span className="text-sm font-bold">{loc.onboarding.volumeInstant}</span>
+                  <span className="text-xs text-fg-muted">{loc.onboarding.volumeInstantDesc}</span>
+                </OptionCard>
               </div>
             </div>
 
@@ -281,19 +221,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   { id: 'bottom-right', label: loc.onboarding.hudBottomRight },
                   { id: 'off', label: loc.onboarding.hudDisabled },
                 ].map((pos) => (
-                  <button
+                  <Chip
                     key={pos.id}
+                    pressed={volumeOsdPosition === pos.id}
+                    tone="cyan"
                     onClick={() => onVolumeOsdPositionChange(pos.id)}
-                    className={cn(
-                      'rounded-lg border px-2.5 py-2 text-ui',
-                      volumeOsdPosition === pos.id ? 'bg-accent-cyan/25' : 'bg-white/5',
-                      volumeOsdPosition === pos.id ? 'border-accent-cyan' : 'border-line',
-                      volumeOsdPosition === pos.id ? 'text-fg' : 'text-fg-secondary',
-                      volumeOsdPosition === pos.id ? 'font-bold' : 'font-medium',
-                    )}
+                    className="py-2 text-ui"
                   >
                     {pos.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>

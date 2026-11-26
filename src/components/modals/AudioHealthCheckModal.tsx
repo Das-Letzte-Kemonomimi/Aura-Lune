@@ -148,7 +148,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
         {!loading && health && (
           <>
             {/* Section 1: PipeWire audio server */}
-            <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
+            <div className="rounded-2xl border border-line bg-white/3 px-4 py-3.5">
               <div className="mb-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Volume2 size={16} className="text-accent-pink" />
@@ -194,7 +194,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
             </div>
 
             {/* Section 2: DSP engines */}
-            <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
+            <div className="rounded-2xl border border-line bg-white/3 px-4 py-3.5">
               <div className="mb-2.5 flex items-center gap-2">
                 <Cpu size={16} className="text-accent-purple" />
                 <span className="text-sm font-bold">{t.healthCheck.realtimeDsp}</span>
@@ -218,7 +218,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
             </div>
 
             {/* Section 3: GStreamer audio codecs */}
-            <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
+            <div className="rounded-2xl border border-line bg-white/3 px-4 py-3.5">
               <div className="mb-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Layers size={16} className="text-accent-pink" />
@@ -253,7 +253,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
 
             {/* Section 4: database and desktop integration */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/7 bg-white/3 px-3.5 py-3">
+              <div className="rounded-2xl border border-line bg-white/3 px-3.5 py-3">
                 <div className="mb-1.5 flex items-center gap-1.5">
                   <Database size={15} className="text-accent-purple" />
                   <span className="text-sm font-bold">{t.healthCheck.databaseIntegrity}</span>
@@ -266,7 +266,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/7 bg-white/3 px-3.5 py-3">
+              <div className="rounded-2xl border border-line bg-white/3 px-3.5 py-3">
                 <div className="mb-1.5 flex items-center gap-1.5">
                   <Radio size={15} className="text-accent-pink" />
                   <span className="text-sm font-bold">{t.healthCheck.desktopIpc}</span>

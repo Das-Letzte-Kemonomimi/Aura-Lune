@@ -269,7 +269,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                 <button
                   type="button"
                   onClick={onCycleDspEngine}
-                  className="flex items-center gap-1.5 rounded-r-none border-0 bg-transparent py-1 pr-2 pl-2.5 text-xs font-bold"
+                  className="flex items-center gap-1.5 rounded-r-none py-1 pr-2 pl-2.5 text-xs font-bold"
                   title={fmt(
                     loc.bottomDock.dspEngineCycleTooltip,
                     status.engine === 'Bypass'
@@ -289,7 +289,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                   aria-haspopup="menu"
                   aria-label={loc.bottomDock.selectDspEngineList}
                   title={loc.bottomDock.selectDspEngineList}
-                  className="flex items-center rounded-l-none border-0 border-l border-line bg-transparent py-1 pr-1.5 pl-0.5"
+                  className="flex items-center rounded-l-none border-l border-line py-1 pr-1.5 pl-0.5"
                 >
                   <ChevronUp size={12} className={cn('motion-safe:transition-transform', isDspQuickMenuOpen && 'rotate-180')} />
                 </button>

@@ -325,7 +325,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
       </div>
 
       {/* Header bar (drag handle + mini controls) */}
-      <div className="flex items-center justify-between border-b border-white/6 bg-black/25 px-3.5 py-2 text-xs">
+      <div className="flex items-center justify-between border-b border-line bg-black/25 px-3.5 py-2 text-xs">
         <div className="flex min-w-0 flex-auto items-center gap-2 overflow-hidden">
           {!isLocked && <GripHorizontal size={14} className="shrink-0 text-fg-muted opacity-70" />}
           {coverUrl ? (

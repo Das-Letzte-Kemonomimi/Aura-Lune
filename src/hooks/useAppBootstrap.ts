@@ -202,7 +202,8 @@ export function useAppBootstrap({
       const paths: string[] = [];
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
         for (let i = 0; i < e.dataTransfer.files.length; i++) {
-          const file = e.dataTransfer.files[i] as any;
+          // WebKitGTK adds the absolute `path` of a dropped file; standard `File` objects have none.
+          const file = e.dataTransfer.files[i] as File & { path?: string };
           if (file.path) {
             paths.push(file.path);
           }

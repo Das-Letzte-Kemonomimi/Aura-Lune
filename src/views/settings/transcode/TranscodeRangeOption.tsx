@@ -149,7 +149,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
             <Card variant="inset" padding="none" className="flex flex-wrap items-center gap-1.5 px-2.5 py-1.5">
               <span className="text-xs text-fg-muted">{loc.settings.transcodeSavedMarkers}</span>
               {currentTrackBookmarks.map((bm) => (
-                <span key={bm.id} className="flex items-center gap-1 rounded-md bg-white/6 px-1.5 py-0.5 text-xxs">
+                <span key={bm.id} className="flex items-center gap-1 rounded-md bg-white/5 px-1.5 py-0.5 text-xxs">
                   <span className="font-semibold text-fg">{bm.name}</span>
                   <span className="font-mono text-accent-cyan">({formatTimeMs(bm.position_ms)})</span>
                   <Button

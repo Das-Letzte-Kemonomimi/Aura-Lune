@@ -1,5 +1,5 @@
-import type { AppTab } from './types/navigation';
-import { isMainTab } from './types/navigation';
+import type { AppTab, NowPlayingVisualMode } from './types/navigation';
+import { isMainTab, isNowPlayingVisualMode } from './types/navigation';
 import { usePlaylistManager } from './hooks/usePlaylistManager';
 import { useTranscodeManager } from './hooks/useTranscodeManager';
 import { useHotkeysManager } from './hooks/useHotkeysManager';
@@ -198,15 +198,15 @@ export default function App() {
   } = dspManager;
 
   // Now Playing visual mode: cover, hi-fi vinyl, reel-to-reel/cassette or analog VU meter
-  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<'cover' | 'turntable' | 'tape' | 'vumeter'>(() => {
+  const [nowPlayingVisualMode, setNowPlayingVisualMode] = useState<NowPlayingVisualMode>(() => {
     try {
       const saved = localStorage.getItem('auralune_nowplaying_visual_mode');
-      if (saved === 'cover' || saved === 'turntable' || saved === 'tape' || saved === 'vumeter') return saved;
+      if (isNowPlayingVisualMode(saved)) return saved;
     } catch { }
     return 'cover';
   });
 
-  const handleSelectNowPlayingVisualMode = (mode: 'cover' | 'turntable' | 'tape' | 'vumeter') => {
+  const handleSelectNowPlayingVisualMode = (mode: NowPlayingVisualMode) => {
     setNowPlayingVisualMode(mode);
     try {
       localStorage.setItem('auralune_nowplaying_visual_mode', mode);

@@ -149,7 +149,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang }) => 
       {paginatedReleases.map((rel) => (
         <Card key={rel.version} padding="lg" className="flex flex-col gap-4.5">
           {/* Version and metadata bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
             <div className="flex items-center gap-3">
               <Badge tone="pink" className="text-base font-extrabold">
                 <Tag size={15} /> v{rel.version}

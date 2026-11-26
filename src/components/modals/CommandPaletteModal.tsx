@@ -1,4 +1,6 @@
 import type { AppTab } from '../../types/navigation';
+import type { AlbumRecord, TrackRecord } from '../../types/library';
+import type { AmbienceMode } from '../player/AnimeAmbienceFX';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Search,
@@ -35,21 +37,21 @@ export interface CommandItem {
 }
 
 interface CommandPaletteModalProps {
-  tracks: any[];
-  albums: any[];
+  tracks: TrackRecord[];
+  albums: AlbumRecord[];
   isPlaying: boolean;
   currentLang?: Language;
   stopAfterCurrent?: boolean;
   onClose: () => void;
-  onPlayTrack: (track: any) => void;
-  onAddToQueue?: (track: any) => void;
+  onPlayTrack: (track: TrackRecord) => void;
+  onAddToQueue?: (track: TrackRecord) => void;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrevious: () => void;
   onToggleShuffle: () => void;
   onToggleStopAfterCurrent?: () => void;
   onOpenUrlImportModal?: () => void;
-  onSetAmbience: (mode: any) => void;
+  onSetAmbience: (mode: AmbienceMode) => void;
   onSetDspEngine: (engine: 'RubberBand' | 'SoundTouch') => void;
   onResetDsp: () => void;
   onOpenBigScreen: () => void;
@@ -573,8 +575,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       className="max-h-[65vh]"
       label={loc.commandPalette.placeholder}
     >
-        <div className="flex items-center gap-3 border-b border-white/8 bg-white/2 px-5 py-4">
+        <div className="flex items-center gap-3 border-b border-line bg-white/2 px-5 py-4">
           <Search size={22} className="shrink-0 text-accent-purple" />
+          {/* Borderless by design: the field is focused for as long as the palette is open, so the
+              panel itself shows where typing goes and a focus ring would only outline the header. */}
           <input
             ref={inputRef}
             type="text"
@@ -658,7 +662,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
         {/* Footer hints */}
         <div
-          className="flex items-center justify-between border-t border-white/6 bg-black/25 px-4.5 py-2.5 text-xs text-fg-muted"
+          className="flex items-center justify-between border-t border-line bg-black/25 px-4.5 py-2.5 text-xs text-fg-muted"
         >
           <div className="flex gap-3.5">
             <span>

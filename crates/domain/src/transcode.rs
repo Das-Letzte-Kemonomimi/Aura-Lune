@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Target formats for exporting / transcoding tracks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExportFormat {
-    /// Ogg Opus z konfigurowalnym bitrate (kbps, np. 128, 192, 256, 320).
+    /// Ogg Opus with a configurable bitrate (kbps, e.g. 128, 192, 256, 320).
     Opus { bitrate_kbps: u32 },
     /// Lossless FLAC with a compression level (0-8, default 5).
     Flac { compression_level: u32 },

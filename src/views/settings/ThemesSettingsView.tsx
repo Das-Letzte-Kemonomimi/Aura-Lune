@@ -385,7 +385,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
                 onClick={() => onSelectIconStyle(opt.style)}
                 className="flex-row items-center gap-4 aria-pressed:text-fg"
               >
-                <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-black/45">
+                <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-line bg-black/45">
                   <img src={opt.src} alt={opt.alt} className="size-12 rounded-xl object-contain" />
                 </span>
                 <span className="flex-1">

@@ -10,11 +10,11 @@ import {
   Music,
 } from '../ui/icons';
 import { invoke } from '../../api/ipc';
-import type { ModelPackInfo, AnalysisCapabilities } from '../../types/analysis';
+import type { ModelPackInfo, AnalysisCapabilities, StemProject } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { Button, Callout, ModalBody, ModalFooter, ModalHeader, ModalShell, Spinner } from '../ui';
+import { Badge, Button, Callout, Card, FieldLabel, ModalBody, ModalFooter, ModalHeader, ModalShell, OptionCard, Spinner, TextField } from '../ui';
 
 interface CreateStemProjectModalProps {
   isOpen: boolean;
@@ -51,6 +51,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
   const effectiveDurationMs = track?.duration_ms ?? trackDurationMs ?? 180000;
 
   const titleId = useId();
+  const nameId = useId();
   const [modelPacks, setModelPacks] = useState<ModelPackInfo[]>([]);
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>([
     'pack_dsp_cascade',
@@ -114,7 +115,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
     setIsSubmitting(true);
     setError(null);
     try {
-      const project = await invoke<any>('create_stem_project', {
+      const project = await invoke<StemProject>('create_stem_project', {
         trackId: effectiveTrackId,
         title: projectTitle,
         requestedPacks: selectedPackIds,
@@ -144,93 +145,66 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
 
         {/* Project name */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-300">
-            {t.stems.projectName}
-          </label>
-          <input
-            type="text"
-            value={projectTitle}
-            onChange={(e) => setProjectTitle(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-slate-900/70 px-3.5 py-2.5 text-md text-fg outline-none"
-          />
+          <FieldLabel htmlFor={nameId}>{t.stems.projectName}</FieldLabel>
+          <TextField id={nameId} value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} />
         </div>
 
         {/* Detected hardware */}
-        <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 px-4 py-3">
+        <Card variant="inset" padding="none" className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <Cpu size={18} className="text-sky-400" />
-            <span className="text-sm text-slate-300">{t.stems.computeAccelerator}</span>
+            <Cpu size={18} className="text-accent-cyan" />
+            <span className="text-sm text-fg-secondary">{t.stems.computeAccelerator}</span>
           </div>
           <span
             className={cn(
               'flex items-center gap-1.5 text-sm font-bold',
-              (capabilities?.hardware_acceleration) ? 'text-emerald-400' : 'text-accent-purple',
+              capabilities?.hardware_acceleration ? 'text-accent-green' : 'text-accent-purple',
             )}
           >
             <Zap size={14} />
             {capabilities?.accelerator_device || t.stems.detectingHardware}
           </span>
-        </div>
+        </Card>
 
         {/* Model package choice */}
         <div>
-          <label className="mb-2.5 block text-sm font-semibold text-slate-300">
-            {t.stems.selectPacks}
-          </label>
+          <h3 className="label-caps mb-2.5">{t.stems.selectPacks}</h3>
           <div className="flex flex-col gap-2.5">
             {modelPacks.map((pack) => {
               const isSelected = selectedPackIds.includes(pack.id);
+              // The built-in DSP pack is always on, so its row cannot be toggled.
+              const isBuiltIn = pack.id === 'pack_dsp_cascade';
               return (
-                <div
+                <OptionCard
                   key={pack.id}
+                  pressed={isSelected}
                   onClick={() => togglePack(pack.id)}
-                  className={cn(
-                    'flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-200',
-                    isSelected ? 'bg-pink-500/10' : 'bg-slate-900/50',
-                    isSelected ? 'border-pink-500/45' : 'border-white/8',
-                    pack.id === 'pack_dsp_cascade' ? 'cursor-default' : 'cursor-pointer',
-                  )}
+                  className={cn('flex-row items-center justify-between px-4 py-3', isBuiltIn && 'cursor-default')}
                 >
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-fg">
                         {pack.name}
                       </span>
-                      {pack.id === 'pack_dsp_cascade' ? (
-                        <span
-                          className="rounded-md bg-accent-purple/20 px-1.5 py-0.5 text-xxs font-bold text-purple-400"
-                        >
-                          {t.stems.builtInStft}
-                        </span>
+                      {isBuiltIn ? (
+                        <Badge tone="purple" className="font-bold">{t.stems.builtInStft}</Badge>
                       ) : pack.is_installed ? (
-                        <span
-                          className="rounded-md bg-emerald-400/20 px-1.5 py-0.5 text-xxs font-bold text-emerald-400"
-                        >
-                          {t.stems.aiReady}
-                        </span>
+                        <Badge tone="green" className="font-bold">{t.stems.aiReady}</Badge>
                       ) : (
-                        <span
-                          className="rounded-md bg-accent-amber/15 px-1.5 py-0.5 text-xxs font-semibold text-amber-400"
-                        >
-                          {t.stems.downloadInManager}
-                        </span>
+                        <Badge tone="amber">{t.stems.downloadInManager}</Badge>
                       )}
                     </div>
-                    <p className="mx-0 mt-1 mb-0 text-xs text-fg-secondary">
+                    <p className="mt-1 text-xs text-fg-secondary">
                       {(t.aiModels.packs as Record<string, string>)[pack.id] ?? pack.description}
                     </p>
                   </div>
 
-                  <div
-                    className={cn(
-                      'flex h-5 w-5 shrink-0 items-center justify-center rounded-md',
-                      isSelected ? 'border-0' : 'border-2 border-white/30',
-                      isSelected ? 'bg-accent-pink' : 'bg-transparent',
-                    )}
-                  >
-                    {isSelected && <CheckCircle2 size={16} className="text-fg" />}
-                  </div>
-                </div>
+                  {isSelected ? (
+                    <CheckCircle2 size={20} className="shrink-0 text-accent-pink" aria-hidden="true" />
+                  ) : (
+                    <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-2 border-white/30" />
+                  )}
+                </OptionCard>
               );
             })}
           </div>
@@ -238,33 +212,28 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
 
         {/* Resulting stems preview */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-slate-300">
-            {fmt(t.stems.outputTracks, String(calculatedStems.length))}
-          </label>
+          <h3 className="label-caps mb-2">{fmt(t.stems.outputTracks, String(calculatedStems.length))}</h3>
           <div className="flex flex-wrap gap-1.5">
             {calculatedStems.map((stem) => (
-              <span
-                key={stem}
-                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/6 px-2.5 py-1 text-xs font-semibold text-slate-200"
-              >
+              <Badge key={stem} className="gap-1.5 px-2.5 py-1 text-xs">
                 <Music size={12} className="text-accent-pink" />
                 {stem}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
 
         {/* Estimates (time and size) */}
-        <div className="flex gap-3 rounded-xl border border-white/5 bg-slate-900/40 px-4 py-3">
+        <Card variant="inset" padding="none" className="flex gap-3 px-4 py-3">
           <div className="flex flex-1 items-center gap-2 text-ui text-fg-secondary">
             <Clock size={16} className="text-accent-amber" />
             <span>{fmt(t.stems.estimatedTime, String(estimatedTimeSec))}</span>
           </div>
           <div className="flex flex-1 items-center gap-2 text-ui text-fg-secondary">
-            <HardDrive size={16} className="text-sky-400" />
+            <HardDrive size={16} className="text-accent-cyan" />
             <span>{fmt(t.stems.diskSpace, String(Math.round(calculatedStems.length * 8.5)))}</span>
           </div>
-        </div>
+        </Card>
       </ModalBody>
 
       <ModalFooter>

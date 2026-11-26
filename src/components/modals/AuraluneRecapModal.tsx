@@ -37,7 +37,8 @@ interface RecapSummaryDto {
   total_tracks_played?: number;
   tracks_played_count?: number;
   top_tracks: TopTrackDto[];
-  top_artists: TopArtistDto[] | [string, number][];
+  /** Older builds sent `[artist, total_ms]` pairs; both shapes are accepted. */
+  top_artists: Array<TopArtistDto | [string, number]>;
 }
 
 interface AuraluneRecapModalProps {
@@ -155,7 +156,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
           recapData?.tracks_played_count ??
           0;
 
-        const normalizedTracks: TopTrackDto[] = (recapData?.top_tracks || []).map((t: any) => ({
+        const normalizedTracks: TopTrackDto[] = (recapData?.top_tracks || []).map((t) => ({
           id: t.id,
           title: t.title || 'Unknown Title',
           artist: t.artist || 'Unknown Artist',
@@ -165,7 +166,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         }));
 
         const normalizedArtists: TopArtistDto[] = (recapData?.top_artists || [])
-          .map((item: any) => {
+          .map((item) => {
             if (Array.isArray(item)) {
               return {
                 artist: String(item[0] || ''),

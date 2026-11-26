@@ -126,7 +126,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
           {!currentCover && (
             <div
               className={cn(
-                'flex h-47 w-47 items-center justify-center rounded-full border-2 border-white/8',
+                'flex h-47 w-47 items-center justify-center rounded-full border-2 border-line',
                 status.state === 'Playing' && 'animate-spin',
               )}
               style={{

@@ -132,7 +132,9 @@ class VinylSimulatorEngine {
 
   private initContext() {
     if (this.ctx) return;
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    // Older WebKitGTK builds only expose the prefixed constructor.
+    const AudioCtx: typeof AudioContext | undefined =
+      window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
 
     this.ctx = new AudioCtx();

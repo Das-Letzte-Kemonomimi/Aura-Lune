@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import { getSetting, setSetting } from '../api/settings';
 import type { PlaybackStatus } from '../types/playback';
+import { isNowPlayingVisualMode, type NowPlayingVisualMode } from '../types/navigation';
 import type { TrackRecord, AlbumRecord } from '../types/library';
 import type { Translations } from '../i18n';
 
@@ -15,8 +16,8 @@ export interface UseSessionManagerOptions {
   setActiveTrackId: (id: number | null) => void;
   volumeUnit: 'percent' | 'db';
   setVolumeUnit: (unit: 'percent' | 'db') => void;
-  nowPlayingVisualMode: string;
-  setNowPlayingVisualMode: (mode: any) => void;
+  nowPlayingVisualMode: NowPlayingVisualMode;
+  setNowPlayingVisualMode: (mode: NowPlayingVisualMode) => void;
   currentAlbum: AlbumRecord | null;
   initialStartupPositionRef: React.MutableRefObject<number | null>;
   showMessage: (msg: string, isError?: boolean) => void;
@@ -92,7 +93,7 @@ export function useSessionManager({
       if (session.volume_unit === 'percent' || session.volume_unit === 'db') {
         setVolumeUnit(session.volume_unit);
       }
-      if (session.nowplaying_visual_mode) {
+      if (isNowPlayingVisualMode(session.nowplaying_visual_mode)) {
         setNowPlayingVisualMode(session.nowplaying_visual_mode);
       }
 

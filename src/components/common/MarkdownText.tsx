@@ -105,7 +105,7 @@ function renderBlock(block: BlockNode, i: number, onOpenLink: MarkdownTextProps[
       return (
         <hr
           key={i}
-          className="my-2.5 border-0 border-t border-line"
+          className="my-2.5 border-t border-line"
         />
       );
   }

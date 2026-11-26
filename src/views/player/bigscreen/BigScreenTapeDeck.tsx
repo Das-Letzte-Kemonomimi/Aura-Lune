@@ -66,7 +66,7 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
 
       {/* Clear central tape window with the reels */}
       <div
-        className="relative mx-0 my-2.5 flex flex-1 items-center justify-around overflow-hidden rounded-xl border border-white/10 bg-black/65"
+        className="relative mx-0 my-2.5 flex flex-1 items-center justify-around overflow-hidden rounded-xl border border-line bg-black/65"
         style={{ boxShadow: 'inset 0 0 15px rgba(0,0,0,0.9)' }}
       >
         {/* Tape scale: 100 • 50 • 0 */}

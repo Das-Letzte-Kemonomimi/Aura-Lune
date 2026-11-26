@@ -7,6 +7,9 @@ import type { Language, Translations, getTranslations } from '../i18n';
 import { useTauriEvent } from './useTauriEvent';
 import { fmt } from '../utils/fmt';
 
+/** Serde shape of `domain::transcode::ExportFormat` (externally tagged enum). */
+type ExportFormat = { Wav: null } | { Opus: { bitrate_kbps: number } } | { Flac: { compression_level: number } };
+
 export interface UseTranscodeManagerProps {
   filePath: string;
   setFilePath: (p: string) => void;
@@ -323,7 +326,7 @@ export function useTranscodeManager({
     setTranscodeElapsedSeconds(0);
     showMessage(t.notifications.exportStartedBackground);
     try {
-      let formatObj: any = { Wav: null };
+      let formatObj: ExportFormat = { Wav: null };
       if (transcodeFormat === 'Opus') {
         formatObj = { Opus: { bitrate_kbps: transcodeBitrate } };
       } else if (transcodeFormat === 'Flac') {

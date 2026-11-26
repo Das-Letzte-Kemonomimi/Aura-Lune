@@ -217,14 +217,14 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                           <button
                             onClick={() => handleOpenFolder(track.path)}
                             title={loc.duplicateFinder.showInFolder}
-                            className="flex rounded-md border border-line bg-white/6 p-1.5 text-fg-secondary"
+                            className="flex rounded-md border border-line bg-white/5 p-1.5 text-fg-secondary"
                           >
                             <FolderOpen size={13} />
                           </button>
                           <button
                             onClick={() => handleDelete(track.id, false, track.title)}
                             title={loc.duplicateFinder.removeFromDb}
-                            className="rounded-md border border-line bg-white/6 p-1.5 text-xs text-fg-muted"
+                            className="rounded-md border border-line bg-white/5 p-1.5 text-xs text-fg-muted"
                           >
                             {loc.duplicateFinder.removeEntry}
                           </button>

@@ -59,7 +59,7 @@ describe('useSessionManager hook', () => {
     setActiveTrackId,
     volumeUnit: 'percent' as const,
     setVolumeUnit,
-    nowPlayingVisualMode: 'visualizer',
+    nowPlayingVisualMode: 'turntable' as const,
     setNowPlayingVisualMode,
     currentAlbum: null,
     initialStartupPositionRef,

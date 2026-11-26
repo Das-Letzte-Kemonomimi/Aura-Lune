@@ -3,6 +3,7 @@ import {
   Download,
 } from '../ui/icons';
 import { invoke } from '../../api/ipc';
+import type { TrackRecord } from '../../types/library';
 import { type Language, getTranslations } from '../../i18n';
 import { UrlImportResultView } from './url-import/UrlImportResultView';
 import { UrlImportForm } from './url-import/UrlImportForm';
@@ -16,7 +17,7 @@ export interface ImportedItem {
   album: string | null;
   duration_ms: number | null;
   format: string;
-  track: any | null;
+  track: TrackRecord | null;
 }
 
 export interface UrlImportResult {
@@ -28,15 +29,15 @@ export interface UrlImportResult {
   album: string | null;
   duration_ms: number | null;
   format: string;
-  track: any | null;
+  track: TrackRecord | null;
 }
 
 export interface UrlAudioImportModalProps {
   isOpen: boolean;
   currentLang?: Language;
   onClose: () => void;
-  onPlayTrack?: (track: any) => void;
-  onAddToQueue?: (track: any) => void;
+  onPlayTrack?: (track: TrackRecord) => void;
+  onAddToQueue?: (track: TrackRecord) => void;
   onLibraryUpdated?: () => void;
 }
 

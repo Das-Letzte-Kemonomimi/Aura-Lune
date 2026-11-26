@@ -231,7 +231,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
                 <span className="text-xs text-fg-muted">{formatDate(pl.created_at)}</span>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
+              <div className="flex items-center justify-between border-t border-line pt-2.5">
                 <span className="flex items-center gap-1 text-ui text-accent-cyan">
                   {loc.playlists.playAll} <ArrowRight size={14} />
                 </span>

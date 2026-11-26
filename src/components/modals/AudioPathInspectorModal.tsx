@@ -1,3 +1,4 @@
+import type { PlaybackStatus } from '../../types/playback';
 import React, { useId } from 'react';
 import {
   Radio,
@@ -29,7 +30,7 @@ export interface AudioPathTrackInfo {
 interface AudioPathInspectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  status: any;
+  status: PlaybackStatus;
   currentTrack?: AudioPathTrackInfo | null;
   currentLang?: Language;
   onResetBitPerfect?: () => void;
@@ -84,7 +85,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
       <ModalBody className="flex flex-col gap-4">
           {/* Signal Chain Flow Visualization */}
           <div
-            className="flex items-center justify-between rounded-xl border border-white/6 bg-black/35 px-4 py-3 text-xs text-slate-300"
+            className="flex items-center justify-between rounded-xl border border-line bg-black/35 px-4 py-3 text-xs text-slate-300"
           >
             <div className="flex items-center gap-1.5">
               <Layers size={14} className="text-accent-cyan" />

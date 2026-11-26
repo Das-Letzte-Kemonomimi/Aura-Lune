@@ -25,7 +25,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
       {/* Black vinyl record with micro-grooves */}
       <div
         className={cn(
-          'relative flex size-full items-center justify-center overflow-hidden rounded-full border-3 border-white/10',
+          'relative flex size-full items-center justify-center overflow-hidden rounded-full border-3 border-line',
           isPlaying && 'motion-safe:animate-spin',
         )}
         style={{
@@ -61,7 +61,7 @@ export const BigScreenVinyl: React.FC<BigScreenVinylProps> = ({
 
         {/* Inner run-out groove */}
         <div
-          className="pointer-events-none absolute rounded-full border border-white/8"
+          className="pointer-events-none absolute rounded-full border border-line"
           style={{ width: '52%', height: '52%', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)' }}
         />
 

@@ -8,6 +8,7 @@ import type {
   StemProject,
   StemChannel,
   StemProjectMix,
+  ChannelMixSetting,
   StemProjectProgressPayload,
 } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
@@ -16,7 +17,7 @@ import { useLivePositionMs } from '../../state/livePlayback';
 import { StemStudioWorkspace } from './stem-studio/StemStudioWorkspace';
 import { StemStudioHeader } from './stem-studio/StemStudioHeader';
 import { fmt } from '../../utils/fmt';
-import { Button, Callout, Card, ModalShell, TextField } from '../ui';
+import { Button, Callout, Card, IconButton, ModalShell, TextField } from '../ui';
 
 export interface StemProjectStudioModalProps {
   isOpen: boolean;
@@ -310,7 +311,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
   const handleSaveMix = async () => {
     if (!projectId || !newMixName.trim()) return;
     try {
-      const channelSettings: Record<string, any> = {};
+      const channelSettings: Record<string, ChannelMixSetting> = {};
       for (const ch of channels) {
         channelSettings[ch.id] = {
           volume: ch.volume,
@@ -444,9 +445,10 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       <StemStudioWorkspace {...props} channels={channels} anySoloActive={anySoloActive} setHoveredChannelId={setHoveredChannelId} hoveredChannelId={hoveredChannelId} handleToggleSolo={handleToggleSolo} t={t} handleToggleMute={handleToggleMute} handlePanChange={handlePanChange} handleVolumeChange={handleVolumeChange} masterVolume={masterVolume} setMasterVolume={setMasterVolume} applyMixToEngine={applyMixToEngine} handleResetAllToUnity={handleResetAllToUnity} handleApplyPreset={handleApplyPreset} />
 
       {/* 3. BOTTOM PLAYBACK CONTROL CONSOLE (TRANSPORT BAR) */}
-      <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-5 py-3">
+      <Card padding="none" className="mt-3 flex items-center justify-between rounded-2xl px-5 py-3">
         <div className="flex items-center gap-3.5">
-          <button
+          <IconButton
+            label={isPlaying ? loc.player.pause : loc.player.play}
             onClick={async () => {
               if (isOriginalMode) {
                 onPlayPause?.();
@@ -459,10 +461,10 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
                 }
               }
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full border-0 bg-linear-135 from-pink-500 to-violet-500 text-fg shadow-lift shadow-pink-500/40"
+            className="size-10 rounded-full bg-accent-gradient text-on-accent shadow-lift shadow-accent-pink/30 hover:text-on-accent"
           >
-            {isPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" className="ml-0.5" />}
-          </button>
+            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+          </IconButton>
 
           <span className="font-mono text-sm font-bold text-fg">
             {Math.floor(currentTimeMs / 60000)}:
@@ -492,7 +494,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         <div className="flex items-center gap-3 text-xs text-fg-secondary">
           <span>{t.stems.shortcutsHint}</span>
         </div>
-      </div>
+      </Card>
 
       {/* Save mix modal */}
       {isSavingMix && (
