@@ -26,6 +26,20 @@ function nextAmbienceMode(mode: AmbienceMode): AmbienceMode {
   return AMBIENCE_MODES[(AMBIENCE_MODES.indexOf(mode) + 1) % AMBIENCE_MODES.length];
 }
 
+export const AMBIENCE_OPACITY_KEY = 'auralune_ambience_opacity';
+export const AMBIENCE_OPACITY_DEFAULT = 0.55;
+export const AMBIENCE_OPACITY_MIN = 0.1;
+
+/** Strength of the ambience particles, 0.1 to 1. Persisted; every mounted user of the hook stays in sync. */
+export function useAmbienceOpacity() {
+  return usePersistedState<number>(AMBIENCE_OPACITY_KEY, AMBIENCE_OPACITY_DEFAULT, {
+    parse: (raw) => {
+      const value = Number(raw);
+      return Number.isFinite(value) ? Math.min(1, Math.max(AMBIENCE_OPACITY_MIN, value)) : undefined;
+    },
+  });
+}
+
 export function useAmbienceMode({ loc, showMessage }: UseAmbienceModeOptions) {
   // Persisted by the hook itself: callers must not write the key again.
   const [ambienceMode, setAmbienceMode] = usePersistedState<AmbienceMode>('auralune_ambience_mode', 'off', {

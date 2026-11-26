@@ -580,6 +580,7 @@
     "changelog": "Änderungsprotokoll (Changelog)",
     "themeOpacity": "Panel-Deckkraft",
     "themeBlur": "Hintergrundunschärfe (Blur)",
+    "ambienceOpacity": "Deckkraft des Partikeleffekts",
     "appIconTitle": "App-Symbol-Stil",
     "appIconDesc": "Wähle zwischen Neon-Gradient-Lineout (passend zum Dock-Theme) und klassischer Anime-Illustration",
     "iconStyleClassic": "Klassisches Anime",

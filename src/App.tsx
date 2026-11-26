@@ -47,7 +47,7 @@ import {
 import { BigScreenView } from './views/player/BigScreenView';
 
 import { useQueueVirtualScroll } from './hooks/useQueueVirtualScroll';
-import { useAmbienceMode } from './hooks/useAmbienceMode';
+import { useAmbienceMode, useAmbienceOpacity } from './hooks/useAmbienceMode';
 import { type Language, getTranslations } from './i18n';
 import type {
   PlaybackStatus,
@@ -461,6 +461,7 @@ export default function App() {
   const { isMiniPlayer, toggleMiniPlayer } = useMiniPlayer();
 
   // Anime ambient effects (Sakura Petals / Cyberpunk Rain / Meteors / Matrix / Momiji)
+  const [ambienceOpacity] = useAmbienceOpacity();
   const { ambienceMode, setAmbienceMode, cycleAmbienceMode } = useAmbienceMode({
     loc: t,
     showMessage,
@@ -1111,12 +1112,12 @@ export default function App() {
       <VolumeOsd volume={status.volume} position={volumeOsdPosition} unit={volumeUnit} />
 
       {/* Anime ambient effect (Sakura Petals / Neon Rain) */}
-      <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} />
+      <AnimeAmbienceFX mode={isBigScreen ? 'off' : ambienceMode} opacity={ambienceOpacity} />
 
       {/* Main UI container (hidden without losing state while the Kiosk full-screen mode is active) */}
       <div
         inert={!bootState.isReady ? true : undefined}
-        className={cn('h-full min-h-0 flex-1 flex-col overflow-hidden', isBigScreen ? 'hidden' : 'flex')}
+        className={cn('relative z-1 h-full min-h-0 flex-1 flex-col overflow-hidden', isBigScreen ? 'hidden' : 'flex')}
       >
 
         <DragDropOverlay

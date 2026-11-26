@@ -32,6 +32,7 @@ import { LanguageSelector } from '../../components/common/LanguageSelector';
 import { type Theme } from '../../types/theme';
 import { cn } from '../../utils/cn';
 import { SettingsPage } from './SettingsPage';
+import { AMBIENCE_OPACITY_MIN, useAmbienceOpacity } from '../../hooks/useAmbienceMode';
 
 export interface ThemesSettingsViewProps {
   language: Language;
@@ -98,6 +99,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
   onJsonImportContentChange,
   onImportTheme,
 }) => {
+  const [ambienceOpacity, setAmbienceOpacity] = useAmbienceOpacity();
   const [copiedJson, setCopiedJson] = useState<boolean>(false);
   const [isDraggingWallpaper, setIsDraggingWallpaper] = useState<boolean>(false);
   const id = useId();
@@ -348,6 +350,16 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
               value={themeOverlay}
               format={(v) => `${Math.round(v * 100)}%`}
               onChange={onThemeOverlayChange}
+            />
+            <SliderRow
+              label={loc.settings.ambienceOpacity}
+              tone="pink"
+              min={AMBIENCE_OPACITY_MIN}
+              max={1}
+              step={0.05}
+              value={ambienceOpacity}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={setAmbienceOpacity}
             />
             <div>
               <SliderRow

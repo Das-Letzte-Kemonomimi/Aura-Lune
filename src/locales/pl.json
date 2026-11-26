@@ -580,6 +580,7 @@
     "changelog": "Dziennik zmian (Changelog)",
     "themeOpacity": "Przezroczystość paneli",
     "themeBlur": "Rozmycie tła (Blur)",
+    "ambienceOpacity": "Przezroczystość efektu cząsteczek",
     "appIconTitle": "Styl ikony aplikacji",
     "appIconDesc": "Wybierz między neonowym szkicem (dopasowanym do paska) a klasyczną ilustracją anime",
     "iconStyleClassic": "Klasyczna Anime",

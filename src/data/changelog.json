@@ -97,6 +97,13 @@
         "de": "Albumkacheln zeigen jetzt das Dateiformat, wie viel vom Album du schon gehört hast, und heben das laufende Album hervor.",
         "fi": "Albumiruudut näyttävät nyt tiedostomuodon, kuinka paljon albumista olet kuunnellut, ja korostavat soivan albumin.",
         "la": "Tessellae albumorum nunc formam fasciculi ostendunt, quantum de albo audieris, et album quod sonat illustrant."
+      },
+      {
+        "en": "You can now adjust how strong the floating ambience particles look in Settings → Themes, and they stay behind lists and tables instead of drifting over them.",
+        "pl": "W Ustawieniach → Motywy możesz teraz regulować siłę latających cząsteczek ambientu, a te zostają za listami i tabelami zamiast przesuwać się nad nimi.",
+        "de": "In Einstellungen → Designs lässt sich jetzt die Stärke der schwebenden Ambiente-Partikel einstellen; sie bleiben hinter Listen und Tabellen, statt darüber zu schweben.",
+        "fi": "Asetukset → Teemat -kohdassa voi nyt säätää leijuvien tunnelmahiukkasten voimakkuutta, ja ne pysyvät listojen ja taulukoiden takana niiden päällä leijumisen sijaan.",
+        "la": "In Optionibus → Themata nunc vim particularum ambientium variare potes, et post indices ac tabulas manent, non super eas volitant."
       }
     ],
     "changed": [

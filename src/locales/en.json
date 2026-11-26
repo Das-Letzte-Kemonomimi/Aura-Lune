@@ -580,6 +580,7 @@
     "changelog": "Changelog",
     "themeOpacity": "Glass Opacity",
     "themeBlur": "Background Blur",
+    "ambienceOpacity": "Particle Effect Opacity",
     "appIconTitle": "App Icon Style",
     "appIconDesc": "Choose between neon gradient lineout (matches dock themes) and classic anime illustration",
     "iconStyleClassic": "Classic Anime",

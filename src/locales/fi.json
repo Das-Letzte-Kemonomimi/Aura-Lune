@@ -580,6 +580,7 @@
     "changelog": "Muutosloki (Changelog)",
     "themeOpacity": "Paneelien läpinäkyvyys",
     "themeBlur": "Taustan sumennus (Blur)",
+    "ambienceOpacity": "Hiukkastehosteen läpinäkyvyys",
     "appIconTitle": "Sovelluskuvakkeen tyyli",
     "appIconDesc": "Valitse neon-liukuvärillisen viivapiirroksen (telakkateemat) ja klassisen anime-kuvituksen välillä",
     "iconStyleClassic": "Klassinen Anime",

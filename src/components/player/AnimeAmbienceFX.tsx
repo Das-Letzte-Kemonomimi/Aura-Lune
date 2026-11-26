@@ -643,7 +643,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none fixed inset-0 z-2 h-full w-full transition-opacity duration-500"
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full transition-opacity duration-500"
       style={{ opacity }}
     />
   );
