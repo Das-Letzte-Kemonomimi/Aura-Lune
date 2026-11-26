@@ -23,7 +23,8 @@ This file holds the rules for the whole repository. Each area has its own `AGENT
 | `src-tauri/` | [`src-tauri/AGENTS.md`](src-tauri/AGENTS.md) | Tauri host: commands and their error, path and blocking contracts; setup; updater |
 | `crates/` | [`crates/AGENTS.md`](crates/AGENTS.md) | Core crates: real-time audio safety, storage migrations, HTTP and path rules |
 | deep reference | [`docs/developer/README.md`](docs/developer/README.md) | Module maps, hook lists, test matrix, updater design |
-| agent pipelines | [`docs/developer/agent-pipelines.md`](docs/developer/agent-pipelines.md) | End-to-end automated pipelines (skills, IPC codegen, changelog, quality gates, releases) |
+| agent pipelines | [`docs/developer/agent-pipelines.md`](docs/developer/agent-pipelines.md) | End-to-end automated pipelines (skills, IPC codegen, changelog, quality gates) |
+| release & merge | [`docs/developer/release-pipeline.md`](docs/developer/release-pipeline.md) | Local `release:prepare` (`dev` → `main` merge + bump) and push-driven CI publishing |
 | changelog rules | [`CHANGELOG.md`](CHANGELOG.md) | Humanization guide, `src/data/changelog.json` rules, and `npm run changelog:*` commands |
 | setup, pipeline, skills | [`DEVELOPMENT.md`](DEVELOPMENT.md) | System packages, toolchain, the development pipeline, installing and updating the agent skills ([Agent skills](DEVELOPMENT.md#6-agent-skills-claude-code-and-antigravity)) |
 
@@ -104,8 +105,10 @@ npm run build                  # tsc -b && vite build
 npm run tauri build -- --bundles appimage
 ./tests/run_all_tests.sh --bundle
 
-# Release helpers (normally run by the release workflows)
-packaging/check-release-content.sh X.Y.Z
+# Release & merge pipeline (dev -> main, never push without explicit user yes)
+npm run release:prepare        # Promote changelog, update badges, bump versions, test, merge dev->main, bump dev
+npm run release:check          # Verify cross-file version parity & changelog validity
+npm run release:aur            # Post-publish: sync AppImage SHA-256 checksum & push auralune-bin to AUR
 packaging/bump-version.sh X.Y.Z
 ```
 
@@ -141,15 +144,13 @@ packaging/bump-version.sh X.Y.Z
 - **Changelog**: read [`CHANGELOG.md`](CHANGELOG.md) and follow [`docs/developer/agent-pipelines.md`](docs/developer/agent-pipelines.md). For user-facing changes on `dev`, rewrite notes in plain, non-technical language for listeners and add them directly to [`src/data/changelog.json`](src/data/changelog.json) (`"isDev": true`) via `npm run changelog:add` (five languages: `en`, `pl`, `de`, `fi`, `la`), then verify with `npm run changelog:validate`. Do not add entries for internal-only refactors, tests, CI, or docs.
 - **Never** force-push `main`, push tags by hand, skip hooks (`--no-verify`) or add a second release path.
 
-## Releases: DO NOT tag or publish manually
+## Releases: DO NOT push or publish without confirmation
 
-Stable releases run only through the manual GitHub Actions workflows. Merging never publishes. Full guide: [`docs/RELEASING.md`](docs/RELEASING.md) ([Polish](docs/RELEASING.pl.md)); the `release` skill automates the content step.
+Aura-Lune uses a **local-prepare, push-to-publish** pipeline defined in [`docs/developer/release-pipeline.md`](docs/developer/release-pipeline.md) (overview: [`docs/RELEASING.md`](docs/RELEASING.md), [Polish](docs/RELEASING.pl.md); skill: [`skills/system/release/SKILL.md`](skills/system/release/SKILL.md)):
 
-1. On `dev`: promote the active dev changelog (`npm run changelog:promote -- X.Y.Z "Codename"`), update README badges, and check with `packaging/check-release-content.sh X.Y.Z`.
-2. Actions → **Prepare release** (on `dev`): validates, runs `packaging/bump-version.sh`, opens the `release/vX.Y.Z` → `main` PR.
-3. Review and merge the PR with a merge commit.
-4. Actions → **Publish release** (on `main`): CI + AppImage build, draft with every asset and `SHA256SUMS`, then publish.
-5. Afterwards: `packaging/archlinux/update-aur-checksum.sh X.Y.Z` + `publish-to-aur.sh`; on `dev` merge `origin/main` and run `packaging/bump-version.sh X.Y.(Z+1)-dev`.
+1. Prepare on `dev`: `npm run release:prepare -- [patch|minor|major|X.Y.Z] --codename "..."` (promotes `changelog.json`, updates README badges, bumps all manifests, runs full tests, commits, merges `dev` → `main` with `--no-ff`, and starts `X.Y.(Z+1)-dev` on `dev`).
+2. Only after user approval: `git push origin main dev`. Pushes to `main` and `dev` automatically run CI and publish (`vX.Y.Z` AppImage + `.deb` + `SHA256SUMS` from `main`, rolling `dev-build` from `dev`).
+3. Optional post-publish (AUR): `npm run release:aur -- X.Y.Z`.
 
 ### Version bump keywords (semantic versioning)
 

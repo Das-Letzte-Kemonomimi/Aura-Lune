@@ -91,10 +91,13 @@ Targeted checks during iteration:
 
 ---
 
-## 5. CI & Stable Release Pipeline
+## 5. CI & Push-Driven Release Pipeline
 
 1. **Continuous Integration (`.github/workflows/ci.yml`)**:
    - Runs `frontend` (`bash -n`, `lint`, `test`, `build`) and `backend-desktop` (`fmt`, `clippy`, headless PulseAudio `cargo test --workspace -- --test-threads=1`, `cargo-deny` advisory check).
    - Pushes to `dev` run `publish-dev-release`, building the `dev` AppImage, attaching `SHA256SUMS`, and publishing the rolling `dev-build` pre-release with `dev-notes` from `changelog.json`.
-2. **Stable Release**:
-   - **Never tag or push `main` manually.** Run content prep (`packaging/check-release-content.sh X.Y.Z`), then trigger GitHub Actions **Prepare release** (on `dev`) → review/merge PR → **Publish release** (on `main`) → update AUR checksums. See [`docs/RELEASING.md`](../RELEASING.md).
+   - Pushes to `main` automatically run `verify-stable-release` → `build-stable-release` (AppImage + `.deb`) → `publish-stable-release` when the version tag `vX.Y.Z` does not yet exist.
+2. **Release Preparation (`dev` → `main`)**:
+   - Full guide: [`release-pipeline.md`](release-pipeline.md).
+   - Run `npm run release:prepare -- [patch|minor|major|X.Y.Z] --codename "..."` on `dev` to promote `changelog.json`, rewrite README badges, bump versions, run tests, merge `dev` → `main`, and start `X.Y.(Z+1)-dev` — then push (`git push origin main dev`) once approved.
+   - Optional post-publish AUR sync: `npm run release:aur -- X.Y.Z`.

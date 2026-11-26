@@ -2,22 +2,24 @@
 set -euo pipefail
 
 # ==============================================================================
-# Auralune: check-release-content.sh <X.Y.Z>
+# Auralune: check-release-content.sh <X.Y.Z> [--strict-versions]
 #
-# Checks that the release content is ready (the "/release" content step has run):
+# Checks that the release content is ready (promoted changelog + README badges):
 #   * changelog.json passes full validation (schema, 5 locales, isDev/isLatest),
 #   * entry 0 matches <X.Y.Z> with isLatest=true and isDev != true,
 #   * release-notes.sh produces non-empty release notes,
 #   * the README badges point at the release tag.
-# Used by "Prepare release" and "Publish release". Prints every problem.
+# With --strict-versions, also checks Cargo/npm/Tauri/install.sh/Arch/docs parity
+# via `node scripts/release.mjs check <X.Y.Z>`.
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
 VERSION="${1:-}"
+STRICT="${2:-}"
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Usage: $0 <X.Y.Z>" >&2
+    echo "Usage: $0 <X.Y.Z> [--strict-versions]" >&2
     exit 2
 fi
 
@@ -41,9 +43,13 @@ for f in README.md README.pl.md; do
     grep -qF "releases/tag/v$VERSION" "$f" || bad "$f: the version badge does not point at v$VERSION."
 done
 
+if [[ "$STRICT" == "--strict-versions" ]]; then
+    node scripts/release.mjs check "$VERSION" || fail=1
+fi
+
 if (( fail )); then
     echo "" >&2
-    echo "Run the release content step first (the /release skill, see docs/RELEASING.md)." >&2
+    echo "Run 'npm run release:prepare' on dev first (see docs/developer/release-pipeline.md)." >&2
     exit 1
 fi
 echo "✅ Release content for $VERSION is complete."

@@ -268,15 +268,15 @@ Quality gates by language:
 | Skills (`skills/`, `skills-lock.json`) | `npm run skills:check` |
 | Everything | `./tests/run_all_tests.sh --fix` (formats Rust first, then runs the CI-parity suite) |
 
-**Releasing** runs only through the manual GitHub Actions workflows; merging never publishes:
+**Releasing** is prepared locally with one command and published automatically when pushing `main` and `dev`:
 
-1. On `dev`, finalize the release content (`npm run changelog:promote -- X.Y.Z "Codename"` to turn the active `isDev` entry into a finalized 5-language release in `src/data/changelog.json`, update README badges) and verify with `packaging/check-release-content.sh X.Y.Z`. The project `release` skill automates this step.
-2. Actions → **Prepare release** (on `dev`): validates, bumps the version, opens a `release/vX.Y.Z` → `main` pull request.
-3. Review and merge that pull request with a **merge commit**.
-4. Actions → **Publish release** (on `main`): CI plus the AppImage build, a draft with every asset and `SHA256SUMS`, then publish.
-5. Afterwards: update the AUR package, merge `origin/main` back into `dev` and bump to the next `-dev` version.
+1. On `dev`, run `npm run release:prepare -- [patch|minor|major|X.Y.Z] --codename "..."` (promotes `src/data/changelog.json`, updates README badges, bumps all version files via `packaging/bump-version.sh`, runs `./tests/run_all_tests.sh --fix`, commits on `dev`, merges `dev` → `main` with `--no-ff`, and bumps `dev` to `X.Y.(Z+1)-dev`).
+2. Push both branches: `git push origin main dev`.
+   - `origin/main` automatically runs CI, builds `AppImage` + `.deb`, generates `SHA256SUMS`, and publishes GitHub Release `vX.Y.Z`.
+   - `origin/dev` automatically runs CI and updates the rolling `dev-build` pre-release.
+3. Optional post-publish (AUR): `npm run release:aur -- X.Y.Z`.
 
-The version bump follows the commit types: `fix`, `docs`, `chore`, `style`, `refactor` → patch; `feat` → minor; `feat!` or any breaking change → major. Full guide: [`docs/RELEASING.md`](docs/RELEASING.md).
+The version bump follows the commit types: `fix`, `docs`, `chore`, `style`, `refactor` → patch; `feat` → minor; `feat!` or any breaking change → major. Full guides: [`docs/developer/release-pipeline.md`](docs/developer/release-pipeline.md) and [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ---
 

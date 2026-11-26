@@ -1,135 +1,80 @@
-# Wydawanie Auralune
+# Wydawanie Auralune (Releasing)
 
-[🇬🇧 English](RELEASING.md) | 🇵🇱 Polski
+[🇬🇧 English](RELEASING.md) | 🇵🇱 **Polski**
 
-Jak powstaje stabilne wydanie Auralune. Wydania stabilne buduje i publikuje GitHub Actions, ale **dopiero po naciśnięciu przycisku**: merge pull requesta niczego nie publikuje.
+Jak przygotować wydanie Auralune jednym poleceniem lokalnie i opublikować oba kanały zwykłym `git push`. Szczegółowa specyfikacja dla agentów i kontrybutorów: [`docs/developer/release-pipeline.md`](developer/release-pipeline.md).
 
 ## 1. Przegląd
 
-| Kanał | Wyzwalacz | Efekt |
+| Kanał | Wyzwalacz | Wynik |
 |---|---|---|
-| **dev** | każdy push na `dev` (automatycznie, `ci.yml` → `publish-dev-release`) | ruchome wydanie testowe `dev-build`, instaluje się jako `auralune-dev` |
-| **stable** | dwa ręczne workflow (poniżej) | wydanie `vX.Y.Z` z AppImage i `SHA256SUMS` |
+| **dev** | Push na `dev` (`.github/workflows/ci.yml` → `publish-dev-release`) | ruchomy pre-release `dev-build` z notatkami z `changelog.json`, instaluje się jako `auralune-dev` |
+| **stable** | Push na `main` (`.github/workflows/ci.yml` → `verify-stable-release` + `build-stable-release` + `publish-stable-release`) | wydanie GitHub `vX.Y.Z` z `AppImage`, `.deb` i `SHA256SUMS` (pomijane bezpiecznie, jeśli tag `vX.Y.Z` już istnieje) |
 
 ```
-dev ──(krok contentowy: promocja changelog.json, plakietki README)──▶ push
-  │
-  ▼  Actions ▸ "Prepare release" ▸ Run workflow            (ręcznie, na dev)
-release/vX.Y.Z  =  dev + "chore(release): bump version to X.Y.Z (Kryptonim)"
-  │  PR → main
-  ▼  przeglądasz i mergujesz (merge commit)                (nic nie jest publikowane)
-main
-  │
-  ▼  Actions ▸ "Publish release" ▸ Run workflow            (ręcznie, na main)
-verify ─┬─ ci (pełny ci.yml na tym commicie) ────┐
-        └─ build-appimage ───────────────────────┴─▶ publish (środowisko "release")
-                                                       szkic wydania → wszystkie pliki → publikacja
+  dev (1.1.6-dev, przystępne opisy "isDev": true w src/data/changelog.json)
+   │
+   ▼  npm run release:prepare -- [patch|minor|major|X.Y.Z] --codename "..."
+   │    • promuje changelog.json, aktualizuje plakietki README, podbija wersje
+   │    • uruchamia ./tests/run_all_tests.sh --fix i check-release-content.sh --strict-versions
+   │    • commituje dev, scala dev ──▶ main (--no-ff), podbija dev na X.Y.(Z+1)-dev
+   ▼
+  git push origin main dev
+   ├──▶ origin/main ──▶ ci.yml ──▶ buduje AppImage + .deb + SHA256SUMS ──▶ publikuje vX.Y.Z
+   └──▶ origin/dev  ──▶ ci.yml ──▶ buduje dev AppImage + SHA256SUMS    ──▶ aktualizuje dev-build
 ```
 
-## 2. Jednorazowa konfiguracja
+## 2. Jednorazowa konfiguracja GitHub
 
-Wykonaj raz w ustawieniach repozytorium GitHub.
-
-1. **Sekret `RELEASE_TOKEN`** (Settings → Secrets and variables → Actions). Fine-grained personal access token ograniczony do tego repozytorium z uprawnieniami *Contents: Read and write*, *Pull requests: Read and write* i *Administration: Read and write*. Służy do dwóch rzeczy, których wbudowany `GITHUB_TOKEN` nie potrafi:
-   - pull request otwarty przez `GITHUB_TOKEN` **nie** uruchamia CI, a otwarty przez PAT — tak;
-   - zmiana opisu repozytorium („About”) wymaga uprawnień administratora.
-
-   Bez sekretu wszystko nadal działa, ale PR wydania nie ma sprawdzeń, a opis repozytorium nie jest aktualizowany (w logu pojawia się ostrzeżenie). Wtedy włącz też *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests*.
-2. **Środowisko `release`** (Settings → Environments → New environment). Ustaw *Deployment branches* na `main`. Opcjonalnie dodaj siebie jako *Required reviewer*: job publikujący czeka wtedy na kliknięcie **Approve** po zakończeniu wszystkich zielonych buildów. To ostateczna bramka „akceptuję”. (Jeśli jesteś jedynym recenzentem, zostaw *Prevent self-review* wyłączone.)
-3. **Opcjonalnie: ochrona `main`** (wymagany pull request i sprawdzenia CI), aby „zmergowane” naprawdę oznaczało „sprawdzone i zielone”.
+1. **Sekret `RELEASE_TOKEN`** (*Settings → Secrets and variables → Actions*, fine-grained PAT z *Contents: Read and write* i *Administration: Read and write*): pozwala CI zaktualizować opis repozytorium ("About") przy wydaniu `vX.Y.Z` (bez niego reszta działa, a w logu pojawia się ostrzeżenie).
 
 ## 3. Wydanie krok po kroku
 
-### 3.1 Krok contentowy (na `dev`)
+### 3.1 Przygotowanie lokalne (`npm run release:prepare`)
 
-Pięciojęzyczny dziennik zmian powstaje na bieżąco w `src/data/changelog.json` (wpis `isDev: true`). Przed uruchomieniem workflow (poproś agenta: `/release`, albo zrób to ręcznie):
+Upewnij się, że gałąź `dev` jest czysta, a `src/data/changelog.json` ma aktywny blok `isDev: true` z przystępnymi opisami w 5 językach:
 
-- wypromuj aktywny wpis `isDev` do stabilnego wydania `X.Y.Z` poleceniem `npm run changelog:promote -- X.Y.Z "Kryptonim"`, upewniając się, że wszystkie punkty są napisane przystępnym językiem w pięciu językach (`pl`, `en`, `de`, `fi`, `la`) oraz mają `isLatest: true`;
-- zaktualizuj plakietki wersji i linki `releases/tag/vX.Y.Z` w `README.md` i `README.pl.md`;
-- uruchom `./tests/run_all_tests.sh --fix`, zrób commit i wypchnij `dev`.
+```bash
+# Podgląd bez zmian w plikach i gicie:
+npm run release:prepare -- minor --codename "Harmonic Horizons" --codename-pl "Harmoniczne Horyzonty" --dry-run
 
-Wynik możesz sprawdzić bez CI: `packaging/check-release-content.sh X.Y.Z`.
+# Pełne przygotowanie (promocja changeloga, plakietki, podbicie wersji, testy, merge do main, start kolejnego -dev):
+npm run release:prepare -- minor --codename "Harmonic Horizons" --codename-pl "Harmoniczne Horyzonty"
+```
 
-### 3.2 Actions → Prepare release
+- Jeśli na GitHubie włączona jest ochrona gałęzi `main` (wymagany PR), dodaj flagę `--pr` zamiast lokalnego merge'a do `main`.
 
-*Actions → Prepare release → Run workflow*, gałąź **dev**.
+### 3.2 Przegląd i push (`git push`)
 
-- `version`: puste = obecna wersja dev bez `-dev` (`1.1.6-dev` → `1.1.6`), albo wpisz `X.Y.Z`.
-- Workflow sprawdza wersję (semver, nowsza od ostatniego tagu, tag i gałąź jeszcze nie istnieją) oraz treści z kroku 3.1. Każdy problem jest opisany czytelnym komunikatem i nic nie zostaje zmienione.
-- Następnie uruchamia `packaging/bump-version.sh`, commituje `chore(release): bump version to X.Y.Z (Kryptonim)` na gałęzi `release/vX.Y.Z` i otwiera pull request do `main` z notatkami wydania w opisie.
+Sprawdź przygotowane commity (`git log --graph --oneline -n 6 main dev`), a następnie wypchnij obie gałęzie naraz:
 
-### 3.3 Przegląd i merge
+```bash
+git push origin main dev
+```
 
-Przejrzyj PR (diff zawiera tylko numery wersji) i poczekaj na sprawdzenia. Zmerguj jako **merge commit**, nie squash, aby `dev` mógł później połączyć się z `main` bez konfliktów. Nic nie jest jeszcze publikowane.
+Nie trzeba klikać żadnych ręcznych workflowów w GitHub Actions: push na `main` automatycznie buduje i publikuje `vX.Y.Z`, a push na `dev` odświeża `dev-build` dla `X.Y.(Z+1)-dev`.
 
-### 3.4 Actions → Publish release
+### 3.3 Sprawdzenie wyniku i AUR
 
-*Actions → Publish release → Run workflow*, gałąź **main**.
+- Sprawdź *Actions* i *Releases* (`gh release view vX.Y.Z`): są pliki `Auralune_X.Y.Z_amd64.AppImage`, `.deb` oraz `SHA256SUMS`.
+- Po opublikowaniu wydania `vX.Y.Z` zaktualizuj pakiet AUR (`auralune-bin`):
+  ```bash
+  npm run release:aur -- X.Y.Z
+  ```
 
-| Parametr | Znaczenie |
+## 4. Zabezpieczenia i naprawa błędów
+
+- **Blokada `-dev` na `main`**: wypchnięcie wersji `-dev` na `main` natychmiast zatrzymuje CI błędem. Zwykły push (np. poprawka dokumentacji na `main`), gdy tag `vX.Y.Z` już istnieje, przechodzi CI i bezpiecznie pomija publikację.
+- **Próba generalna (dry run)**: uruchom *Actions → CI/CD & Release Pipeline → Run workflow* na gałęzi `main` z `dry_run: true`, aby zbudować paczki i zostawić szkic wydania.
+- **Błędne wydanie po publikacji**: `gh release delete vX.Y.Z --yes --cleanup-tag`, popraw na `dev`, przygotuj wydanie ponownie i wypchnij.
+
+## 5. Skrypty i polecenia pomocnicze
+
+| Polecenie / Skrypt | Zastosowanie |
 |---|---|
-| `dry_run` | Zbuduj wszystko, ale zostaw wydanie jako **szkic** i nie zmieniaj opisu repozytorium. Użyj, gdy coś w pipeline się zmieniło. |
-
-Co się dzieje:
-
-1. **verify**: tylko z `main`; wersja musi być stabilna (bez `-dev`); tag `vX.Y.Z` nie może istnieć; treści wydania muszą być kompletne.
-2. **ci**: pełny `ci.yml` (formatowanie, clippy, testy, lint, build) na dokładnie tym commicie.
-3. **build-appimage** działa równolegle z CI. AppImage powstaje z `AURALUNE_BUILD_CHANNEL=stable` i musi nazywać się dokładnie `Auralune_X.Y.Z_amd64.AppImage` (tej nazwy oczekują `install.sh`, pakiet AUR i aktualizator).
-4. **publish** (środowisko `release`, czeka na akceptację, jeśli ustawiłeś recenzentów): tworzy `SHA256SUMS`, tworzy wydanie **jako szkic ze wszystkimi plikami jednym wywołaniem**, po czym je publikuje (`--latest`) i aktualizuje opis repozytorium. Ponieważ szkic staje się publiczny dopiero po wgraniu wszystkich plików, aktualizator w aplikacji nigdy nie zobaczy wydania bez sumy kontrolnej.
-
-Podsumowanie przebiegu pokazuje sumy kontrolne i pozostałe kroki ręczne.
-
-### 3.5 Sprawdzenie wyniku
-
-- `gh release view vX.Y.Z` albo strona *Releases*: są AppImage i `SHA256SUMS`.
-- `curl -fsSL https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/install.sh | bash` instaluje nową wersję.
-- Starsza instalacja stable pokazuje w nagłówku aplikacji odznakę aktualizacji.
-
-## 4. Po wydaniu
-
-1. **AUR** (ręcznie, potrzebny Twój klucz SSH do AUR). Pakiet `auralune-bin` rozpakowuje AppImage wydania do `/opt/auralune` (razem z dołączonymi bibliotekami) i dodaje launcher `/usr/bin/auralune`, wpis pulpitu i ikony, więc `pacman -R auralune-bin` usuwa go w całości. Na `dev` lub w dowolnym checkoutcie z wydaniem:
-   ```bash
-   packaging/archlinux/update-aur-checksum.sh X.Y.Z   # wpisuje prawdziwą sumę sha256 AppImage z opublikowanego SHA256SUMS
-   git commit -am "chore(aur): update AppImage sha256 checksum for vX.Y.Z"
-   packaging/archlinux/publish-to-aur.sh
-   ```
-2. **Merge wsteczny i start kolejnego cyklu na `dev`**:
-   ```bash
-   git checkout dev && git pull
-   git merge origin/main                       # sprowadza merge commit wydania z powrotem na dev
-   packaging/bump-version.sh X.Y.(Z+1)-dev     # zmienia tylko pliki Cargo/Tauri/npm
-   git commit -am "chore: start X.Y.(Z+1)-dev"
-   git push
-   ```
-
-## 5. Próby i naprawa błędów
-
-- **Próba generalna**: uruchom *Publish release* z włączonym `dry_run`. W *Releases* zostaje szkic `vX.Y.Z`; sprawdź pliki i usuń szkic. Kolejne uruchomienie samo usuwa pozostały szkic. Dla szkicu nie powstaje tag.
-- **Któryś job nie przeszedł przed `publish`**: nic nie zostało wydane. Napraw przyczynę i uruchom *Publish release* ponownie.
-- **Wydanie po publikacji jest błędne**: `gh release delete vX.Y.Z --yes --cleanup-tag`, popraw na `dev` i zacznij od *Prepare release* (stara gałąź `release/vX.Y.Z` musi być wcześniej usunięta).
-- **Prepare release utworzył zły PR**: zamknij go i usuń gałąź `release/vX.Y.Z`, popraw `dev` i uruchom ponownie.
-
-## 6. Skrypty pomocnicze
-
-| Skrypt | Do czego służy |
-|---|---|
-| `packaging/bump-version.sh <X.Y.Z\|X.Y.Z-dev>` | Podmienia wersję we wszystkich plikach (Cargo, Tauri, npm + lockfile, `install.sh`, PKGBUILD, `.SRCINFO`, dokumentacja). Podbicie stabilne sprawdza też, czy plakietki README zostały zaktualizowane; podbicie `-dev` zmienia tylko pliki aplikacji. |
-| `packaging/check-release-content.sh <X.Y.Z>` | Waliduje pięciojęzyczny `changelog.json`, promocję `X.Y.Z` (`isLatest=true`, brak `isDev`), niepuste notatki wydania i plakietki README. |
-| `packaging/release-notes.sh <X.Y.Z> <codename\|date\|notes>` | Wyciąga z `src/data/changelog.json` (przez `scripts/changelog.mjs`) kryptonim, datę lub notatki wydania w Markdown. |
-| `packaging/archlinux/update-aur-checksum.sh <X.Y.Z>` | Wpisuje sumę opublikowanego AppImage do `PKGBUILD-bin` i `.SRCINFO`. |
-| `packaging/archlinux/publish-to-aur.sh` | Wypycha `auralune-bin` na AUR. |
-
-Workflow: `.github/workflows/ci.yml` (jakość + ruchome wydanie dev, wywoływalny też z innych workflow), `release-prepare.yml`, `release-publish.yml`; wspólna konfiguracja buildu: `.github/actions/setup-build-env`.
-
-## 7. Rozwiązywanie problemów
-
-| Objaw | Przyczyna / rozwiązanie |
-|---|---|
-| Prepare kończy się błędem „changelog.json: failed validation…” lub „not promoted…” | Brakuje kroku contentowego (3.1) albo jest niekompletny. Uruchom lokalnie `npm run changelog:promote` / `packaging/check-release-content.sh X.Y.Z`. |
-| Prepare: „Pozostałości poprzedniego wydania” | Któryś plik nadal ma starą wersję, zwykle plakietka w README. Popraw na `dev` i uruchom ponownie. |
-| PR wydania nie ma sprawdzeń | Brakuje `RELEASE_TOKEN` (PR otwarty przez `GITHUB_TOKEN` nie uruchamia CI). Publish i tak uruchamia pełne CI. |
-| Publish: „wersja nie jest stabilna” | PR wydania nie został jeszcze zmergowany do `main`. |
-| Publish: „tag już istnieje” | `vX.Y.Z` został już wydany. Podbij wersję albo usuń wydanie i tag (sekcja 5). |
-| Publish nie startuje, „requesting contents: write” | Job `ci` w `release-publish.yml` musi zachować `permissions: contents: write` (wywołuje `ci.yml`, w którym jest job publikacji dev). |
-| Opis repozytorium nie został zaktualizowany | Brak `RELEASE_TOKEN` lub bez uprawnienia *Administration*. W logu jest ostrzeżenie. |
-| Publish czeka w nieskończoność | Środowisko `release` wymaga akceptacji: otwórz przebieg i kliknij **Review deployments → Approve**. |
+| `npm run release:prepare` | Promocja changeloga, plakietki README, podbicie wersji, pełne testy, merge `dev` → `main` i start kolejnego `-dev` (`scripts/release.mjs`). |
+| `npm run release:check [X.Y.Z]` | Sprawdza `changelog.json` oraz zgodność wersji w Cargo, npm, Tauri, `install.sh`, plikach Arch, `FEATURE_MATRIX.md`, `DEVELOPMENT.md` i `README*.md`. |
+| `npm run release:aur [X.Y.Z]` | Pobiera `SHA256SUMS` z opublikowanego `vX.Y.Z`, aktualizuje `PKGBUILD-bin` + `.SRCINFO`, commituje i wysyła na AUR. |
+| `packaging/bump-version.sh <X.Y.Z\|X.Y.Z-dev>` | Podmienia wersje w plikach aplikacji i pakietów (dla `-dev` tylko w plikach aplikacji). |
+| `packaging/check-release-content.sh <X.Y.Z> [--strict-versions]` | Sprawdza pięciojęzyczny `changelog.json`, plakietki README oraz opcjonalnie spójność wszystkich plików. |
+| `packaging/release-notes.sh <X.Y.Z> <codename\|date\|notes>` | Wyciąga metadane i notatki wydania z `src/data/changelog.json` przez `scripts/changelog.mjs`. |

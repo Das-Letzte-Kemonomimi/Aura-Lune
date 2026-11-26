@@ -57,12 +57,12 @@ Aura-Lune/
 │   ├── audio-engine/  storage/  library/  metadata/
 │   ├── downloads/  desktop-integration/  cli-spike/
 ├── public/                  # Static web assets (favicons, app icons)
-├── scripts/                 # Node tooling (changelog.mjs, generate-command-names.mjs, skills.mjs)
+├── scripts/                 # Node tooling (changelog.mjs, release.mjs, generate-command-names.mjs, skills.mjs)
 ├── tests/                   # run_all_tests.sh (CI parity) + fixtures
 ├── packaging/               # AppImage, Arch (PKGBUILD*), release helper scripts
 ├── docs/                    # developer/ (this folder), adr/, RELEASING.md, architecture.md
 ├── skills/                  # Project agent skills (release, i18n-sync, …)
-├── .github/                 # ci.yml, release-prepare.yml, release-publish.yml, setup-build-env action
+├── .github/                 # ci.yml (CI + dev/stable release publishing), setup-build-env action
 ├── index.html  vite.config.ts  tsconfig*.json  .oxlintrc.json  package.json
 ├── Cargo.toml  rust-toolchain.toml  deny.toml
 └── AGENTS.md  CLAUDE.md  GEMINI.md  DEVELOPMENT.md  CHANGELOG.md  install.sh

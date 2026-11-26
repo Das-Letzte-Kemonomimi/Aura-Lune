@@ -1,97 +1,64 @@
 ---
 name: release
-description: 'Cut an Aura-Lune release: promote the active dev changelog (src/data/changelog.json), update README badges on dev, then drive the manual Prepare release and Publish release GitHub workflows and the AUR checksum. Use when the user asks to release, bump the version, prepare vX.Y.Z, update the AUR package or publish to the public repo. Don''t use for ordinary feature commits or for recording a dev change (use npm run changelog:add).'
+description: 'Prepare and publish an Aura-Lune release via the dev->main pipeline (npm run release:prepare, push dev & main to auto-publish via ci.yml, and npm run release:aur). Use when the user asks to release, bump the version, prepare vX.Y.Z, merge dev to main for release, or update AUR. Don''t use for ordinary feature commits or for recording a dev change (use npm run changelog:add).'
 metadata:
     namespace: system
 ---
-# Cutting an Aura-Lune release
+# Cutting an Aura-Lune Release
 
-Stable releases are built and published by **GitHub Actions, only when someone
-triggers them by hand**; the full flow, one-time setup and recovery are in
-`docs/RELEASING.md` (Polish: `docs/RELEASING.pl.md`). Your part as the agent is
-the **content step on `dev`** (sections 0 to 3 below). The version bump itself
-is done by the *Prepare release* workflow through `packaging/bump-version.sh`.
-Everything outward-facing (push, running a workflow, merging the release PR,
-AUR) needs an explicit yes from the user first. Never push, dispatch, merge or
-publish on your own.
+Full architecture reference: `docs/developer/release-pipeline.md` (overview: `docs/RELEASING.md`, Polish: `docs/RELEASING.pl.md`).
 
-Past releases to copy the shape of: `git log --oneline --grep='chore(release)'`
-(`chore(release): bump version to X.Y.Z (Codename)`, now created by the
-workflow) and `chore(aur): update AppImage sha256 checksum for vX.Y.Z`.
+Aura-Lune uses a **local-prepare, push-to-publish** workflow:
+1. Run `npm run release:prepare` locally on `dev` (promotes changelog, updates README badges, bumps versions, runs `./tests/run_all_tests.sh --fix`, commits, merges `dev` → `main`, and bumps `dev` to `X.Y.(Z+1)-dev`).
+2. Only **after explicit user approval**, run `git push origin main dev` (pushing triggers `.github/workflows/ci.yml` to test, build AppImage + `.deb`, generate `SHA256SUMS`, and publish `vX.Y.Z` from `main` while refreshing `dev-build` from `dev`).
+3. Optional post-publish AUR sync: `npm run release:aur -- X.Y.Z`.
+
+Never push, force-push, tag, or run AUR pushes without explicit user confirmation.
 
 ## 0. Preconditions
 
-1.  Work from the `dev` checkout with a clean tree: `git status --short` must be
-    empty, so the content commit stays reviewable. Note unrelated changes
-    (for example `skills-lock.json`) and ask the user whether to
-    commit or stash them; do not sweep them into the release commit.
-2.  Ask for anything you cannot derive: the **new version** (X.Y.Z; SemVer rules are in `AGENTS.md`: MAJOR = architecture/breaking, MINOR = new features, PATCH = fixes and polish) and the **codename** (`„Kryptonim”`, an English phrase like `Player Dock Harmony & Waveform Precision`). The date is today's date, `YYYY-MM-DD`.
-3.  Run `./tests/run_all_tests.sh --fix` first. A release is never cut from a red tree. Add `--bundle` when the AppImage build changed. Report failures verbatim and stop.
-4.  `src/data/changelog.json` must have a non-empty `isDev: true` entry at index `0` (already promoted if re-running checks). If there are no unreleased entries to release, stop and ask.
+1. Clean `dev` checkout synced with `origin/dev`, and local `main` behind or equal to `dev` (`git status --short` empty).
+2. Confirm anything you cannot derive:
+   - Target SemVer (`patch`, `minor`, `major`, or explicit `X.Y.Z` — `scripts/release.mjs` recommends `minor` if `changelog[0].added` is non-empty, else `patch`).
+   - Release **codename** (English phrase, plus optional `--codename-pl` for the Polish README badge).
+3. Ensure `src/data/changelog.json` has a non-empty `isDev: true` entry at index `0` with listener-friendly, humanized text in all 5 locales (`en`, `pl`, `de`, `fi`, `la`) — see `CHANGELOG.md`.
 
-## 1. Version bump (done by CI, check locally if you like)
+## 1. Dry-run first, then prepare locally
 
-Do **not** edit version numbers by hand for the release: *Prepare release*
-runs `packaging/bump-version.sh X.Y.Z`, which rewrites `Cargo.toml`,
-`tauri.conf.json`, `package.json` and `package-lock.json`,
-`install.sh`, `PKGBUILD`/`PKGBUILD-bin`, `.SRCINFO`, `docs/FEATURE_MATRIX.md`
-and `DEVELOPMENT.md`, and fails when a file still carries the previous release
-(typically the README badge). To rehearse it, run the script in a scratch
-`git worktree`, never in the user's checkout. What the script does **not**
-write, and you must: the README badges (below) and all changelog content.
+Always run `--dry-run` first to verify version resolution and repo state cleanly:
 
-`PKGBUILD-git` is never touched (its `pkgver` is generated). `Cargo.lock` is
-gitignored.
+```bash
+npm run release:prepare -- <patch|minor|major|X.Y.Z> --codename "<Codename>" --codename-pl "<Polski Kryptonim>" --dry-run
+```
 
-## 2. Changelog & Badges
+Then run without `--dry-run` (which promotes `changelog.json`, updates `README.md` / `README.pl.md` badges, runs `packaging/bump-version.sh`, runs `packaging/check-release-content.sh ... --strict-versions`, executes `./tests/run_all_tests.sh --fix`, commits on `dev`, merges `--no-ff` into `main`, and commits `chore: start X.Y.(Z+1)-dev` on `dev`):
 
-Rules and tone live in `CHANGELOG.md`; automation commands live in `docs/developer/agent-pipelines.md`. Read the "Changelog entries" section of `docs/developer/frontend-architecture.md` before editing.
+```bash
+npm run release:prepare -- <patch|minor|major|X.Y.Z> --codename "<Codename>" --codename-pl "<Polski Kryptonim>"
+```
 
-1.  **Promote `src/data/changelog.json`**:
-    Run `npm run changelog:promote -- X.Y.Z "Codename"`.
-    Review every item in `added`, `changed`, and `fixed`: ensure non-technical, listener-friendly wording (humanized), verify no internal filenames/symbols leaked, and verify every item ships in all 5 locales (`en`, `pl`, `de`, `fi`, `la`). Never edit `ChangelogView.tsx` for release data.
-2.  **`CHANGELOG.md`**: keep it as the changelog rules guide (do **not** paste release markdown blocks back into it; `packaging/release-notes.sh` reads directly from `src/data/changelog.json`).
-3.  **README badges**: in `README.md` and `README.pl.md` update the version
-    badge, the translated codename in its text and the `releases/tag/vX.Y.Z`
-    link. The bump script cannot translate the codename, so it only checks that
-    the new tag link exists.
+Use `--pr` instead if GitHub branch protection forbids direct pushes to `main`. Never pass `--push` without explicit user permission.
 
-## 3. Verify, then commit
+## 2. Review & Push (requires explicit user yes)
 
-1.  `./tests/run_all_tests.sh --fast` (or the full run if code changed).
-2.  `packaging/check-release-content.sh X.Y.Z`: validates `src/data/changelog.json`, promoted `isLatest=true` / non-`isDev` state, non-empty Markdown release notes, and README links. Fix everything it prints.
-3.  `git diff --stat` and read it: only `src/data/changelog.json` and README badges should differ.
-4.  Commit once the user agrees, for example
-    `docs(release): changelog and README for X.Y.Z (Codename)`, and ask before
-    pushing `dev`.
+Show the user:
+- The promoted changelog summary and `git log --graph --oneline -n 6 main dev`
+- Notice that `git push origin main dev` will trigger CI + automatic release publishing for `vX.Y.Z` (and `dev-build` on `dev`).
 
-## 4. Publishing (each step needs an explicit yes)
+Only push once the user confirms:
 
-Tell the user what each step does and wait. Running a workflow is
-outward-facing. Use the GitHub UI, or `gh workflow run` if `gh` is installed
-and authenticated.
+```bash
+git push origin main dev
+```
 
-1.  **Push `dev`** (content commit).
-2.  **Actions → Prepare release** (branch `dev`, `version` empty or `X.Y.Z`):
-    validates, bumps, opens the `release/vX.Y.Z` → `main` PR. If it fails the
-    messages say what is missing; fix on `dev` and run again.
-3.  **Review and merge the PR with a merge commit** (the user does this).
-4.  **Actions → Publish release** (branch `main`): verify, full CI, AppImage
-    build, then a draft release with every asset and
-    `SHA256SUMS`, published at the end. Suggest `dry_run` first when the
-    pipeline itself changed. `SHA256SUMS` is part of the update contract: the
-    in-app updater refuses an AppImage it cannot verify.
-5.  **AUR**: `packaging/archlinux/update-aur-checksum.sh X.Y.Z` (writes the
-    published checksum), commit `chore(aur): update AppImage sha256 checksum
-    for vX.Y.Z`, then `packaging/archlinux/publish-to-aur.sh` (needs the user's
-    AUR SSH key).
-6.  **Next cycle on `dev`** (only if the user asks): `git merge origin/main`,
-    `packaging/bump-version.sh X.Y.(Z+1)-dev`.
+## 3. Verify Publication & Sync AUR
 
-After publication check `gh release view vX.Y.Z` (or the Releases page) and
-report the asset names.
+1. Monitor GitHub Actions (`gh run list` / *Actions → CI/CD & Release Pipeline*) and inspect `gh release view vX.Y.Z` (`Auralune_X.Y.Z_amd64.AppImage`, `.deb`, and `SHA256SUMS`).
+2. Once `vX.Y.Z` is live, ask before updating AUR (`auralune-bin`):
+   ```bash
+   npm run release:aur -- X.Y.Z
+   ```
 
 ## Report
 
-End with what you changed, what you ran and its result, and which publishing
-steps were and were not done. If a step was skipped or failed, say so plainly.
+Summarize what `release:prepare` prepared (`vX.Y.Z` on `main`, `vX.Y.(Z+1)-dev` on `dev`), exact test results, and whether `git push` / AUR steps were run or await confirmation.

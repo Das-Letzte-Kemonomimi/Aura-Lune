@@ -6,7 +6,8 @@ Reference documentation for Aura-Lune contributors and AI agents. The rules agen
 
 | Document | Contents |
 |---|---|
-| [`agent-pipelines.md`](agent-pipelines.md) | Automated agent & contributor pipelines (skills, IPC codegen, changelog, quality gates, releases) |
+| [`agent-pipelines.md`](agent-pipelines.md) | Automated agent & contributor pipelines (skills, IPC codegen, changelog, quality gates) |
+| [`release-pipeline.md`](release-pipeline.md) | Release & `dev` → `main` merge pipeline (`npm run release:prepare`, push-driven CI publishing) |
 | [`architecture-guide.md`](architecture-guide.md) | System diagram, technology stack, repository layout |
 | [`rust-architecture.md`](rust-architecture.md) | Core crates: domain, DSP, audio engine pipeline, storage, library, metadata, downloads, desktop integration; adding DB columns |
 | [`tauri-commands.md`](tauri-commands.md) | Tauri host: setup/lifecycle modules, command modules and contracts, updater design; adding a command |
