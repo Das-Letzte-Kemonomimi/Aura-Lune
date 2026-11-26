@@ -48,7 +48,7 @@
 - **Kanał deweloperski instalatora** (`install.sh`): wersja `auralune-dev` instalowana obok stabilnej, z osobnymi plikami, profilem i skrótami; automatyczne wykrywanie wtyczek GStreamera (np. na Arch Linux).
 - **Automatyczne wydania testowe**: każda zmiana w gałęzi deweloperskiej publikuje w GitHub Actions świeży AppImage oznaczony `dev`.
 - **Skrypt pełnej weryfikacji** `tests/run_all_tests.sh` (7 etapów jak w CI: `cargo fmt`, oxlint + Vitest, `tsc` + build Vite, Clippy `-D warnings`, testy Rusta, test dymny, `bash -n`) z przełącznikami `--fix`, `--fast` i `--bundle`.
-- **Dokumentacja**: przewodnik architektury [`AGENTS.md`](./AGENTS.md) oraz [`DEVELOPMENT.md`](./DEVELOPMENT.md).
+- **Dokumentacja**: warstwowe instrukcje dla agentów ([`AGENTS.md`](./AGENTS.md) oraz `src/`, `src-tauri/`, `crates/AGENTS.md`), dokumentacja techniczna w [`docs/developer/`](./docs/developer/README.md) i [`DEVELOPMENT.md`](./DEVELOPMENT.md).
 - **Znacznie więcej testów automatycznych**, m.in.:
   - baza danych — migracje schematu, kaskady kluczy obcych, kolejność playlist, duplikaty;
   - silnik audio — tryb bit-perfect, długość wyjścia i ciągłość znaczników czasu DSP, niewyrównane bufory, zakleszczenia, kodowanie URI, wykrywanie ciszy;
@@ -230,3 +230,5 @@
 
 #### Środowisko
 - **Node.js 22 LTS** oraz stabilny Rust (edycja 2021) z `rustfmt` i `clippy`.
+- **Nowy układ repozytorium (wzorem tauri-template)**: frontend w `src/`, host Tauri w `src-tauri/`, jeden `package.json` w katalogu głównym (zamiast `apps/desktop/`); skrypty, CI i pakiety używają nowych ścieżek. Domyślne logo Discord RPC wskazuje `src-tauri/icons/` na gałęzi `main`, więc wersje sprzed zmiany tracą to zapasowe logo po scaleniu do `main`.
+- **Instrukcje dla agentów**: krótki główny [`AGENTS.md`](./AGENTS.md) z regułami całego repozytorium oraz osobne `AGENTS.md` dla `src/`, `src-tauri/` i `crates/`; `CLAUDE.md` i `GEMINI.md` tylko na nie wskazują. Szczegółowe opisy modułów przeniesiono do [`docs/developer/`](./docs/developer/README.md); zniknął wymóg aktualizowania `AGENTS.md` przy każdym zadaniu.

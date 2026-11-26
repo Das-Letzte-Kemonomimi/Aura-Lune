@@ -1,7 +1,7 @@
 //! Efekty przetwarzane w sondach padów (wątek strumieniowy GStreamera).
 //!
 //! Kod w zamknięciach sond wykonuje się dla każdego bufora audio, więc obowiązują zasady
-//! czasu rzeczywistego (AGENTS.md §7.1): konfiguracja czytana z `AtomicCell` bez blokad,
+//! czasu rzeczywistego (crates/AGENTS.md, „Real-Time Audio Safety”): konfiguracja czytana z `AtomicCell` bez blokad,
 //! rzutowanie próbek przez `crate::rt`, brak alokacji i zapytań o caps w gorącej ścieżce.
 
 use super::*;

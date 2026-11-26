@@ -1,7 +1,7 @@
 //! Pomocnicze narzędzia dla kodu wykonywanego w wątku strumieniowym GStreamera
 //! (funkcja `chain` elementu DSP, sondy padów saturatora i stereo widenera).
 //!
-//! Zasady (AGENTS.md §7.1): brak alokacji na stercie, brak I/O i brak długo trzymanych blokad
+//! Zasady (crates/AGENTS.md, „Real-Time Audio Safety”): brak alokacji na stercie, brak I/O i brak długo trzymanych blokad
 //! w gorącej ścieżce. Rzutowanie bajtów bufora na `f32` jest sprawdzane pod kątem wyrównania
 //! (`bytemuck`) zamiast niezabezpieczonego `slice::from_raw_parts`.
 

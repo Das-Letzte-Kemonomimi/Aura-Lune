@@ -1,6 +1,6 @@
 //! Własny element GStreamer dla silników DSP Auralune (Bypass, Rubber Band, SoundTouch).
 //!
-//! ## Bezpieczeństwo czasu rzeczywistego (AGENTS.md §7.1)
+//! ## Bezpieczeństwo czasu rzeczywistego (crates/AGENTS.md, „Real-Time Audio Safety”)
 //! Funkcja `chain` działa w wątku strumieniowym GStreamera:
 //! - **Bypass** (tryb bit-perfect, najczęstszy) nie dotyka blokady — silnik jest czytany
 //!   z atomika, a bufor przekazywany dalej bez zmian.

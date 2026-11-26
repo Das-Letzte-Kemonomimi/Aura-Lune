@@ -52,8 +52,8 @@ gitignored.
 ## 2. Changelog
 
 The source of the wording is `CHANGELOG_PENDING.md` (Polish headings `Dodano`,
-`Poprawiono`, `Zmieniono`). Read the `AGENTS.md` section "How to Record &
-Update Changelog Entries" before editing.
+`Poprawiono`, `Zmieniono`). Read the "Changelog entries" section of
+`docs/developer/frontend-architecture.md` before editing.
 
 1.  **`CHANGELOG.md`**: add `## [X.Y.Z] — „Codename” - YYYY-MM-DD` and
     `**Autorka**: Das Letzte Kemonomimi` above the previous release. Match the
@@ -67,7 +67,7 @@ Update Changelog Entries" before editing.
     the previous one. Do not edit `ChangelogView.tsx` for data. Copy the entry
     shape from the newest existing entries and the `ChangelogRelease` type in
     the frontend (`grep -rn ChangelogRelease src`), because
-    `AGENTS.md` and the file have shown different shapes. Provide every
+    the docs and the file have shown different shapes. Provide every
     language the UI ships (currently `pl`, `en`, `de`, `fi`, `la`); the i18n
     parity tests fail on gaps, so also use the `i18n-sync` skill if it applies.
 3.  **README badges**: in `README.md` and `README.pl.md` update the version
