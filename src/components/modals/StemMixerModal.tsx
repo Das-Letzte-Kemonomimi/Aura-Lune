@@ -14,6 +14,8 @@ import { invoke } from '../../api/ipc';
 import { listen } from '@tauri-apps/api/event';
 import type { StemSeparationData, StemMixerState } from '../../types/analysis';
 import { getTranslations, type Language } from '../../i18n';
+import { cn } from '../../utils/cn';
+import { ModalShell } from '../ui';
 
 export interface StemMixerModalProps {
   isOpen: boolean;
@@ -223,72 +225,35 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     ];
 
   const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+    <div className="flex w-full flex-col gap-4">
       {/* Pasek stanu i szybkich akcji */}
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-2.5">
           <span
-            style={{
-              fontSize: '0.75rem',
-              padding: '4px 10px',
-              borderRadius: '20px',
-              background: 'rgba(6, 182, 212, 0.15)',
-              border: '1px solid rgba(6, 182, 212, 0.35)',
-              color: '#38bdf8',
-              fontWeight: 700,
-            }}
+            className="rounded-3xl border border-accent-cyan/35 bg-accent-cyan/15 px-2.5 py-1 text-xs font-bold text-sky-400"
           >
             {t.stems.spectralSeparation}
           </span>
           {mixerState.enabled && (
             <span
-              style={{
-                fontSize: '0.75rem',
-                padding: '4px 10px',
-                borderRadius: '20px',
-                background: 'rgba(16, 185, 129, 0.2)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                color: '#34d399',
-                fontWeight: 700,
-              }}
+              className="rounded-3xl border border-accent-green/40 bg-accent-green/20 px-2.5 py-1 text-xs font-bold text-emerald-400"
             >
               {t.stems.activeInAudioPath}
             </span>
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="flex items-center gap-2.5">
           <button
             onClick={toggleKaraoke}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.18s ease',
-              border: mixerState.karaoke_mode
-                ? '1px solid #ec4899'
-                : '1px solid rgba(255, 255, 255, 0.15)',
-              background: mixerState.karaoke_mode ? '#ec4899' : 'rgba(255, 255, 255, 0.05)',
-              color: '#ffffff',
-              boxShadow: mixerState.karaoke_mode ? '0 0 15px rgba(236, 72, 153, 0.4)' : 'none',
-            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-ui font-bold text-fg transition-all duration-200',
+              mixerState.karaoke_mode ? 'border-pink-500' : 'border-white/15',
+              mixerState.karaoke_mode ? 'bg-pink-500' : 'bg-white/5',
+              mixerState.karaoke_mode ? 'shadow-halo-md shadow-pink-500/40' : 'shadow-none',
+            )}
           >
             <Mic size={14} />
             <span>{t.stems.karaokeMode}</span>
@@ -298,20 +263,11 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
             <button
               onClick={handleLoadStemsToPlayer}
               disabled={!stems}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '10px',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: stems ? 'pointer' : 'not-allowed',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                background: 'rgba(16, 185, 129, 0.2)',
-                color: '#6ee7b7',
-                opacity: stems ? 1 : 0.5,
-              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl border border-accent-green/40 bg-accent-green/20 px-3.5 py-2 text-ui font-bold text-emerald-300',
+                stems ? 'cursor-pointer' : 'cursor-not-allowed',
+                stems ? 'opacity-100' : 'opacity-50',
+              )}
             >
               <Play size={14} />
               <span>{t.stems.loadStemsBtn}</span>
@@ -319,20 +275,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
           ) : (
             <button
               onClick={handleRestoreOriginalTrack}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '10px',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                border: '1px solid rgba(6, 182, 212, 0.4)',
-                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(168, 85, 247, 0.25))',
-                color: '#67e8f9',
-                boxShadow: '0 0 14px rgba(6, 182, 212, 0.3)',
-              }}
+              className="flex items-center gap-1.5 rounded-xl border border-accent-cyan/40 bg-linear-135 from-accent-cyan/25 to-accent-purple/25 px-3.5 py-2 text-ui font-bold text-cyan-300 shadow-halo-md shadow-accent-cyan/30"
               title={t.stems.restoreOriginalTooltip}
             >
               <RotateCcw size={14} />
@@ -343,16 +286,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       </div>
 
       {error && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: '12px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#fca5a5',
-            fontSize: '0.82rem',
-          }}
-        >
+        <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-3 text-ui text-red-300">
           {error}
         </div>
       )}
@@ -360,86 +294,39 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       {/* Jeśli stemy nie są jeszcze rozdzielone */}
       {!stems ? (
         <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '48px 24px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            borderRadius: '20px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            textAlign: 'center',
-            gap: '16px',
-          }}
+          className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/6 bg-white/2 px-6 py-12 text-center"
         >
           <div
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(236, 72, 153, 0.2))',
-              border: '1px solid rgba(6, 182, 212, 0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#38bdf8',
-            }}
+            className="flex h-16 w-16 items-center justify-center rounded-full border border-accent-cyan/35 bg-linear-135 from-accent-cyan/20 to-pink-500/20 text-sky-400"
           >
             <Sliders size={32} />
           </div>
 
-          <div style={{ maxWidth: '480px' }}>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc' }}>
+          <div className="max-w-120">
+            <h3 className="mx-0 mt-0 mb-1.5 text-lg font-extrabold text-fg">
               {t.stems.separateStemsTitle}
             </h3>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5 }}>
+            <p className="m-0 text-ui leading-normal text-fg-secondary">
               {t.stems.separationDesc}
             </p>
           </div>
 
           {loading ? (
-            <div style={{ width: '100%', maxWidth: '360px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  overflow: 'hidden',
-                }}
-              >
+            <div className="flex w-full max-w-90 flex-col gap-2">
+              <div className="h-2 w-full overflow-hidden rounded-sm bg-white/10">
                 <div
-                  style={{
-                    height: '100%',
-                    width: `${Math.round(progressVal * 100)}%`,
-                    background: 'linear-gradient(90deg, #06b6d4, #ec4899)',
-                    transition: 'width 0.3s ease',
-                  }}
+                  className="h-full bg-linear-to-r from-accent-cyan to-pink-500 transition-[width] duration-300"
+                  style={{ width: `${Math.round(progressVal * 100)}%` }}
                 />
               </div>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: '#cbd5e1', fontFamily: 'var(--font-mono)' }}>
+              <p className="m-0 font-mono text-ui text-slate-300">
                 {progressMsg} ({(progressVal * 100).toFixed(0)}%)
               </p>
             </div>
           ) : (
             <button
               onClick={handleStartSeparation}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #06b6d4, #ec4899)',
-                border: 'none',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                boxShadow: '0 6px 20px rgba(6, 182, 212, 0.35)',
-                transition: 'transform 0.15s ease',
-              }}
+              className="flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-accent-cyan to-pink-500 px-6 py-3 text-sm font-bold text-fg shadow-xl shadow-accent-cyan/35 transition-transform duration-150"
             >
               <Sparkles size={18} />
               <span>{t.stems.startSeparation}</span>
@@ -448,68 +335,48 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
         </div>
       ) : (
         /* Siatka 4 stemów */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3.5">
           {stemList.map((stem) => {
             const isSolo = mixerState.solo_stem === stem.id;
             return (
               <div
                 key={stem.id}
-                style={{
-                  padding: '16px',
-                  borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: isSolo
-                    ? '1px solid #f59e0b'
-                    : stem.mute
-                      ? '1px solid rgba(239, 68, 68, 0.3)'
-                      : '1px solid rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                  transition: 'all 0.15s ease',
-                }}
+                className={cn(
+                  'flex flex-col gap-3 rounded-2xl border bg-white/3 p-4 transition-all duration-150',
+                  isSolo ? 'border-accent-amber' : stem.mute ? 'border-accent-red/30' : 'border-white/8',
+                )}
               >
                 {/* Tytuł i przyciski Solo/Mute */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: stem.color, display: 'flex', alignItems: 'center' }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center" style={{ color: stem.color }}>
                       {stem.icon}
                     </span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>
+                    <span className="text-sm font-bold text-fg">
                       {stem.label}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => toggleSolo(stem.id)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        border: isSolo ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.12)',
-                        background: isSolo ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
-                        color: isSolo ? '#0f172a' : '#94a3b8',
-                      }}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xxs font-extrabold',
+                        isSolo ? 'border-accent-amber' : 'border-white/10',
+                        isSolo ? 'bg-accent-amber' : 'bg-white/5',
+                        isSolo ? 'text-slate-900' : 'text-fg-secondary',
+                      )}
                     >
                       SOLO
                     </button>
                     <button
                       onClick={stem.toggleMute}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        border: stem.mute
-                          ? '1px solid rgba(239, 68, 68, 0.5)'
-                          : '1px solid rgba(255, 255, 255, 0.12)',
-                        background: stem.mute ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                        color: stem.mute ? '#fca5a5' : '#94a3b8',
-                      }}
+                      className={cn(
+                        'rounded-md border px-2 py-1 text-xxs font-extrabold',
+                        stem.mute ? 'border-accent-red/50' : 'border-white/10',
+                        stem.mute ? 'bg-accent-red/25' : 'bg-white/5',
+                        stem.mute ? 'text-red-300' : 'text-fg-secondary',
+                      )}
                     >
                       MUTE
                     </button>
@@ -517,7 +384,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                 </div>
 
                 {/* Suwak głośności i wartość procentowa */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="flex items-center gap-3">
                   <input
                     type="range"
                     min="0"
@@ -525,22 +392,14 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                     step="0.05"
                     value={stem.volume}
                     onChange={(e) => stem.setVolume(parseFloat(e.target.value))}
-                    style={{
-                      flex: 1,
-                      accentColor: stem.color,
-                      height: '6px',
-                      cursor: 'pointer',
-                    }}
+                    className="h-1.5 flex-1 cursor-pointer"
+                    style={{ accentColor: stem.color }}
                   />
                   <span
-                    style={{
-                      width: '42px',
-                      textAlign: 'right',
-                      fontSize: '0.78rem',
-                      fontFamily: 'var(--font-mono)',
-                      color: stem.mute ? '#64748b' : '#f8fafc',
-                      fontWeight: 600,
-                    }}
+                    className={cn(
+                      'w-10.5 text-right font-mono text-ui font-semibold',
+                      stem.mute ? 'text-fg-muted' : 'text-fg',
+                    )}
                   >
                     {Math.round(stem.volume * 100)}%
                   </span>
@@ -555,110 +414,45 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
 
   if (embedded) {
     return (
-      <div style={{ width: '100%', height: '100%', overflowY: 'auto', padding: '4px' }}>
+      <div className="h-full w-full overflow-y-auto p-1">
         {content}
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        background: 'rgba(5, 5, 12, 0.85)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      layer="studio"
+      className="flex max-w-180 flex-col overflow-hidden rounded-3xl border border-accent-cyan/35 p-6 text-fg"
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '720px',
-          background: 'linear-gradient(145deg, rgba(18, 20, 36, 0.98), rgba(10, 12, 24, 0.99))',
-          borderRadius: '24px',
-          border: '1px solid rgba(6, 182, 212, 0.35)',
-          boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.2)',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '24px',
-          overflow: 'hidden',
-          color: '#f8fafc',
-          animation: 'fadeInScale 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            paddingBottom: '16px',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                background: 'rgba(6, 182, 212, 0.2)',
-                border: '1px solid rgba(6, 182, 212, 0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#38bdf8',
-              }}
-            >
-              <Layers size={20} />
-            </div>
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: '1.15rem',
-                  fontWeight: 800,
-                  background: 'linear-gradient(90deg, #06b6d4, #ec4899)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                {t.stems.modalTitle}
-              </h2>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>{displayTrackTitle}</p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#94a3b8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-9.5 w-9.5 items-center justify-center rounded-xl border border-accent-cyan/35 bg-accent-cyan/20 text-sky-400"
           >
-            <X size={18} />
-          </button>
+            <Layers size={20} />
+          </div>
+          <div>
+            <h2
+              className="m-0 bg-linear-to-r bg-clip-text from-accent-cyan to-pink-500 text-lg font-extrabold text-transparent"
+            >
+              {t.stems.modalTitle}
+            </h2>
+            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">{displayTrackTitle}</p>
+          </div>
         </div>
 
-        {content}
+        <button
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary"
+        >
+          <X size={18} />
+        </button>
       </div>
-    </div>
+
+      {content}
+    </ModalShell>
   );
 };

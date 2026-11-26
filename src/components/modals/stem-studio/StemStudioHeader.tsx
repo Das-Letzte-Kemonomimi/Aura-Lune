@@ -4,6 +4,7 @@ import { RotateCcw, Download, Save, Sparkles, X, Sliders, Music } from 'lucide-r
 import type { StemProject, StemChannel, StemProjectMix } from '../../../types/analysis';
 import type { Dispatch, SetStateAction } from 'react';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type StemStudioHeaderProps = {} & {
   project: StemProject | null;
@@ -40,94 +41,46 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
   setIsSavingMix,
   t,
 }) => (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 20px',
-        background: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        marginBottom: '12px',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+    <div className="mb-3 flex items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-5 py-3">
+      <div className="flex items-center gap-3.5">
         <div
-          style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 15px rgba(236, 72, 153, 0.4)',
-          }}
+          className="flex h-10.5 w-10.5 items-center justify-center rounded-xl bg-linear-135 from-pink-500 to-violet-500 shadow-lift shadow-pink-500/40"
         >
-          <Sliders size={22} color="#ffffff" />
+          <Sliders size={22} className="text-fg" />
         </div>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc' }}>
+          <div className="flex items-center gap-2.5">
+            <h2 className="m-0 text-xl font-extrabold text-fg">
               {project ? project.title : loc.stems.loadingProject}
             </h2>
             {project?.status === 'separating' && (
               <span
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  background: 'rgba(245, 158, 11, 0.2)',
-                  border: '1px solid rgba(245, 158, 11, 0.4)',
-                  color: '#f59e0b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
+                className="flex items-center gap-1 rounded-xl border border-accent-amber/40 bg-accent-amber/20 px-2 py-0.5 text-xs text-accent-amber"
               >
                 <Sparkles size={12} className="animate-spin" />
                 {fmt(loc.stems.statusSeparating, String(Math.round(project.progress * 100)))}
               </span>
             )}
           </div>
-          <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
+          <p className="m-0 text-ui text-fg-secondary">
             {project?.artist} • {project?.album} • {fmt(loc.stems.instrumentTracksCount, String(channels.length))}
           </p>
         </div>
       </div>
 
       {/* Zarządzanie miksami, odsłuch na żywo A/B i powrót do utworu */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="flex items-center gap-2.5">
         {/* Przełącznik odsłuchu na żywo (A/B Live Comparison) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: 'rgba(0, 0, 0, 0.45)',
-            borderRadius: '12px',
-            padding: '3px',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
-          }}
-        >
+        <div className="flex items-center rounded-xl border border-white/15 bg-black/45 p-1">
           <button
             onClick={handleSwitchToOriginal}
             title={t.stems.originalMaster}
-            style={{
-              padding: '6px 13px',
-              borderRadius: '9px',
-              background: isOriginalMode ? 'linear-gradient(135deg, #06b6d4, #3b82f6)' : 'transparent',
-              color: isOriginalMode ? '#ffffff' : '#94a3b8',
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: isOriginalMode ? '0 2px 8px rgba(6, 182, 212, 0.4)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-1.5 text-ui font-bold transition-all duration-150',
+              isOriginalMode ? 'bg-linear-135 from-accent-cyan to-blue-500' : 'bg-transparent',
+              isOriginalMode ? 'text-fg' : 'text-fg-secondary',
+              isOriginalMode ? 'shadow-md shadow-accent-cyan/40' : 'shadow-none',
+            )}
           >
             <Music size={13} />
             {t.stems.originalMaster}
@@ -135,21 +88,12 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
           <button
             onClick={() => handleSwitchToStems()}
             title={t.stems.switchToStemsTooltip}
-            style={{
-              padding: '6px 13px',
-              borderRadius: '9px',
-              background: !isOriginalMode ? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'transparent',
-              color: !isOriginalMode ? '#ffffff' : '#94a3b8',
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: !isOriginalMode ? '0 2px 8px rgba(236, 72, 153, 0.4)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border-0 px-3.5 py-1.5 text-ui font-bold transition-all duration-150',
+              !isOriginalMode ? 'bg-linear-135 from-pink-500 to-violet-500' : 'bg-transparent',
+              !isOriginalMode ? 'text-fg' : 'text-fg-secondary',
+              !isOriginalMode ? 'shadow-md shadow-pink-500/40' : 'shadow-none',
+            )}
           >
             <Sliders size={13} />
             {t.stems.liveStemMix}
@@ -160,20 +104,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
         <button
           onClick={handleReturnToOriginalAndClose}
           title={t.stems.returnToOriginalCloseTooltip}
-          style={{
-            padding: '7px 14px',
-            borderRadius: '10px',
-            background: 'rgba(6, 182, 212, 0.15)',
-            border: '1px solid rgba(6, 182, 212, 0.4)',
-            color: 'var(--accent-cyan)',
-            fontWeight: 700,
-            fontSize: '0.8rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
+          className="flex items-center gap-1.5 rounded-xl border border-accent-cyan/40 bg-accent-cyan/15 px-3.5 py-2 text-ui font-bold text-accent-cyan transition-all duration-150"
         >
           <RotateCcw size={14} />
           {t.stems.returnToTrack}
@@ -187,16 +118,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
             if (selected) handleLoadMix(selected);
             else if (e.target.value === 'Default (0 dB)') handleResetAllToUnity();
           }}
-          style={{
-            padding: '8px 12px',
-            background: 'rgba(15, 23, 42, 0.8)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '10px',
-            color: '#f8fafc',
-            fontSize: '0.8rem',
-            outline: 'none',
-            cursor: 'pointer',
-          }}
+          className="cursor-pointer rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-ui text-fg outline-none"
         >
           <option value="Default (0 dB)">{t.stems.defaultMix}</option>
           {mixes.map((m) => (
@@ -209,18 +131,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
         <button
           onClick={() => setIsSavingMix(true)}
           title={t.stems.saveMixTooltip}
-          style={{
-            padding: '8px 12px',
-            borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#cbd5e1',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.8rem',
-          }}
+          className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-ui text-slate-300"
         >
           <Save size={14} />
           {t.stems.saveMix}
@@ -229,18 +140,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
         <button
           onClick={handleExportZip}
           title={t.stems.exportZipTooltip}
-          style={{
-            padding: '8px 12px',
-            borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#cbd5e1',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.8rem',
-          }}
+          className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-ui text-slate-300"
         >
           <Download size={14} />
           {t.stems.exportZip}
@@ -249,15 +149,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
         <button
           onClick={handleClose}
           title={t.stems.closeStudio}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#94a3b8',
-            cursor: 'pointer',
-            padding: '8px',
-            borderRadius: '50%',
-            display: 'flex',
-          }}
+          className="flex rounded-full border-0 bg-transparent p-2 text-fg-secondary"
         >
           <X size={20} />
         </button>

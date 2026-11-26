@@ -14,6 +14,7 @@ import {
 import { type Language, getTranslations } from '../../i18n';
 import rawReleases from '../../data/changelog.json';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
 
 export interface ChangelogItem {
   pl: string;
@@ -109,61 +110,24 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
   return (
     <div
       ref={containerRef}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        maxWidth: '840px',
-        margin: '0 auto',
-      }}
+      className="mx-auto my-0 flex max-w-210 flex-col gap-5"
     >
       {/* Nagłówek sekcji */}
       <div
-        className="glass-card"
-        style={{
-          padding: '20px 24px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '14px',
-          borderLeft: '4px solid var(--accent-pink)',
-        }}
+        className="glass-card flex flex-wrap items-center justify-between gap-3.5 border-l-4 border-accent-pink px-6 py-5"
       >
         <div>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: '1.25rem',
-              fontWeight: 800,
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
-          >
-            <Sparkles size={20} color="var(--accent-pink)" />
+          <h3 className="m-0 flex items-center gap-2.5 text-xl font-extrabold text-fg">
+            <Sparkles size={20} className="text-accent-pink" />
             {loc.changelog.title}
           </h3>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+          <p className="mx-0 mt-1 mb-0 text-ui text-fg-secondary">
             {loc.changelog.subtitle}
           </p>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div className="text-right">
           <span
-            style={{
-              fontSize: '0.74rem',
-              padding: '5px 12px',
-              borderRadius: '8px',
-              background: 'rgba(168, 85, 247, 0.2)',
-              color: 'var(--accent-purple)',
-              fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-              border: '1px solid rgba(168, 85, 247, 0.4)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-accent-purple/40 bg-accent-purple/20 px-3 py-1.5 font-mono text-xs font-bold text-accent-purple"
           >
             <Tag size={12} /> v{LATEST_RELEASE.version} • {LATEST_RELEASE.codename}
           </span>
@@ -172,22 +136,11 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
 
       {/* Pasek nawigacji / filtrowania stron na górze */}
       <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '10px',
-          padding: '10px 16px',
-          background: 'rgba(0, 0, 0, 0.25)',
-          borderRadius: '12px',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '0.78rem',
-        }}
+        className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-line bg-black/25 px-4 py-2.5 text-ui"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-          <Layers size={14} color="var(--accent-cyan)" />
-          <span style={{ fontWeight: 600, color: '#fff' }}>
+        <div className="flex items-center gap-2 text-fg-muted">
+          <Layers size={14} className="text-accent-cyan" />
+          <span className="font-semibold text-fg">
             {fmt(loc.changelog.totalReleases, String(totalReleases))}
           </span>
           <span>•</span>
@@ -197,28 +150,18 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
         </div>
 
         {/* Wybór liczby wydań na stronę */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>{loc.changelog.perPage}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-fg-muted">{loc.changelog.perPage}</span>
           {PAGE_SIZE_OPTIONS.map((size) => (
             <button
               key={size}
               data-testid={`page-size-${size}`}
               aria-label={`${loc.changelog.perPage} ${size}`}
               onClick={() => handlePageSizeChange(size)}
-              style={{
-                padding: '3px 8px',
-                borderRadius: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                background:
-                  pageSize === size
-                    ? 'var(--accent-purple)'
-                    : 'rgba(255, 255, 255, 0.08)',
-                color: '#fff',
-                transition: 'background 0.15s ease',
-              }}
+              className={cn(
+                'rounded-md border-0 px-2 py-1 text-xs font-bold text-fg transition-[background] duration-150',
+                pageSize === size ? 'bg-accent-purple' : 'bg-white/8',
+              )}
             >
               {size}
             </button>
@@ -230,91 +173,37 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
       {paginatedReleases.map((rel) => (
         <div
           key={rel.version}
-          className="glass-card"
-          style={{
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '18px',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
+          className="glass-card relative flex flex-col gap-4.5 overflow-hidden p-6"
         >
           {/* Pasek wersji i metadanych */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              paddingBottom: '14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-3.5">
+            <div className="flex items-center gap-3">
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  padding: '4px 12px',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: '1rem',
-                  boxShadow: '0 2px 8px rgba(244, 63, 94, 0.35)',
-                }}
+                className="flex items-center gap-1.5 rounded-lg bg-accent-gradient px-3 py-1 text-base font-extrabold text-on-accent shadow-md shadow-accent-pink/35"
               >
                 <Tag size={15} />
                 <span>v{rel.version}</span>
               </div>
               <div>
-                <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>
+                <h4 className="m-0 text-lg font-bold text-fg">
                   „{rel.codename}”
                 </h4>
               </div>
               {rel.isLatest && (
                 <span
-                  style={{
-                    fontSize: '0.65rem',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: 'rgba(34, 197, 94, 0.2)',
-                    color: 'var(--accent-green)',
-                    fontWeight: 800,
-                    letterSpacing: '0.05em',
-                    border: '1px solid rgba(34, 197, 94, 0.4)',
-                  }}
+                  className="rounded-sm border border-green-500/40 bg-green-500/20 px-2 py-0.5 text-xxs font-extrabold tracking-wider text-accent-green"
                 >
                   {loc.changelog.latestBadge}
                 </span>
               )}
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                fontSize: '0.78rem',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div className="flex items-center gap-4 text-ui text-fg-muted">
+              <span className="flex items-center gap-1.5">
                 <Calendar size={13} />
                 {rel.date}
               </span>
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  color: 'var(--accent-pink)',
-                  fontWeight: 600,
-                }}
-              >
+              <span className="flex items-center gap-1.5 font-semibold text-accent-pink">
                 <User size={13} />
                 {rel.author}
               </span>
@@ -324,34 +213,14 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
           {/* Sekcja: Dodano (Added) */}
           {rel.added && rel.added.length > 0 && (
             <div>
-              <h5
-                style={{
-                  margin: '0 0 10px 0',
-                  fontSize: '0.88rem',
-                  fontWeight: 700,
-                  color: 'var(--accent-cyan)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
+              <h5 className="mx-0 mt-0 mb-2.5 flex items-center gap-2 text-sm font-bold text-accent-cyan">
                 <Sparkles size={15} />
                 {loc.changelog.added}
               </h5>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: '18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  fontSize: '0.82rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
+              <ul className="m-0 flex flex-col gap-2 pl-4.5 text-ui text-fg-secondary">
                 {rel.added.map((item, idx) => (
-                  <li key={idx} style={{ lineHeight: 1.5 }}>
-                    <span style={{ color: '#fff' }}>{getLocText(item)}</span>
+                  <li key={idx} className="leading-normal">
+                    <span className="text-fg">{getLocText(item)}</span>
                   </li>
                 ))}
               </ul>
@@ -361,34 +230,14 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
           {/* Sekcja: Naprawiono (Fixed) */}
           {rel.fixed && rel.fixed.length > 0 && (
             <div>
-              <h5
-                style={{
-                  margin: '0 0 10px 0',
-                  fontSize: '0.88rem',
-                  fontWeight: 700,
-                  color: 'var(--accent-pink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
+              <h5 className="mx-0 mt-0 mb-2.5 flex items-center gap-2 text-sm font-bold text-accent-pink">
                 <Wrench size={15} />
                 {loc.changelog.fixed}
               </h5>
-              <ul
-                style={{
-                  margin: 0,
-                  paddingLeft: '18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  fontSize: '0.82rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
+              <ul className="m-0 flex flex-col gap-2 pl-4.5 text-ui text-fg-secondary">
                 {rel.fixed.map((item, idx) => (
-                  <li key={idx} style={{ lineHeight: 1.5 }}>
-                    <span style={{ color: '#fff' }}>{getLocText(item)}</span>
+                  <li key={idx} className="leading-normal">
+                    <span className="text-fg">{getLocText(item)}</span>
                   </li>
                 ))}
               </ul>
@@ -399,36 +248,17 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
 
       {/* Paginator dolny z przyciskami stron */}
       {totalPages > 1 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginTop: '8px',
-            marginBottom: '24px',
-          }}
-        >
+        <div className="mt-2 mb-6 flex flex-wrap items-center justify-center gap-2">
           {/* Pierwsza strona */}
           <button
             onClick={() => handlePageChange(1)}
             disabled={clampedPage === 1}
             title={loc.changelog.first}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: clampedPage === 1 ? 'not-allowed' : 'pointer',
-              opacity: clampedPage === 1 ? 0.35 : 1,
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1 rounded-lg border border-line px-3 py-2 text-ui font-bold text-fg',
+              clampedPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer',
+              clampedPage === 1 ? 'opacity-35' : 'opacity-100',
+            )}
           >
             <ChevronsLeft size={15} />
           </button>
@@ -438,37 +268,24 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             onClick={() => handlePageChange(clampedPage - 1)}
             disabled={clampedPage === 1}
             title={loc.changelog.prev}
-            className="glass-card"
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: clampedPage === 1 ? 'not-allowed' : 'pointer',
-              opacity: clampedPage === 1 ? 0.35 : 1,
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1 rounded-lg border border-line px-3.5 py-2 text-ui font-bold text-fg',
+              clampedPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer',
+              clampedPage === 1 ? 'opacity-35' : 'opacity-100',
+            )}
           >
             <ChevronLeft size={15} />
             <span>{loc.changelog.prev}</span>
           </button>
 
           {/* Numery stron */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div className="flex items-center gap-1">
             {pageNumbers.map((page, idx) => {
               if (page === '...') {
                 return (
                   <span
                     key={`ellipsis-${idx}`}
-                    style={{
-                      padding: '8px 10px',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.82rem',
-                    }}
+                    className="px-2.5 py-2 text-ui text-fg-muted"
                   >
                     …
                   </span>
@@ -479,26 +296,13 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
                 <button
                   key={`page-${page}`}
                   onClick={() => handlePageChange(Number(page))}
-                  style={{
-                    minWidth: '36px',
-                    height: '36px',
-                    padding: '0 8px',
-                    borderRadius: '8px',
-                    fontSize: '0.82rem',
-                    fontWeight: isSelected ? 800 : 600,
-                    cursor: 'pointer',
-                    background: isSelected
-                      ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    border: isSelected
-                      ? '1px solid var(--accent-pink)'
-                      : '1px solid var(--border-subtle)',
-                    color: '#fff',
-                    boxShadow: isSelected
-                      ? '0 2px 8px rgba(244, 63, 94, 0.35)'
-                      : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={cn(
+                    'h-9 min-w-9 rounded-lg border px-2 py-0 text-ui text-fg transition-all duration-150',
+                    isSelected ? 'font-extrabold' : 'font-semibold',
+                    isSelected ? 'bg-accent-gradient' : 'bg-white/5',
+                    isSelected ? 'border-accent-pink' : 'border-line',
+                    isSelected ? 'shadow-md shadow-accent-pink/35' : 'shadow-none',
+                  )}
                 >
                   {page}
                 </button>
@@ -511,20 +315,11 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             onClick={() => handlePageChange(clampedPage + 1)}
             disabled={clampedPage === totalPages}
             title={loc.changelog.next}
-            className="glass-card"
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: clampedPage === totalPages ? 'not-allowed' : 'pointer',
-              opacity: clampedPage === totalPages ? 0.35 : 1,
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1 rounded-lg border border-line px-3.5 py-2 text-ui font-bold text-fg',
+              clampedPage === totalPages ? 'cursor-not-allowed' : 'cursor-pointer',
+              clampedPage === totalPages ? 'opacity-35' : 'opacity-100',
+            )}
           >
             <span>{loc.changelog.next}</span>
             <ChevronRight size={15} />
@@ -535,20 +330,11 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             onClick={() => handlePageChange(totalPages)}
             disabled={clampedPage === totalPages}
             title={loc.changelog.last}
-            className="glass-card"
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: clampedPage === totalPages ? 'not-allowed' : 'pointer',
-              opacity: clampedPage === totalPages ? 0.35 : 1,
-              color: '#fff',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className={cn(
+              'glass-card flex items-center gap-1 rounded-lg border border-line px-3 py-2 text-ui font-bold text-fg',
+              clampedPage === totalPages ? 'cursor-not-allowed' : 'cursor-pointer',
+              clampedPage === totalPages ? 'opacity-35' : 'opacity-100',
+            )}
           >
             <ChevronsRight size={15} />
           </button>

@@ -13,6 +13,7 @@ import {
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { formatRelativeTime as formatRelativeTimeBase } from '../../utils/timeFormat';
+import { cn } from '../../utils/cn';
 
 export interface StatsDashboardViewProps {
   tracks: TrackRecord[];
@@ -136,66 +137,34 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
   const medalEmojis = ['🥇', '🥈', '🥉', '4.', '5.'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', maxWidth: 'min(1600px, 98vw)', margin: '0 auto' }}>
+    <div className="mx-auto flex max-w-[min(100rem,98vw)] flex-col gap-5.5">
       {/* Baner Tytułowy */}
       <div
-        className="glass-panel"
-        style={{
-          padding: '24px 28px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(244, 63, 94, 0.14))',
-          border: '1px solid var(--border-accent)',
-          borderRadius: '16px',
-        }}
+        className="glass-panel flex items-center justify-between rounded-2xl border border-line-accent bg-linear-135 from-accent-purple/20 to-accent-pink/15 px-7 py-6"
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <BarChart3 size={24} color="var(--accent-pink)" />
-            <h2 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+          <div className="mb-1.5 flex items-center gap-2.5">
+            <BarChart3 size={24} className="text-accent-pink" />
+            <h2 className="m-0 text-2xl font-extrabold tracking-tight text-fg">
               {loc.stats.title}
             </h2>
           </div>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <p className="m-0 text-sm text-fg-secondary">
             {loc.stats.subtitle}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center gap-2">
           {onOpenRecapModal && (
             <button
               onClick={onOpenRecapModal}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '20px',
-                background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(168, 85, 247, 0.25))',
-                border: '1px solid var(--accent-pink)',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-              }}
+              className="flex items-center gap-1.5 rounded-3xl border border-accent-pink bg-linear-135 from-accent-pink/25 to-accent-purple/25 px-3.5 py-1.5 text-ui font-bold text-fg"
               title={loc.nav.recapTitle || loc.nav.recap}
             >
-              <Sparkles size={14} color="var(--accent-pink)" /> {loc.nav.recap}
+              <Sparkles size={14} className="text-accent-pink" /> {loc.nav.recap}
             </button>
           )}
           <span
-            style={{
-              padding: '6px 14px',
-              borderRadius: '20px',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              color: 'var(--accent-cyan)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="flex items-center gap-1.5 rounded-3xl border border-line bg-white/8 px-3.5 py-1.5 text-ui font-semibold text-accent-cyan"
           >
             <Sparkles size={14} /> {loc.stats.liveBadge}
           </span>
@@ -203,37 +172,19 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       </div>
 
       {/* 4 Kluczowe Karty Metryk (KPI) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
         {/* Łączny czas */}
         <div
-          className="glass-card"
-          style={{
-            padding: '18px 20px',
-            borderRadius: '14px',
-            border: '1px solid rgba(168, 85, 247, 0.3)',
-            background: 'rgba(26, 20, 46, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
+          className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-purple/30 bg-card px-5 py-4.5"
         >
           <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(168, 85, 247, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid var(--accent-purple)',
-            }}
+            className="flex h-11.5 w-11.5 items-center justify-center rounded-xl border border-accent-purple bg-accent-purple/20"
           >
-            <Clock size={22} color="var(--accent-purple)" />
+            <Clock size={22} className="text-accent-purple" />
           </div>
           <div>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>{loc.stats.totalListenTime}</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
+            <span className="text-xs font-semibold text-fg-muted">{loc.stats.totalListenTime}</span>
+            <div className="mt-0.5 text-xl font-extrabold text-fg">
               {formatTotalTime(stats.totalListenedMs)}
             </div>
           </div>
@@ -241,34 +192,16 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
 
         {/* Całkowite odtworzenia */}
         <div
-          className="glass-card"
-          style={{
-            padding: '18px 20px',
-            borderRadius: '14px',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            background: 'rgba(26, 20, 46, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
+          className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-amber/30 bg-card px-5 py-4.5"
         >
           <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(245, 158, 11, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid var(--accent-amber)',
-            }}
+            className="flex h-11.5 w-11.5 items-center justify-center rounded-xl border border-accent-amber bg-accent-amber/20"
           >
-            <Flame size={22} color="var(--accent-amber)" />
+            <Flame size={22} className="text-accent-amber" />
           </div>
           <div>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>{loc.stats.totalPlays}</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-amber)', marginTop: '2px' }}>
+            <span className="text-xs font-semibold text-fg-muted">{loc.stats.totalPlays}</span>
+            <div className="mt-0.5 text-xl font-extrabold text-accent-amber">
               {stats.totalPlays} {loc.stats.playsUnit}
             </div>
           </div>
@@ -276,142 +209,79 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
 
         {/* Rozmiar biblioteki */}
         <div
-          className="glass-card"
-          style={{
-            padding: '18px 20px',
-            borderRadius: '14px',
-            border: '1px solid rgba(6, 182, 212, 0.3)',
-            background: 'rgba(26, 20, 46, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
+          className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-cyan/30 bg-card px-5 py-4.5"
         >
           <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(6, 182, 212, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid var(--accent-cyan)',
-            }}
+            className="flex h-11.5 w-11.5 items-center justify-center rounded-xl border border-accent-cyan bg-accent-cyan/20"
           >
-            <Music size={22} color="var(--accent-cyan)" />
+            <Music size={22} className="text-accent-cyan" />
           </div>
           <div>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>{loc.stats.librarySize}</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginTop: '2px' }}>
-              {stats.totalTracks} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{loc.stats.tracksUnit}</span>
+            <span className="text-xs font-semibold text-fg-muted">{loc.stats.librarySize}</span>
+            <div className="mt-0.5 text-xl font-extrabold text-fg">
+              {stats.totalTracks} <span className="text-sm text-fg-muted">{loc.stats.tracksUnit}</span>
             </div>
           </div>
         </div>
 
         {/* Udział Hi-Res */}
         <div
-          className="glass-card"
-          style={{
-            padding: '18px 20px',
-            borderRadius: '14px',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
-            background: 'rgba(26, 20, 46, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
+          className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-pink/30 bg-card px-5 py-4.5"
         >
           <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(244, 63, 94, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid var(--accent-pink)',
-            }}
+            className="flex h-11.5 w-11.5 items-center justify-center rounded-xl border border-accent-pink bg-accent-pink/20"
           >
-            <Sparkles size={22} color="var(--accent-pink)" />
+            <Sparkles size={22} className="text-accent-pink" />
           </div>
           <div>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>{loc.stats.hiResShare}</span>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-pink)', marginTop: '2px' }}>
-              {stats.hiResCount} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{loc.stats.hiResSubtitle}</span>
+            <span className="text-xs font-semibold text-fg-muted">{loc.stats.hiResShare}</span>
+            <div className="mt-0.5 text-xl font-extrabold text-accent-pink">
+              {stats.hiResCount} <span className="text-sm text-fg-muted">{loc.stats.hiResSubtitle}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Środkowa Sekcja: Top Utwory & Top Wykonawcy */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '18px' }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] gap-4.5">
         {/* Kolumna 1: Top 5 Utworów */}
-        <div className="glass-panel" style={{ padding: '20px 22px', borderRadius: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Flame size={17} color="var(--accent-amber)" /> {loc.stats.topTracks}
+        <div className="glass-panel rounded-2xl px-5.5 py-5">
+          <div className="mb-3.5 flex items-center justify-between">
+            <h4 className="m-0 flex items-center gap-2 text-md font-bold text-fg">
+              <Flame size={17} className="text-accent-amber" /> {loc.stats.topTracks}
             </h4>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>TOP 5</span>
+            <span className="text-xs text-fg-muted">TOP 5</span>
           </div>
 
           {stats.topTracks.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+            <div className="p-6 text-center text-ui text-fg-muted">
               {loc.stats.topTracksEmpty}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex flex-col gap-2">
               {stats.topTracks.map((t, idx) => (
                 <div
                   key={t.id}
-                  className="glass-card"
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                  }}
+                  className="glass-card flex items-center justify-between gap-2.5 rounded-xl border border-white/5 bg-white/3 px-3.5 py-2.5"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                    <span style={{ fontSize: '1.05rem', width: '24px', textAlign: 'center' }}>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="w-6 text-center text-base">
                       {medalEmojis[idx]}
                     </span>
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: '0.86rem',
-                          fontWeight: 700,
-                          color: '#fff',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold text-fg">
                         {t.title}
                       </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      <div className="text-xs text-fg-secondary">
                         {t.artist}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  <div className="flex shrink-0 items-center gap-2.5">
                     <span
                       onClick={() => onOpenStatsModal(t)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '10px',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        color: 'var(--accent-amber)',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
+                      className="cursor-pointer rounded-xl bg-accent-amber/15 px-2 py-1 text-xs font-bold text-accent-amber"
                       title={loc.stats.viewTrackStatsTooltip}
                     >
                       🔥 {t.play_count}x
@@ -419,18 +289,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
                     <button
                       onClick={() => onPlayTrack(t)}
                       title={loc.stats.playTrackTooltip}
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                        border: 'none',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-accent-gradient text-on-accent"
                     >
                       <Play size={12} fill="#fff" />
                     </button>
@@ -442,82 +301,42 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
         </div>
 
         {/* Kolumna 2: Top 5 Wykonawców */}
-        <div className="glass-panel" style={{ padding: '20px 22px', borderRadius: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Mic2 size={17} color="var(--accent-purple)" /> {loc.stats.topArtists}
+        <div className="glass-panel rounded-2xl px-5.5 py-5">
+          <div className="mb-3.5 flex items-center justify-between">
+            <h4 className="m-0 flex items-center gap-2 text-md font-bold text-fg">
+              <Mic2 size={17} className="text-accent-purple" /> {loc.stats.topArtists}
             </h4>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>TOP 5</span>
+            <span className="text-xs text-fg-muted">TOP 5</span>
           </div>
 
           {stats.topArtists.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+            <div className="p-6 text-center text-ui text-fg-muted">
               {loc.stats.topArtistsEmpty}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex flex-col gap-2">
               {stats.topArtists.map((a, idx) => (
                 <div
                   key={a.artist}
-                  className="glass-card"
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                  }}
+                  className="glass-card flex items-center justify-between gap-2.5 rounded-xl border border-white/5 bg-white/3 px-3.5 py-2.5"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-cyan))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: '0.82rem',
-                        color: '#fff',
-                        flexShrink: 0,
-                      }}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-135 from-accent-purple to-accent-cyan text-ui font-bold text-on-accent"
                     >
                       {idx + 1}
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: '0.86rem',
-                          fontWeight: 700,
-                          color: '#fff',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold text-fg">
                         {a.artist}
                       </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      <div className="text-xs text-fg-secondary">
                         {getTracksInLibraryText(a.tracks)}
                       </div>
                     </div>
                   </div>
 
-                  <span
-                    style={{
-                      padding: '3px 8px',
-                      borderRadius: '10px',
-                      background: 'rgba(168, 85, 247, 0.15)',
-                      color: 'var(--accent-purple)',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                    }}
-                  >
+                  <span className="rounded-xl bg-accent-purple/15 px-2 py-1 text-xs font-bold text-accent-purple">
                     🔥 {a.plays} {loc.stats.playsUnit}
                   </span>
                 </div>
@@ -528,43 +347,30 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       </div>
 
       {/* Dolna Sekcja: Rozkład Formatów & Ostatnio Odtwarzane */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '18px' }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] gap-4.5">
         {/* Rozkład Kodeków / Formatów */}
-        <div className="glass-panel" style={{ padding: '20px 22px', borderRadius: '14px' }}>
-          <h4 style={{ margin: '0 0 14px 0', fontSize: '0.96rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Disc size={17} color="var(--accent-cyan)" /> {loc.stats.formatBreakdown}
+        <div className="glass-panel rounded-2xl px-5.5 py-5">
+          <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-md font-bold text-fg">
+            <Disc size={17} className="text-accent-cyan" /> {loc.stats.formatBreakdown}
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="flex flex-col gap-2.5">
             {stats.formatBreakdown.map((item) => (
               <div key={item.format}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+                <div className="mb-1 flex justify-between text-ui">
+                  <span className="font-mono font-bold text-fg">
                     {item.format}
                   </span>
-                  <span style={{ color: 'var(--text-muted)' }}>
+                  <span className="text-fg-muted">
                     {item.count} {loc.stats.tracksUnit} ({item.percent}%)
                   </span>
                 </div>
-                <div
-                  style={{
-                    height: '6px',
-                    borderRadius: '3px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    overflow: 'hidden',
-                  }}
-                >
+                <div className="h-1.5 overflow-hidden rounded-sm bg-white/8">
                   <div
-                    style={{
-                      height: '100%',
-                      width: `${item.percent}%`,
-                      borderRadius: '3px',
-                      background:
-                        item.format === 'FLAC'
-                          ? 'linear-gradient(90deg, var(--accent-cyan), var(--accent-purple))'
-                          : item.format === 'MP3'
-                          ? 'var(--accent-pink)'
-                          : 'var(--accent-amber)',
-                    }}
+                    className={cn(
+                      'h-full rounded-sm',
+                      item.format === 'FLAC' ? 'bg-linear-to-r from-accent-cyan to-accent-purple' : item.format === 'MP3' ? 'bg-accent-pink' : 'bg-accent-amber',
+                    )}
+                    style={{ width: `${item.percent}%` }}
                   />
                 </div>
               </div>
@@ -573,59 +379,37 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
         </div>
 
         {/* Ostatnio Odtwarzane Utwory */}
-        <div className="glass-panel" style={{ padding: '20px 22px', borderRadius: '14px' }}>
-          <h4 style={{ margin: '0 0 14px 0', fontSize: '0.96rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Clock size={17} color="var(--accent-pink)" /> {loc.stats.recentTracks}
+        <div className="glass-panel rounded-2xl px-5.5 py-5">
+          <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-md font-bold text-fg">
+            <Clock size={17} className="text-accent-pink" /> {loc.stats.recentTracks}
           </h4>
           {stats.recentTracks.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+            <div className="p-6 text-center text-ui text-fg-muted">
               {loc.stats.recentTracksEmpty}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex flex-col gap-2">
               {stats.recentTracks.map((t) => (
                 <div
                   key={t.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                  }}
+                  className="flex items-center justify-between rounded-lg bg-white/2 px-2.5 py-2"
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        color: '#fff',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                  <div className="min-w-0">
+                    <div className="truncate text-ui font-semibold text-fg">
                       {t.title}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    <div className="text-xs text-fg-muted">
                       {t.artist}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)' }}>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-accent-cyan">
                       {formatRelativeTime(t.last_played_at)}
                     </span>
                     <button
                       onClick={() => onPlayTrack(t)}
                       title={loc.stats.playTrackTooltip}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--accent-pink)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                      }}
+                      className="border-0 bg-transparent p-1 text-accent-pink"
                     >
                       <Play size={13} />
                     </button>

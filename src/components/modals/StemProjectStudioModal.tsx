@@ -416,50 +416,20 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
   const anySoloActive = channels.some((c) => c.solo);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(5, 5, 12, 0.92)',
-        backdropFilter: 'blur(20px)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '16px',
-        animation: 'fadeInScale 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
-    >
+    <div className="fixed inset-0 z-90 flex flex-col bg-deep/90 p-4 backdrop-blur-lg motion-safe:animate-fade-in-scale">
       {/* 1. GÓRNY PASEK NARZĘDZIOWY (STUDIO HEADER) */}
       <StemStudioHeader {...props} project={project} loc={loc} channels={channels} handleSwitchToOriginal={handleSwitchToOriginal} t={t} isOriginalMode={isOriginalMode} handleSwitchToStems={handleSwitchToStems} handleReturnToOriginalAndClose={handleReturnToOriginalAndClose} activeMixName={activeMixName} mixes={mixes} handleLoadMix={handleLoadMix} handleResetAllToUnity={handleResetAllToUnity} setIsSavingMix={setIsSavingMix} handleExportZip={handleExportZip} handleClose={handleClose} />
 
       {exportNotice && (
         <div
-          style={{
-            padding: '8px 16px',
-            background: 'rgba(52, 211, 153, 0.15)',
-            border: '1px solid rgba(52, 211, 153, 0.3)',
-            borderRadius: '10px',
-            color: '#34d399',
-            fontSize: '0.85rem',
-            marginBottom: '10px',
-          }}
+          className="mb-2.5 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-2 text-sm text-emerald-400"
         >
           {exportNotice}
         </div>
       )}
 
       {error && (
-        <div
-          style={{
-            padding: '8px 16px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '10px',
-            color: '#f87171',
-            fontSize: '0.85rem',
-            marginBottom: '10px',
-          }}
-        >
+        <div className="mb-2.5 rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-2 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -468,19 +438,8 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       <StemStudioWorkspace {...props} channels={channels} anySoloActive={anySoloActive} setHoveredChannelId={setHoveredChannelId} hoveredChannelId={hoveredChannelId} handleToggleSolo={handleToggleSolo} t={t} handleToggleMute={handleToggleMute} handlePanChange={handlePanChange} handleVolumeChange={handleVolumeChange} masterVolume={masterVolume} setMasterVolume={setMasterVolume} applyMixToEngine={applyMixToEngine} handleResetAllToUnity={handleResetAllToUnity} handleApplyPreset={handleApplyPreset} />
 
       {/* 3. DOLNA KONSOLA STEROWANIA ODTWARZANIEM (TRANSPORT BAR) */}
-      <div
-        style={{
-          marginTop: '12px',
-          padding: '12px 20px',
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/8 bg-white/4 px-5 py-3">
+        <div className="flex items-center gap-3.5">
           <button
             onClick={async () => {
               if (isOriginalMode) {
@@ -494,24 +453,12 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
                 }
               }
             }}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
-              border: 'none',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(236, 72, 153, 0.4)',
-            }}
+            className="flex h-10 w-10 items-center justify-center rounded-full border-0 bg-linear-135 from-pink-500 to-violet-500 text-fg shadow-lift shadow-pink-500/40"
           >
-            {isPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" style={{ marginLeft: '2px' }} />}
+            {isPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" className="ml-0.5" />}
           </button>
 
-          <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', color: '#f8fafc', fontWeight: 700 }}>
+          <span className="font-mono text-sm font-bold text-fg">
             {Math.floor(currentTimeMs / 60000)}:
             {Math.floor((currentTimeMs % 60000) / 1000)
               .toString()
@@ -525,46 +472,27 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         </div>
 
         {/* Pasek postępu */}
-        <div style={{ flex: 1, margin: '0 24px' }}>
+        <div className="mx-6 my-0 flex-1">
           <input
             type="range"
             min="0"
             max={durationMs || 100}
             value={currentTimeMs}
             onChange={(e) => onSeek?.(parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--accent-pink)' }}
+            className="w-full accent-accent-pink"
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem', color: '#94a3b8' }}>
+        <div className="flex items-center gap-3 text-xs text-fg-secondary">
           <span>{t.stems.shortcutsHint}</span>
         </div>
       </div>
 
       {/* Modal zapisu miksu */}
       {isSavingMix && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10010,
-          }}
-        >
-          <div
-            style={{
-              width: '360px',
-              padding: '20px',
-              borderRadius: '16px',
-              background: '#0f172a',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#f8fafc' }}>
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/65">
+          <div className="w-90 rounded-2xl border border-white/15 bg-slate-900 p-5 shadow-2xl shadow-black/80">
+            <h3 className="mx-0 mt-0 mb-3 text-base text-fg">
               {t.stems.saveMixTitle}
             </h3>
             <input
@@ -572,43 +500,19 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
               placeholder={t.stems.mixNamePlaceholder}
               value={newMixName}
               onChange={(e) => setNewMixName(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#f8fafc',
-                marginBottom: '14px',
-                outline: 'none',
-              }}
+              className="mb-3.5 w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2 text-fg outline-none"
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsSavingMix(false)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#cbd5e1',
-                  cursor: 'pointer',
-                }}
+                className="rounded-md border border-white/10 bg-transparent px-3 py-1.5 text-slate-300"
               >
                 {t.common.cancel}
               </button>
               <button
                 onClick={handleSaveMix}
                 disabled={!newMixName.trim()}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  background: 'var(--accent-pink)',
-                  border: 'none',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                className="rounded-md border-0 bg-accent-pink px-3.5 py-1.5 font-bold text-on-accent"
               >
                 {t.common.save}
               </button>
