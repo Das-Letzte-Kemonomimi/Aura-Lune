@@ -391,6 +391,7 @@ impl LibraryScanner {
             replaygain_track_gain,
             replaygain_track_peak,
             rating: None,
+            added_at: None,
         };
 
         Ok(ParsedTrack {

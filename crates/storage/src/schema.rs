@@ -48,7 +48,8 @@ impl Database {
                 initial_key TEXT,
                 replaygain_track_gain REAL,
                 replaygain_track_peak REAL,
-                rating INTEGER DEFAULT 0
+                rating INTEGER DEFAULT 0,
+                added_at INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS playback_bookmarks (
@@ -259,6 +260,9 @@ impl Database {
         if user_version < 3 {
             self.migrate_v3().await?;
         }
+        if user_version < 4 {
+            self.migrate_v4().await?;
+        }
 
         // Seed the default anime themes (make sure every theme exists)
         for theme in domain::default_themes() {
@@ -406,6 +410,34 @@ impl Database {
         sqlx::query("PRAGMA user_version = 3;")
             .execute(&mut *tx)
             .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Migration v4: `tracks.added_at` (unix seconds when the track first entered the library).
+    ///
+    /// Existing rows are backfilled from the file modification time, the best available proxy.
+    async fn migrate_v4(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        let has_column: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM pragma_table_info('tracks') WHERE name = 'added_at';",
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if has_column == 0 {
+            sqlx::query("ALTER TABLE tracks ADD COLUMN added_at INTEGER NOT NULL DEFAULT 0;")
+                .execute(&mut *tx)
+                .await?;
+        }
+        sqlx::query(
+            r#"
+            UPDATE tracks SET added_at = modified_time WHERE added_at = 0;
+            CREATE INDEX IF NOT EXISTS idx_tracks_added_at ON tracks(added_at);
+            PRAGMA user_version = 4;
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(())
     }

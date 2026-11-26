@@ -99,6 +99,7 @@ async fn test_duplicate_tracks_detection_and_path_update() {
         replaygain_track_gain: None,
         replaygain_track_peak: None,
         rating: None,
+        added_at: None,
     };
     let mut track2 = track1.clone();
     track2.path = "/music/sparkle_copy.mp3".to_string();

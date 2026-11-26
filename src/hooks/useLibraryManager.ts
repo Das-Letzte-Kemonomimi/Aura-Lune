@@ -4,11 +4,11 @@ import type { TrackRecord, AlbumRecord, ScanSummaryDto, SampleTrackDto } from '.
 import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
 import { normalizeStr } from '../utils/textNormalize';
-import { useVirtualScroll } from './useVirtualScroll';
 import { fmt } from '../utils/fmt';
+import { trackComparator, type TrackSortField } from '../views/library/sections/trackModel';
 import { parseBoolean, usePersistedState } from './usePersistedState';
 
-export type LibrarySortField = 'default' | 'title' | 'artist' | 'duration' | 'format' | 'date' | 'plays';
+export type LibrarySortField = 'default' | TrackSortField;
 export type AlbumSortField = 'title' | 'artist' | 'year' | 'tracks' | 'duration';
 export type AlbumViewMode = 'grid' | 'list';
 export type AlbumGridSize = 'compact' | 'medium' | 'large';
@@ -68,7 +68,7 @@ export function useLibraryManager({
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortOrder(field === 'plays' ? 'desc' : 'asc');
+      setSortOrder(field === 'plays' || field === 'added' ? 'desc' : 'asc');
     }
   }, [sortField]);
 
@@ -256,33 +256,12 @@ export function useLibraryManager({
       }
       return sortOrder === 'asc' ? baseList : [...baseList].reverse();
     }
-    const list = [...filteredTracks];
-    list.sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case 'title':
-          cmp = collator.compare(a.title || '', b.title || '');
-          break;
-        case 'artist':
-          cmp = collator.compare(a.artist || '', b.artist || '');
-          break;
-        case 'duration':
-          cmp = a.duration_ms - b.duration_ms;
-          break;
-        case 'format':
-          cmp = collator.compare(a.format || '', b.format || '');
-          break;
-        case 'date':
-          cmp = (a.modified_time || 0) - (b.modified_time || 0);
-          break;
-        case 'plays':
-          cmp = (a.play_count || 0) - (b.play_count || 0);
-          break;
-      }
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-    return list;
-  }, [filteredTracks, smartPlaylistFilter, sortField, sortOrder]);
+    const albumYears = new Map<number, number>();
+    if (sortField === 'year') {
+      for (const a of albums) if (a.year) albumYears.set(a.id, a.year);
+    }
+    return [...filteredTracks].sort(trackComparator(sortField, sortOrder, albumYears));
+  }, [albums, filteredTracks, smartPlaylistFilter, sortField, sortOrder]);
 
   const filteredAlbums = useMemo(() => {
     const q = normalizeStr(deferredSearch.trim());
@@ -382,22 +361,8 @@ export function useLibraryManager({
     return list;
   }, [albums, deferredSearch, loc.stats.unknownArtist, tracks]);
 
-  // 7. Virtual Scroll for Tracks Table
-  const libraryTableRef = useRef<HTMLTableElement | null>(null);
+  // 7. Search input ref
   const librarySearchInputRef = useRef<HTMLInputElement>(null);
-
-  const {
-    startIndex: trackStartIndex,
-    endIndex: trackEndIndex,
-    topSpacerHeight: trackTopSpacer,
-    bottomSpacerHeight: trackBottomSpacer,
-  } = useVirtualScroll({
-    itemCount: sortedTracks.length,
-    itemHeight: 48,
-    containerRef: mainContentRef,
-    tableRef: libraryTableRef,
-    overscan: 20,
-  });
 
   // 8. Library Loader & Scanner Handlers
   const loadLibrary = useCallback(async () => {
@@ -598,11 +563,6 @@ export function useLibraryManager({
     filteredAlbums,
     sortedAlbums,
     filteredArtists,
-    libraryTableRef,
-    trackStartIndex,
-    trackEndIndex,
-    trackTopSpacer,
-    trackBottomSpacer,
     isScanFolderOpen,
     setIsScanFolderOpen,
     scanFolder,

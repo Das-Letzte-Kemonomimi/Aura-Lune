@@ -33,6 +33,7 @@ fn make_test_track(
         replaygain_track_gain: Some(-4.2),
         replaygain_track_peak: Some(0.98),
         rating: Some(0),
+        added_at: None,
     }
 }
 

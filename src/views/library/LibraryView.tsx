@@ -130,11 +130,6 @@ export interface LibraryViewProps {
   refreshQueue: () => Promise<void>;
   loadLibrary: () => Promise<void>;
   showMessage: (msg: string, isError?: boolean) => void;
-  libraryTableRef: React.RefObject<HTMLTableElement | null>;
-  trackStartIndex: number;
-  trackEndIndex: number;
-  trackTopSpacer: number;
-  trackBottomSpacer: number;
   formatTime: (ms: number) => string;
 }
 

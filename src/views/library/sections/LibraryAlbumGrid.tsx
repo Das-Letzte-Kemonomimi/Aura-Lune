@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Disc, LayoutGrid, List, Search } from '../../../components/ui/icons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Disc, LayoutGrid, List, Search } from '../../../components/ui/icons';
 import type { LibraryViewProps } from '../LibraryView';
 import type { AlbumRecord } from '../../../types/library';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
-import { Button, Card, EmptyState, SegmentedControl } from '../../../components/ui';
+import { Badge, Button, Card, EmptyState, SegmentedControl } from '../../../components/ui';
 import { SortControls } from './SortControls';
+import { AlphaJumpRail } from './AlphaJumpRail';
+import { buildLetterIndex } from './alphaIndexModel';
 import { useProgressiveCount } from '../../../hooks/useProgressiveCount';
 import { buildAlbumStats, type AlbumStats } from './albumModel';
 import { AlbumRow, AlbumTile, type AlbumActions } from './AlbumTiles';
@@ -53,10 +55,31 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
   tracks,
 }) => {
   const statsByAlbum = useMemo(() => buildAlbumStats(tracks), [tracks]);
-  const visibleCount = useProgressiveCount(sortedAlbums.length, `${albumViewMode}-${albumGridSize}`);
+  const [jumpFloor, setJumpFloor] = useState(0);
+  const [pendingJump, setPendingJump] = useState<number | null>(null);
+  const itemsRef = useRef<HTMLDivElement | null>(null);
+  const visibleCount = useProgressiveCount(sortedAlbums.length, `${albumViewMode}-${albumGridSize}`, 36, 36, jumpFloor);
   const visibleAlbums = useMemo(() => sortedAlbums.slice(0, visibleCount), [sortedAlbums, visibleCount]);
   const playingAlbumId = currentPlayingTrack?.album_id ?? null;
   const playingState = status.state === 'Playing' ? 'playing' : 'paused';
+
+  // The rail applies only while albums are ordered alphabetically by title or artist.
+  const letterIndex = useMemo(() => {
+    if (albumSortField !== 'title' && albumSortField !== 'artist') return null;
+    return buildLetterIndex(sortedAlbums, (a) => (albumSortField === 'title' ? a.title : a.album_artist));
+  }, [albumSortField, sortedAlbums]);
+
+  const jumpToAlbum = useCallback((index: number) => {
+    setJumpFloor(index + 1);
+    setPendingJump(index);
+  }, []);
+
+  // Once the target tile is mounted, scroll it into view.
+  useEffect(() => {
+    if (pendingJump === null || visibleCount <= pendingJump) return;
+    itemsRef.current?.children[pendingJump]?.scrollIntoView({ block: 'start' });
+    setPendingJump(null);
+  }, [pendingJump, visibleCount]);
 
   // Tiles are memoized: the actions keep one identity and read the latest handlers from a ref.
   const handlersRef = useRef({ handleAddAlbumToQueue, handleOpenAlbumDetail, handleOpenCoverPicker, handleOpenMbModal, handlePlayAlbum, tracks });
@@ -103,7 +126,20 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
             items={[
               { value: 'all', label: fmt(loc.library.albumFilterAll, String(albums.length)) },
               { value: 'with-cover', label: fmt(loc.library.albumFilterWithCover, String(albumsWithCoverCount)) },
-              { value: 'missing-cover', label: fmt(loc.library.albumFilterMissingCover, String(albumsWithoutCoverCount)) },
+              {
+                value: 'missing-cover',
+                tone: albumsWithoutCoverCount > 0 ? 'amber' : undefined,
+                title: loc.library.albumFilterMissingCoverHint,
+                icon: albumsWithoutCoverCount > 0 ? <AlertTriangle size={13} className="text-accent-amber" aria-hidden="true" /> : undefined,
+                label: (
+                  <>
+                    {loc.library.albumFilterMissingCover}
+                    <Badge tone={albumsWithoutCoverCount > 0 ? 'amber' : 'neutral'} size="xs">
+                      {albumsWithoutCoverCount}
+                    </Badge>
+                  </>
+                ),
+              },
             ]}
           />
         </div>
@@ -159,7 +195,9 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
         </div>
       </Card>
 
-      {/* Content: empty state, list or tiles */}
+      {/* Content: empty state, list or tiles, with the A–Z rail beside it */}
+      <div className="flex items-start gap-2">
+      <div className="min-w-0 flex-1">
       {sortedAlbums.length === 0 ? (
         albums.length === 0 ? (
           <EmptyState icon={<Disc size={28} />} title={loc.library.emptyAlbums} />
@@ -180,18 +218,23 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
           />
         )
       ) : albumViewMode === 'list' ? (
-        <div className="flex flex-col gap-2">
+        <div ref={itemsRef} className="flex flex-col gap-2">
           {visibleAlbums.map((album) => (
             <AlbumRow key={album.id} {...tileProps(album)} />
           ))}
         </div>
       ) : (
-        <div className={cn('grid', GRID_LAYOUT[albumGridSize])}>
+        <div ref={itemsRef} className={cn('grid', GRID_LAYOUT[albumGridSize])}>
           {visibleAlbums.map((album) => (
             <AlbumTile key={album.id} {...tileProps(album)} size={albumGridSize} />
           ))}
         </div>
       )}
+      </div>
+      {letterIndex && letterIndex.size > 0 && (
+        <AlphaJumpRail letterIndex={letterIndex} onJump={jumpToAlbum} label={loc.library.alphaJumpLabel} otherLabel={loc.library.alphaJumpOther} />
+      )}
+      </div>
     </div>
   );
 };

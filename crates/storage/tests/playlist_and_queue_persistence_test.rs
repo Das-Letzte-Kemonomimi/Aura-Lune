@@ -27,6 +27,7 @@ fn make_dummy_track(path: &str, title: &str, artist: &str) -> TrackRecord {
         replaygain_track_gain: None,
         replaygain_track_peak: None,
         rating: None,
+        added_at: None,
     }
 }
 

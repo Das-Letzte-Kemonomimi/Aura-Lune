@@ -104,6 +104,13 @@
         "de": "In Einstellungen → Designs lässt sich jetzt die Stärke der schwebenden Ambiente-Partikel einstellen; sie bleiben hinter Listen und Tabellen, statt darüber zu schweben.",
         "fi": "Asetukset → Teemat -kohdassa voi nyt säätää leijuvien tunnelmahiukkasten voimakkuutta, ja ne pysyvät listojen ja taulukoiden takana niiden päällä leijumisen sijaan.",
         "la": "In Optionibus → Themata nunc vim particularum ambientium variare potes, et post indices ac tabulas manent, non super eas volitant."
+      },
+      {
+        "en": "Quick A–Z jump strip in Tracks and Albums, a clearer warning badge for albums missing cover art, and new sorting by year and by the date a track was added to your library.",
+        "pl": "Szybki pasek skoku A–Z w utworach i albumach, wyraźniejsza plakietka ostrzegawcza dla albumów bez okładki oraz nowe sortowanie według roku i daty dodania utworu do biblioteki.",
+        "de": "Schnelle A–Z-Sprungleiste bei Titeln und Alben, ein deutlicheres Warnsymbol für Alben ohne Cover sowie neue Sortierung nach Jahr und nach dem Datum, an dem ein Titel zur Bibliothek hinzugefügt wurde.",
+        "fi": "Nopea A–Ö-hyppypalkki kappaleissa ja albumeissa, selkeämpi varoitusmerkki albumeille ilman kansikuvaa sekä uusi lajittelu vuoden ja kirjastoon lisäyspäivän mukaan.",
+        "la": "Taenia saltus A–Z in carminibus et albis, signum monitorium clarius pro albis sine imagine, et ordo novus secundum annum et diem additum."
       }
     ],
     "changed": [
@@ -169,6 +176,13 @@
         "de": "Die Albumansicht läuft mit großen Bibliotheken deutlich flüssiger, und die Album-Schaltflächen wurden neu gestaltet: schlichtes Abspielen, zur Warteschlange und MusicBrainz, das Cover-Matching bleibt auf dem Cover.",
         "fi": "Albumit-näkymä toimii sujuvammin suurissa kirjastoissa, ja albumipainikkeet on uudistettu: yksinkertainen Toista-painike, jonoon lisäys ja MusicBrainz, ja kansikuvan haku pysyy kannessa.",
         "la": "Conspectus albumorum in magnis bibliothecis multo levior est, et claves albumorum renovatae sunt: simplex clavis Lude, ad ordinem adde et MusicBrainz, et cover-accommodatio in tegmine manet."
+      },
+      {
+        "en": "Redesigned track list: album covers, album name, year, date added and audio quality at a glance, 100 tracks per page (choose 25 to 500), tidier filters without emojis, and less-used actions tucked into a menu.",
+        "pl": "Przeprojektowana lista utworów: okładki albumów, nazwa albumu, rok, data dodania i jakość dźwięku na jednym rzucie oka, 100 utworów na stronę (do wyboru od 25 do 500), uporządkowane filtry bez emoji i rzadziej używane akcje schowane w menu.",
+        "de": "Neu gestaltete Titelliste: Albumcover, Albumname, Jahr, Hinzugefügt-Datum und Klangqualität auf einen Blick, 100 Titel pro Seite (25 bis 500 wählbar), aufgeräumte Filter ohne Emojis und seltene Aktionen in einem Menü.",
+        "fi": "Uudistettu kappalelista: albumikannet, albumin nimi, vuosi, lisäyspäivä ja äänenlaatu yhdellä silmäyksellä, 100 kappaletta sivulla (valittavissa 25–500), siistityt suodattimet ilman emojeita ja harvemmin käytetyt toiminnot valikossa.",
+        "la": "Index carminum renovatus: tegumenta alborum, nomen albi, annus, dies additus et qualitas soni uno obtutu, centum carmina per paginam (25 ad 500), colatoria sine emoji et facta rariora in indice."
       }
     ],
     "fixed": [

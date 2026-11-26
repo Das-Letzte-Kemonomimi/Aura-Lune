@@ -54,6 +54,7 @@ export {
   IconDeviceSpeaker as Speaker,
   IconDeviceTv as Tv,
   IconDisc as Disc,
+  IconDotsVertical as MoreVertical,
   IconDownload as Download,
   IconExternalLink as ExternalLink,
   IconFileCode as FileCode,

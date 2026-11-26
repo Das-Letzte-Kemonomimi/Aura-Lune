@@ -34,7 +34,8 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   sortedTracks,
   tracks,
 }) => (
-  <Card padding="none" className="mb-4.5 flex flex-wrap items-center gap-3 px-4 py-3">
+  <Card padding="none" className="mb-4.5 flex flex-col gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-3">
     <SegmentedControl
       label={loc.library.subViewLabel}
       tone="purple"
@@ -88,19 +89,20 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         </IconButton>
       )}
     </div>
-
-    <div role="group" aria-label={loc.library.formatFilterLabel} className="flex items-center gap-1.5">
-      {FORMAT_FILTERS.map((format) => (
-        <Chip
-          key={format}
-          tone="purple"
-          pressed={libraryFormatFilter === format}
-          onClick={() => setLibraryFormatFilter(format)}
-        >
-          {format === 'all' ? loc.library.all : format === 'lossless' ? loc.library.lossless : format.toUpperCase()}
-        </Chip>
-      ))}
     </div>
+
+    <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
+    <SegmentedControl
+      size="sm"
+      tone="purple"
+      label={loc.library.formatFilterLabel}
+      value={libraryFormatFilter}
+      onChange={setLibraryFormatFilter}
+      items={FORMAT_FILTERS.map((format) => ({
+        value: format,
+        label: format === 'all' ? loc.library.all : format === 'lossless' ? loc.library.lossless : format.toUpperCase(),
+      }))}
+    />
 
     <Chip
       pressed={hideDuplicates}
@@ -128,6 +130,8 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         { value: 'duration', label: loc.library.sortDuration },
         { value: 'format', label: loc.library.sortFormat },
         { value: 'date', label: loc.library.sortDate },
+        { value: 'added', label: loc.library.sortAdded },
+        { value: 'year', label: loc.library.sortYear },
         { value: 'plays', label: loc.library.sortPlays },
       ]}
       order={sortOrder}
@@ -135,5 +139,6 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
       ascLabel={loc.library.sortAscTooltip}
       descLabel={loc.library.sortDescTooltip}
     />
+    </div>
   </Card>
 );

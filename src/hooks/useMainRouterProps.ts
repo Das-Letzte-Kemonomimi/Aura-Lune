@@ -300,11 +300,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     refreshQueue: p.refreshQueue,
     loadLibrary: p.loadLibrary,
     showMessage: p.showMessage,
-    libraryTableRef: p.libraryTableRef,
-    trackStartIndex: p.trackStartIndex,
-    trackEndIndex: p.trackEndIndex,
-    trackTopSpacer: p.trackTopSpacer,
-    trackBottomSpacer: p.trackBottomSpacer,
     formatTime: p.formatTime,
   };
 

@@ -23,6 +23,8 @@ export interface TrackRecord {
   rating?: number | null;
   bpm?: number | null;
   initial_key?: string | null;
+  /** Unix seconds when the track first entered the library. */
+  added_at?: number | null;
 }
 
 export interface AlbumRecord {

@@ -49,7 +49,7 @@ Reference for the React 19 + TypeScript frontend in `src/`. Rules agents must fo
 - **`useToasts`**: In-app notification queue (`showMessage(text, isError)` is stable; per-toast timers, max 3 visible, duplicates collapsed; info messages hidden unless `showInfo`).
 - **`usePersistedState`**: `localStorage`-backed state where read and write share one key (`parse` validator, `legacyKeys` migration). Every mounted instance on a key stays in sync (a module-level subscriber registry plus the `storage` event), so a setting shown in several places, such as the lyrics romaji mode or the visualizer mode, changes everywhere at once. `parseBoolean` and `parseOneOf` cover the common parsers. Use it for new UI preferences instead of hand-written `getItem`/`setItem` pairs.
 - **`useSleepTimer`**: Sleep timer countdown/fade-out; interval reads latest values via refs so frequent host re-renders do not reset it.
-- **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for ultra-large track libraries.
+- **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for the playback queue. The library track table is paginated instead (`views/library/sections/paginationModel.ts`, page size persisted, 100 by default).
 
 ## Prop Builder Hooks
 Builders merge domain-hook results ("managers") with values from `App`. Managers are typed as `ReturnType<typeof useXManager>`; merged values are asserted to the intersection of their sources, so every value's **type** is checked, but **completeness** is not. After changing a view's props, check that every value is still provided by a manager or by `App`; missing values are silently `undefined` at runtime (that bug class broke crossfeed, add-to-queue and restore-session before Phase 5).

@@ -52,6 +52,10 @@ pub struct TrackRecord {
     pub replaygain_track_peak: Option<f64>,
     #[sqlx(default)]
     pub rating: Option<i64>,
+    /// Unix seconds when the track first entered the library (kept across rescans).
+    #[sqlx(default)]
+    #[serde(default)]
+    pub added_at: Option<i64>,
 }
 
 impl TrackRecord {

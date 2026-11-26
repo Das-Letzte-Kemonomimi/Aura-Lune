@@ -200,11 +200,6 @@ describe('useMainRouterProps', () => {
       scanResult: null,
       refreshQueue: vi.fn(),
       loadLibrary: vi.fn(),
-      libraryTableRef: { current: null },
-      trackStartIndex: 0,
-      trackEndIndex: 0,
-      trackTopSpacer: 0,
-      trackBottomSpacer: 0,
       // dsp:
       uiScale: 1,
       activeTrackKeyBpm: null,

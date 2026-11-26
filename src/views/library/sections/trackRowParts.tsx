@@ -1,7 +1,7 @@
-import type React from 'react';
-import { Play, Star, Zap } from '../../../components/ui/icons';
+import React, { useState } from 'react';
+import { Disc, MoreVertical, Play, Star, Zap } from '../../../components/ui/icons';
 import type { TrackRecord } from '../../../types/library';
-import { Badge, IconButton, type ToneOrNeutral } from '../../../components/ui';
+import { Badge, IconButton, MenuItem, Popover, type ToneOrNeutral } from '../../../components/ui';
 import { textTones } from '../../../components/ui/tones';
 import { cn } from '../../../utils/cn';
 import { fmt } from '../../../utils/fmt';
@@ -78,5 +78,57 @@ export function StarRating({
         );
       })}
     </div>
+  );
+}
+
+/** Square album cover of a track row, or a disc glyph on a tinted gradient when the album has none. */
+export const TrackCover = React.memo(function TrackCover({ src }: { src: string | null | undefined }) {
+  return (
+    <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line bg-linear-135 from-accent-purple/20 to-accent-cyan/15">
+      {src ? (
+        <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="absolute inset-0 size-full object-cover" />
+      ) : (
+        <Disc size={16} className="text-fg-muted/50" aria-hidden="true" />
+      )}
+    </div>
+  );
+});
+
+export interface TrackMenuEntry {
+  label: string;
+  icon: React.ReactNode;
+  onSelect: (e: React.MouseEvent) => void;
+}
+
+/** "More" button of a track row: a menu with the less frequent actions. Stops clicks from playing the row. */
+export function TrackRowMenu({ label, entries }: { label: string; entries: readonly TrackMenuEntry[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span onClick={(e) => e.stopPropagation()}>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        align="end"
+        label={label}
+        trigger={
+          <IconButton size="sm" label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((prev) => !prev)} className="size-5 rounded-md text-fg-muted">
+            <MoreVertical size={15} />
+          </IconButton>
+        }
+      >
+        {entries.map((entry) => (
+          <MenuItem
+            key={entry.label}
+            icon={entry.icon}
+            onClick={(e) => {
+              setOpen(false);
+              entry.onSelect(e);
+            }}
+          >
+            {entry.label}
+          </MenuItem>
+        ))}
+      </Popover>
+    </span>
   );
 }

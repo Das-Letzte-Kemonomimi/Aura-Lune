@@ -23,7 +23,11 @@ export interface SegmentedItem<T extends string> {
   icon?: React.ReactNode;
   /** Accessible name when `label` is not plain text (or is empty). */
   ariaLabel?: string;
+  /** Native tooltip. */
+  title?: string;
   disabled?: boolean;
+  /** Overrides the group tone for this tab (e.g. a warning filter). */
+  tone?: Tone;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -98,11 +102,12 @@ export function SegmentedControl<T extends string>({
             role="tab"
             aria-selected={selected}
             aria-label={item.ariaLabel}
+            title={item.title}
             tabIndex={selected ? 0 : -1}
             disabled={item.disabled}
             onClick={() => onChange(item.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
-            className={cn(tabVariants({ size }), selectedTones[tone], fullWidth && 'flex-1')}
+            className={cn(tabVariants({ size }), selectedTones[item.tone ?? tone], fullWidth && 'flex-1')}
           >
             {item.icon}
             {item.label}

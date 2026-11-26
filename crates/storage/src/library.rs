@@ -79,8 +79,9 @@ impl Database {
             INSERT INTO tracks (
                 path, title, artist, album_artist, album_id, disc_no, track_no,
                 duration_ms, format, sample_rate, channels, bit_depth, file_size, modified_time,
-                bpm, initial_key, replaygain_track_gain, replaygain_track_peak
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+                bpm, initial_key, replaygain_track_gain, replaygain_track_peak, added_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                CAST(strftime('%s', 'now') AS INTEGER))
             ON CONFLICT(path) DO UPDATE SET
                 title = excluded.title,
                 artist = excluded.artist,

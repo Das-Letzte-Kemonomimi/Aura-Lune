@@ -43,7 +43,7 @@ async fn test_fresh_database_reaches_latest_schema_version() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 3);
+    assert_eq!(version, 4);
 }
 
 /// A version 1 database (bookmarks without CASCADE, `album_artist` holding the album title)
@@ -92,7 +92,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 3);
+    assert_eq!(version, 4);
 
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
@@ -261,7 +261,7 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 3);
+    assert_eq!(version, 4);
 
     let indexes: Vec<String> =
         sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
@@ -300,4 +300,56 @@ async fn test_performance_pragmas_apply_to_every_pooled_connection() {
     drop(conns);
     db.pool().close().await;
     remove_db(&path);
+}
+
+/// A v3 database (no `added_at`) is upgraded on reopening: existing tracks get their file
+/// modification time as the added date.
+#[tokio::test]
+async fn test_upgrade_from_v3_backfills_added_at_from_modified_time() {
+    let path = temp_db_path("v3_added_at");
+    {
+        let db = Database::open(&path).await.unwrap();
+        db.upsert_track(&make_dummy_track("/music/old.flac", "Old", "Artist"))
+            .await
+            .unwrap();
+        sqlx::query(
+            "DROP INDEX idx_tracks_added_at;
+             ALTER TABLE tracks DROP COLUMN added_at;
+             PRAGMA user_version = 3;",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+    }
+
+    let db = Database::open(&path).await.unwrap();
+    let added_at: i64 = sqlx::query_scalar("SELECT added_at FROM tracks WHERE path = ?1;")
+        .bind("/music/old.flac")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(added_at, 1_700_000_000);
+    drop(db);
+    remove_db(&path);
+}
+
+/// `added_at` is set when a track first enters the library and survives rescans.
+#[tokio::test]
+async fn test_upsert_sets_added_at_once_and_keeps_it_on_rescan() {
+    let db = setup_test_db().await;
+    let mut track = make_dummy_track("/music/new.flac", "New", "Artist");
+    let id = db.upsert_track(&track).await.unwrap();
+    let first = db.get_track_by_id(id).await.unwrap().unwrap().added_at;
+    assert!(first.is_some_and(|t| t > 1_700_000_000));
+
+    sqlx::query("UPDATE tracks SET added_at = 12345 WHERE id = ?1;")
+        .bind(id)
+        .execute(db.pool())
+        .await
+        .unwrap();
+    track.title = "New (remaster)".to_string();
+    db.upsert_track(&track).await.unwrap();
+    let after = db.get_track_by_id(id).await.unwrap().unwrap();
+    assert_eq!(after.added_at, Some(12345));
+    assert_eq!(after.title, "New (remaster)");
 }
