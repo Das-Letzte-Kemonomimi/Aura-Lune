@@ -56,7 +56,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
       const res = await invoke<DuplicateGroupDto[]>('find_duplicate_tracks');
       setGroups(res);
     } catch (err) {
-      console.error('Błąd wyszukiwania duplikatów:', err);
+      console.error('Duplicate search failed:', err);
       setError(String(err));
     } finally {
       setIsLoading(false);
@@ -101,7 +101,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-212.5 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
     >
-      {/* Nagłówek */}
+      {/* Header */}
       <div
         className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
       >
@@ -137,7 +137,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
         </div>
       </div>
 
-      {/* Komunikaty */}
+      {/* Messages */}
       {error && (
         <div
           className="mx-5 mt-4 mb-0 flex items-center gap-2 rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400"
@@ -156,7 +156,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
         </div>
       )}
 
-      {/* Lista grup duplikatów */}
+      {/* Duplicate group list */}
       <div className="flex flex-col gap-4 overflow-y-auto p-5">
         {isLoading && (
           <div className="p-10 text-center text-fg-muted">
@@ -200,7 +200,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                   </span>
                 </div>
 
-                {/* Wiersze plików w danej grupie */}
+                {/* File rows in the group */}
                 <div className="flex flex-col gap-1.5">
                   {group.tracks.map((track) => {
                     const isLossless = ['flac', 'wav', 'alac', 'aiff'].includes(track.format.toLowerCase());
@@ -237,7 +237,7 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
                           </span>
                         </div>
 
-                        {/* Akcje dla pliku */}
+                        {/* File actions */}
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => onPlayTrack(track.path)}
@@ -278,13 +278,13 @@ export const DuplicateFinderModal: React.FC<DuplicateFinderModalProps> = ({
         )}
       </div>
 
-      {/* Stopka */}
+      {/* Footer */}
       <div className="flex justify-end border-t border-line bg-black/20 px-5 py-3">
         <button
           onClick={onClose}
           className="rounded-lg border border-line bg-white/8 px-4 py-1.5 text-ui text-fg-secondary"
         >
-          Zamknij
+          Close
         </button>
       </div>
     </ModalShell>

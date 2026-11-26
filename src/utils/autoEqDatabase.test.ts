@@ -35,7 +35,7 @@ describe('autoEqDatabase - Headphone EQ profiles integrity', () => {
   });
 
   it('includes declared headphone brands in profile list', () => {
-    const declaredBrands = new Set(AUTO_EQ_BRANDS.filter((b) => b !== 'Wszystkie'));
+    const declaredBrands = new Set(AUTO_EQ_BRANDS.filter((b) => b !== 'All'));
     const foundBrands = new Set(AUTO_EQ_PROFILES.map((p) => p.brand));
 
     // Ensure all declared filter brands are present in the profiles

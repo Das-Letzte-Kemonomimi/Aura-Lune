@@ -68,7 +68,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     karaoke_mode: false,
   });
 
-  // Nasłuchiwanie postępu separacji ze zdarzeń Tauri
+  // Listen for separation progress from Tauri events
   useEffect(() => {
     const unlistenPromise = listen<StemProgressPayload>('auralune://stem-progress', (event) => {
       if (trackId && event.payload.track_id === trackId) {
@@ -82,7 +82,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     };
   }, [trackId]);
 
-  // Sprawdzenie czy stemy dla utworu już istnieją
+  // Check whether stems already exist for the track
   useEffect(() => {
     if (!isOpen || !trackId) return;
 
@@ -150,7 +150,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
       await invoke('restore_original_track');
       setMixerState((prev) => ({ ...prev, enabled: false }));
     } catch (err) {
-      console.error('Błąd przywracania oryginalnego utworu:', err);
+      console.error('Failed to restore the original track:', err);
     }
   };
 
@@ -159,7 +159,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
     try {
       await invoke('set_stem_mixer_state', { statePayload: newMixer });
     } catch (err) {
-      console.error('Błąd aktualizacji miksera:', err);
+      console.error('Failed to update the mixer:', err);
     }
   };
 
@@ -226,7 +226,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
 
   const content = (
     <div className="flex w-full flex-col gap-4">
-      {/* Pasek stanu i szybkich akcji */}
+      {/* Status and quick action bar */}
       <div
         className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
       >
@@ -291,7 +291,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
         </div>
       )}
 
-      {/* Jeśli stemy nie są jeszcze rozdzielone */}
+      {/* Stems not separated yet */}
       {!stems ? (
         <div
           className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-white/6 bg-white/2 px-6 py-12 text-center"
@@ -334,7 +334,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
           )}
         </div>
       ) : (
-        /* Siatka 4 stemów */
+        /* Grid of 4 stems */
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-3.5">
           {stemList.map((stem) => {
             const isSolo = mixerState.solo_stem === stem.id;
@@ -346,7 +346,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                   isSolo ? 'border-accent-amber' : stem.mute ? 'border-accent-red/30' : 'border-white/8',
                 )}
               >
-                {/* Tytuł i przyciski Solo/Mute */}
+                {/* Title and Solo/Mute buttons */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center" style={{ color: stem.color }}>
@@ -383,7 +383,7 @@ export const StemMixerModal: React.FC<StemMixerModalProps> = ({
                   </div>
                 </div>
 
-                {/* Suwak głośności i wartość procentowa */}
+                {/* Volume slider and percentage */}
                 <div className="flex items-center gap-3">
                   <input
                     type="range"

@@ -25,12 +25,12 @@ export interface PianoRollViewProps {
   trackTitle?: string;
   durationMs?: number;
   isPlaying: boolean;
-  /** Prędkość czasu źródła względem rzeczywistego (tempo × rate przy aktywnym DSP). */
+  /** Speed of the source time relative to real time (tempo × rate with active DSP). */
   speed?: number;
-  /** Pozycja do czasu pierwszego statusu na żywo; sama pozycja nie wymusza renderu widoku. */
+  /** Position until the first live status; the position alone does not force the view to render. */
   currentTimeMs: number;
   onSeek: (positionMs: number) => void;
-  /** Komunikaty (toasty) dla eksportu MIDI. */
+  /** Messages (toasts) for the MIDI export. */
   onNotify?: (message: string, isError?: boolean) => void;
   onClose?: () => void;
 }
@@ -41,7 +41,7 @@ const parsePxPerSec = (raw: string): number | undefined => {
   const v = Number(raw);
   return Number.isFinite(v) ? clamp(v, MIN_PX_PER_SEC, MAX_PX_PER_SEC) : undefined;
 };
-/** `null` = automatyczna wysokość wiersza. */
+/** `null` = automatic row height. */
 const parseRowHeight = (raw: string): number | null | undefined => {
   if (raw === 'auto') return null;
   const v = Number(raw);
@@ -75,7 +75,7 @@ export const PianoRollView = React.memo(function PianoRollView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  // Szerokość (zoom czasu) i wysokość wierszy zapamiętujemy między sesjami.
+  // The width (time zoom) and row height are remembered between sessions.
   const [pxPerSec, setPxPerSec] = usePersistedState('auralune_piano_roll_px_per_sec', DEFAULT_PX_PER_SEC, {
     parse: parsePxPerSec,
     serialize: (v) => String(Math.round(v * 10) / 10),
@@ -126,7 +126,7 @@ export const PianoRollView = React.memo(function PianoRollView({
 
   const index = useMemo(() => buildNoteIndex(data?.notes ?? []), [data]);
   const noteCount = data?.notes.length ?? 0;
-  // Nuty mogą wykraczać poza deklarowany czas trwania (np. brak metadanych) — oś obejmuje je w całości.
+  // Notes can extend past the declared duration (e.g. missing metadata); the axis covers them fully.
   const effectiveDurationMs = useMemo(() => {
     const last = index.notes.reduce((end, n) => Math.max(end, n.onset_ms + n.duration_ms), 0);
     return Math.max(durationMs, last);

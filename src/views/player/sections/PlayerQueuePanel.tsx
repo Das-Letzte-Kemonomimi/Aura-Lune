@@ -12,7 +12,7 @@ export type PlayerQueuePanelProps = Pick<PlayerViewProps, 'loc' | 'queue' | 'for
   getQueueTrackMeta: (item: QueueItem) => QueueTrackMeta;
 };
 
-// Memo: kolejka nie zależy od pozycji odtwarzania — nie renderuje się w każdej klatce statusu.
+// Memo: the queue does not depend on the playback position, so it does not render on every status frame.
 export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
   dragOverQueueIdx,
   draggedQueueIdx,
@@ -57,7 +57,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
   totalQueueDurationMs,
 }) => (
     <div className="glass-panel relative flex flex-col gap-4 px-6.5 py-5.5">
-      {/* Pasek nagłówkowy kolejki */}
+      {/* Queue header bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
@@ -92,9 +92,9 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
           </div>
         </div>
 
-        {/* Przyciski kontroli i dostosowywania */}
+        {/* Control and customisation buttons */}
         <div className="relative flex items-center gap-2">
-          {/* Tryb Pętli Badge Button */}
+          {/* Loop mode badge button */}
           <button
             onClick={handleCycleLoopMode}
             title={`${loc.shortcuts.loop}: ${queue.loop_mode === 'None' ? loc.queue.loopNone : queue.loop_mode === 'Track' ? loc.queue.loopTrack : loc.queue.loopQueue}`}
@@ -146,7 +146,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             <span>Stop After Track {status.stop_after_current ? '(ON)' : ''}</span>
           </button>
 
-          {/* Pole wyszukiwania w kolejce */}
+          {/* Queue search field */}
           {queue.items.length > 0 && (
             <div className="relative w-45">
               <Search
@@ -171,7 +171,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             </div>
           )}
 
-          {/* Przycisk Konfiguracji Kolumn */}
+          {/* Column configuration button */}
           <div className="relative">
             <button
               onClick={() => setIsColumnConfigOpen(!isColumnConfigOpen)}
@@ -185,7 +185,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
               <span>{loc.queue.customizeView}</span>
             </button>
 
-            {/* Popover Konfiguracji Kolumn */}
+            {/* Column configuration popover */}
             {isColumnConfigOpen && (
               <div
                 className="glass-panel absolute top-full right-0 z-20 mt-2 w-80 rounded-2xl border border-line-accent bg-surface p-4 shadow-2xl shadow-black/75"
@@ -260,7 +260,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             )}
           </div>
 
-          {/* Przycisk Wybierz i dodaj utwory przez systemowy dialog (Dolphin / zenity) */}
+          {/* Pick and add tracks through the system dialog (Dolphin / zenity) */}
           <button
             onClick={handlePickFiles}
             className="glass-card flex items-center gap-1.5 rounded-lg border border-accent-cyan/40 bg-accent-cyan/10 px-3 py-1.5 text-xs font-semibold text-accent-cyan"
@@ -270,7 +270,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             <span>{t.queue.addTracks}</span>
           </button>
 
-          {/* Przycisk Zapisz kolejkę jako playlistę */}
+          {/* Save the queue as a playlist */}
           {queue.items.length > 0 && (
             <button
               onClick={() => setIsSaveQueueModalOpen(true)}
@@ -282,7 +282,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             </button>
           )}
 
-          {/* Przycisk Wyczyść kolejkę */}
+          {/* Clear the queue */}
           {queue.items.length > 0 && (
             <button
               onClick={handleClearQueue}
@@ -296,7 +296,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
         </div>
       </div>
 
-      {/* Zawartość Kolejki: Tabela utworów lub Pusty stan */}
+      {/* Queue content: track table or empty state */}
       {queue.items.length === 0 ? (
         <div
           className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-white/8 bg-black/15 px-6 py-12 text-center text-fg-muted"
@@ -331,7 +331,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
         </div>
       ) : (
         <div ref={queueListRef} className="flex flex-col gap-1.5">
-          {/* Pasek nagłówków kolumn */}
+          {/* Column header bar */}
           <div
             className="sticky top-0 z-10 grid items-center gap-3 border-b border-line px-3.5 py-2 text-xs font-bold tracking-wider text-fg-muted uppercase backdrop-blur-md"
             style={{
@@ -359,7 +359,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
             <span className="pr-1.5 text-right">{t.queue.headerActions}</span>
           </div>
 
-          {/* Lista wierszy utworów */}
+          {/* Track rows */}
           {filteredQueueItems.length === 0 && queueSearchQuery ? (
             <div className="p-9 text-center text-sm text-fg-muted">
               {t.queue.noMatch.replace('{q}', queueSearchQuery)}
@@ -393,7 +393,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                     )}
                     style={{ gridTemplateColumns: getQueueGridTemplate(queueColumns) }}
                   >
-                    {/* Numer pozycji / Wskaźnik odtwarzania */}
+                    {/* Position number / playing indicator */}
                     {queueColumns.showIndex && (
                       <div
                         className={cn(
@@ -409,7 +409,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       </div>
                     )}
 
-                    {/* Miniaturka okładki (kliknij aby otworzyć wybór okładki) */}
+                    {/* Cover thumbnail (click to open the cover picker) */}
                     {queueColumns.showCover && (
                       <div
                         onClick={(e) => {
@@ -437,7 +437,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       </div>
                     )}
 
-                    {/* Tytuł i Wykonawca */}
+                    {/* Title and artist */}
                     <div className="min-w-0 overflow-hidden">
                       <p
                         className={cn(
@@ -455,7 +455,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                             isCurrent ? 'text-accent-cyan' : 'text-fg-muted',
                           )}
                         >
-                          {item.artist || 'Nieznany wykonawca'}
+                          {item.artist || t.player.unknownArtist}
                         </p>
                       )}
                     </div>
@@ -467,7 +467,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       </span>
                     )}
 
-                    {/* Format & Jakość */}
+                    {/* Format & quality */}
                     {queueColumns.showFormatBadge && (
                       <div>
                         <span
@@ -481,7 +481,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       </div>
                     )}
 
-                    {/* Ścieżka pliku */}
+                    {/* File path */}
                     {queueColumns.showPath && (
                       <span
                         title={`${item.uri.replace(/^file:\/\//, '')} • ${loc.queue.openContainingFolder}`}
@@ -492,7 +492,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       </span>
                     )}
 
-                    {/* Czas trwania */}
+                    {/* Duration */}
                     {queueColumns.showDuration && (
                       <span
                         className={cn(
@@ -504,7 +504,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
                       </span>
                     )}
 
-                    {/* Akcje */}
+                    {/* Actions */}
                     <div className="flex min-w-34 items-center justify-end gap-1">
                       {!isCurrent && (
                         <button

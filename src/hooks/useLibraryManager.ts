@@ -367,7 +367,7 @@ export function useLibraryManager({
     }>();
 
     tracks.forEach((t) => {
-      const name = t.artist || 'Nieznany wykonawca';
+      const name = t.artist || loc.stats.unknownArtist;
       const existing = map.get(name) || {
         name,
         tracks: [],
@@ -394,7 +394,7 @@ export function useLibraryManager({
     }
     list.sort((a, b) => collator.compare(a.name, b.name));
     return list;
-  }, [albums, deferredSearch, tracks]);
+  }, [albums, deferredSearch, loc.stats.unknownArtist, tracks]);
 
   // 7. Virtual Scroll for Tracks Table
   const libraryTableRef = useRef<HTMLTableElement | null>(null);
@@ -447,7 +447,7 @@ export function useLibraryManager({
             setFilePath(sample.path);
           }
         } catch (sampleErr) {
-          console.warn('Nie udało się pobrać domyślnego utworu testowego:', sampleErr);
+          console.warn('Failed to fetch the default test track:', sampleErr);
         }
       } else {
         setStatus((prev) => {
@@ -479,7 +479,7 @@ export function useLibraryManager({
         });
       }
     } catch (e: unknown) {
-      console.warn('Błąd ładowania biblioteki:', e);
+      console.warn('Failed to load the library:', e);
     }
   }, [setActiveTrackId, setFilePath, setStatus]);
 
@@ -525,7 +525,7 @@ export function useLibraryManager({
       }
 
       showMessage(
-        `Dodano do biblioteki: ${summary.new_or_updated_tracks} zindeksowano (znaleziono: ${summary.total_files_found}).`
+        `Added to the library: ${summary.new_or_updated_tracks} indexed (found: ${summary.total_files_found}).`
       );
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);

@@ -46,7 +46,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     } catch {}
   };
 
-  // Najnowsze wartości dla pętli rysowania (bez jej restartu przy każdym ticku spektrum co 100 ms)
+  // The latest values for the drawing loop (without restarting it on every 100 ms spectrum tick)
   const propsRef = useRef({ spectrum, volume, isPlaying });
   useEffect(() => {
     propsRef.current = { spectrum, volume, isPlaying };
@@ -60,7 +60,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     ({ ctx, width, height, dt }) => {
       const { spectrum: spectrumProp, volume: vol, isPlaying: playing } = propsRef.current;
 
-      // Spektrum prosto ze store'u (prop tylko jako zapas przed pierwszym statusem)
+      // Spectrum straight from the store (the prop is only a fallback before the first status)
       const live = livePlayback.getSnapshot();
       const spec = live.ready && live.spectrum.length > 0 ? live.spectrum : spectrumProp;
       const raw = computeVuLevels(spec, vol, playing);
@@ -74,7 +74,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
         faceRef.current = { layer: renderVuFaceLayer(canvas.width, canvas.height, width, height, colors), key };
       }
 
-      // Statyczna warstwa kopiowana 1:1 (tożsama transformacja), dynamika rysowana w pikselach CSS
+      // The static layer is copied 1:1 (identity transform), the dynamic part is drawn in CSS pixels
       const layer = faceRef.current.layer;
       if (layer) {
         ctx.save();
@@ -84,7 +84,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
       }
       drawVuDynamic(ctx, width, height, leftRef.current, rightRef.current, colors);
 
-      // Ustalony stan bez odtwarzania → pętla może spać do następnego invalidate()
+      // Settled state without playback → the loop can sleep until the next invalidate()
       return !(isVuSettled(leftRef.current, playing) && isVuSettled(rightRef.current, playing));
     },
     {
@@ -94,7 +94,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
     },
   );
 
-  // Zmiana motywu / odtwarzania budzi pętlę (zmiana propsów nie restartuje efektu)
+  // A theme / playback change wakes the loop (prop changes do not restart the effect)
   useEffect(() => {
     invalidate();
   }, [theme, isPlaying, invalidate]);
@@ -115,7 +115,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
           </span>
         </div>
 
-        {/* Selektor motywu podświetlenia wskaźnika (kompaktowe pigułki) */}
+        {/* Meter backlight theme selector (compact pills) */}
         <div className="flex shrink-0 gap-1">
           {[
             { id: 'amber', label: 'Amber', color: '#f59e0b' },

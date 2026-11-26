@@ -1,15 +1,15 @@
-/** Pomocnicze funkcje rysowania na canvasie współdzielone przez wizualizacje. */
+/** Canvas drawing helpers shared by the visualisations. */
 
-/** Ogranicza devicePixelRatio do rozsądnego zakresu (pamięć i koszt wypełnienia rosną z kwadratem). */
+/** Clamps devicePixelRatio to a sensible range (memory and fill cost grow with its square). */
 export function clampDpr(dpr: number, max = 2): number {
   if (!Number.isFinite(dpr) || dpr < 1) return 1;
   return Math.min(max, dpr);
 }
 
 /**
- * Rozmiar bufora canvasu. Zaokrąglamy (zamiast obcinać): `canvas.width` jest liczbą całkowitą, więc przy
- * ułamkowym DPR (1.25, 1.5) porównanie `canvas.width !== css * dpr` było zawsze prawdziwe i bufor był
- * realokowany i czyszczony w każdej klatce.
+ * Canvas buffer size. It is rounded (not truncated): `canvas.width` is an integer, so with
+ * a fractional DPR (1.25, 1.5) the comparison `canvas.width !== css * dpr` was always true and the buffer
+ * was reallocated and cleared on every frame.
  */
 export function computeBackingSize(cssWidth: number, cssHeight: number, dpr: number): { width: number; height: number } {
   return {
@@ -18,7 +18,7 @@ export function computeBackingSize(cssWidth: number, cssHeight: number, dpr: num
   };
 }
 
-/** Cache gradientów (np. wg zaokrąglonej długości słupka). Czyść przy zmianie rozmiaru/DPR/motywu. */
+/** Gradient cache (e.g. by rounded bar length). Clear it when the size/DPR/theme changes. */
 export class GradientCache {
   private readonly map = new Map<string, CanvasGradient>();
   private readonly maxEntries: number;
@@ -30,7 +30,7 @@ export class GradientCache {
   get(key: string, create: () => CanvasGradient): CanvasGradient {
     const hit = this.map.get(key);
     if (hit) return hit;
-    // Nieograniczony wzrost (np. wiele różnych wysokości) — zaczynamy od nowa po przekroczeniu limitu.
+    // Unbounded growth (e.g. many different heights): start over once the limit is exceeded.
     if (this.map.size >= this.maxEntries) this.map.clear();
     const gradient = create();
     this.map.set(key, gradient);
@@ -58,8 +58,8 @@ function expandRadii(radii: RoundRectRadii): [number, number, number, number] {
 }
 
 /**
- * Dodaje zaokrąglony prostokąt do bieżącej ścieżki. Używa `ctx.roundRect`, a gdy go brak
- * (starsze WebKitGTK) — ręcznej ścieżki z łuków, zamiast rzucać wyjątek w pętli rysowania.
+ * Adds a rounded rectangle to the current path. Uses `ctx.roundRect`, and when it is missing
+ * (older WebKitGTK) a manual path made of arcs, instead of throwing in the drawing loop.
  */
 export function roundRectPath(
   ctx: CanvasRenderingContext2D,

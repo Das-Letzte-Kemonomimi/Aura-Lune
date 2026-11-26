@@ -36,11 +36,11 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
 }) => (
     <div>
       <div>
-        {/* Pasek narzędziowy widoku albumów: Filtry, Sortowanie, Rozmiar kafelków, Przełącznik Kafelki/Lista */}
+        {/* Album view toolbar: filters, sorting, tile size, tiles/list toggle */}
         <div
           className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white/3 px-3.5 py-2.5"
         >
-          {/* Lewa strona: Licznik albumów + szybki filtr okładek */}
+          {/* Left side: album count + quick cover filter */}
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-ui font-bold text-fg">
               {sortedAlbums.length !== albums.length
@@ -48,7 +48,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                 : fmt(loc.library.totalAlbums, String(albums.length))}
             </span>
 
-            {/* Filtr okładek */}
+            {/* Cover filter */}
             <div className="flex items-center gap-1 rounded-lg border border-line bg-white/4 p-1">
               {[
                 { id: 'all', label: fmt(loc.library.albumFilterAll, String(albums.length)) },
@@ -75,9 +75,9 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
             </div>
           </div>
 
-          {/* Prawa strona: Sortowanie + Rozmiar kafelków + Wybór Kafelki / Lista */}
+          {/* Right side: sorting + tile size + tiles / list choice */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Sortowanie */}
+            {/* Sorting */}
             <div className="flex items-center gap-1.5">
               <ArrowUpDown size={13} className="text-fg-muted" />
               <select
@@ -102,7 +102,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
 
             <div className="mx-1 my-0 h-4.5 w-px bg-white/10" />
 
-            {/* Rozmiar kafelków (widoczny w trybie kafelków) */}
+            {/* Tile size (visible in tile mode) */}
             {albumViewMode === 'grid' && (
               <div className="flex items-center gap-1 rounded-lg border border-line bg-white/4 px-1 py-0.5">
                 <span className="mr-0.5 pl-1 text-xxs text-fg-muted">
@@ -137,7 +137,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
               </div>
             )}
 
-            {/* Przełącznik widoku: Kafelki vs Lista */}
+            {/* View toggle: tiles vs list */}
             <div className="flex items-center gap-1 rounded-lg border border-line bg-white/5 p-0.5">
               <button
                 onClick={() => {
@@ -178,7 +178,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
           </div>
         </div>
 
-        {/* Zawartość: Pusta lista lub Kafelki lub Lista */}
+        {/* Content: empty state, tiles or list */}
         {sortedAlbums.length === 0 ? (
           <div className="p-12 text-center text-fg-muted">
             {albums.length === 0 ? (
@@ -199,7 +199,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
             )}
           </div>
         ) : albumViewMode === 'list' ? (
-          /* WIDOK LISTY ALBUMÓW */
+          /* ALBUM LIST VIEW */
           <div className="flex flex-col gap-2">
             {sortedAlbums.map((album) => {
               const albumTracks = tracks.filter((t) => t.album_id === album.id);
@@ -212,7 +212,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   className="glass-card flex cursor-pointer items-center gap-4 rounded-xl border border-white/5 px-4 py-2.5 transition-all duration-200"
                   onClick={() => handleOpenAlbumDetail(album)}
                 >
-                  {/* Miniaturka okładki */}
+                  {/* Cover thumbnail */}
                   <div
                     className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-lg border border-line"
                     style={{
@@ -225,7 +225,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                     {!album.cover_path && <Disc size={24} className="text-white/25" />}
                   </div>
 
-                  {/* Informacje o albumie */}
+                  {/* Album info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-md font-bold text-fg">
@@ -247,7 +247,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                     </p>
                   </div>
 
-                  {/* Liczba utworów i czas */}
+                  {/* Track count and duration */}
                   <div className="flex shrink-0 items-center gap-2.5">
                     <span className="rounded-md bg-accent-cyan/10 px-2 py-1 text-xs font-semibold text-accent-cyan">
                       {albumTracks.length} {loc.library.tracks}
@@ -259,7 +259,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                     )}
                   </div>
 
-                  {/* Przyciski akcji */}
+                  {/* Action buttons */}
                   <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handlePlayAlbum(albumTracks)}
@@ -295,7 +295,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
             })}
           </div>
         ) : (
-          /* WIDOK KAFELKÓW (Zabezpieczony przed rozciąganiem - auto-fill z limitem max-width) */
+          /* TILE VIEW (no stretching: auto-fill with a max-width limit) */
           <div
             className={cn(
               'grid',
@@ -319,7 +319,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                   )}
                   onClick={() => handleOpenAlbumDetail(album)}
                 >
-                  {/* Podgląd okładki (z przyciskiem dopasowania w rogu) */}
+                  {/* Cover preview (with the match button in the corner) */}
                   <div
                     className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-line"
                     style={{
@@ -342,7 +342,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                     </div>
                   </div>
 
-                  {/* Tytuł i wykonawca */}
+                  {/* Title and artist */}
                   <div className="flex-1">
                     <h4
                       className={cn(
@@ -375,7 +375,7 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
                     </div>
                   </div>
 
-                  {/* Przyciski akcji na kafelku */}
+                  {/* Tile action buttons */}
                   <div className="mt-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handlePlayAlbum(albumTracks)}

@@ -157,7 +157,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
     handleToggleFavorite,
     handleOpenContainingFolder,
   } = props;
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const status = useLiveStatus(statusProp);
   const seekProgressPercent =
     status.duration_ms && status.duration_ms > 0
@@ -173,20 +173,20 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
   return (
             <div className="mx-auto my-0 flex flex-col gap-5 pb-8" style={{ maxWidth: layoutMaxWidth }}>
               <div className="glass-panel flex flex-col gap-5 px-7 py-6">
-                {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
+                {/* Top toolbar: audio engine and a discreet open-file button */}
                 <PlayerToolbar {...props} status={statusProp} />
 
-                {/* Główny pulpit odtwarzacza: układ 2-kolumnowy (Okładka/Winyl + Kontrolki & Spektrogram) */}
+                {/* Main player deck: 2-column layout (cover/vinyl + controls & spectrogram) */}
                 <div
                   className={cn(
                     'grid items-center gap-6.5 transition-[grid-template-columns] duration-200',
                     nowPlayingVisualMode === 'cover' ? 'grid-cols-[--spacing(60)_1fr]' : 'grid-cols-[--spacing(69)_1fr]',
                   )}
                 >
-                  {/* Kolumna lewa: Okładka / Winyl / Tape / VU-Meter */}
+                  {/* Left column: cover / vinyl / tape / VU meter */}
                   <PlayerVisualColumn {...props} status={status} />
 
-                  {/* Kolumna prawa: Tytuł, Wykonawca, Spektrogram, Seeker i Przyciski */}
+                  {/* Right column: title, artist, spectrogram, seeker and buttons */}
                   <div className="flex min-w-0 flex-col gap-3.5">
                     <div>
                       <div className="mb-1 flex items-center gap-2">
@@ -281,28 +281,28 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                       </div>
                     </div>
 
-                    {/* Żywy animowany Canvas Spectrum Visualizer */}
+                    {/* Live animated canvas spectrum visualizer */}
                     <SpectrumVisualizer
                       spectrum={status.spectrum}
                       isPlaying={status.state === 'Playing'}
                     />
 
-                    {/* Szybkie Profile Klimatyczne DSP (Quick DSP Vibes) */}
+                    {/* Quick DSP vibe profiles (Quick DSP Vibes) */}
                     <PlayerQuickDspVibes {...props} t={t} />
 
-                    {/* Pasek postępu z pętlą A-B i wizualizacją przebiegu utworu (Waveform) */}
+                    {/* Progress bar with the A-B loop and the track waveform */}
                     <PlayerProgressSection {...props} status={status} seekProgressPercent={seekProgressPercent} />
 
-                    {/* Przyciski sterowania odtwarzaniem */}
+                    {/* Playback control buttons */}
                     <PlayerTransportControls {...props} status={statusProp} />
                   </div>
                 </div>
 
-                {/* ZINTEGROWANY MINI-PASEK DSP (Zastępuje dawne puste wielkie karty z Image 2) */}
+                {/* Integrated DSP mini bar */}
                 <PlayerDspMiniBar {...props} status={statusProp} />
               </div>
 
-              {/* SEKCJA ZSYNCHRONIZOWANYCH TEKSTÓW PIOSENEK (LRC & LRCLIB) */}
+              {/* Synced lyrics section (LRC & LRCLIB) */}
               {showLyrics && (
                 <div className="mb-1 h-105 w-full">
                   <LyricsView
@@ -319,7 +319,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                 </div>
               )}
 
-              {/* SEKCJA KOLEJKI ODTWARZANIA Z KONFIGURACJĄ KOLUMN */}
+              {/* Playback queue section with column configuration */}
               <PlayerQueuePanel {...props} status={statusProp} t={t} getQueueTrackMeta={getQueueTrackMeta} />
             </div>
   );

@@ -68,7 +68,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
 
       {transcodeApplyRange && (
         <div className="mt-1 flex flex-col gap-2.5 pl-6.5">
-          {/* Przyciski synchronizacji z pętlą A-B z odtwarzacza oraz zapisanymi znacznikami */}
+          {/* Buttons that sync with the player's A-B loop and the saved markers */}
           <div className="flex flex-wrap items-center gap-2">
             {(loopPointA !== null || loopPointB !== null) && (
               <button
@@ -103,7 +103,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                   <button
                     type="button"
                     onClick={() => onTranscodeRangeAChange(formatTimeMs(bm.position_ms))}
-                    title={`Ustaw "${bm.name}" jako Punkt A`}
+                    title={`Set "${bm.name}" as point A`}
                     className="rounded-sm border-0 bg-accent-cyan/20 px-1 py-px text-xxs font-bold text-accent-cyan"
                   >
                     A
@@ -111,7 +111,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
                   <button
                     type="button"
                     onClick={() => onTranscodeRangeBChange(formatTimeMs(bm.position_ms))}
-                    title={`Ustaw "${bm.name}" jako Punkt B`}
+                    title={`Set "${bm.name}" as point B`}
                     className="rounded-sm border-0 bg-pink-500/20 px-1 py-px text-xxs font-bold text-accent-pink"
                   >
                     B
@@ -135,7 +135,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
               <div className="flex gap-1.5">
                 <input
                   type="text"
-                  placeholder="np. 0:00.000, 0:22.449, 860ms"
+                  placeholder="e.g. 0:00.000, 0:22.449, 860ms"
                   value={transcodeRangeA}
                   onChange={(e) => onTranscodeRangeAChange(e.target.value)}
                   className="flex-1 rounded-md border border-line bg-black/30 px-2.5 py-1.5 font-mono text-ui text-fg"
@@ -203,7 +203,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
             </div>
           </div>
 
-          {/* Podsumowanie zakresu i walidacja */}
+          {/* Range summary and validation */}
           {isOrderInvalid ? (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-accent-pink">
               <span>⚠️ {loc.settings.transcodeEndMustBeGreater}</span>

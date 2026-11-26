@@ -48,7 +48,7 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
         </div>
       </div>
 
-      {/* Szybkie presety bloku DSP */}
+      {/* Quick DSP block presets */}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         {[
           { label: loc.settings.dspBlockPreset512, value: 512 },
@@ -75,7 +75,7 @@ export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({
           );
         })}
 
-        {/* Pole ręcznego wpisania dowolnej wielkości */}
+        {/* Manual entry of any size */}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="text-xs text-fg-muted">
             {loc.settings.dspBlockCustom}

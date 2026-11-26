@@ -47,7 +47,7 @@ const CHROMATIC_SCALE = [
   'B',
 ];
 
-// Mapowanie tonacji na notację Camelot (dla DJ-ów / remikserów)
+// Key to Camelot notation mapping (for DJs / remixers)
 const CAMELOT_MAJOR: Record<string, string> = {
   'B': '1B', 'F#': '2B', 'C#': '3B', 'G#': '4B',
   'D#': '5B', 'A#': '6B', 'F': '7B', 'C': '8B',
@@ -76,7 +76,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
 }) => {
   const loc = getTranslations(currentLang);
 
-  // Domyślna bazowa tonacja i BPM
+  // Default base key and BPM
   const [baseKeyIndex, setBaseKeyIndex] = useState<number>(0); // 0 = C
   const [isMinor, setIsMinor] = useState<boolean>(false);
   const [baseBpm, setBaseBpm] = useState<number>(128.0);
@@ -88,7 +88,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   const tapTimesRef = useRef<number[]>([]);
   const [tapActive, setTapActive] = useState<boolean>(false);
 
-  // Funkcja automatycznej detekcji tonacji i BPM w tle
+  // Automatic background key and BPM detection
   const handleAutoDetect = useCallback(async (path?: string, trackId?: number, forceRecompute: boolean = false) => {
     const targetPath = path || currentTrackPath;
     if (!targetPath) return;
@@ -137,14 +137,14 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         } catch {}
       }
     } catch (e: unknown) {
-      console.warn('Błąd detekcji Key/BPM:', e);
+      console.warn('Key/BPM detection failed:', e);
       setDetectError(String(e));
     } finally {
       setIsDetecting(false);
     }
   }, [currentTrackPath, currentTrackId, onTrackKeyBpmUpdated]);
 
-  // Wczytaj zapamiętane metadane dla utworu lub automatycznie wykryj jeśli brak
+  // Load the remembered metadata for the track, or detect it automatically if missing
   useEffect(() => {
     if (!isOpen) return;
 
@@ -169,11 +169,11 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           if (parsed.source) setDetectionSource(parsed.source);
         }
       } catch {
-        // Ignoruj błędy parsowania
+        // Ignore parse errors
       }
     }
 
-    // Jeśli nie znaleziono w pamięci podręcznej, a mamy ścieżkę pliku — automatycznie wykryj!
+    // Not found in the cache and we have a file path: detect it automatically
     if (!hasStored && currentTrackPath) {
       handleAutoDetect(currentTrackPath, currentTrackId);
     }
@@ -207,12 +207,12 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           keyName,
         });
       } catch (err) {
-        console.warn('Błąd zapisu Key/BPM do bazy:', err);
+        console.warn('Failed to save Key/BPM to the database:', err);
       }
     }
   };
 
-  // Obliczenie tonacji po transpozycji
+  // Key after transposition
   const roundedSemitones = Math.round(pitchSemitones);
   const transposedIndex = ((baseKeyIndex + roundedSemitones) % 12 + 12) % 12;
   const originalKeyName = `${CHROMATIC_SCALE[baseKeyIndex]} ${isMinor ? 'm' : 'Maj'}`;
@@ -226,7 +226,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
     ? CAMELOT_MINOR[CHROMATIC_SCALE[transposedIndex]] || '-'
     : CAMELOT_MAJOR[CHROMATIC_SCALE[transposedIndex]] || '-';
 
-  // Efektywny BPM po uwzględnieniu tempo stretch i prędkości odtwarzania
+  // Effective BPM after tempo stretch and playback rate
   const effectiveBpm = baseBpm * (tempoRatio || 1.0) * (rateRatio || 1.0);
   const bpmDeltaPercent = Math.round(((effectiveBpm / baseBpm) - 1.0) * 100);
 
@@ -259,7 +259,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
       layer="top"
       className="flex max-w-170 flex-col gap-5 rounded-3xl border border-white/10 p-7 text-fg"
     >
-      {/* Nagłówek okna */}
+      {/* Window header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
@@ -284,7 +284,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         </button>
       </div>
 
-      {/* Pasek statusu automatycznej detekcji */}
+      {/* Automatic detection status bar */}
       <div
         className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/3 px-3.5 py-2.5"
       >
@@ -340,9 +340,9 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         </button>
       </div>
 
-      {/* Porównanie A/B: Oryginał vs Zmodyfikowany DSP */}
+      {/* A/B comparison: original vs DSP-modified */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-        {/* Lewa karta: Oryginał */}
+        {/* Left card: original */}
         <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white/3 p-4.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold tracking-wider text-fg-muted uppercase">
@@ -380,7 +380,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           </div>
         </div>
 
-        {/* Strzałka przejścia */}
+        {/* Transition arrow */}
         <div className="flex flex-col items-center gap-1.5 text-fg-muted">
           <ArrowRight size={24} className="text-accent-cyan" />
           <span className="text-xxs font-semibold text-fg-secondary">
@@ -388,7 +388,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           </span>
         </div>
 
-        {/* Prawa karta: Po DSP (Pitch / Tempo / Rate) */}
+        {/* Right card: after DSP (pitch / tempo / rate) */}
         <div
           className="flex flex-col gap-3 rounded-2xl border border-accent-pink/30 bg-linear-135 from-accent-pink/8 to-accent-cyan/8 p-4.5"
         >
@@ -441,7 +441,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         </div>
       </div>
 
-      {/* Panel sterowania tonacją bazową */}
+      {/* Base key control panel */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">
@@ -477,7 +477,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
           </div>
         </div>
 
-        {/* Siatka 12 półtonów skali chromatycznej */}
+        {/* Grid of the 12 chromatic semitones */}
         <div className="grid grid-cols-12 gap-1">
           {CHROMATIC_SCALE.map((note, idx) => {
             const isSelected = baseKeyIndex === idx;
@@ -503,7 +503,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         </div>
       </div>
 
-      {/* Ręczny BPM + Tap Tempo */}
+      {/* Manual BPM + tap tempo */}
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white/2 px-4 py-3">
         <div className="flex items-center gap-2.5">
           <span className="text-sm font-semibold">
@@ -557,7 +557,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
         </button>
       </div>
 
-      {/* Dolne przyciski szybkiej transpozycji i zapis */}
+      {/* Bottom quick transposition and save buttons */}
       <div className="flex items-center justify-between border-t border-white/8 pt-2">
         <div className="flex items-center gap-2">
           <span className="text-ui text-fg-muted">

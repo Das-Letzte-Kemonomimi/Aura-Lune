@@ -125,7 +125,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
         </div>
       )}
 
-      {/* Akceleracja sprzętowa Banner */}
+      {/* Hardware acceleration banner */}
       {capabilities && (
         <div
           className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3.5"
@@ -158,7 +158,7 @@ export const ModelManagerModal: React.FC<ModelManagerModalProps> = ({
         </div>
       )}
 
-      {/* Lista modeli */}
+      {/* Model list */}
       <div className="flex flex-col gap-3">
         <h3 className="mx-0 mt-1 mb-0 text-xs font-bold tracking-wider text-fg-secondary uppercase">
           {t.aiModels.availableModels}

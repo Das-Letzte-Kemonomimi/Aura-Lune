@@ -127,8 +127,8 @@ describe('PianoRollCanvas', () => {
     raf.step();
     const el = document.querySelector('canvas') as HTMLCanvasElement;
 
-    // Pozycja 0 + tryb Follow → początek osi = 0; obszar nut zaczyna się za kolumną klawiatury (56 px).
-    // x = 56 + 300 px przy 100 px/s → 3 s.
+    // Position 0 + Follow mode → axis start = 0; the note area starts after the keyboard column (56 px).
+    // x = 56 + 300 px at 100 px/s → 3 s.
     fireEvent.pointerDown(el, { clientX: 356, clientY: 150, button: 0, pointerId: 1 });
     fireEvent.pointerUp(el, { clientX: 356, clientY: 150, button: 0, pointerId: 1 });
     expect(onSeek).toHaveBeenCalledTimes(1);
@@ -142,7 +142,7 @@ describe('PianoRollCanvas', () => {
     for (let i = 0; i < 20; i++) raf.step(); // ease display position to the target
 
     const el = document.querySelector('canvas') as HTMLCanvasElement;
-    // Roll ma 667 px → głowica stoi w 30% (≈200 px) od lewej krawędzi obszaru nut → x = 56 + 200.1.
+    // The roll is 667 px → the playhead stands at 30% (≈200 px) from the left edge of the note area → x = 56 + 200.1.
     const playheadX = 56 + 667 * 0.3;
     fireEvent.pointerDown(el, { clientX: playheadX, clientY: 150, button: 0, pointerId: 1 });
     fireEvent.pointerUp(el, { clientX: playheadX, clientY: 150, button: 0, pointerId: 1 });
@@ -179,7 +179,7 @@ describe('PianoRollCanvas', () => {
     raf.step();
     const el = document.querySelector('canvas') as HTMLCanvasElement;
     const notCancelled = fireEvent.wheel(el, { deltaY: -200, ctrlKey: true, clientX: 300, clientY: 150 });
-    expect(notCancelled).toBe(false); // preventDefault → modal nie przewija się pod spodem
+    expect(notCancelled).toBe(false); // preventDefault → the modal does not scroll underneath
     const zoom = onViewChange.mock.calls.find((c) => c[0].pxPerSec !== undefined)?.[0].pxPerSec as number;
     expect(zoom).toBeGreaterThan(100);
   });
@@ -203,7 +203,7 @@ describe('PianoRollCanvas note labels', () => {
 });
 
 describe('PianoRollCanvas vertical navigation', () => {
-  // 24 wiersze po 16 px (podpisy) w obszarze ≈357 px → jest co przewijać.
+  // 24 rows of 16 px (labels) in an area of ≈357 px → there is something to scroll.
   const open = (overrides: Partial<PianoRollCanvasProps> = {}) => {
     const props = baseProps(overrides);
     mount(props, { width: 723, height: 411 }, 1);

@@ -174,10 +174,10 @@ export function usePlaybackController({
     };
   }, []);
 
-  // 1. Status odtwarzania: backend (setup/playback_ticker.rs) wysyła zdarzenie
-  //    `auralune://playback-status` ~10×/s podczas odtwarzania i ~4×/s w pauzie.
-  //    Pozycja i spektrum trafiają w każdej klatce do `livePlayback`; stan Reacta jest
-  //    aktualizowany tylko przy istotnych zmianach (`shouldCommitStatus`).
+  // 1. Playback status: the backend (setup/playback_ticker.rs) emits the
+  //    `auralune://playback-status` event ~10×/s while playing and ~4×/s while paused.
+  //    The position and spectrum go to `livePlayback` on every frame; the React state is
+  //    updated only on meaningful changes (`shouldCommitStatus`).
   const loopPointsRef = useRef<{ a: number | null; b: number | null }>({ a: null, b: null });
   useEffect(() => {
     loopPointsRef.current = { a: loopPointA, b: loopPointB };
@@ -210,9 +210,9 @@ export function usePlaybackController({
       initialStartupPositionRef: curInitialStartupPositionRef,
     } = pollingDepsRef.current;
 
-    // Klatka „na żywo”: pozycja (chyba że użytkownik właśnie przeciąga suwak) i spektrum.
+    // "Live" frame: the position (unless the user is dragging the slider) and the spectrum.
     if (!isSeekingRef.current) {
-      // Po starcie (stan Stopped) UI pokazuje pozycję wznowienia z zapisanej sesji.
+      // After start-up (Stopped state) the UI shows the resume position from the saved session.
       const resumePos = pollingDepsRef.current.initialStartupPositionRef.current;
       const livePos = res.state === 'Stopped' && resumePos !== null ? resumePos : res.position_ms;
       livePlayback.publish({ positionMs: livePos, spectrum: res.spectrum });
@@ -225,7 +225,7 @@ export function usePlaybackController({
       livePlayback.publish({ spectrum: res.spectrum });
     }
 
-    // Pętla A-B sprawdzana w każdej klatce (dokładność ~100 ms).
+    // The A-B loop is checked on every frame (~100 ms accuracy).
     const { a: loopA, b: loopB } = loopPointsRef.current;
     if (loopA !== null && loopB !== null && loopB > loopA && res.state === 'Playing') {
       if (res.position_ms >= loopB && !loopSeekPendingRef.current) {
@@ -272,7 +272,7 @@ export function usePlaybackController({
         const trackId = res.current_track.track_id;
         curSetActiveTrackId(trackId);
 
-        // Czas słuchania (Recap) nalicza backendowy ticker odtwarzania.
+        // Listening time (Recap) is counted by the backend playback ticker.
 
         // Loop detection
         if (res.position_ms < 3000 && lastTrackPositionMsRef.current > 5000) {
@@ -296,7 +296,7 @@ export function usePlaybackController({
         ) {
           lastRecordedTrackRef.current.recorded = true;
           invoke('record_track_play', { trackId }).catch((e) =>
-            console.warn('Błąd zapisu odtworzenia:', e)
+            console.warn('Failed to record the play:', e)
           );
           curSetTracks((prev) =>
             prev.map((t) =>
@@ -338,7 +338,7 @@ export function usePlaybackController({
               .then(() => {
                 curShowMessage(fmt(curLoc.notifications.scrobbledListenbrainz, currentTrackObj.title));
               })
-              .catch((e) => console.warn('Błąd wysyłania scrobble:', e));
+              .catch((e) => console.warn('Failed to send the scrobble:', e));
           }
         }
 
@@ -375,7 +375,7 @@ export function usePlaybackController({
               .then(() => {
                 curShowMessage(fmt(curLoc.notifications.scrobbledLastfm, currentTrackObj.title));
               })
-              .catch((e) => console.warn('Błąd wysyłania Last.fm scrobble:', e));
+              .catch((e) => console.warn('Failed to send the Last.fm scrobble:', e));
           }
         }
       }
@@ -387,8 +387,8 @@ export function usePlaybackController({
     applyStatus(res);
   });
 
-  // Start oraz rezerwa: pierwszy status pobierany od razu; jeśli zdarzenia przestaną
-  // napływać (np. środowisko bez tickera), status jest odpytywany raz na sekundę.
+  // Start-up and fallback: the first status is fetched right away; if events stop
+  // arriving (e.g. an environment without the ticker), the status is polled once a second.
   useEffect(() => {
     let cancelled = false;
     const fetchOnce = () => {
@@ -397,7 +397,7 @@ export function usePlaybackController({
           if (!cancelled && res) applyStatus(res);
         })
         .catch(() => {
-          // Backend jeszcze się inicjalizuje
+          // The backend is still initialising
         });
     };
     fetchOnce();

@@ -1,4 +1,4 @@
-/** Czysta matematyka wskaźnika VU (bez canvasu): poziomy L/R ze spektrum, balistyka, skala dB. */
+/** Pure VU meter maths (no canvas): L/R levels from the spectrum, ballistics, dB scale. */
 import { smoothTo, tauFromFrameLerp, fallPerSec } from '../../utils/smoothing';
 
 export type VuTheme = 'amber' | 'sakura' | 'cyber';
@@ -17,7 +17,7 @@ export interface VuColors {
   accent: string;
 }
 
-/** Motywy podświetlenia wskaźnika. */
+/** Meter backlight themes. */
 export const VU_THEMES: Record<VuTheme, VuColors> = {
   amber: {
     bgGradStart: '#2d1b06',
@@ -60,11 +60,11 @@ export const VU_THEMES: Record<VuTheme, VuColors> = {
   },
 };
 
-/** Wagi psychoakustyczne ITU-R BS.1770 dla 16 pasm percepcyjnych. */
+/** ITU-R BS.1770 psychoacoustic weights for 16 perceptual bands. */
 export const VU_WEIGHTS = [1.2, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 1.0, 1.0, 1.05, 1.1, 1.05, 1.0, 0.95, 0.9];
 const WEIGHT_SUM = VU_WEIGHTS.reduce((sum, w) => sum + w, 0);
 
-/** Znaczniki skali (pozycja 0..1 na łuku → etykieta). */
+/** Scale marks (position 0..1 on the arc → label). */
 export const VU_MARKS: readonly { norm: number; label: string }[] = [
   { norm: 0.0, label: '-20' },
   { norm: 0.26, label: '-10' },
@@ -76,7 +76,7 @@ export const VU_MARKS: readonly { norm: number; label: string }[] = [
   { norm: 1.0, label: '+3' },
 ];
 
-/** Punkty interpolacji dB dokładnie odpowiadające podziałce tarczy. */
+/** dB interpolation points that match the faceplate scale exactly. */
 const DB_POINTS: readonly { n: number; db: number }[] = [
   { n: 0.0, db: -20.0 },
   { n: 0.26, db: -10.0 },
@@ -89,7 +89,7 @@ const DB_POINTS: readonly { n: number; db: number }[] = [
   { n: 1.05, db: 3.8 },
 ];
 
-/** Odczyt cyfrowy dB dla wychylenia wskazówki 0..1.05. */
+/** Digital dB readout for a needle deflection of 0..1.05. */
 export function calcDb(norm: number): string {
   if (norm <= 0.01) return '-∞ dB';
   const pts = DB_POINTS;
@@ -107,7 +107,7 @@ export function calcDb(norm: number): string {
   return '0.0 dB';
 }
 
-/** Surowe poziomy kanałów (przed balistyką). 32 pasma = L(0..15) + R(16..31), mniej = mono. */
+/** Raw channel levels (before ballistics). 32 bands = L(0..15) + R(16..31), fewer = mono. */
 export function computeVuLevels(
   spectrum: readonly number[],
   volume: number,
@@ -137,12 +137,12 @@ export function computeVuLevels(
   return { left: avg, right: avg };
 }
 
-/** Balistyka analogowa VU: szybki narost (attack), płynne opadanie (decay) — dawne stałe 0.35 / 0.08 na klatkę 60 Hz. */
+/** Analog VU ballistics: fast attack, smooth decay (formerly the constants 0.35 / 0.08 per 60 Hz frame). */
 export const VU_ATTACK_TAU = tauFromFrameLerp(0.35);
 export const VU_DECAY_TAU = tauFromFrameLerp(0.08);
-/** Opadanie wskaźnika szczytu (dawne 0.015 na klatkę 60 Hz). */
+/** Peak indicator decay (formerly 0.015 per 60 Hz frame). */
 export const VU_PEAK_FALL_PER_SEC = fallPerSec(0.015);
-/** Próg szczytu zapalający diodę PEAK. */
+/** Peak threshold that lights the PEAK LED. */
 export const VU_PEAK_LED_THRESHOLD = 0.84;
 
 export interface VuChannelState {
@@ -157,7 +157,7 @@ export function stepVuChannel(state: VuChannelState, raw: number, dtSec: number)
   return { level, peak };
 }
 
-/** Wskaźnik jest ustalony (nic się nie rusza) — można uśpić pętlę rysowania. */
+/** The meter is settled (nothing moves), so the drawing loop can sleep. */
 export function isVuSettled(state: VuChannelState, isPlaying: boolean): boolean {
   return !isPlaying && state.level < 0.001 && state.peak < 0.001;
 }
@@ -178,7 +178,7 @@ export interface MeterGeometry {
   ledY: number;
 }
 
-/** Geometria jednego wskaźnika o wymiarach `w`×`h` (px CSS). */
+/** Geometry of one meter of size `w`×`h` (CSS px). */
 export function meterGeometry(w: number, h: number): MeterGeometry {
   const margin = 3.5;
   const faceW = w - margin * 2;
@@ -186,12 +186,12 @@ export function meterGeometry(w: number, h: number): MeterGeometry {
   const pivotX = margin + faceW / 2;
   const pivotY = margin + faceH * 0.94;
 
-  // Kąty wychylenia: od -125° do -55° (70° zakres, standard IEC VU)
+  // Deflection angles: from -125° to -55° (a 70° range, the IEC VU standard)
   const startAngle = -Math.PI * 0.694;
   const endAngle = -Math.PI * 0.306;
   const totalSweep = endAngle - startAngle;
 
-  // Promień tak, aby łuk i kreski w 100% mieściły się w tarczy
+  // Radius chosen so the arc and ticks fit 100% inside the faceplate
   const maxRHorizontal = (faceW / 2 - 8) / 0.58; // cos(-125°) = -0.5735
   const maxRVertical = pivotY - (margin + 18);
   const radius = Math.max(20, Math.min(maxRHorizontal, maxRVertical));
@@ -214,7 +214,7 @@ export function meterGeometry(w: number, h: number): MeterGeometry {
   };
 }
 
-/** Układ dwóch wskaźników (L i R) w canvasie `width`×`height`. */
+/** Layout of the two meters (L and R) in a `width`×`height` canvas. */
 export function stereoLayout(width: number, height: number): { pad: number; gap: number; meterWidth: number; meterHeight: number } {
   const gap = 6;
   const pad = 4;

@@ -125,7 +125,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
     handleResetDsp,
     handleSetDspBlockSize,
   } = props;
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const status = useLiveStatus(statusProp);
   const [editingPitch, setEditingPitch] = useState<string | null>(null);
   const [editingTempo, setEditingTempo] = useState<string | null>(null);
@@ -161,7 +161,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Przełącznik zapamiętywania parametrów DSP przy starcie programu */}
+                  {/* Toggle for remembering the DSP parameters at start-up */}
                   <button
                     onClick={handleToggleDspAutoStartup}
                     title={loc.dsp.dspAutostart}
@@ -175,7 +175,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                     {dspAutoStartup ? `✓ ${loc.dsp.dspAutostartOn}` : `○ ${loc.dsp.dspAutostartOff}`}
                   </button>
 
-                  {/* Zapisz bieżące ustawienia jako domyślne startowe */}
+                  {/* Save the current settings as the start-up default */}
                   <button
                     onClick={handleSaveDspStartupDefault}
                     title={loc.dsp.dspSaveStartupBtn}
@@ -184,7 +184,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                     <Save size={13} /> {loc.dsp.dspSaveStartupBtn}
                   </button>
 
-                  {/* Wskaźnik domyślnego silnika startowego */}
+                  {/* Default start-up engine indicator */}
                   <span
                     className="flex items-center gap-1.5 rounded-lg border border-line bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-fg-secondary"
                     title={loc.dsp.defaultEngineStartup}
@@ -192,7 +192,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                     Start: <strong className={cn(dspDefaultEngine === 'Bypass' ? 'text-accent-green' : 'text-accent-pink')}>{dspDefaultEngine}</strong>
                   </span>
 
-                  {/* Reset do wartości domyślnych */}
+                  {/* Reset to the defaults */}
                   <button
                     onClick={handleResetDsp}
                     className="glass-card flex items-center gap-1.5 px-3 py-2 text-ui font-semibold text-accent-cyan"
@@ -202,10 +202,10 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                 </div>
               </div>
 
-              {/* Wybór silnika DSP: SoundTouch vs Rubber Band */}
+              {/* DSP engine choice: SoundTouch vs Rubber Band */}
               <DspEngineSelector {...props} status={status} />
 
-              {/* Pasek telemetrii silnika */}
+              {/* Engine telemetry bar */}
               <div
                 className="mb-6 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-line bg-black/25 px-4 py-3 text-ui"
               >
@@ -248,7 +248,7 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                 </div>
               </div>
 
-              {/* Informacja o aktywnym trybie Direct Bypass */}
+              {/* Info about the active Direct Bypass mode */}
               {status.engine === 'Bypass' && (
                 <Callout
                   tone="green" className="mb-5.5 flex items-center gap-2.5 text-ui leading-snug text-emerald-200"
@@ -258,28 +258,28 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
                 </Callout>
               )}
 
-              {/* Suwak Pitch Shift z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}
+              {/* Pitch Shift slider with nudge buttons, 0.1 and 0.01 steps and manual entry */}
               <DspPitchSlider {...props} status={status} editingPitch={editingPitch} setEditingPitch={setEditingPitch} />
 
-              {/* Suwak Tempo (Time Stretch) z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}
+              {/* Tempo (Time Stretch) slider with nudge buttons, 0.1 and 0.01 steps and manual entry */}
               <DspTempoSlider {...props} status={status} editingTempo={editingTempo} setEditingTempo={setEditingTempo} />
 
-              {/* Suwak Szybkości (Rate) z ergonomicznymi przyciskami oraz krokiem 0.1, 0.01 i ręcznym wpisaniem */}
+              {/* Rate slider with nudge buttons, 0.1 and 0.01 steps and manual entry */}
               <DspRateSlider {...props} status={status} editingRate={editingRate} setEditingRate={setEditingRate} />
 
-              {/* Panel Efektu Pogłosu Reverb (GStreamer Freeverb) */}
+              {/* Reverb effect panel (GStreamer Freeverb) */}
               <DspReverbPanel {...props} />
 
-              {/* Menedżer presetów DSP (SQLite) */}
+              {/* DSP preset manager (SQLite) */}
               <DspPresetManager {...props} />
 
-              {/* SEKCJA 2.5: POWERAMP DSP STUDIO (BASS BOOST, STEREO WIDENER, TRUE-PEAK LIMITER) */}
+              {/* SECTION 2.5: POWERAMP DSP STUDIO (BASS BOOST, STEREO WIDENER, TRUE-PEAK LIMITER) */}
               <DspMasteringRack {...props} />
 
-              {/* SEKCJA 3: 10-PASMOWY KOREKTOR GRAFICZNY (EQUALIZER) */}
+              {/* SECTION 3: 10-BAND GRAPHIC EQUALIZER */}
               <DspGraphicEqRack {...props} setIsEqPresetMenuOpen={setIsEqPresetMenuOpen} isEqPresetMenuOpen={isEqPresetMenuOpen} status={status} />
 
-              {/* SEKCJA 4: NEONOWY ANALIZATOR WIDMA FFT (SPECTRUM VISUALIZER) */}
+              {/* SECTION 4: NEON FFT SPECTRUM ANALYSER (SPECTRUM VISUALIZER) */}
               <div className="mt-7 border-t border-line pt-6">
                 <div className="mb-3.5 flex items-center justify-between">
                   <h3 className="flex items-center gap-2 text-lg">

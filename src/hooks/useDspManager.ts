@@ -39,7 +39,7 @@ export function getEqPresetDisplayName(name: string, locOrIsPl?: Translations | 
   return name;
 }
 
-/** Zapisuje parametry DSP przywracane przy starcie aplikacji (ustawienie `dsp_saved_settings`). */
+/** Saves the DSP parameters restored at app start-up (the `dsp_saved_settings` setting). */
 function saveDspStartupSettings(engine: string, pitch: number, tempo: number, rate: number) {
   return setSetting(
     'dsp_saved_settings',
@@ -91,7 +91,7 @@ export function useDspManager({
       const list = await invoke<DspPresetRecord[]>('list_dsp_presets');
       setPresets(list);
     } catch (e: unknown) {
-      console.warn('Błąd ładowania presetów:', e);
+      console.warn('Failed to load presets:', e);
     }
   }, []);
 
@@ -99,7 +99,7 @@ export function useDspManager({
     loadPresets();
     invoke<EqualizerPreset[]>('get_equalizer_presets')
       .then((presets) => setEqPresets(presets))
-      .catch((err) => console.warn('Błąd pobierania presetów EQ:', err));
+      .catch((err) => console.warn('Failed to fetch EQ presets:', err));
 
     getSetting('dsp_restore_on_startup')
       .then((val) => {
@@ -107,7 +107,7 @@ export function useDspManager({
         setDspAutoStartup(enabled);
         dspAutoStartupRef.current = enabled;
       })
-      .catch((e) => console.warn('Błąd odczytu dsp_restore_on_startup:', e));
+      .catch((e) => console.warn('Failed to read dsp_restore_on_startup:', e));
 
     getSetting('dsp_default_engine')
       .then((val) => {
@@ -115,7 +115,7 @@ export function useDspManager({
           setDspDefaultEngine(val);
         }
       })
-      .catch((e) => console.warn('Błąd odczytu dsp_default_engine:', e));
+      .catch((e) => console.warn('Failed to read dsp_default_engine:', e));
 
     invoke<number>('get_audio_buffer_duration_ms')
       .then((val) => {
@@ -123,7 +123,7 @@ export function useDspManager({
           setAudioBufferMs(val);
         }
       })
-      .catch((e) => console.warn('Błąd odczytu get_audio_buffer_duration_ms:', e));
+      .catch((e) => console.warn('Failed to read get_audio_buffer_duration_ms:', e));
 
     invoke<number>('get_dsp_block_size')
       .then((val) => {
@@ -131,7 +131,7 @@ export function useDspManager({
           setDspBlockSize(val);
         }
       })
-      .catch((e) => console.warn('Błąd odczytu get_dsp_block_size:', e));
+      .catch((e) => console.warn('Failed to read get_dsp_block_size:', e));
   }, [loadPresets]);
 
   // Persist DSP settings debounced
@@ -144,7 +144,7 @@ export function useDspManager({
       try {
         await saveDspStartupSettings(engine, pitch, tempo, rate);
       } catch (err) {
-        console.warn('Błąd zapisu ustawień startowych DSP:', err);
+        console.warn('Failed to save the DSP start-up settings:', err);
       }
     }, 250);
   }, []);
@@ -376,7 +376,7 @@ export function useDspManager({
     }
     try {
       await invoke('save_dsp_preset', { name: newPresetName.trim() });
-      showMessage(`Zapisano preset '${newPresetName.trim()}' w bazie danych SQLite`);
+      showMessage(`Saved preset '${newPresetName.trim()}' in the SQLite database`);
       setNewPresetName('');
       await loadPresets();
     } catch (e: unknown) {
@@ -474,8 +474,8 @@ export function useDspManager({
           engine: vibe !== 'flat' && prev.engine === 'Bypass' ? 'RubberBand' : prev.engine,
         }));
 
-        // Jedno wywołanie IPC zamiast sześciu kolejnych; UI zmienia się od razu (optymistycznie),
-        // a ticker backendu i tak potwierdza faktyczny stan.
+        // One IPC call instead of six in a row; the UI changes right away (optimistically),
+        // and the backend ticker confirms the real state anyway.
         await invoke('apply_dsp_profile', {
           engine: vibe !== 'flat' && status.engine === 'Bypass' ? 'RubberBand' : null,
           tempoRatio: targetTempo,
@@ -505,7 +505,7 @@ export function useDspManager({
         });
         setSelectedEqPreset(loc.notifications.eqCustom);
       } catch (e: unknown) {
-        console.error('Błąd zmiany pasma EQ:', e);
+        console.error('Failed to change the EQ band:', e);
       }
     },
     [setStatus, loc]
@@ -597,7 +597,7 @@ export function useDspManager({
           level,
         });
       } catch (e: unknown) {
-        console.warn('Błąd aktualizacji parametrów pogłosu:', e);
+        console.warn('Failed to update the reverb parameters:', e);
       }
     },
     [reverbRoomSize, reverbDamping, reverbWidth, reverbLevel]

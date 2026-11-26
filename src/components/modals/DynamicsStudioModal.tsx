@@ -89,7 +89,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
   const [presets, setPresets] = useState<DynamicsPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
-  // Pobierz stan początkowy oraz presety przy otwarciu
+  // Fetch the initial state and the presets on open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -98,7 +98,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         setState(loaded);
       })
       .catch((err) => {
-        console.error('Błąd get_dynamics_state:', err);
+        console.error('get_dynamics_state failed:', err);
       });
 
     invoke<DynamicsPreset[]>('get_dynamics_presets')
@@ -106,27 +106,27 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         setPresets(list);
       })
       .catch((err) => {
-        console.error('Błąd get_dynamics_presets:', err);
+        console.error('get_dynamics_presets failed:', err);
       });
   }, [isOpen]);
 
-  // Aplikuj stan do silnika audio w czasie rzeczywistym
+  // Apply the state to the audio engine in real time
   const applyState = async (newState: DynamicsState) => {
     setState(newState);
     try {
       await invoke('set_dynamics_state', { dynamicsState: newState });
     } catch (err) {
-      console.error('Błąd set_dynamics_state:', err);
+      console.error('set_dynamics_state failed:', err);
     }
   };
 
-  // Obsługa zmiany presetu
+  // Preset change
   const handleSelectPreset = (preset: DynamicsPreset) => {
     setActivePresetId(preset.id);
     applyState(preset.state);
   };
 
-  // Reset do neutralnego bit-perfect bypass
+  // Reset to a neutral bit-perfect bypass
   const handleReset = () => {
     setActivePresetId('bypass');
     applyState({
@@ -151,8 +151,8 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
     });
   };
 
-  // Wyliczanie punktów SVG dla krzywej kompresji dynamiki
-  // Wejście X: -60 dBFS .. 0 dBFS -> Wyjście Y: -60 dBFS .. +12 dBFS
+  // SVG points for the dynamics compression curve
+  // Input X: -60 dBFS .. 0 dBFS -> output Y: -60 dBFS .. +12 dBFS
   const compressionCurvePoints = useMemo(() => {
     const width = 280;
     const height = 140;
@@ -194,13 +194,13 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         outputDb += makeup;
       }
 
-      // Mapowanie dBFS do współrzędnych SVG
+      // Map dBFS to SVG coordinates
       // X: -60 dB = 0, 0 dB = effW
       const normX = (inputDb + 60) / 60;
       const svgX = padding + normX * effW;
 
-      // Y: -60 dB = effH, 0 dB = padding + effH * 0.25 (zostawiamy miejsce na makeup gain do +15dB)
-      const maxRangeDb = 72; // od -60 do +12 dBFS
+      // Y: -60 dB = effH, 0 dB = padding + effH * 0.25 (leaves room for makeup gain up to +15dB)
+      const maxRangeDb = 72; // from -60 to +12 dBFS
       const normY = Math.min(1.0, Math.max(0.0, (outputDb + 60) / maxRangeDb));
       const svgY = padding + effH * (1.0 - normY);
 
@@ -210,8 +210,8 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
     return points.join(' ');
   }, [state.compressor]);
 
-  // Wyliczanie punktów SVG dla krzywej transferu nasycenia falowego (waveshaper)
-  // X: wejście -1.0 .. +1.0 -> Y: wyjście -1.0 .. +1.0
+  // SVG points for the waveshaper saturation transfer curve
+  // X: input -1.0 .. +1.0 -> Y: output -1.0 .. +1.0
   const waveshaperCurvePoints = useMemo(() => {
     const width = 280;
     const height = 140;
@@ -268,7 +268,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
       onClose={onClose}
       className="flex max-h-[92vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-pink-500/30 bg-ink/95 text-purple-100"
     >
-      {/* NAGŁÓWEK */}
+      {/* HEADER */}
       <div
         className="flex items-center justify-between border-b border-white/8 bg-linear-to-r from-pink-500/10 to-accent-purple/8 px-6 py-4"
       >
@@ -305,7 +305,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         </div>
       </div>
 
-      {/* LISTA SZYBKICH PRESETÓW */}
+      {/* QUICK PRESET LIST */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 bg-black/25 px-6 py-2.5">
         <span className="text-xs font-bold whitespace-nowrap text-accent-purple">
           <Sparkles size={14} className="mr-1 inline" />
@@ -331,9 +331,9 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         })}
       </div>
 
-      {/* ZAWARTOŚĆ GŁÓWNA - 3 PANELE */}
+      {/* MAIN CONTENT: 3 PANELS */}
       <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5">
-        {/* RACK 1: KOMPRESOR DYNAMIKI */}
+        {/* RACK 1: DYNAMICS COMPRESSOR */}
         <div
           className={cn(
             'rounded-xl border bg-white/3 p-4 transition-all duration-200',
@@ -377,7 +377,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           </div>
 
           <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
-            {/* SUWAKI KOMPRESORA */}
+            {/* COMPRESSOR SLIDERS */}
             <div className="flex flex-col gap-3">
               {/* Threshold */}
               <div>
@@ -497,18 +497,18 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               </div>
             </div>
 
-            {/* WYKRES KRZYWEJ KOMPRESJI SVG */}
+            {/* SVG COMPRESSION CURVE CHART */}
             <div className="flex flex-col items-center rounded-xl border border-white/8 bg-black/40 p-2">
               <div className="mb-1 w-full text-left text-xxs text-fg-secondary">
                 {loc.dynamicsStudio.inputOutputCurve}
               </div>
               <svg width="280" height="140" className="overflow-visible">
-                {/* Siatka tła */}
+                {/* Background grid */}
                 <line x1="10" y1="130" x2="270" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
                 <line x1="10" y1="10" x2="10" y2="130" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                {/* Linia prosta 1:1 bez kompresji (szara przerywana) */}
+                {/* Straight 1:1 line without compression (grey, dashed) */}
                 <line x1="10" y1="130" x2="270" y2="40" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                {/* Dynamiczna krzywa kompresora */}
+                {/* Dynamic compressor curve */}
                 <polyline
                   fill="none"
                   stroke="#ec4899"
@@ -525,7 +525,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           </div>
         </div>
 
-        {/* RACK 2: SATURATOR ANALOGOWY & LAMPA */}
+        {/* RACK 2: ANALOG SATURATOR & TUBE */}
         <div
           className={cn(
             'rounded-xl border bg-white/3 p-4 transition-all duration-200',
@@ -572,7 +572,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
             </button>
           </div>
 
-          {/* Wybór trybu saturacji */}
+          {/* Saturation mode choice */}
           <div className="mb-4 flex gap-2">
             {[
               { id: 'TubeWarmth' as SaturatorMode, label: loc.dynamicsStudio.modeTube, desc: loc.dynamicsStudio.modeTubeDesc },
@@ -604,7 +604,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           </div>
 
           <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
-            {/* SUWAKI SATURATORA */}
+            {/* SATURATOR SLIDERS */}
             <div className="flex flex-col gap-3">
               {/* Drive */}
               <div>
@@ -630,7 +630,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                 />
               </div>
 
-              {/* Warmth (tylko dla TubeWarmth) */}
+              {/* Warmth (TubeWarmth only) */}
               {state.saturator.mode === 'TubeWarmth' && (
                 <div>
                   <div className="mb-1 flex justify-between text-ui">
@@ -683,18 +683,18 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
               </div>
             </div>
 
-            {/* WYKRES KRZYWEJ FALOWEJ WSUWAKÓW */}
+            {/* WAVESHAPER CURVE CHART */}
             <div className="flex flex-col items-center rounded-xl border border-white/8 bg-black/40 p-2">
               <div className="mb-1 w-full text-left text-xxs text-fg-secondary">
                 {loc.dynamicsStudio.waveshaperCurve}
               </div>
               <svg width="280" height="140" className="overflow-visible">
-                {/* Osie x = 0 i y = 0 */}
+                {/* Axes x = 0 and y = 0 */}
                 <line x1="10" y1="70" x2="270" y2="70" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
                 <line x1="140" y1="10" x2="140" y2="130" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                {/* Linia neutralna liniowa (szara przerywana) */}
+                {/* Neutral linear line (grey, dashed) */}
                 <line x1="10" y1="130" x2="270" y2="10" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
-                {/* Dynamiczna krzywa nasycenia */}
+                {/* Dynamic saturation curve */}
                 <polyline
                   fill="none"
                   stroke="#f59e0b"
@@ -711,7 +711,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           </div>
         </div>
 
-        {/* RACK 3: MASTER LIMITER SŁUCHAWKOWY */}
+        {/* RACK 3: HEADPHONE MASTER LIMITER */}
         <div
           className={cn(
             'flex items-center justify-between rounded-xl border bg-white/3 p-4',
@@ -760,7 +760,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
         </div>
       </div>
 
-      {/* STOPKA */}
+      {/* FOOTER */}
       <div className="flex items-center justify-between border-t border-white/8 bg-black/20 px-6 py-3">
         <div className="text-xs text-fg-muted">
           {loc.dynamicsStudio.realTimeTip}

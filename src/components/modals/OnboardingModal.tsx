@@ -49,7 +49,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     try {
       localStorage.setItem('auralune_onboarding_completed', 'true');
     } catch {
-      // Ignoruj błędy localStorage
+      // Ignore localStorage errors
     }
     onClose();
   };
@@ -61,7 +61,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       <div
         className="glass-card relative flex max-h-[90vh] w-full max-w-140 flex-col overflow-y-auto rounded-3xl border border-accent-purple/40 bg-modal p-8 text-fg shadow-modal"
       >
-        {/* Zamknięcie */}
+        {/* Close */}
         <button
           onClick={handleFinish}
           className="absolute top-5 right-5 border-0 bg-transparent p-1 text-fg-muted"
@@ -70,7 +70,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           <X size={20} />
         </button>
 
-        {/* Wskaźnik kroków */}
+        {/* Step indicator */}
         <div className="mb-6 flex items-center justify-center gap-2">
           {[1, 2, 3].map((s) => (
             <div
@@ -84,7 +84,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           ))}
         </div>
 
-        {/* KROK 1: Kim jestem, dlaczego powstało Auralune & Disclaimer */}
+        {/* STEP 1: who I am, why Auralune exists & disclaimer */}
         {step === 1 && (
           <div className="motion-safe:animate-fade-in">
             <div className="mb-4 flex items-center gap-3.5">
@@ -103,7 +103,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Osobista notka autorki */}
+            {/* The author's personal note */}
             <div
               className="mb-4.5 rounded-2xl border border-accent-purple/25 bg-accent-purple/8 p-4 text-sm leading-normal text-slate-200"
             >
@@ -116,7 +116,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </p>
             </div>
 
-            {/* Klauzula wyłączenia odpowiedzialności (No warranty / As-is disclaimer) */}
+            {/* No warranty / as-is disclaimer */}
             <div
               className="mb-5 rounded-2xl border border-accent-red/30 bg-accent-red/8 px-4 py-3.5 text-ui leading-normal text-red-300"
             >
@@ -131,7 +131,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         )}
 
-        {/* KROK 2: Auralune Recap (Spotify Wrapped) Opt-in & Język */}
+        {/* STEP 2: Auralune Recap (Spotify Wrapped) opt-in & language */}
         {step === 2 && (
           <div className="motion-safe:animate-fade-in">
             <div className="mb-4 flex items-center gap-3">
@@ -182,7 +182,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Wybór języka */}
+            {/* Language choice */}
             <div className="mb-4.5">
               <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.interfaceLang}
@@ -214,7 +214,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         )}
 
-        {/* KROK 3: Głośność (Instant vs Fade) & Pozycja OSD */}
+        {/* STEP 3: volume (instant vs fade) & OSD position */}
         {step === 3 && (
           <div className="motion-safe:animate-fade-in">
             <div className="mb-4 flex items-center gap-3">
@@ -233,7 +233,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Tryb głośności: Instant vs Fade */}
+            {/* Volume mode: instant vs fade */}
             <div className="mb-5">
               <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.volumeMode}
@@ -273,7 +273,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* Pozycja wskaźnika głośności OSD */}
+            {/* OSD volume indicator position */}
             <div className="mb-5">
               <label className="mb-2 block text-sm font-semibold">
                 {loc.onboarding.hudPlacement}
@@ -306,7 +306,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         )}
 
-        {/* Przyciski nawigacji kroków */}
+        {/* Step navigation buttons */}
         <div className="mt-auto flex items-center justify-between pt-4">
           {step > 1 ? (
             <button

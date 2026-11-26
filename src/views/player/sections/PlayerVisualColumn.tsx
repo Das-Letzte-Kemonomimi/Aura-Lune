@@ -37,7 +37,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   tracks,
   vinylRpm,
 }) => {
-  // BPM bieżącego utworu — wyszukiwanie w bibliotece tylko przy zmianie utworu/biblioteki, nie co tick
+  // BPM of the current track: looked up in the library only when the track/library changes, not on every tick
   const currentTrackId = status.current_track?.track_id;
   const currentTrackUri = status.current_track?.uri;
   const turntableBpm = useMemo(
@@ -50,7 +50,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
 
   return (
     <div className="flex w-full flex-col items-center">
-      {/* Selektor trybu wizualnego: Okładka • Winyl Hi-Fi • Taśma • Wskaźnik VU */}
+      {/* Visual mode selector: cover • hi-fi vinyl • tape • VU meter */}
       <div
         className={cn(
           'mb-2.5 flex w-full gap-1 rounded-lg bg-black/35 p-1 transition-[max-width] duration-200',
@@ -162,7 +162,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
                 boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5)',
               }}
             >
-              {/* Centrum winylu z logo Kitsune */}
+              {/* Vinyl centre with the Kitsune logo */}
               <div
                 className="flex h-16 w-16 items-center justify-center rounded-full border-3 border-black/60 bg-accent-gradient shadow-halo-sm shadow-accent-pink/50"
               >
@@ -171,7 +171,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
             </div>
           )}
 
-          {/* Badge formatu na okładce */}
+          {/* Format badge on the cover */}
           <div
             className="absolute bottom-2.5 right-2.5 rounded-md border border-accent-cyan/35 bg-black/90 px-2 py-1 text-xxs font-bold tracking-wider text-accent-cyan"
           >
@@ -180,7 +180,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
         </div>
       )}
 
-      {/* Przyciski lub kontrolki pod elementem wizualnym w zależności od trybu */}
+      {/* Buttons or controls below the visual element, depending on the mode */}
       {nowPlayingVisualMode === 'cover' ? (
         <div className="mt-2.5 flex w-full max-w-60 gap-2">
           <button
@@ -273,5 +273,5 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   );
 };
 
-/** Zob. `statusUnchanged` w `playerVisualColumnMemo.ts` — pomija ~10 Hz zmiany pozycji i widma. */
+/** See `statusUnchanged` in `playerVisualColumnMemo.ts`: skips the ~10 Hz position and spectrum changes. */
 export const PlayerVisualColumn = React.memo(PlayerVisualColumnBase, arePlayerVisualColumnPropsEqual);

@@ -67,7 +67,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
   tracks,
 }) => (
     <div>
-      {/* Inteligentne Playlisty (Smart Playlists) */}
+      {/* Smart Playlists */}
       <div className="mb-3.5 flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold text-fg-muted">{loc.library.collection}</span>
         {[

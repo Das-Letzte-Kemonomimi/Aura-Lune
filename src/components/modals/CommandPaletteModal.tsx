@@ -101,7 +101,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     inputRef.current?.focus();
   }, []);
 
-  // Wszystkie stałe akcje systemowe
+  // All fixed system actions
   const systemActions: CommandItem[] = useMemo(() => {
     return [
       {
@@ -476,7 +476,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     ];
   }, [isPlaying, loc, stopAfterCurrent, onTogglePlay, onClose, onNext, onPrevious, onToggleShuffle, onShuffleAll, onOpenHealthCheck, onToggleStopAfterCurrent, onOpenUrlImportModal, onOpenBigScreen, onOpenSoundscape, onOpenHarmonicSuggester, onOpenAutoEq, onOpenParametricEq, onOpenDynamicsStudio, onSetAmbience, onSetDspEngine, onResetDsp, onOpenReplayGainScanner, onSelectTab]);
 
-  // Filtrowane wyniki
+  // Filtered results
   const filteredItems: CommandItem[] = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
@@ -485,7 +485,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
     const results: CommandItem[] = [];
 
-    // 1. Akcje systemowe dopasowane do zapytania
+    // 1. System actions matching the query
     for (const act of systemActions) {
       if (
         act.title.toLowerCase().includes(q) ||
@@ -495,7 +495,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       }
     }
 
-    // 2. Utwory z biblioteki
+    // 2. Library tracks
     for (const t of tracks) {
       if (
         t.title.toLowerCase().includes(q) ||
@@ -518,7 +518,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (results.length >= 35) break;
     }
 
-    // 3. Albumy
+    // 3. Albums
     for (const a of albums) {
       if (
         a.title.toLowerCase().includes(q) ||
@@ -547,7 +547,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     setSelectedIndex(0);
   }, [query]);
 
-  // Obsługa klawiatury
+  // Keyboard handling
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -672,7 +672,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
               <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↑↓</kbd> Nawigacja
             </span>
             <span>
-              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↵</kbd> Wybierz
+              <kbd className="rounded-sm bg-white/8 px-1.5 py-0.5">↵</kbd> Select
             </span>
           </div>
           <div>

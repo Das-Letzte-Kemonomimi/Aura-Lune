@@ -105,7 +105,7 @@ describe('UpdatesSettingsView release notes', () => {
         {...props({ info: { ...info, release_notes: '## Highlights\n- **Faster** startup\n- `code` bit' } })}
       />,
     );
-    // Karta jest domyślnie zwinięta: notatki pojawiają się po rozwinięciu.
+    // The card is collapsed by default: the notes appear once it is expanded.
     expect(screen.queryByText('Faster')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: loc.updates.releaseNotes }));
     expect(screen.getByRole('heading', { name: 'Highlights' })).toBeTruthy();

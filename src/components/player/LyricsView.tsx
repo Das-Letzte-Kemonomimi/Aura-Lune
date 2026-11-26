@@ -90,7 +90,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
 
-  // Pobieranie tekstów piosenek
+  // Fetch the song lyrics
   const loadLyrics = useCallback(async () => {
     if (!trackTitle && !trackPath) {
       setLyrics(null);
@@ -117,7 +117,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         setSyncTargetIndex(0);
       }
     } catch (err) {
-      console.error('Błąd pobierania tekstów:', err);
+      console.error('Failed to fetch the lyrics:', err);
       setError(String(err));
       setLyrics(null);
     } finally {
@@ -137,7 +137,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     };
   }, [loadLyrics]);
 
-  // Efektywne linie z uwzględnieniem przesunięcia (offsetMs)
+  // Effective lines with the offset applied (offsetMs)
   const effectiveLines = useMemo(() => {
     if (!lyrics || !lyrics.lines) return [];
     return lyrics.lines.map((line) => ({
@@ -146,7 +146,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     }));
   }, [lyrics, offsetMs]);
 
-  // Wyznaczanie indeksu aktualnej linii
+  // Find the current line index
   const activeIndex = useMemo(() => {
     if (!lyrics || !lyrics.is_synced || effectiveLines.length === 0) {
       return -1;
@@ -163,7 +163,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     return found;
   }, [lyrics, effectiveLines, currentPositionMs]);
 
-  // Autoscroll do aktywnej linii
+  // Autoscroll to the active line
   useEffect(() => {
     const container = scrollContainerRef.current;
     const line = activeLineRef.current;
@@ -177,7 +177,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     }
   }, [activeIndex, autoScroll]);
 
-  // Ręczna synchronizacja: ustawienie czasu dla konkretnej linii
+  // Manual sync: set the time for a specific line
   const handleSetLineTime = (index: number, timeMs: number) => {
     if (!lyrics) return;
     const newLines = [...lyrics.lines];
@@ -190,7 +190,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     setSyncTargetIndex(Math.min(newLines.length - 1, index + 1));
   };
 
-  // Automatyczny rozkład linii (Auto-Sync) wzdłuż trwania utworu
+  // Automatic line layout (Auto-Sync) along the track duration
   const handleAutoDistribute = () => {
     if (!lyrics) return;
     const linesToProcess = lyrics.lines.length > 0
@@ -224,7 +224,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     setTimeout(() => setSaveSuccessMsg(null), 4000);
   };
 
-  // Formatowanie do formatu standardowego LRC
+  // Format as standard LRC
   const formatTimeLrc = (ms: number): string => {
     const totalSec = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSec / 60);
@@ -233,7 +233,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     return `[${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centis).padStart(2, '0')}]`;
   };
 
-  // Zapis do lokalnego pliku .lrc
+  // Save to a local .lrc file
   const handleSaveLrc = async () => {
     if (!trackPath || !lyrics || !lyrics.lines || lyrics.lines.length === 0) {
       alert(loc.lyricsView.noLyricsFound);
@@ -269,7 +269,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     <div
       className="relative flex h-full min-h-0 w-full min-w-0 max-w-full transform-gpu flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-panel will-change-transform"
     >
-      {/* Nagłówek okna tekstów */}
+      {/* Lyrics window header */}
       <div className="flex flex-wrap items-center justify-between gap-y-2 border-b border-line bg-black/35 px-5 py-3.5">
         <div className="flex min-w-0 grow basis-45 items-center gap-2.5">
           <div
@@ -306,7 +306,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             </span>
           )}
 
-          {/* Przycisk trybu edycji/synchronizacji */}
+          {/* Edit/sync mode button */}
           <button
             onClick={() => setIsSyncMode(!isSyncMode)}
             title={loc.lyricsView.syncModeTitle}
@@ -337,7 +337,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             </button>
           )}
 
-          {/* Przełącznik transliteracji Romaji (Kana / Romaji / Dwuwiersz Karaoke) */}
+          {/* Romaji transliteration toggle (Kana / Romaji / two-line karaoke) */}
           <button
             onClick={() => {
               const next = romajiMode === 'original' ? 'dual' : romajiMode === 'dual' ? 'romaji' : 'original';
@@ -382,11 +382,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         </div>
       </div>
 
-      {/* PASEK NARZĘDZI SYNCHRONIZACJI (Offset & Auto-Sync & Save) */}
+      {/* SYNC TOOLBAR (offset & Auto-Sync & save) */}
       <div
         className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-black/20 px-4.5 py-2 text-xs"
       >
-        {/* Korekta przesunięcia (Offset) */}
+        {/* Offset correction */}
         <div className="flex items-center gap-1.5">
           <span className="font-semibold text-fg-muted">{loc.lyricsView.compensation}:</span>
           <button
@@ -431,7 +431,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           )}
         </div>
 
-        {/* Akcje Auto-Sync i Zapis pliku */}
+        {/* Auto-Sync and save file actions */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleAutoDistribute}
@@ -453,7 +453,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         </div>
       </div>
 
-      {/* Komunikat o sukcesie zapisu */}
+      {/* Save success message */}
       {saveSuccessMsg && (
         <div
           className="flex items-center gap-1.5 border-b border-accent-green/35 bg-accent-green/20 px-4 py-1.5 text-ui text-accent-green"
@@ -462,7 +462,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         </div>
       )}
 
-      {/* PANEL AKTYWNEJ MANUALNEJ SYNCHRONIZACJI */}
+      {/* ACTIVE MANUAL SYNC PANEL */}
       {isSyncMode && lyrics && lyrics.lines && lyrics.lines.length > 0 && (
         <div
           className="flex items-center justify-between gap-3 border-b border-accent-pink/25 bg-accent-pink/10 px-4.5 py-2.5"
@@ -485,7 +485,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         </div>
       )}
 
-      {/* Główny obszar wyświetlania tekstu */}
+      {/* Main lyrics display area */}
       <div
         ref={scrollContainerRef}
         className="flex min-h-0 min-w-0 flex-1 select-none flex-col items-center gap-4 overflow-y-auto overflow-x-hidden px-6 py-7.5 text-center wrap-anywhere"
@@ -520,7 +520,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           </div>
         )}
 
-        {/* Tekst zsynchronizowany */}
+        {/* Synced lyrics */}
         {!loading && lyrics?.is_synced && lyrics.lines && lyrics.lines.length > 0 && (
           <div className="flex w-full max-w-205 min-w-0 flex-col gap-3.5 pt-[15vh] pb-[25vh]">
             {lyrics.lines.map((line, idx) => {
@@ -550,7 +550,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                     }
                   }}
                 >
-                  {/* Znacznik czasu w trybie synchronizacji */}
+                  {/* Timestamp in sync mode */}
                   {isSyncMode && (
                     <div className="flex items-center gap-1.5">
                       <span className="rounded-sm bg-white/6 px-1.5 py-0.5 font-mono text-xs text-fg-muted">
@@ -569,7 +569,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                     </div>
                   )}
 
-                  {/* Treść wersu tekstu z opcjonalną transliteracją Romaji */}
+                  {/* Lyric line text with optional Romaji transliteration */}
                   {romajiMode === 'original' ? (
                     <span className="min-w-0 flex-1">{line.text}</span>
                   ) : romajiMode === 'romaji' ? (
@@ -595,7 +595,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           </div>
         )}
 
-        {/* Tekst statyczny (plain) z opcją konwersji do zsynchronizowanego */}
+        {/* Static (plain) lyrics with an option to convert them to synced lyrics */}
         {!loading && !lyrics?.is_synced && lyrics?.plain_lyrics && (
           <div className="flex w-full max-w-170 min-w-0 flex-col gap-5 px-0 py-5">
             <div

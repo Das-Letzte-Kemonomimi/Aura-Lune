@@ -85,9 +85,9 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Sekcja Twórczyni: Bandcamp & Aplikacja Sorta dla AuDHD / ADHD */}
+      {/* Creator section: Bandcamp & the Sorta app for AuDHD / ADHD */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-3.5">
-        {/* Karta Bandcamp: Muzyka Autorki */}
+        {/* Bandcamp card: the author's music */}
         <div
           className="glass-card flex flex-col justify-between rounded-2xl border border-accent-purple/35 bg-linear-135 from-accent-purple/10 to-accent-pink/8 px-5 py-4.5 shadow-xl shadow-accent-purple/10"
         >
@@ -116,7 +116,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
           </button>
         </div>
 
-        {/* Karta Sorta: Aplikacja dla AuDHD / ADHD */}
+        {/* Sorta card: an app for AuDHD / ADHD */}
         <div
           className="glass-card flex flex-col justify-between rounded-2xl border border-accent-cyan/35 bg-linear-135 from-accent-cyan/10 to-pink-500/8 px-5 py-4.5 shadow-xl shadow-accent-cyan/10"
         >
@@ -196,7 +196,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Karta Skrótów Klawiszowych */}
+      {/* Keyboard shortcuts card */}
       <div className="glass-card p-5">
         <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-base font-bold text-fg">
           <Keyboard size={18} className="text-accent-pink" /> {loc.shortcuts.title}
@@ -229,7 +229,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Karta Zastrzeżenia / Brak Gwarancji */}
+      {/* Disclaimer / no warranty card */}
       <div
         className="rounded-2xl border border-accent-amber/30 bg-linear-135 from-accent-amber/8 to-orange-600/6 px-5.5 py-4.5 shadow-xl shadow-accent-amber/8"
       >
@@ -241,7 +241,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         </p>
       </div>
 
-      {/* Karta Ponownego uruchomienia kreatora powitalnego */}
+      {/* Card for re-running the welcome wizard */}
       <div className="glass-card flex items-center justify-between p-5">
         <div>
           <div className="text-sm font-semibold text-fg">

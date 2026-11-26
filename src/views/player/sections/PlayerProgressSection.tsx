@@ -41,7 +41,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
           <span className="font-bold text-fg">
             {formatTime(status.position_ms)}
           </span>
-          {/* Wskaźnik prędkości i transpozycji DSP jeśli tempo, szybkość lub pitch jest modyfikowane */}
+          {/* DSP speed and transposition indicator when tempo, rate or pitch is changed */}
           {(dspCombination.hasTempo || dspCombination.hasRate || dspCombination.hasPitch) && (
             <span
               className="rounded-sm border border-accent-purple/45 bg-accent-purple/25 px-1.5 py-px text-xxs font-bold text-accent-purple"
@@ -86,7 +86,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
             </div>
           )}
 
-          {/* Przełącznik płynnego wyciszenia paska postępu (Fade Seek) */}
+          {/* Fade Seek toggle for the progress bar */}
           <button
             onClick={handleToggleSeekFade}
             className={cn(
@@ -101,7 +101,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
         <span>{status.duration_ms ? formatTime(status.duration_ms) : '--:--'}</span>
       </div>
 
-      {/* Wizualizacja przebiegu utworu (Waveform) - interaktywna fala zsynchronizowana z DSP */}
+      {/* Track waveform: an interactive wave synced with DSP */}
       <WaveformCanvas
         peaks={trackWaveformPeaks || []}
         progress={status.duration_ms && status.duration_ms > 0 ? (status.position_ms / status.duration_ms) * 100 : 0}
@@ -137,7 +137,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
         className="mb-2.5"
       />
 
-      {/* Kontener suwaka z podświetleniem pętli A-B oraz znacznikiem zakładki */}
+      {/* Slider container with the A-B loop highlight and the bookmark marker */}
       <div className="relative flex w-full items-center">
         {loopPointA !== null && loopPointB !== null && status.duration_ms && (
           <div
@@ -184,7 +184,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
             B
           </div>
         )}
-        {/* Wskaźnik zapisanej zakładki na osi czasu */}
+        {/* Saved bookmark marker on the timeline */}
         {currentBookmark !== null && status.duration_ms && (
           <div
             onClick={(e) => {
@@ -198,7 +198,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
             <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
           </div>
         )}
-        {/* Wskaźniki wielopunktowych zakładek (Track Bookmarks / Cue Points) na osi czasu */}
+        {/* Multi-point bookmark markers (track bookmarks / cue points) on the timeline */}
         {status.duration_ms && status.duration_ms > 0 && currentTrackBookmarks.map((bm) => {
           const leftPct = Math.min(100, Math.max(0, (bm.position_ms / status.duration_ms!) * 100));
           return (

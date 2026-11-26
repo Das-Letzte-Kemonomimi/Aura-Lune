@@ -42,7 +42,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Wybór presetu EQ - nowoczesne anime glassmorphism dropdown */}
+          {/* EQ preset dropdown */}
           <div className="relative">
             <button
               type="button"
@@ -76,7 +76,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
                   {loc.dsp.eqPresets}
                 </div>
 
-                {/* Opcja Własny (Custom) jeśli suwaki zostały zmienione ręcznie */}
+                {/* The Custom option, when the sliders were changed by hand */}
                 {selectedEqPreset &&
                   !eqPresets.some(
                     (p) =>
@@ -117,7 +117,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             )}
           </div>
 
-          {/* Przycisk Reset EQ */}
+          {/* EQ reset button */}
           <button
             onClick={handleResetEq}
             className="rounded-lg border border-line bg-white/6 px-3 py-1.5 text-xs font-semibold text-fg-secondary"
@@ -125,7 +125,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             {loc.dsp.reset} (0 dB)
           </button>
 
-          {/* Przycisk Bazy Profili Słuchawkowych AutoEQ */}
+          {/* AutoEQ headphone profile database button */}
           <button
             onClick={() => setIsAutoEqOpen(true)}
             title={loc.dsp.autoEqHarmanTooltip}
@@ -134,7 +134,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             <Headphones size={13} /> AutoEQ
           </button>
 
-          {/* Przycisk Wielopasmowego Korektora Parametrycznego PEQ */}
+          {/* Multi-band parametric equalizer (PEQ) button */}
           <button
             onClick={() => setIsParametricEqOpen(true)}
             title={loc.parametricEq.subtitle}
@@ -152,7 +152,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             )}
           </button>
 
-          {/* Przycisk Studia Dynamiki & Lampy (Kompresor / Saturator / Limiter) */}
+          {/* Dynamics & tube studio button (compressor / saturator / limiter) */}
           <button
             onClick={() => setIsDynamicsStudioOpen(true)}
             title={loc.dsp.dynamicsStudioTooltip}
@@ -170,7 +170,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             )}
           </button>
 
-          {/* Przełącznik Włącz / Wyłącz EQ (Bypass) */}
+          {/* EQ on / off toggle (Bypass) */}
           <button
             onClick={handleEqToggle}
             className={cn(
@@ -183,7 +183,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
             {status.equalizer_enabled ? `● ${loc.dsp.eqEnabled}` : `○ ${loc.dsp.eqBypass}`}
           </button>
 
-          {/* Przełącznik autostartu EQ */}
+          {/* EQ autostart toggle */}
           <button
             onClick={handleToggleEqAutoStartup}
             title={loc.dsp.eqAutostart}
@@ -199,7 +199,7 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
         </div>
       </div>
 
-      {/* 10 pasm w ergonomicznym układzie 2-kolumnowym */}
+      {/* 10 bands in a 2-column layout */}
       <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-black/25 p-4">
         {EQUALIZER_BANDS.map((band, idx) => {
           const gain = (status.equalizer_bands && status.equalizer_bands[idx]) ?? 0;

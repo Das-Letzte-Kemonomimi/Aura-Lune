@@ -17,7 +17,7 @@ import { LibraryToolbar } from './sections/LibraryToolbar';
 import { LibraryScanPanel } from './sections/LibraryScanPanel';
 import { LibraryHeader } from './sections/LibraryHeader';
 
-/** Typy setterów i stanu biblioteki pochodzą bezpośrednio z hooka `useLibraryManager`. */
+/** The library setter and state types come straight from the `useLibraryManager` hook. */
 type LibraryManager = ReturnType<typeof useLibraryManager>;
 
 export interface ArtistLibraryItem {
@@ -174,15 +174,15 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
 
   return (
             <div className="glass-panel mx-auto my-0 p-7" style={{ maxWidth: layoutMaxWidth }}>
-              {/* Nagłówek biblioteki: tytuł, statystyka i przyciski akcji */}
+              {/* Library header: title, stats and action buttons */}
               <LibraryHeader {...props} />
 
-              {/* Rozwijany panel skanera katalogu (niewidoczny domyślnie, nie marnuje miejsca) */}
+              {/* Collapsible folder scanner panel (hidden by default, so it takes no space) */}
               {isScanFolderOpen && (
                 <LibraryScanPanel {...props} />
               )}
 
-              {/* Kompaktowe statystyki biblioteki */}
+              {/* Compact library stats */}
               <div className="mb-4.5 grid grid-cols-3 gap-3">
                 <div className="glass-card flex items-center gap-3 px-4 py-3">
                   <Music size={22} className="text-accent-pink" />
@@ -211,7 +211,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
                 </div>
               </div>
 
-              {/* 3-Kolumnowy panel filtrów fasetowych (foobar2000 Facets) */}
+              {/* 3-column faceted filter panel (foobar2000 Facets) */}
               {isFacetsFilterEnabled && (
                 <div className="mb-4.5">
                   <FacetsFilterPane
@@ -232,15 +232,15 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
                 </div>
               )}
 
-              {/* Pasek narzędziowy: widoki Utwory/Albumy, Live Search i filtry formatów */}
+              {/* Toolbar: Tracks/Albums views, live search and format filters */}
               <LibraryToolbar {...props} />
 
-              {/* Widok 1: Tabela utworów */}
+              {/* View 1: track table */}
               {librarySubView === 'tracks' && (
                 <LibraryTracksView {...props} t={t} />
               )}
 
-              {/* Widok 2: Siatka albumów i okładek (Etap 6) lub widok szczegółowy wybranego albumu */}
+              {/* View 2: album and cover grid, or the detail view of the selected album */}
               {librarySubView === 'albums' && (
                 selectedAlbumDetail ? (
                   <LibraryAlbumDetail {...props} selectedAlbumDetail={selectedAlbumDetail} t={t} />
@@ -249,12 +249,12 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
                 )
               )}
 
-              {/* Widok 3: Wykonawcy / Artyści */}
+              {/* View 3: artists */}
               {librarySubView === 'artists' && (
                 <LibraryArtistsView {...props} t={t} />
               )}
 
-              {/* Modal dopasowywania wydań MusicBrainz (Etap 6) */}
+              {/* MusicBrainz release matching modal */}
               {selectedAlbumForMb && (
                 <LibraryMusicBrainzMatchPanel {...props} />
               )}

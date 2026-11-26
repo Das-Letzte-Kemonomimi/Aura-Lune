@@ -97,7 +97,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Sekcja Kopia Zapasowa Profilu */}
+      {/* Profile backup section */}
       <div className="glass-card rounded-2xl p-6">
         <div className="mb-3 flex items-center gap-2.5">
           <div className="rounded-lg bg-accent-purple/20 p-2">
@@ -128,7 +128,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Sekcja Zasobnik Systemowy Linuksa */}
+      {/* Linux system tray section */}
       <div className="glass-card rounded-2xl p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -169,7 +169,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Sekcja Discord Rich Presence (RPC) */}
+      {/* Discord Rich Presence (RPC) section */}
       <div className="glass-card rounded-2xl p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
         )}
       </div>
 
-      {/* Sekcja Płynny Crossfade (Poweramp style) */}
+      {/* Smooth crossfade section (Poweramp style) */}
       <div className="glass-card rounded-2xl p-6">
         <div className="mb-3.5 flex items-center gap-2.5">
           <div className="rounded-lg bg-accent-pink/20 p-2">
@@ -336,7 +336,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Sekcja ListenBrainz Scrobbler (MetaBrainz Ecosystem) */}
+      {/* ListenBrainz Scrobbler section (MetaBrainz ecosystem) */}
       <div className="glass-card rounded-2xl p-6">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-2.5">
@@ -432,7 +432,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Sekcja Last.fm Scrobbler (Official 2.0 API) */}
+      {/* Last.fm Scrobbler section (official 2.0 API) */}
       <div className="glass-card rounded-2xl p-6">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-2.5">

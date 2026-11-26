@@ -38,7 +38,7 @@ describe('stepSpin', () => {
     const cw = run({ angle: 0, speed: 100 }, 100, true, 0.1, 1 / 60, 1);
     const ccw = run({ angle: 0, speed: 100 }, 100, true, 0.1, 1 / 60, -1);
     expect(cw.angle).toBeGreaterThan(0);
-    expect(ccw.angle).toBeGreaterThan(180); // zawinięte poniżej zera
+    expect(ccw.angle).toBeGreaterThan(180); // wrapped below zero
   });
 
   it('is settled immediately when idle', () => {

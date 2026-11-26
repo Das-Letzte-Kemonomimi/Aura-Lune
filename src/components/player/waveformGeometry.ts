@@ -1,9 +1,9 @@
-/** Czyste funkcje geometrii fali (bez canvasu) — testowalne w jsdom. */
+/** Pure wave geometry functions (no canvas), testable in jsdom. */
 
 const FALLBACK_LENGTH = 120;
 const FALLBACK_VALUE = 30;
 
-/** Zwraca szczyty w zakresie 0..100; puste dane zastępuje płaską falą, NaN/∞ → 0. */
+/** Returns peaks in the 0..100 range; empty data is replaced with a flat wave, NaN/∞ → 0. */
 export function sanitizePeaks(peaks: readonly number[] | null | undefined): number[] {
   if (!peaks || peaks.length === 0) {
     return Array.from({ length: FALLBACK_LENGTH }, () => FALLBACK_VALUE);
@@ -11,7 +11,7 @@ export function sanitizePeaks(peaks: readonly number[] | null | undefined): numb
   return peaks.map((v) => (Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0));
 }
 
-/** Zmniejsza liczbę szczytów do `target` (max-pooling), by słupki mieściły się w szerokości. */
+/** Reduces the number of peaks to `target` (max pooling) so the bars fit in the width. */
 export function resamplePeaks(peaks: readonly number[], target: number): number[] {
   const n = Math.floor(target);
   if (n < 1 || n >= peaks.length) return [...peaks];
@@ -27,18 +27,18 @@ export function resamplePeaks(peaks: readonly number[], target: number): number[
 }
 
 export interface BarLayout {
-  /** Liczba rysowanych słupków. */
+  /** Number of bars drawn. */
   count: number;
   barWidth: number;
   gap: number;
-  /** Odległość między początkami kolejnych słupków. */
+  /** Distance between the starts of consecutive bars. */
   step: number;
 }
 
 /**
- * Układ słupków wypełniający dokładnie `width` (pierwszy słupek przy 0, ostatni kończy się na `width`),
- * dzięki czemu pozycja słupka zgadza się z postępem odtwarzania. Gdy słupki o szerokości
- * `minBarWidth` nie mieszczą się, liczba słupków jest ograniczana (zamiast wychodzić poza płótno).
+ * Bar layout that fills exactly `width` (the first bar at 0, the last one ending at `width`),
+ * so a bar's position matches the playback progress. When bars of width
+ * `minBarWidth` do not fit, the number of bars is limited (instead of overflowing the canvas).
  */
 export function computeBarLayout(
   width: number,

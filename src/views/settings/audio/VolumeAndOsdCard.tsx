@@ -23,7 +23,7 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
       </h4>
 
       <div className="flex flex-col gap-3.5 text-ui">
-        {/* Tryb głośności: Natychmiastowy vs Płynny */}
+        {/* Volume mode: instant vs smooth */}
         <div className="flex items-center justify-between">
           <div>
             <div className="font-semibold text-fg">
@@ -48,7 +48,7 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
           </button>
         </div>
 
-        {/* Jednostka wyświetlania głośności: Procenty vs Decybele */}
+        {/* Volume display unit: percent vs decibels */}
         <div className="flex items-center justify-between">
           <div>
             <div className="font-semibold text-fg">
@@ -84,7 +84,7 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
           </div>
         </div>
 
-        {/* Pozycja OSD głośności */}
+        {/* Volume OSD position */}
         <div className="flex items-center justify-between">
           <div>
             <div className="font-semibold text-fg">
@@ -109,7 +109,7 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
           </select>
         </div>
 
-        {/* Zgoda na Auralune Recap (Opt-In) */}
+        {/* Auralune Recap consent (opt-in) */}
         <div className="flex items-center justify-between">
           <div>
             <div className="font-semibold text-fg">

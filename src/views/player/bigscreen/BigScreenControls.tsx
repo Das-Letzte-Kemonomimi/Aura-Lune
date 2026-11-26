@@ -51,7 +51,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         showHud ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
       )}
     >
-      {/* Neonowy wizualizator widma lub analogowy VU-Meter */}
+      {/* Neon spectrum visualizer or analog VU meter */}
       <div className="relative w-full">
         <div className="absolute -top-7 right-0 z-10 flex gap-1.5">
           <button
@@ -92,7 +92,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         )}
       </div>
 
-      {/* Seeker z wizualizacją fali (Waveform) i wskaźnikiem DSP */}
+      {/* Seeker with the waveform and the DSP indicator */}
       <div className="flex flex-col gap-1.5">
         {/* Waveform bars */}
         <WaveformCanvas
@@ -159,7 +159,7 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         </div>
       </div>
 
-      {/* Przyciski sterowania */}
+      {/* Control buttons */}
       <div className="flex items-center justify-center gap-5">
         <button
           onClick={onPrev}

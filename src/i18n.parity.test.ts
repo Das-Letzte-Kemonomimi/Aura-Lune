@@ -3,7 +3,7 @@ import { translations, type Language } from './i18n';
 
 type Dict = { [key: string]: string | Dict };
 
-/** Wszystkie ścieżki kluczy z wartościami tekstowymi, np. `notifications.playingMsg`. */
+/** All key paths with text values, e.g. `notifications.playingMsg`. */
 function leaves(obj: Dict, prefix = ''): Map<string, string> {
   const out = new Map<string, string>();
   for (const [k, v] of Object.entries(obj)) {

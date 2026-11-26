@@ -65,9 +65,9 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
     onFetchCover,
     onUploadCover,
   } = props;
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const positionMs = useLivePositionMs(positionMsProp);
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const spectrum = useLiveSpectrum(spectrumProp ?? []);
   const t = getTranslations(currentLang);
   const [showHud, setShowHud] = useState(true);
@@ -126,7 +126,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
 
-  // Deterministyczny profil fali (Waveform) dla widoku pełnoekranowego
+  // Deterministic waveform profile for the full-screen view
   const waveformPeaks = useMemo(() => {
     const seedStr = `${title}-${artist}-${durationMs ?? 0}`;
     let h = 0x811c9dc5;
@@ -158,19 +158,19 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       )}
       style={{ background: 'radial-gradient(circle at center, #140e26 0%, #06070e 100%)' }}
     >
-      {/* Pasek górny HUD */}
+      {/* Top HUD bar */}
       <BigScreenHud {...props} showHud={showHud} t={t} setShowLyrics={setShowLyrics} showLyrics={showLyrics} />
 
-      {/* Środek: Okładka i teksty piosenek w układzie panoramicznym */}
+      {/* Centre: cover and lyrics in a panoramic layout */}
       <div
         className={cn(
           'my-[clamp(0.5rem,2vh,1.25rem)] grid min-h-0 items-center gap-[clamp(1.25rem,3vw,3.125rem)] flex-[1_0_auto]',
           showLyrics ? 'grid-cols-[minmax(0,--spacing(105))_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
         )}
       >
-        {/* Kolumna lewa: Wielka wirująca płyta winylowa / Okładka */}
+        {/* Left column: large spinning vinyl record / cover */}
         <div className="flex flex-col items-center gap-5 text-center">
-          {/* Przełącznik trybu wizualizacji: Okładka / Winyl / Retro Kaseta */}
+          {/* Visual mode toggle: cover / vinyl / retro cassette */}
           <div
             className="flex items-center gap-1 rounded-3xl border border-white/10 bg-white/6 p-1 shadow-lift shadow-black/30"
           >
@@ -204,7 +204,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
             </button>
           </div>
 
-          {/* TRYB 1: Tradycyjna Okładka Albumu */}
+          {/* MODE 1: classic album cover */}
           {visualMode === 'cover' && (
             <div
               className={cn(
@@ -236,12 +236,12 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
             </div>
           )}
 
-          {/* TRYB 2: Wirujący Winyl z rowkami, naklejką i ramieniem gramofonu */}
+          {/* MODE 2: spinning vinyl with grooves, a label and a tonearm */}
           {visualMode === 'vinyl' && (
             <BigScreenVinyl {...props} showLyrics={showLyrics} progress={progress} />
           )}
 
-          {/* TRYB 3: Retro Kaseta Magnetofonowa z lat 90. (Obracające się szpule i taśma) */}
+          {/* MODE 3: 90s retro cassette (spinning reels and tape) */}
           {visualMode === 'cassette' && (
             <BigScreenTapeDeck {...props} showLyrics={showLyrics} t={t} progress={progress} />
           )}
@@ -290,7 +290,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
           </div>
         </div>
 
-        {/* Kolumna prawa: Teksty synchronizowane */}
+        {/* Right column: synced lyrics */}
         {showLyrics && (
           // The lyrics are absolutely positioned inside this cell so their content
           // height never stretches the grid row (the cell sizes from the cover column).
@@ -312,7 +312,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         )}
       </div>
 
-      {/* Dolny panel sterowania i wizualizator HUD */}
+      {/* Bottom control panel and HUD visualizer */}
       <BigScreenControls {...props} showHud={showHud} setBottomVisualMode={setBottomVisualMode} bottomVisualMode={bottomVisualMode} spectrum={spectrum} waveformPeaks={waveformPeaks} progress={progress} positionMs={positionMs} t={t} />
     </div>
   );

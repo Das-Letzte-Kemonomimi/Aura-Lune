@@ -34,7 +34,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
   tracks,
 }) => (
     <div className="flex flex-col gap-4.5">
-      {/* Pasek nawigacyjny powrotu */}
+      {/* Back navigation bar */}
       <div className="flex items-center justify-between">
         <button
           onClick={handleBackFromAlbumDetail}
@@ -49,7 +49,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
         </span>
       </div>
 
-      {/* Szczegóły wybranego albumu (Hero Header + Lista utworów) */}
+      {/* Selected album details (hero header + track list) */}
       {(() => {
         const albumTracks = tracks
           .filter((t) => t.album_id === selectedAlbumDetail.id)
@@ -66,7 +66,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                 background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.75), rgba(15, 20, 35, 0.75))',
               }}
             >
-              {/* Duża okładka albumu */}
+              {/* Large album cover */}
               <div
                 className="relative flex h-45 w-45 min-w-45 items-center justify-center overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/60"
                 style={{
@@ -85,7 +85,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                 </button>
               </div>
 
-              {/* Metadane albumu */}
+              {/* Album metadata */}
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
@@ -134,7 +134,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                   </span>
                 </div>
 
-                {/* Przyciski akcji na albumie */}
+                {/* Album action buttons */}
                 <div className="mt-2.5 flex flex-wrap gap-2.5">
                   <button
                     onClick={() => {
@@ -197,7 +197,7 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
               </div>
             </div>
 
-            {/* Tabela utworów wybranego albumu */}
+            {/* Track table of the selected album */}
             <div className="mt-2.5 overflow-x-auto">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>

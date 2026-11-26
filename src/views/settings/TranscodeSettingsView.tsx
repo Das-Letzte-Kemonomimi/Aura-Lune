@@ -133,7 +133,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
         <FileAudio size={20} className="text-accent-pink" /> {loc.settings.exportOpus}
       </h2>
 
-      {/* Baner bezpieczeństwa */}
+      {/* Safety banner */}
       <div
         className="mb-6 flex items-center gap-3 rounded-xl border border-accent-green/30 bg-accent-green/10 px-4.5 py-3.5"
       >
@@ -260,13 +260,13 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
           </div>
         )}
 
-        {/* Opcja nałożenia DSP: Nightcore / Slowed / Pitch / Reverb / EQ */}
+        {/* DSP option: Nightcore / Slowed / Pitch / Reverb / EQ */}
         <TranscodeDspOption {...props} />
 
-        {/* Opcja przycięcia do markerów A i B */}
+        {/* Trim to the A and B markers */}
         <TranscodeRangeOption {...props} handleApplyLoopFromPlayer={handleApplyLoopFromPlayer} handleApplyBookmarksRange={handleApplyBookmarksRange} parsedA={parsedA} parsedB={parsedB} isOrderInvalid={isOrderInvalid} />
 
-        {/* Opcja automatycznego dodania do kolejki */}
+        {/* Automatically add to the queue option */}
         <label
           className={cn(
             'mt-2.5 flex cursor-pointer select-none items-center gap-2.5 text-ui font-semibold',
@@ -282,7 +282,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
           <span>{loc.settings.transcodeAutoEnqueue}</span>
         </label>
 
-        {/* Aktywny panel postępu renderowania w tle */}
+        {/* Active background rendering progress panel */}
         {isTranscoding && (
           <div
             className="glass-card mt-4 flex flex-col gap-3 rounded-xl border border-accent-pink bg-linear-135 from-accent-purple/15 to-pink-500/10 px-5 py-4 shadow-xl shadow-pink-500/20 motion-safe:animate-fade-in"
@@ -304,7 +304,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
               </div>
             </div>
 
-            {/* Pasek postępu */}
+            {/* Progress bar */}
             <div className="h-1.5 w-full overflow-hidden rounded-sm bg-white/10">
               <div
                 className={cn(
@@ -353,7 +353,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
             : loc.settings.exportOpus}
         </button>
 
-        {/* Panel akcji po pomyślnym wyrenderowaniu */}
+        {/* Actions after a successful render */}
         {lastExportedTrack && (
           <TranscodeResultPanel {...props} lastExportedTrack={lastExportedTrack} />
         )}

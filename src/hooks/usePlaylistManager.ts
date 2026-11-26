@@ -48,7 +48,7 @@ export function usePlaylistManager({
       setPlaylists(list);
       return list;
     } catch (e: unknown) {
-      console.warn('Błąd pobierania playlist:', e);
+      console.warn('Failed to fetch playlists:', e);
       return [];
     }
   }, []);
@@ -188,7 +188,7 @@ export function usePlaylistManager({
     try {
       const filePath = await invoke<string | null>('pick_custom_file', {
         title: loc.playlists.importM3u8,
-        filter: '*.m3u *.m3u8|Pliki playlist M3U (*.m3u, *.m3u8)',
+        filter: '*.m3u *.m3u8|M3U playlist files (*.m3u, *.m3u8)',
       });
       if (!filePath) return;
 

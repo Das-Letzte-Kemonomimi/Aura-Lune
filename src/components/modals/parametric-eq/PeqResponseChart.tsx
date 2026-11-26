@@ -6,7 +6,7 @@ import { freqToNormX, gainToNormY, PEQ_BAND_COLORS, type ParametricEqStateDto } 
 import type { RefObject } from 'react';
 import { cn } from '../../../utils/cn';
 
-/** Linie siatki wykresu: częstotliwości (Hz) i wzmocnienia (dB). */
+/** Chart grid lines: frequencies (Hz) and gains (dB). */
 const FREQ_GRID_LINES = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const GAIN_GRID_LINES = [12, 6, 0, -6, -12, -18, -24];
 
@@ -36,7 +36,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
   svgRef,
 }) => (
     <div className="relative h-60 overflow-hidden border-b border-line bg-modal">
-      {/* Wskaźnik stanu aktywności (Bypass vs Aktywny) */}
+      {/* Activity state indicator (Bypass vs active) */}
       <div
         className={cn(
           'pointer-events-none absolute top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-3xl border px-3 py-1 text-xs font-bold shadow-lift shadow-black/35 backdrop-blur-xs',
@@ -74,7 +74,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
           </linearGradient>
         </defs>
 
-        {/* Siatka pionowa (częstotliwości logarytmiczne) */}
+        {/* Vertical grid (logarithmic frequencies) */}
         {FREQ_GRID_LINES.map((freq) => {
           const x = freqToNormX(freq) * 1000;
           return (
@@ -101,7 +101,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
           );
         })}
 
-        {/* Siatka pozioma (wzmocnienie w dB: -24 dB do +12 dB) */}
+        {/* Horizontal grid (gain in dB: -24 dB to +12 dB) */}
         {GAIN_GRID_LINES.map((db) => {
           const y = gainToNormY(db, -24, 12) * 360;
           const isZero = db === 0;
@@ -129,10 +129,10 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
           );
         })}
 
-        {/* Wypełnienie pod krzywą */}
+        {/* Fill below the curve */}
         {svgAreaD && <path d={svgAreaD} fill="url(#peqAreaGrad)" />}
 
-        {/* Główna krzywa odpowiedzi częstotliwościowej */}
+        {/* Main frequency response curve */}
         {svgPathD && (
           <path
             d={svgPathD}
@@ -147,7 +147,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
           />
         )}
 
-        {/* Węzły pasm (interaktywne punkty do przeciągania) */}
+        {/* Band nodes (interactive drag points) */}
         {state.bands.map((band, idx) => {
           const cx = freqToNormX(band.freq) * 1000;
           const cy = gainToNormY(band.gain_db, -24, 12) * 360;
@@ -160,7 +160,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
               className="cursor-pointer"
               onPointerDown={(e) => handlePointerDown(band.id, e)}
             >
-              {/* Zasięg dobroci Q jako otoczka */}
+              {/* Q factor range as a halo */}
               {isSelected && (
                 <circle
                   cx={cx}
@@ -173,7 +173,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
                   strokeDasharray="3,3"
                 />
               )}
-              {/* Zewnętrzny pierścień */}
+              {/* Outer ring */}
               <circle
                 cx={cx}
                 cy={cy}
@@ -184,7 +184,7 @@ export const PeqResponseChart: React.FC<PeqResponseChartProps> = ({
                 className="transition-[r] duration-150"
                 style={{ filter: `drop-shadow(0 0 4px ${color})` }}
               />
-              {/* Etykieta numeru pasma */}
+              {/* Band number label */}
               <text
                 x={cx}
                 y={cy + 3.5}

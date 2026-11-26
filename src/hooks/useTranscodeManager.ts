@@ -76,13 +76,13 @@ export function useTranscodeManager({
   const [isPickingSource, setIsPickingSource] = useState(false);
   const [isPickingDestination, setIsPickingDestination] = useState(false);
 
-  // Nasłuchiwanie postępu transkodowania z backendu
+  // Listen for transcoding progress from the backend
   useTauriEvent<{ percent: number; position_ms?: number; duration_ms?: number }>(
     'transcode_progress',
     setTranscodeProgress,
   );
 
-  // Timer mierzący czas trwania transkodowania
+  // Timer measuring the transcoding duration
   useEffect(() => {
     if (!isTranscoding) return;
     const interval = setInterval(() => {
@@ -91,7 +91,7 @@ export function useTranscodeManager({
     return () => clearInterval(interval);
   }, [isTranscoding]);
 
-  // Synchronizacja aktywnej pętli A-B i bieżącej ścieżki po otwarciu zakładki transkodowania
+  // Sync the active A-B loop and the current path after opening the transcoding tab
   useEffect(() => {
     if (isSettingsOpen && settingsTab === 'transcode') {
       const curPath = currentPlayingTrack?.path || status.current_track?.uri;
@@ -234,7 +234,7 @@ export function useTranscodeManager({
       let base = lastDot > 0 ? curPath.substring(0, lastDot) : curPath;
       base = base.replace(/_loop_\d+-(?:\d+|end)$/i, '');
 
-      // Sprawdź czy mamy aktywne punkty pętli w RAM lub zapisane znaczniki w bibliotece dla tego utworu
+      // Check whether there are active loop points in RAM or saved markers in the library for this track
       let effectiveA = loopPointA;
       let effectiveB = loopPointB;
       if (effectiveA === null && effectiveB === null && currentTrackBookmarks.length >= 2) {
@@ -400,7 +400,7 @@ export function useTranscodeManager({
         setAlbums(updatedAlbums);
         renderedTrack = updatedTracks.find((tr) => tr.path === cleanOutput) || null;
       } catch (scanErr) {
-        console.warn('Automatyczne indeksowanie wyrenderowanego pliku:', scanErr);
+        console.warn('Automatic indexing of the rendered file failed:', scanErr);
       }
 
       if (!renderedTrack) {

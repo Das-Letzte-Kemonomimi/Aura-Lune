@@ -398,7 +398,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
 }) => {
   return (
     <React.Suspense fallback={null}>
-      {/* Modal dodawania utworu do playlisty */}
+      {/* Add a track to a playlist modal */}
       <PlaylistSelectModal
         isOpen={showPlaylistModal}
         onClose={() => {
@@ -413,7 +413,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         loc={loc}
       />
 
-      {/* Modal Skrótów Klawiszowych */}
+      {/* Keyboard shortcuts modal */}
       <KeyboardShortcutsModal
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}
@@ -443,7 +443,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Pływający widżet tekstu na pulpicie (Desktop Lyrics Overlay) */}
+      {/* Floating desktop lyrics widget (Desktop Lyrics Overlay) */}
       <DesktopLyricsOverlay
         isOpen={showDesktopLyrics}
         onClose={() => {
@@ -467,7 +467,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onSeek={handleSeek}
       />
 
-      {/* Modal Wyłącznika Czasowego (Sleep Timer z łagodnym Fade-Out) */}
+      {/* Sleep timer modal (with a gentle fade-out) */}
       <SleepTimerModal
         isOpen={isSleepTimerOpen}
         onClose={() => setIsSleepTimerOpen(false)}
@@ -479,7 +479,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onCancelTimer={handleCancelSleepTimer}
       />
 
-      {/* Modal Inspektora Toru Audio & Bit-Perfect (Audio Path Inspector) */}
+      {/* Audio path & Bit-Perfect inspector modal (Audio Path Inspector) */}
       <AudioPathInspectorModal
         isOpen={isAudioPathModalOpen}
         onClose={() => setIsAudioPathModalOpen(false)}
@@ -489,7 +489,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onResetBitPerfect={handleResetBitPerfect}
       />
 
-      {/* Modal Studio Analogowego Lo-Fi FX (Winyl & Taśma) */}
+      {/* Analog Lo-Fi FX studio modal (vinyl & tape) */}
       <AnalogLoFiModal
         isOpen={isLoFiModalOpen}
         onClose={() => setIsLoFiModalOpen(false)}
@@ -497,21 +497,21 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         currentLang={language}
       />
 
-      {/* Modal Testu Środowiska Audio (Health Check 1.0) */}
+      {/* Audio environment test modal (Health Check 1.0) */}
       <AudioHealthCheckModal
         isOpen={isHealthCheckModalOpen}
         onClose={() => setIsHealthCheckModalOpen(false)}
         currentLang={language}
       />
 
-      {/* Modal Generatora Dźwięków Tła (Soundscape / Lofi Ambience) */}
+      {/* Background sound generator modal (Soundscape / lofi ambience) */}
       <SoundscapeModal
         isOpen={isSoundscapeOpen}
         onClose={() => setIsSoundscapeOpen(false)}
         currentLang={language}
       />
 
-      {/* Modal Miksowania Harmonicznego & DJ Crossfade */}
+      {/* Harmonic mixing & DJ crossfade modal */}
       <HarmonicSuggesterModal
         isOpen={isHarmonicSuggesterOpen}
         onClose={() => setIsHarmonicSuggesterOpen(false)}
@@ -626,7 +626,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         currentLang={language}
       />
 
-      {/* Modal Bazy Profili Słuchawkowych AutoEQ */}
+      {/* AutoEQ headphone profile database modal */}
       <AutoEqModal
         isOpen={isAutoEqOpen}
         onClose={() => setIsAutoEqOpen(false)}
@@ -659,21 +659,21 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         currentLang={language}
       />
 
-      {/* Modal Wielopasmowego Korektora Parametrycznego PEQ Studio */}
+      {/* Multi-band parametric equalizer modal (PEQ Studio) */}
       <ParametricEqModal
         isOpen={isParametricEqOpen}
         onClose={() => setIsParametricEqOpen(false)}
         currentLang={language}
       />
 
-      {/* Modal Studia Dynamiki & Nasycenia Analogowego (Kompresor, Lampa, Taśma, Limiter) */}
+      {/* Dynamics & analog saturation studio modal (compressor, tube, tape, limiter) */}
       <DynamicsStudioModal
         isOpen={isDynamicsStudioOpen}
         onClose={() => setIsDynamicsStudioOpen(false)}
         currentLang={language}
       />
 
-      {/* Modal Szczegółowych Statystyk Utworu */}
+      {/* Detailed track statistics modal */}
       {statsModalTrack && (
         <TrackStatsModal
           track={statsModalTrack}
@@ -683,7 +683,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Modal Precyzyjnej Edycji Pętli A-B (co do milisekundy) */}
+      {/* Precise A-B loop editing modal (to the millisecond) */}
       <LoopEditorModal
         isOpen={isLoopEditorOpen}
         onClose={() => setIsLoopEditorOpen(false)}
@@ -708,7 +708,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         loc={loc}
       />
 
-      {/* Kreator pierwszego uruchomienia i wprowadzenie (Onboarding & Disclaimer) */}
+      {/* First-run wizard and introduction (onboarding & disclaimer) */}
       <OnboardingModal
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
@@ -737,7 +737,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         }}
       />
 
-      {/* Menu / Modal Tonacji i Tempa (Key & BPM A/B DSP) */}
+      {/* Key and tempo menu / modal (Key & BPM A/B DSP) */}
       <KeyBpmModal
         isOpen={isKeyBpmModalOpen}
         onClose={() => setIsKeyBpmModalOpen(false)}
@@ -753,7 +753,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         currentLang={language}
       />
 
-      {/* Studio Analizy Muzycznej (Akordy, Piano-Roll, Stemy, Modele AI) */}
+      {/* Music analysis studio (chords, piano roll, stems, AI models) */}
       <MusicAnalysisModal
         isOpen={isAnalysisModalOpen}
         onClose={() => setIsAnalysisModalOpen(false)}
@@ -805,7 +805,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Tworzenie nowego projektu stemów */}
+      {/* Create a new stem project */}
       <CreateStemProjectModal
         isOpen={isCreateStemProjectOpen}
         onClose={() => setIsCreateStemProjectOpen(false)}
@@ -817,7 +817,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         currentLang={language}
       />
 
-      {/* Podsumowanie Tygodnia, Miesiąca i Roku (Auralune Recap / Wrapped) */}
+      {/* Weekly, monthly and yearly summary (Auralune Recap / Wrapped) */}
       <AuraluneRecapModal
         isOpen={isRecapModalOpen}
         onClose={() => setIsRecapModalOpen(false)}
@@ -828,7 +828,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         }}
       />
 
-      {/* Modal Edytora Tagów (foobar2000 style Properties) */}
+      {/* Tag editor modal (foobar2000-style Properties) */}
       {tagEditorTrack && (
         <TagEditorModal
           trackId={tagEditorTrack.id}
@@ -847,7 +847,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Modal Palety Komend (Ctrl+K omnibar) */}
+      {/* Command palette modal (Ctrl+K omnibar) */}
       {isCommandPaletteOpen && (
         <CommandPaletteModal
           tracks={tracks}
@@ -885,7 +885,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Modal Wbudowanego Importera Audio z URL (yt-dlp) */}
+      {/* Built-in URL audio importer modal (yt-dlp) */}
       <UrlAudioImportModal
         isOpen={isUrlImportModalOpen}
         currentLang={language}
@@ -902,7 +902,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         }}
       />
 
-      {/* Modal Arkusza CUE (.cue sheet) */}
+      {/* CUE sheet modal (.cue sheet) */}
       {isCueModalOpen && (
         <CueSheetModal
           currentLang={language}
@@ -959,7 +959,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         currentLang={language}
       />
 
-      {/* Modal Wielopunktowych Zakładek (Cue Points) */}
+      {/* Multi-point bookmarks modal (cue points) */}
       {isBookmarksModalOpen && activeTrackId && (
         <TrackBookmarksModal
           trackId={activeTrackId}
@@ -987,7 +987,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Modal Wyszukiwarki Duplikatów (Duplicate Finder) */}
+      {/* Duplicate finder modal */}
       {isDuplicateFinderOpen && (
         <DuplicateFinderModal
           onClose={() => setIsDuplicateFinderOpen(false)}
@@ -1001,7 +1001,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Modal Masowego Renamera Plików (foobar2000 File Ops) */}
+      {/* Bulk file renamer modal (foobar2000 File Ops) */}
       {isFileRenamerOpen && (
         <FileRenamerModal
           tracks={filteredTracks.map((t) => ({
@@ -1019,7 +1019,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         />
       )}
 
-      {/* Modal Zapisywania Kolejki jako Playlisty */}
+      {/* Save the queue as a playlist modal */}
       <SaveQueueModal
         isOpen={isSaveQueueModalOpen}
         currentLang={language}
@@ -1028,7 +1028,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
         onSave={handleConfirmSaveQueueAsPlaylist}
       />
 
-      {/* Modal Dodawania Własnej Stacji Radiowej */}
+      {/* Add a custom radio station modal */}
       <AddRadioStationModal
         isOpen={isAddStationModalOpen}
         currentLang={language}

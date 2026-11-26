@@ -1,21 +1,21 @@
 /**
- * Czysty model Piano-Rolla: zakres wysokości, wyszukiwanie widocznych nut (binarnie po `onset_ms`),
- * mapowanie czas/wysokość ↔ piksele CSS, siatka taktów i linijka. Bez DOM i canvasu — w całości testowalny.
+ * Pure Piano Roll model: pitch range, visible note lookup (binary search on `onset_ms`),
+ * time/pitch ↔ CSS pixel mapping, the bar grid and the ruler. No DOM and no canvas, so it is fully testable.
  */
 import type { DetectedNote } from '../../../types/analysis';
 
-/** Zakres klawiatury fortepianu (A0..C8). */
+/** Piano keyboard range (A0..C8). */
 export const MIDI_FLOOR = 21;
 export const MIDI_CEIL = 108;
-/** Margines (w półtonach) nad najwyższą i pod najniższą nutą. */
+/** Margin (in semitones) above the highest and below the lowest note. */
 export const PITCH_MARGIN = 2;
-/** Minimalna liczba wierszy, żeby pojedyncza nuta nie rozciągała się na cały ekran. */
+/** Minimum number of rows, so a single note does not stretch over the whole screen. */
 export const MIN_ROWS = 24;
 
 export const MIN_PX_PER_SEC = 20;
 export const MAX_PX_PER_SEC = 400;
 export const DEFAULT_PX_PER_SEC = 80;
-/** W trybie „Follow” głowica stoi w tym ułamku szerokości obszaru nut. */
+/** In "Follow" mode the playhead stands at this fraction of the note area width. */
 export const FOLLOW_RATIO = 0.3;
 
 export interface PitchRange {
@@ -23,7 +23,7 @@ export interface PitchRange {
   maxMidi: number;
 }
 
-/** Zakres wysokości z danych: min/max ± margines, ograniczony do klawiatury, min. `MIN_ROWS` wierszy. */
+/** Pitch range from the data: min/max ± margin, limited to the keyboard, at least `MIN_ROWS` rows. */
 export function computePitchRange(notes: readonly DetectedNote[]): PitchRange {
   if (notes.length === 0) return { minMidi: 48, maxMidi: 48 + MIN_ROWS - 1 };
   let lo = Infinity;
@@ -34,7 +34,7 @@ export function computePitchRange(notes: readonly DetectedNote[]): PitchRange {
   }
   let minMidi = Math.max(MIDI_FLOOR, lo - PITCH_MARGIN);
   let maxMidi = Math.min(MIDI_CEIL, hi + PITCH_MARGIN);
-  // Dopełnienie do minimalnej liczby wierszy (najpierw w górę, potem w dół, w granicach klawiatury).
+  // Pad to the minimum number of rows (up first, then down, within the keyboard).
   while (maxMidi - minMidi + 1 < MIN_ROWS) {
     if (maxMidi < MIDI_CEIL) maxMidi += 1;
     if (maxMidi - minMidi + 1 >= MIN_ROWS) break;
@@ -53,13 +53,13 @@ export function clamp(v: number, lo: number, hi: number): number {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Indeks nut
+// Note index
 // ---------------------------------------------------------------------------------------------------------------
 
 export interface NoteIndex {
-  /** Nuty posortowane rosnąco po `onset_ms`. */
+  /** Notes sorted ascending by `onset_ms`. */
   notes: DetectedNote[];
-  /** Najdłuższa nuta (ms) — ogranicza „wstecz” poszukiwanie nut zaczętych przed oknem. */
+  /** The longest note (ms): bounds the backward search for notes that started before the window. */
   maxDurationMs: number;
 }
 
@@ -70,7 +70,7 @@ export function buildNoteIndex(notes: readonly DetectedNote[]): NoteIndex {
   return { notes: sorted, maxDurationMs };
 }
 
-/** Pierwszy indeks `i`, dla którego `notes[i].onset_ms >= ms` (długość tablicy, gdy brak). */
+/** The first index `i` for which `notes[i].onset_ms >= ms` (the array length when there is none). */
 function lowerBound(notes: readonly DetectedNote[], ms: number): number {
   let lo = 0;
   let hi = notes.length;
@@ -83,13 +83,13 @@ function lowerBound(notes: readonly DetectedNote[], ms: number): number {
 }
 
 /**
- * Półotwarty przedział indeksów `[start, end)` nut, które MOGĄ nachodzić na okno `[t0, t1]`.
- * Początek cofnięty o `maxDurationMs`, więc nuty zaczęte przed oknem, a trwające w nim, są uwzględnione;
- * wywołujący odfiltrowuje te, które jednak kończą się przed `t0` (`noteOverlaps`).
+ * Half-open index range `[start, end)` of the notes that MAY overlap the window `[t0, t1]`.
+ * The start is moved back by `maxDurationMs`, so notes that started before the window but last into it are included;
+ * the caller filters out those that still end before `t0` (`noteOverlaps`).
  */
 export function visibleNoteRange(index: NoteIndex, t0: number, t1: number): [number, number] {
   const start = lowerBound(index.notes, t0 - index.maxDurationMs);
-  // Pierwsza nuta zaczynająca się dopiero po oknie.
+  // The first note that starts only after the window.
   const end = lowerBound(index.notes, Math.floor(t1) + 1);
   return [start, Math.max(start, end)];
 }
@@ -103,27 +103,27 @@ export function isNoteActive(note: DetectedNote, positionMs: number): boolean {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Mapowanie współrzędnych (piksele CSS)
+// Coordinate mapping (CSS pixels)
 // ---------------------------------------------------------------------------------------------------------------
 
 export interface Layout {
   width: number;
   height: number;
-  /** Szerokość kolumny klawiatury po lewej. */
+  /** Width of the keyboard column on the left. */
   keyWidth: number;
-  /** Wysokość linijki czasu u góry. */
+  /** Height of the time ruler at the top. */
   rulerHeight: number;
-  /** Wysokość minimapy u dołu (0 = ukryta). */
+  /** Height of the minimap at the bottom (0 = hidden). */
   minimapHeight: number;
 }
 
 export const KEY_WIDTH = 56;
 export const RULER_HEIGHT = 20;
 export const MINIMAP_HEIGHT = 34;
-/** Poniżej tej wysokości canvasu minimapa jest ukrywana. */
+/** Below this canvas height the minimap is hidden. */
 export const MINIMAP_MIN_CANVAS_HEIGHT = 220;
 export const MIN_KEY_HEIGHT = 5;
-/** Minimalna wysokość wiersza, gdy włączone są podpisy nut (czytelny tekst; reszta zakresu = przewijanie). */
+/** Minimum row height when note labels are on (readable text; the rest of the range scrolls). */
 export const LABEL_KEY_HEIGHT = 16;
 export const MAX_KEY_HEIGHT = 22;
 
@@ -144,7 +144,7 @@ export interface Rect {
   h: number;
 }
 
-/** Obszar nut (bez klawiatury, linijki i minimapy). */
+/** Note area (without the keyboard, ruler and minimap). */
 export function rollRect(layout: Layout): Rect {
   return {
     x: layout.keyWidth,
@@ -163,7 +163,7 @@ export function minimapRect(layout: Layout): Rect {
   };
 }
 
-/** Oś czasu: `originMs` to czas na lewej krawędzi obszaru nut. */
+/** Time axis: `originMs` is the time at the left edge of the note area. */
 export interface TimeAxis {
   originMs: number;
   pxPerSec: number;
@@ -178,7 +178,7 @@ export function xToTime(axis: TimeAxis, x: number): number {
   return axis.originMs + ((x - axis.left) / axis.pxPerSec) * 1000;
 }
 
-/** Oś wysokości: wiersz 0 to `maxMidi`; `scrollRows` przesuwa widok w dół (w wierszach, ułamki dozwolone). */
+/** Pitch axis: row 0 is `maxMidi`; `scrollRows` moves the view down (in rows, fractions allowed). */
 export interface PitchAxis {
   maxMidi: number;
   minMidi: number;
@@ -191,7 +191,7 @@ export function pitchToY(axis: PitchAxis, midi: number): number {
   return axis.top + (axis.maxMidi - midi - axis.scrollRows) * axis.keyHeight;
 }
 
-/** Wysokość (MIDI) wiersza pod pikselem `y`; wynik może wykraczać poza zakres osi. */
+/** Pitch (MIDI) of the row under pixel `y`; the result can fall outside the axis range. */
 export function yToPitch(axis: PitchAxis, y: number): number {
   const row = Math.floor((y - axis.top) / axis.keyHeight + axis.scrollRows);
   return axis.maxMidi - row;
@@ -201,17 +201,17 @@ export function rowCount(range: PitchRange): number {
   return range.maxMidi - range.minMidi + 1;
 }
 
-/** Wysokość wiersza: wypełnia obszar, ale w granicach czytelności (przy większej liczbie wierszy → przewijanie). */
+/** Row height: fills the area, but within readability limits (more rows → scrolling). */
 export function computeKeyHeight(rollHeight: number, rows: number, minKeyHeight = MIN_KEY_HEIGHT): number {
   if (rows <= 0 || rollHeight <= 0) return minKeyHeight;
   return clamp(rollHeight / rows, minKeyHeight, MAX_KEY_HEIGHT);
 }
 
-/** Ręcznie wybierana wysokość wiersza (px); `null` w widoku = automatyczna. */
+/** Manually chosen row height (px); `null` in the view = automatic. */
 export const ROW_HEIGHT_MIN = 8;
 export const ROW_HEIGHT_MAX = 40;
 export const ROW_HEIGHT_STEP = 2;
-/** Od tej wartości startują przyciski ±, gdy wysokość jest jeszcze automatyczna. */
+/** The ± buttons start from this value while the height is still automatic. */
 export const DEFAULT_ROW_HEIGHT = 14;
 
 export function clampRowHeight(px: number): number {
@@ -219,8 +219,8 @@ export function clampRowHeight(px: number): number {
 }
 
 /**
- * Wysokość wiersza: automatyczna (`rowHeight === null`: wypełnia obszar, z podpisami nie mniej niż `LABEL_KEY_HEIGHT`)
- * albo wybrana przez użytkownika — nigdy mniejsza niż potrzebna, by zakres wypełnił obszar (bez pustego pasa pod nutami).
+ * Row height: automatic (`rowHeight === null`: fills the area, with labels no less than `LABEL_KEY_HEIGHT`)
+ * or chosen by the user, never smaller than needed for the range to fill the area (no empty strip below the notes).
  */
 export function resolveKeyHeight(rollHeight: number, rows: number, rowHeight: number | null, showLabels: boolean): number {
   if (rowHeight === null) return computeKeyHeight(rollHeight, rows, showLabels ? LABEL_KEY_HEIGHT : undefined);
@@ -232,13 +232,13 @@ export function maxScrollRows(rollHeight: number, keyHeight: number, rows: numbe
   return Math.max(0, rows - rollHeight / keyHeight);
 }
 
-/** Szerokość znaku czcionki monospace względem jej rozmiaru (z zapasem dla zamienników `ui-monospace`). */
+/** Width of a monospace font character relative to its size (with headroom for `ui-monospace` fallbacks). */
 const LABEL_CHAR_EM = 0.62;
 export const MIN_LABEL_FONT_PX = 8;
 
 /**
- * Rozmiar czcionki podpisu, który mieści się w `room` px: `maxFontPx`, jeśli wystarcza miejsca, w przeciwnym razie
- * pomniejszony (nie poniżej `MIN_LABEL_FONT_PX`); `null`, gdy nawet wtedy tekst się nie zmieści.
+ * Label font size that fits in `room` px: `maxFontPx` if there is enough space, otherwise
+ * reduced (not below `MIN_LABEL_FONT_PX`); `null` when even then the text does not fit.
  */
 export function fitLabelFontPx(chars: number, room: number, maxFontPx: number): number | null {
   if (chars <= 0 || room <= 0) return null;
@@ -252,7 +252,7 @@ export interface PitchSpan {
   hi: number;
 }
 
-/** Najniższy i najwyższy dźwięk nut nachodzących na okno czasu (`null`, gdy okno jest puste). */
+/** The lowest and highest pitch of the notes overlapping the time window (`null` when the window is empty). */
 export function pitchSpanInWindow(index: NoteIndex, t0: number, t1: number): PitchSpan | null {
   let lo = Infinity;
   let hi = -Infinity;
@@ -266,14 +266,14 @@ export function pitchSpanInWindow(index: NoteIndex, t0: number, t1: number): Pit
   return hi >= lo ? { lo, hi } : null;
 }
 
-/** Wiersze (od góry, ułamkowo) zajmowane przez zakres dźwięków: `[górna krawędź, dolna krawędź]`. */
+/** Rows (from the top, fractional) taken by the pitch range: `[top edge, bottom edge]`. */
 function spanRows(maxMidi: number, span: PitchSpan): [number, number] {
   return [maxMidi - span.hi, maxMidi - span.lo + 1];
 }
 
 /**
- * Cel przewinięcia pionowego w trybie Follow: najmniejszy ruch, po którym cały zakres `span` jest widoczny
- * (bez drgań, gdy już się mieści). Gdy zakres jest wyższy niż okno, centruje go.
+ * Vertical scroll goal in Follow mode: the smallest move after which the whole `span` range is visible
+ * (no jitter when it already fits). When the range is taller than the window, it is centred.
  */
 export function followScrollGoal(args: {
   span: PitchSpan | null;
@@ -293,7 +293,7 @@ export function followScrollGoal(args: {
   return clamp(goal, 0, maxScroll);
 }
 
-/** Czy w oknie czasu są nuty całkowicie powyżej / poniżej widocznych wierszy (do znaczników na krawędziach). */
+/** Whether the time window has notes fully above / below the visible rows (for the edge markers). */
 export function hiddenNotesBeyondView(args: {
   span: PitchSpan | null;
   maxMidi: number;
@@ -307,22 +307,22 @@ export function hiddenNotesBeyondView(args: {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Widok czasowy: follow / free
+// Time view: follow / free
 // ---------------------------------------------------------------------------------------------------------------
 
-/** Początek osi czasu w trybie „Follow”: głowica stoi w `FOLLOW_RATIO` szerokości, ale nie pokazujemy czasu < 0. */
+/** Time axis start in "Follow" mode: the playhead stands at `FOLLOW_RATIO` of the width, but no time < 0 is shown. */
 export function followOriginMs(positionMs: number, rollWidth: number, pxPerSec: number): number {
   const origin = positionMs - ((rollWidth * FOLLOW_RATIO) / pxPerSec) * 1000;
   return Math.max(0, origin);
 }
 
-/** Ogranicza początek osi do `[0, max(0, duration − szerokość okna)]` (w trybie „Free”). */
+/** Clamps the axis start to `[0, max(0, duration − window width)]` (in "Free" mode). */
 export function clampOriginMs(originMs: number, durationMs: number, rollWidth: number, pxPerSec: number): number {
   const visibleMs = (rollWidth / pxPerSec) * 1000;
   return clamp(originMs, 0, Math.max(0, durationMs - visibleMs));
 }
 
-/** Zoom względem punktu na ekranie (czas pod kursorem zostaje pod kursorem). */
+/** Zoom around a point on the screen (the time under the cursor stays under the cursor). */
 export function zoomAround(axis: TimeAxis, anchorX: number, nextPxPerSec: number): TimeAxis {
   const pxPerSec = clamp(nextPxPerSec, MIN_PX_PER_SEC, MAX_PX_PER_SEC);
   const anchorMs = xToTime(axis, anchorX);
@@ -330,24 +330,24 @@ export function zoomAround(axis: TimeAxis, anchorX: number, nextPxPerSec: number
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Siatka i linijka
+// Grid and ruler
 // ---------------------------------------------------------------------------------------------------------------
 
 export interface GridLine {
   ms: number;
-  /** Granica taktu (mocniejsza kreska). */
+  /** Bar boundary (a stronger line). */
   bar: boolean;
 }
 
-/** Najmniejszy odstęp (px) między liniami siatki, poniżej którego linie są pomijane. */
+/** Smallest gap (px) between grid lines, below which lines are skipped. */
 const MIN_GRID_SPACING_PX = 7;
 const BEATS_PER_BAR = 4;
-/** Zabezpieczenie przed pętlą o milionie kroków przy skrajnym oddaleniu. */
+/** Guard against a loop of a million steps at extreme zoom-out. */
 const MAX_GRID_LINES = 2000;
 
 /**
- * Linie siatki widoczne w oknie `[t0, t1]` (od początku utworu, metrum 4/4). Pokazujemy tylko to, co widać:
- * przy małym powiększeniu zostają same takty, a gdy i one są zbyt gęste — nic.
+ * Grid lines visible in the window `[t0, t1]` (from the track start, 4/4 time). Only what is visible is shown:
+ * at low zoom only the bars remain, and when even those are too dense, nothing.
  */
 export function visibleGridLines(t0: number, t1: number, bpm: number, pxPerSec: number): GridLine[] {
   if (!Number.isFinite(bpm) || bpm <= 0 || t1 <= t0) return [];
@@ -368,14 +368,14 @@ export function visibleGridLines(t0: number, t1: number, bpm: number, pxPerSec: 
 }
 
 const RULER_STEPS_SEC = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
-/** Minimalny odstęp (px) między etykietami linijki. */
+/** Minimum gap (px) between ruler labels. */
 const RULER_MIN_LABEL_PX = 64;
 
 export interface RulerTick {
   ms: number;
 }
 
-/** Znaczniki linijki czasu w oknie `[t0, t1]`; krok dobrany tak, by etykiety się nie nakładały. */
+/** Time ruler marks in the window `[t0, t1]`; the step is chosen so the labels do not overlap. */
 export function rulerTicks(t0: number, t1: number, pxPerSec: number): RulerTick[] {
   if (t1 <= t0 || pxPerSec <= 0) return [];
   const stepSec = RULER_STEPS_SEC.find((s) => s * pxPerSec >= RULER_MIN_LABEL_PX) ?? RULER_STEPS_SEC[RULER_STEPS_SEC.length - 1];
@@ -388,12 +388,12 @@ export function rulerTicks(t0: number, t1: number, pxPerSec: number): RulerTick[
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Minimapa i trafienia
+// Minimap and hit testing
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
- * Gęstość nut w `buckets` równych przedziałach całego utworu, znormalizowana do `0..1`.
- * Liczy się nuty brzmiące w danym przedziale (a nie tylko zaczynające się w nim).
+ * Note density in `buckets` equal intervals of the whole track, normalised to `0..1`.
+ * Counts the notes sounding in an interval (not only the ones starting in it).
  */
 export function computeDensity(notes: readonly DetectedNote[], durationMs: number, buckets: number): number[] {
   const n = Math.max(0, Math.floor(buckets));
@@ -416,16 +416,16 @@ export interface HitArgs {
   pitch: PitchAxis;
   x: number;
   y: number;
-  /** Dodatkowa tolerancja (px) wokół krótkich nut, żeby dało się je trafić myszą. */
+  /** Extra tolerance (px) around short notes, so they can be hit with the mouse. */
   slopPx?: number;
 }
 
-/** Nuta pod kursorem (najpóźniej zaczęta wygrywa, bo jest rysowana na wierzchu) albo `null`. */
+/** Note under the cursor (the one started latest wins, because it is drawn on top), or `null`. */
 export function hitTestNote({ index, time, pitch, x, y, slopPx = 2 }: HitArgs): DetectedNote | null {
   const midi = yToPitch(pitch, y);
   if (midi < pitch.minMidi || midi > pitch.maxMidi) return null;
   const slopMs = (slopPx / time.pxPerSec) * 1000;
-  // Nuty krótsze niż 4 px są rysowane z minimalną szerokością — trafiamy w narysowany prostokąt.
+  // Notes shorter than 4 px are drawn with a minimum width, so the hit test uses the drawn rectangle.
   const minDrawnMs = (4 / time.pxPerSec) * 1000;
   const t = xToTime(time, x);
   const [start, end] = visibleNoteRange(index, t - slopMs - minDrawnMs, t + slopMs);

@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 
 export interface PersistedStateOptions<T> {
-  /** Zamiana zapisanego tekstu na wartość; `undefined` = wartość nieprawidłowa (użyj domyślnej). */
+  /** Turns the saved text into a value; `undefined` = invalid value (use the default). */
   parse: (raw: string) => T | undefined;
   serialize?: (value: T) => string;
-  /** Starsze klucze, z których odczytujemy wartość, gdy bieżącego klucza jeszcze nie ma. */
+  /** Older keys the value is read from while the current key does not exist yet. */
   legacyKeys?: readonly string[];
 }
 
@@ -17,14 +17,14 @@ function readStored<T>(key: string, fallback: T, options: PersistedStateOptions<
       if (parsed !== undefined) return parsed;
     }
   } catch {
-    // localStorage niedostępny (np. tryb prywatny) — wartość domyślna.
+    // localStorage unavailable (e.g. private mode): the default value.
   }
   return fallback;
 }
 
 /**
- * Stan Reacta zapisywany w `localStorage` pod jednym kluczem — odczyt i zapis
- * używają tego samego klucza, więc ustawienie nie może „zniknąć” po restarcie.
+ * React state saved in `localStorage` under a single key: reading and writing
+ * use the same key, so a setting cannot "disappear" after a restart.
  */
 export function usePersistedState<T>(
   key: string,
@@ -41,7 +41,7 @@ export function usePersistedState<T>(
         try {
           localStorage.setItem(key, serialize(resolved));
         } catch {
-          // Brak trwałego zapisu nie może blokować zmiany w interfejsie.
+          // A missing persistent write must not block the change in the UI.
         }
         return resolved;
       });
@@ -52,6 +52,6 @@ export function usePersistedState<T>(
   return [value, update];
 }
 
-/** Parser dla ustawień typu „wł./wył.”. */
+/** Parser for on/off settings. */
 export const parseBoolean = (raw: string): boolean | undefined =>
   raw === 'true' ? true : raw === 'false' ? false : undefined;

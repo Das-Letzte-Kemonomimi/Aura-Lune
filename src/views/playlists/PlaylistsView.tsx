@@ -76,7 +76,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
           </p>
         </div>
 
-        {/* Nowa playlista input */}
+        {/* New playlist input */}
         <div className="flex gap-2">
           <input
             type="text"
@@ -102,7 +102,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
         </div>
       </div>
 
-      {/* Siatka playlist lub szczegóły wybranej playlisty */}
+      {/* Playlist grid or the details of the selected playlist */}
       {selectedPlaylist ? (
         <div>
           <div className="mb-4.5 flex items-center justify-between border-b border-line pb-3">
@@ -174,7 +174,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
             </div>
           </div>
 
-          {/* Tabela utworów w wybranej playliście */}
+          {/* Track table of the selected playlist */}
           {playlistTracks.length === 0 ? (
             <div className="p-10 text-center text-fg-muted">
               {loc.playlists.emptyHint}

@@ -131,7 +131,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </div>
       </div>
 
-      {/* Opcja płynnego wyciszenia paska postępu (Seek Fade) */}
+      {/* Smooth progress bar fade option (Seek Fade) */}
       <div
         className={cn(
           'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
@@ -159,10 +159,10 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </button>
       </div>
 
-      {/* Karta Konfiguracji Głośności, OSD i Statystyk Recap */}
+      {/* Volume, OSD and Recap stats card */}
       <VolumeAndOsdCard {...props} />
 
-      {/* Opcja zapamiętywania sesji odtwarzania przy ponownym uruchomieniu */}
+      {/* Remember the playback session on restart */}
       <div
         className={cn(
           'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
@@ -191,7 +191,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </button>
       </div>
 
-      {/* Opcja zapamiętywania ustawień DSP przy uruchomieniu aplikacji */}
+      {/* Remember the DSP settings at app start-up */}
       <div
         className={cn(
           'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
@@ -219,7 +219,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </button>
       </div>
 
-      {/* Opcja wyboru domyślnego silnika DSP przy uruchomieniu */}
+      {/* Default DSP engine at start-up */}
       <div className="glass-card mb-3.5 flex items-center justify-between rounded-xl px-5 py-4">
         <div>
           <div className="mb-1 text-md font-bold text-fg">
@@ -244,13 +244,13 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </select>
       </div>
 
-      {/* Opcja bufora wyjściowego audio (PipeWire / ALSA) */}
+      {/* Audio output buffer (PipeWire / ALSA) */}
       <OutputBufferOption {...props} />
 
-      {/* Opcja rozmiaru bloku procesora DSP (Block Size) */}
+      {/* DSP processor block size option */}
       <DspBlockSizeOption {...props} />
 
-      {/* Opcja powiadomień OSD Linuksa (libnotify / D-Bus) */}
+      {/* Linux OSD notifications (libnotify / D-Bus) */}
       <div
         className={cn(
           'glass-card mb-3.5 flex items-center justify-between rounded-xl border px-5 py-4',
@@ -280,7 +280,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </button>
       </div>
 
-      {/* Opcja zachowania odtwarzania albumów i playlist (Autoplay & Kolejka) */}
+      {/* Album and playlist playback behaviour (autoplay and queue) */}
       <div className="glass-card mb-3.5 rounded-xl border border-line bg-white/3 px-5 py-4.5">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -327,13 +327,13 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </div>
       </div>
 
-      {/* Opcja normalizacji głośności ReplayGain 2.0 / EBU R128 */}
+      {/* ReplayGain 2.0 / EBU R128 volume normalisation */}
       <ReplayGainOption {...props} />
 
-      {/* Opcja filtra Bauer Crossfeed (bs2b) dla słuchawek */}
+      {/* Bauer Crossfeed filter (bs2b) for headphones */}
       <CrossfeedOption {...props} />
 
-      {/* Opcja automatycznego pomijania ciszy (Silence Trimming) */}
+      {/* Automatic silence skipping option (Silence Trimming) */}
       <div
         className={cn(
           'glass-card mb-3.5 rounded-xl border px-5 py-4.5 transition-all duration-200',
@@ -398,7 +398,7 @@ export const AudioDevicesSettingsView: React.FC<AudioDevicesSettingsViewProps> =
         </div>
       </div>
 
-      {/* Lista kart dźwiękowych */}
+      {/* Sound card list */}
       <SoundCardList {...props} />
     </div>
   );

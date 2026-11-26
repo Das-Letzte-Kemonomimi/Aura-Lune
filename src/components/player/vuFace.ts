@@ -1,6 +1,6 @@
 /**
- * Rysowanie wskaźnika VU podzielone na warstwę STATYCZNĄ (obudowa, tarcza, skala, etykiety — zależy tylko od
- * motywu i rozmiaru, rysowana raz do canvasu offscreen) i DYNAMICZNĄ (dioda PEAK, odczyt dB, wskazówka — co klatkę).
+ * VU meter drawing split into a STATIC layer (housing, faceplate, scale, labels: depends only on the
+ * theme and size, drawn once to an offscreen canvas) and a DYNAMIC one (PEAK LED, dB readout, needle: every frame).
  */
 import { roundRectPath } from '../../utils/canvasDraw';
 import {
@@ -15,19 +15,19 @@ import {
 const BADGE_W = 34;
 const BADGE_H = 10.5;
 
-/** Część niezmienna wskaźnika (ramka, tarcza, skala, etykiety, tło odczytu dB). Rysuje w układzie (0,0)-(w,h). */
+/** The fixed part of the meter (bezel, faceplate, scale, labels, dB readout background). Draws in the (0,0)-(w,h) frame. */
 function drawMeterStatic(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, label: string, colors: VuColors) {
   const g = meterGeometry(w, h);
   ctx.save();
   ctx.translate(x, y);
 
-  // Zaokrąglona ramka wskaźnika (Vintage Bezel)
+  // Rounded meter bezel (vintage bezel)
   ctx.fillStyle = colors.bgGradStart;
   ctx.beginPath();
   roundRectPath(ctx, 0, 0, w, h, 8);
   ctx.fill();
 
-  // Wewnętrzna tarcza (Faceplate)
+  // Inner faceplate
   const faceGrad = ctx.createLinearGradient(0, g.margin, 0, g.margin + g.faceH);
   faceGrad.addColorStop(0, colors.faceBg);
   faceGrad.addColorStop(1, colors.faceGrad);
@@ -36,45 +36,45 @@ function drawMeterStatic(ctx: CanvasRenderingContext2D, x: number, y: number, w:
   roundRectPath(ctx, g.margin, g.margin, g.faceW, g.faceH, 6);
   ctx.fill();
 
-  // Subtelne obramowanie tarczy
+  // Subtle faceplate border
   ctx.strokeStyle = colors.bezel;
   ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  // Obszar przycinania — rysowanie nigdy nie przekracza ramki
+  // Clipping area: drawing never goes past the frame
   ctx.save();
   ctx.beginPath();
   roundRectPath(ctx, g.margin, g.margin, g.faceW, g.faceH, 6);
   ctx.clip();
 
-  // Cień głębokości szybki (wypukłe szkło)
+  // Depth shadow of the glass (convex glass)
   const glassShadow = ctx.createLinearGradient(0, g.margin, 0, g.margin + 12);
   glassShadow.addColorStop(0, 'rgba(0, 0, 0, 0.16)');
   glassShadow.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
   ctx.fillStyle = glassShadow;
   ctx.fillRect(g.margin, g.margin, g.faceW, 12);
 
-  // Etykieta kanału
+  // Channel label
   ctx.font = '800 7.5px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = colors.textDark;
   ctx.textAlign = 'left';
   ctx.fillText(label, g.margin + 6, g.margin + 11);
 
-  // Główny łuk ciemny (-20 do 0 VU)
+  // Main dark arc (-20 to 0 VU)
   ctx.beginPath();
   ctx.arc(g.pivotX, g.pivotY, g.radius, g.startAngle, g.redZoneAngle);
   ctx.strokeStyle = colors.textDark;
   ctx.lineWidth = 1.6;
   ctx.stroke();
 
-  // Czerwony segment przesteru (0 do +3 VU)
+  // Red overload segment (0 to +3 VU)
   ctx.beginPath();
   ctx.arc(g.pivotX, g.pivotY, g.radius, g.redZoneAngle, g.endAngle);
   ctx.strokeStyle = colors.redZone;
   ctx.lineWidth = 2.4;
   ctx.stroke();
 
-  // Kreski skali dB i etykiety
+  // dB scale ticks and labels
   ctx.font = '700 6.8px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
   for (const m of VU_MARKS) {
@@ -95,13 +95,13 @@ function drawMeterStatic(ctx: CanvasRenderingContext2D, x: number, y: number, w:
     ctx.fillText(m.label, g.pivotX + Math.cos(angle) * textR, g.pivotY + Math.sin(angle) * textR + 2.2);
   }
 
-  // Subtelna etykieta "VU" pod łukiem
+  // Subtle "VU" label below the arc
   ctx.font = '800 7px system-ui, sans-serif';
   ctx.fillStyle = colors.textDark;
   ctx.textAlign = 'center';
   ctx.fillText('VU', g.pivotX, g.pivotY - g.radius * 0.52);
 
-  // Tło badge LCD z odczytem dB (sam tekst jest dynamiczny)
+  // LCD badge background with the dB readout (the text itself is dynamic)
   const badgeX = g.pivotX - BADGE_W / 2;
   const badgeY = g.pivotY - g.radius * 0.38;
   ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
@@ -112,11 +112,11 @@ function drawMeterStatic(ctx: CanvasRenderingContext2D, x: number, y: number, w:
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
-  ctx.restore(); // koniec clip
-  ctx.restore(); // koniec translate
+  ctx.restore(); // end of clip
+  ctx.restore(); // end of translate
 }
 
-/** Część zmienna: dioda PEAK, odczyt dB, wskazówka i jej oś. Przycięta do tarczy, jak w pełnym rysunku. */
+/** The changing part: PEAK LED, dB readout, the needle and its pivot. Clipped to the faceplate, as in the full drawing. */
 function drawMeterDynamic(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -134,7 +134,7 @@ function drawMeterDynamic(
   roundRectPath(ctx, g.margin, g.margin, g.faceW, g.faceH, 6);
   ctx.clip();
 
-  // Dioda Peak LED w prawym górnym rogu
+  // Peak LED in the top right corner
   const isPeakActive = peak >= VU_PEAK_LED_THRESHOLD;
   ctx.beginPath();
   ctx.arc(g.ledX, g.ledY, 2.5, 0, Math.PI * 2);
@@ -152,13 +152,13 @@ function drawMeterDynamic(
 
   const clampedLevel = Math.max(0.0, Math.min(1.05, level));
 
-  // Cyfrowy odczyt dB
+  // Digital dB readout
   ctx.font = '700 6.5px monospace';
   ctx.textAlign = 'center';
   ctx.fillStyle = isPeakActive ? '#ef4444' : colors.accent;
   ctx.fillText(calcDb(clampedLevel), g.pivotX, g.pivotY - g.radius * 0.38 + 7.5);
 
-  // Wskazówka (Needle)
+  // Needle
   const needleAngle = g.startAngle + g.totalSweep * clampedLevel;
   const needleTipR = g.radius + 1.2;
   ctx.save();
@@ -172,7 +172,7 @@ function drawMeterDynamic(
   ctx.stroke();
   ctx.restore();
 
-  // Czapka obrotu wskazówki (Needle Pivot Cap)
+  // Needle pivot cap
   ctx.beginPath();
   ctx.arc(g.pivotX, g.pivotY, 4, 0, Math.PI * 2);
   ctx.fillStyle = colors.needleCap;
@@ -185,8 +185,8 @@ function drawMeterDynamic(
 }
 
 /**
- * Renderuje całą statyczną warstwę (oba wskaźniki) do osobnego canvasu o tym samym buforze co `target`,
- * tak aby kopiowanie 1:1 (`drawImage` z tożsamą transformacją) było idealnie ostre.
+ * Renders the whole static layer (both meters) to a separate canvas with the same buffer as `target`,
+ * so the 1:1 copy (`drawImage` with an identity transform) is perfectly sharp.
  */
 export function renderVuFaceLayer(
   backingWidth: number,
@@ -207,7 +207,7 @@ export function renderVuFaceLayer(
   return layer;
 }
 
-/** Rysuje zmienne elementy obu wskaźników na bieżącym (już ze statyczną warstwą) canvasie. */
+/** Draws the changing elements of both meters on the current canvas (which already has the static layer). */
 export function drawVuDynamic(
   ctx: CanvasRenderingContext2D,
   cssWidth: number,

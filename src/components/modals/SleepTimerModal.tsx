@@ -93,7 +93,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
       layer="nested"
       className="max-w-115 rounded-2xl border border-line-accent p-6 text-fg"
     >
-      {/* Zamknięcie */}
+      {/* Close */}
       <button
         onClick={onClose}
         className="absolute top-4 right-4 border-0 bg-transparent p-1 text-fg-muted"
@@ -101,7 +101,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         <X size={18} />
       </button>
 
-      {/* Nagłówek */}
+      {/* Header */}
       <div className="mb-4.5 flex items-center gap-2.5">
         <div
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent-purple bg-accent-purple/20"
@@ -118,7 +118,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         </div>
       </div>
 
-      {/* Aktywny licznik (jeśli timer działa) */}
+      {/* Active countdown (while the timer runs) */}
       {remainingSec !== null && remainingSec > 0 && (
         <div
           className="mb-4 flex items-center justify-between rounded-xl border border-accent-purple/35 bg-accent-purple/15 px-4 py-3"
@@ -168,7 +168,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         </div>
       )}
 
-      {/* Wybór czasu - Szybkie Presety */}
+      {/* Time choice: quick presets */}
       <div className="mb-3.5">
         <label className="mb-2 block text-xs font-bold tracking-wider text-fg-muted">
           {loc.sleepTimerModal.chooseTime}
@@ -207,7 +207,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         </div>
       </div>
 
-      {/* Panel ręcznej modyfikacji (dowolna liczba minut, stepper i suwak) */}
+      {/* Manual adjustment panel (any number of minutes, stepper and slider) */}
       <div
         className={cn(
           'mb-4 rounded-xl border bg-white/3 px-3.5 py-3 transition-all duration-200',
@@ -245,7 +245,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
           </div>
         </div>
 
-        {/* Przyciski szybkiej zmiany (+ / -) */}
+        {/* Quick change buttons (+ / -) */}
         <div className="mb-2.5 flex justify-center gap-1.5">
           {[-15, -5, -1, 1, 5, 15].map((delta) => (
             <button
@@ -263,7 +263,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
           ))}
         </div>
 
-        {/* Suwak zakresu */}
+        {/* Range slider */}
         <div className="relative w-full">
           <input
             type="range"
@@ -283,7 +283,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         </div>
       </div>
 
-      {/* Opcja Fade-Out */}
+      {/* Fade-out option */}
       <label
         className="mb-5 flex cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-white/4 px-3.5 py-2.5"
       >
@@ -306,7 +306,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         </div>
       </label>
 
-      {/* Przyciski akcji */}
+      {/* Action buttons */}
       <div className="flex justify-end gap-2.5">
         <button
           onClick={onClose}

@@ -60,11 +60,11 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   onNext,
   onSeek,
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const positionMs = useLivePositionMs(positionMsProp);
   const loc = getTranslations(currentLang);
 
-  // Pozycja widżetu na ekranie
+  // Widget position on the screen
   const [pos, setPos] = useState<{ x: number; y: number }>(() => {
     try {
       const saved = localStorage.getItem('auralune_desktop_lyrics_pos');
@@ -75,7 +75,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         }
       }
     } catch {}
-    // Domyślnie na dole na środku okna
+    // Default: bottom centre of the window
     return { x: Math.max(20, Math.floor((window.innerWidth - 640) / 2)), y: Math.max(40, window.innerHeight - 200) };
   });
 
@@ -121,11 +121,11 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
     return 'dual';
   });
 
-  // Stan tekstów
+  // Lyrics state
   const [lyrics, setLyrics] = useState<LyricsDto | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Przeciąganie myszą (Drag & Drop)
+  // Mouse dragging (drag & drop)
   const isDraggingRef = useRef<boolean>(false);
   const dragStartRef = useRef<{ mouseX: number; mouseY: number; initialX: number; initialY: number }>({
     mouseX: 0,
@@ -134,7 +134,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
     initialY: 0,
   });
 
-  // Pobieranie tekstów po zmianie utworu
+  // Fetch the lyrics after a track change
   useEffect(() => {
     let active = true;
 
@@ -163,7 +163,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         }
       })
       .catch((err) => {
-        console.error('DesktopLyricsOverlay błąd pobierania tekstów:', err);
+        console.error('DesktopLyricsOverlay failed to fetch the lyrics:', err);
         if (active) {
           setLyrics(null);
           setLoading(false);
@@ -175,12 +175,12 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
     };
   }, [isOpen, trackTitle, trackArtist, trackAlbum, trackPath, durationMs]);
 
-  // Efektywne linie zsynchronizowanego tekstu
+  // Effective synced lyric lines
   const lines = useMemo(() => {
     return lyrics?.lines || [];
   }, [lyrics]);
 
-  // Wyznaczenie aktywnego indeksu wersu
+  // Find the active line index
   const activeIndex = useMemo(() => {
     if (!lyrics || !lyrics.is_synced || lines.length === 0) return -1;
     let found = -1;
@@ -197,7 +197,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   const currentLine = activeIndex >= 0 && activeIndex < lines.length ? lines[activeIndex] : null;
   const nextLine = activeIndex + 1 < lines.length ? lines[activeIndex + 1] : null;
 
-  // Obsługa przeciągania
+  // Drag handling
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isLocked) return;
     if ((e.target as HTMLElement).closest('button, input, a')) return;
@@ -279,7 +279,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
   if (!isOpen) return null;
 
-  // Obliczenie tła i styli
+  // Compute the background and styles
   const bgAlpha = opacityLevel === 'low' ? '0.45' : opacityLevel === 'med' ? '0.78' : '0.94';
   const blurPx = opacityLevel === 'low' ? '12px' : '20px';
   const fontSizeMain = fontSize === 'sm' ? '1.1rem' : fontSize === 'md' ? '1.4rem' : '1.85rem';
@@ -303,7 +303,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         WebkitBackdropFilter: `blur(${blurPx}) saturate(180%)`,
       }}
     >
-      {/* Pasek postępu audio na samej górze obramowania */}
+      {/* Audio progress bar along the very top of the border */}
       <div
         onClick={(e) => {
           if (!durationMs || durationMs <= 0) return;
@@ -320,7 +320,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         />
       </div>
 
-      {/* Belka nagłówkowa (Uchwyt przeciągania + Mini kontrolki) */}
+      {/* Header bar (drag handle + mini controls) */}
       <div className="flex items-center justify-between border-b border-white/6 bg-black/25 px-3.5 py-2 text-xs">
         <div className="flex min-w-0 flex-auto items-center gap-2 overflow-hidden">
           {!isLocked && <GripHorizontal size={14} className="shrink-0 text-fg-muted opacity-70" />}
@@ -357,7 +357,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
             {romajiMode === 'original' ? 'Kana' : romajiMode === 'romaji' ? 'Romaji' : 'Dual'}
           </button>
 
-          {/* Opcje wyglądu */}
+          {/* Appearance options */}
           <button
             onClick={() => setShowSettings(!showSettings)}
             title={loc.desktopOverlay.title}
@@ -369,7 +369,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
             <Sliders size={13} />
           </button>
 
-          {/* Blokada pozycji */}
+          {/* Position lock */}
           <button
             onClick={handleToggleLock}
             title={isLocked ? loc.desktopOverlay.unlockPosition : loc.desktopOverlay.lockPosition}
@@ -381,7 +381,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
             {isLocked ? <Lock size={13} /> : <Unlock size={13} />}
           </button>
 
-          {/* Zwiń / Rozwiń */}
+          {/* Collapse / expand */}
           <button
             onClick={handleToggleCollapse}
             title={isCollapsed ? 'Expand' : 'Collapse'}
@@ -390,7 +390,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
             {isCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
           </button>
 
-          {/* Zamknij overlay */}
+          {/* Close the overlay */}
           <button
             onClick={onClose}
             title={loc.desktopOverlay.closeTooltip}
@@ -401,7 +401,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         </div>
       </div>
 
-      {/* Panel ustawień wyglądu (czcionka i przezroczystość) */}
+      {/* Appearance settings panel (font and opacity) */}
       {showSettings && (
         <div className="flex items-center justify-between gap-3 border-b border-white/6 bg-black/40 px-4 py-2 text-xs">
           <div className="flex items-center gap-1.5">
@@ -438,7 +438,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         </div>
       )}
 
-      {/* Główny obszar wersu tekstu */}
+      {/* Main lyric line area */}
       <div
         className={cn(
           'flex flex-col items-center gap-1.5 text-center',
@@ -459,7 +459,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
 
         {!loading && currentLine && (
           <div className="flex w-full flex-col items-center gap-1">
-            {/* Główny wers z neonowym gradientem karaoke */}
+            {/* Main line with a neon karaoke gradient */}
             <div
               className="leading-snug font-extrabold tracking-tight transition-all duration-200"
               style={{
@@ -475,7 +475,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
                 : currentLine.text}
             </div>
 
-            {/* Transliteracja Romaji w trybie dwuwiersza */}
+            {/* Romaji transliteration in two-line mode */}
             {romajiMode === 'dual' && hasJapaneseCharacters(currentLine.text) && (
               <div
                 className="font-semibold tracking-wide text-accent-cyan italic"
@@ -485,7 +485,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
               </div>
             )}
 
-            {/* Podgląd nadchodzącego wersu (Upcoming preview) w trybie rozwiniętym */}
+            {/* Upcoming line preview in the expanded mode */}
             {!isCollapsed && nextLine && (
               <div className="mt-1.5 max-w-9/10 truncate text-ui font-medium text-fg-muted opacity-60">
                 <span className="mr-1.5 text-xs text-accent-pink uppercase">
@@ -498,7 +498,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
         )}
       </div>
 
-      {/* Dolny mikro-pasek sterowania (w trybie rozwiniętym) */}
+      {/* Bottom micro control bar (in the expanded mode) */}
       {!isCollapsed && (
         <div className="flex items-center justify-center gap-4 px-4 pt-1.5 pb-2.5">
           <button

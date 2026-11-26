@@ -2,11 +2,11 @@
  * Auralune Soundscape Audio Engine — Web Audio API Procedural Synthesizer
  * 
  * Synthesizes 5 organic, seamless lofi ambient layers without requiring external audio assets:
- * 1. Gentle Rain (deszcz ze zmiennym szumem różowym i kroplami)
- * 2. Vinyl Crackle (ciepły trzask płyty gramofonowej i szum igły)
- * 3. Campfire & Embers (strzelające ognisko z ciepłym rezonansem)
- * 4. Wind & Japanese Chimes (wiatr z delikatnymi dzwonkami wietrznymi Furin w skali pentatonicznej)
- * 5. Warm Cafe / Brown Noise (kojący, głęboki szum brązowy)
+ * 1. Gentle Rain (rain with varying pink noise and drops)
+ * 2. Vinyl Crackle (warm record crackle and needle noise)
+ * 3. Campfire & Embers (a crackling campfire with a warm resonance)
+ * 4. Wind & Japanese Chimes (wind with gentle Furin wind chimes in a pentatonic scale)
+ * 5. Warm Cafe / Brown Noise (soothing, deep brown noise)
  */
 
 export interface SoundscapeVolumes {
@@ -71,14 +71,14 @@ class SoundscapeEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
 
-  // Kanały Gain
+  // Gain channels
   private gainRain: GainNode | null = null;
   private gainVinyl: GainNode | null = null;
   private gainCampfire: GainNode | null = null;
   private gainWindChimes: GainNode | null = null;
   private gainCafeBrown: GainNode | null = null;
 
-  // Źródła i timery
+  // Sources and timers
   private rainSource: AudioBufferSourceNode | null = null;
   private brownSource: AudioBufferSourceNode | null = null;
   private windSource: AudioBufferSourceNode | null = null;
@@ -94,7 +94,7 @@ class SoundscapeEngine {
 
   private volumes: SoundscapeVolumes = { ...DEFAULT_SOUNDSCAPE_VOLUMES };
 
-  // Dźwięki dzwonków wietrznych w tradycyjnej japońskiej skali Insen / Hirajoshi (Hz)
+  // Wind chime notes in the traditional Japanese Insen / Hirajoshi scale (Hz)
   private readonly CHIME_PITCHES = [523.25, 587.33, 622.25, 783.99, 880.0, 1046.5];
 
   constructor() {
@@ -114,7 +114,7 @@ class SoundscapeEngine {
         }
       }
     } catch {
-      // Ignoruj błędy parsowania
+      // Ignore parse errors
     }
   }
 
@@ -128,7 +128,7 @@ class SoundscapeEngine {
         })
       );
     } catch {
-      // Ignoruj błędy
+      // Ignore errors
     }
   }
 
@@ -176,7 +176,7 @@ class SoundscapeEngine {
   }
 
   /**
-   * Generuje 5-sekundowy bufor płynnie zapętlonego szumu różowego (Pink Noise)
+   * Generates a 5-second buffer of seamlessly looped pink noise
    */
   private createPinkNoiseBuffer(durationSeconds = 5): AudioBuffer {
     if (!this.ctx) throw new Error('No AudioContext');
@@ -200,7 +200,7 @@ class SoundscapeEngine {
   }
 
   /**
-   * Generuje 5-sekundowy bufor szumu brązowego (Brownian / Red noise)
+   * Generates a 5-second buffer of brown noise (Brownian / red noise)
    */
   private createBrownNoiseBuffer(durationSeconds = 5): AudioBuffer {
     if (!this.ctx) throw new Error('No AudioContext');
@@ -213,12 +213,12 @@ class SoundscapeEngine {
       const white = Math.random() * 2 - 1;
       data[i] = (lastOut + 0.02 * white) / 1.02;
       lastOut = data[i];
-      data[i] *= 3.2; // Wzmocnienie percepcyjne
+      data[i] *= 3.2; // Perceptual boost
     }
     return buffer;
   }
 
-  // --- 1. Synteza Deszczu (Rain) ---
+  // --- 1. Rain synthesis ---
   private setupRainSynthesis() {
     if (!this.ctx || !this.gainRain) return;
 
@@ -227,12 +227,12 @@ class SoundscapeEngine {
     this.rainSource.buffer = pinkBuffer;
     this.rainSource.loop = true;
 
-    // Filtr dolnoprzepustowy z wolną modulacją wiatru
+    // Low-pass filter with slow wind modulation
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(800, this.ctx.currentTime);
 
-    // LFO modulujący powiewy deszczu
+    // LFO modulating the rain gusts
     const lfo = this.ctx.createOscillator();
     lfo.frequency.setValueAtTime(0.18, this.ctx.currentTime);
     const lfoGain = this.ctx.createGain();
@@ -245,7 +245,7 @@ class SoundscapeEngine {
     filter.connect(this.gainRain);
     this.rainSource.start();
 
-    // Drobne krople wody
+    // Small water drops
     this.scheduleDroplet();
   }
 
@@ -264,7 +264,7 @@ class SoundscapeEngine {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    // Losowa częstotliwość uderzenia kropli
+    // Random drop hit frequency
     osc.frequency.setValueAtTime(1400 + Math.random() * 1800, now);
     osc.frequency.exponentialRampToValueAtTime(400, now + 0.035);
 
@@ -278,11 +278,11 @@ class SoundscapeEngine {
     osc.stop(now + 0.04);
   }
 
-  // --- 2. Synteza Winyla (Vinyl) ---
+  // --- 2. Vinyl synthesis ---
   private setupVinylSynthesis() {
     if (!this.ctx || !this.gainVinyl) return;
 
-    // Płynny, cichy szum igły gramofonowej (Highpass)
+    // Smooth, quiet turntable needle noise (high-pass)
     const pinkBuffer = this.createPinkNoiseBuffer(4);
     this.vinylHissSource = this.ctx.createBufferSource();
     this.vinylHissSource.buffer = pinkBuffer;
@@ -316,7 +316,7 @@ class SoundscapeEngine {
     if (!this.ctx || !this.gainVinyl || this.volumes.vinyl <= 0.01 || this.isMuted) return;
     const now = this.ctx.currentTime;
 
-    // Bardzo krótki impuls igły (Dirack-like impulse click)
+    // Very short needle impulse (Dirac-like impulse click)
     const buffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.008), this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     const amp = (Math.random() > 0.88 ? 0.45 : 0.18) * (Math.random() * 2 - 1);
@@ -341,11 +341,11 @@ class SoundscapeEngine {
     src.start(now);
   }
 
-  // --- 3. Synteza Ogniska (Campfire) ---
+  // --- 3. Campfire synthesis ---
   private setupCampfireSynthesis() {
     if (!this.ctx || !this.gainCampfire) return;
 
-    // Ciepły basowy pomruk ognia (Brown noise lowpass)
+    // Warm low rumble of the fire (brown noise low-pass)
     const brownBuffer = this.createBrownNoiseBuffer(5);
     this.campfireRumbleSource = this.ctx.createBufferSource();
     this.campfireRumbleSource.buffer = brownBuffer;
@@ -404,11 +404,11 @@ class SoundscapeEngine {
     src.start(now);
   }
 
-  // --- 4. Synteza Wiatru i Japońskich Dzwonków (Wind & Chimes) ---
+  // --- 4. Wind and Japanese chimes synthesis (Wind & Chimes) ---
   private setupWindChimesSynthesis() {
     if (!this.ctx || !this.gainWindChimes) return;
 
-    // Delikatny, falujący wiatr
+    // Gentle, undulating wind
     const pinkBuffer = this.createPinkNoiseBuffer(6);
     this.windSource = this.ctx.createBufferSource();
     this.windSource.buffer = pinkBuffer;
@@ -419,7 +419,7 @@ class SoundscapeEngine {
     windFilter.frequency.setValueAtTime(520, this.ctx.currentTime);
     windFilter.Q.setValueAtTime(2.8, this.ctx.currentTime);
 
-    // LFO modulujące świst wiatru
+    // LFO modulating the wind whistle
     const windLfo = this.ctx.createOscillator();
     windLfo.frequency.setValueAtTime(0.12, this.ctx.currentTime);
     const windLfoGain = this.ctx.createGain();
@@ -453,7 +453,7 @@ class SoundscapeEngine {
     const now = this.ctx.currentTime;
     const fundamental = this.CHIME_PITCHES[Math.floor(Math.random() * this.CHIME_PITCHES.length)];
 
-    // Dzwonek szklany/metalowy Furin składa się z tonu podstawowego i składowej nieharmonicznej
+    // A glass/metal Furin chime consists of a fundamental and an inharmonic partial
     [1.0, 2.76].forEach((mult, idx) => {
       if (!this.ctx || !this.gainWindChimes) return;
       const osc = this.ctx.createOscillator();
@@ -473,7 +473,7 @@ class SoundscapeEngine {
     });
   }
 
-  // --- 5. Synteza Szumu Brązowego / Kawiarni (Cafe Brown) ---
+  // --- 5. Brown noise / cafe synthesis (Cafe Brown) ---
   private setupCafeBrownSynthesis() {
     if (!this.ctx || !this.gainCafeBrown) return;
 
@@ -495,7 +495,7 @@ class SoundscapeEngine {
     this.brownSource.start();
   }
 
-  // --- API Publiczne sterowania ---
+  // --- Public control API ---
 
   public start() {
     if (this.isRunning) {
@@ -607,7 +607,7 @@ class SoundscapeEngine {
   }
 
   /**
-   * Automatyczna adaptacja dźwięku w zależności od wybranego trybu wizualnego AnimeAmbienceFX
+   * Automatic sound adaptation to the selected AnimeAmbienceFX visual mode
    */
   public syncWithVisualAmbience(mode: string) {
     if (!this.isAutoSyncEnabled()) return;
@@ -654,7 +654,7 @@ class SoundscapeEngine {
     if (this.isSoundscapeActive() && !this.isRunning) {
       this.start();
     } else if (!this.isSoundscapeActive() && this.isRunning) {
-      // Możemy zatrzymać kontekst by oszczędzać CPU, gdy wszystkie kanały są wyzerowane
+      // The context can be suspended to save CPU when all channels are at zero
       this.stop();
     }
   }

@@ -77,7 +77,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   onClose,
   currentLang = 'en',
 }) => {
-  // Pozycja na żywo czytana tutaj, a nie w modalu — modal nie renderuje się przy każdym ticku.
+  // The live position is read here, not in the modal, so the modal does not render on every tick.
   const currentTimeMs = useLivePositionMs(currentTimeMsProp);
   const t = getTranslations(currentLang);
   const [data, setData] = useState<TrackChordsData | null>(null);
@@ -89,7 +89,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   const [exportFormat, setExportFormat] = useState<'chordpro' | 'text' | 'json'>('text');
   const [exportOutput, setExportOutput] = useState<string | null>(null);
 
-  // Pobranie danych lub analiza
+  // Fetch the data or analyse
   useEffect(() => {
     if (!trackId && !trackPath) return;
 
@@ -130,7 +130,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
     };
   }, [trackId, trackPath]);
 
-  // Wymuszenie ponownej kalkulacji
+  // Force a recalculation
   const handleRecompute = async () => {
     if (!trackPath) return;
     setLoading(true);
@@ -164,7 +164,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
     const cell = editingCell;
     setEditingCell(null);
     if (!value || value === cell.chord) return;
-    // Zmiana dotyczy wszystkich scalonych detekcji tego akordu w takcie.
+    // The change applies to all merged detections of this chord in the bar.
     const updated = data.chords.map((c, i) => (cell.idxs.includes(i) ? { ...c, chord: value } : c));
     setData({ ...data, chords: updated });
 
@@ -174,7 +174,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         overridesJson: JSON.stringify(updated),
       });
     } catch (err) {
-      console.error('Błąd zapisu nadpisanego akordu:', err);
+      console.error('Failed to save the chord override:', err);
     }
   };
 
@@ -206,7 +206,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
 
   return (
     <div className="flex h-full w-full flex-col gap-4">
-      {/* Pasek górny pod-widoku */}
+      {/* Sub-view top bar */}
       <div
         className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
       >
@@ -271,7 +271,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         </div>
       </div>
 
-      {/* Aktualny i następny akord */}
+      {/* Current and next chord */}
       <div
         className="flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4"
         style={{
@@ -325,7 +325,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         )}
       </div>
 
-      {/* Oś czasu: przegląd całego utworu + siatka taktów */}
+      {/* Timeline: an overview of the whole track + the bar grid */}
       <div className="flex min-h-55 flex-1 flex-col gap-3">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-3 p-12">
@@ -382,7 +382,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
         )}
       </div>
 
-      {/* Modal eksportu */}
+      {/* Export modal */}
       {exportOutput && (
         <ModalShell
           onClose={() => setExportOutput(null)}

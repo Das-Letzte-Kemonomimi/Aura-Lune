@@ -2,9 +2,9 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerVisualColumnProps } from './PlayerVisualColumn';
 
 /**
- * `PlayerView` renderuje się ~10×/s (żywy status), a ta kolumna zawiera ciężkie widżety (winyl, taśma, VU).
- * Renderujemy ją ponownie tylko przy zmianie rzeczywiście używanych pól statusu — pozycja zaokrąglona do
- * sekundy (licznik i nawój taśmy), widma nie porównujemy (VU czyta je ze store'u).
+ * `PlayerView` renders ~10×/s (live status), and this column holds heavy widgets (vinyl, tape, VU).
+ * It re-renders only when the status fields it actually uses change: the position rounded to
+ * a second (counter and tape wind); the spectrum is not compared (the VU reads it from the store).
  */
 function statusUnchanged(a: PlaybackStatus, b: PlaybackStatus): boolean {
   return (

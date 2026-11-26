@@ -25,7 +25,7 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
     <div
       className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-5 rounded-2xl border border-line bg-black/30 p-5"
     >
-      {/* KARTA 1: BASS BOOST (SUB-BAS EXCITER) */}
+      {/* CARD 1: BASS BOOST (SUB-BASS EXCITER) */}
       <div className="flex flex-col gap-3 rounded-xl border border-accent-pink/20 bg-accent-pink/5 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -80,7 +80,7 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
         </div>
       </div>
 
-      {/* KARTA 2: STEREO WIDENER (BAZA STEREO) */}
+      {/* CARD 2: STEREO WIDENER (STEREO BASE) */}
       <div className="flex flex-col gap-3 rounded-xl border border-sky-400/20 bg-sky-400/5 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
         </div>
       </div>
 
-      {/* KARTA 3: TRUE-PEAK LIMITER */}
+      {/* CARD 3: TRUE-PEAK LIMITER */}
       <div className="flex flex-col justify-between gap-3 rounded-xl border border-green-500/20 bg-green-500/5 p-4">
         <div>
           <div className="flex items-center justify-between">
@@ -170,7 +170,7 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
         </div>
       </div>
 
-      {/* KARTA 4: BAUER HEADPHONE CROSSFEED (BS2B) */}
+      {/* CARD 4: BAUER HEADPHONE CROSSFEED (BS2B) */}
       <div className="flex flex-col gap-3 rounded-xl border border-accent-purple/20 bg-accent-purple/5 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

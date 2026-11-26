@@ -100,7 +100,7 @@ describe('useHotkeysManager', () => {
   });
 
   it('uses the latest translations, formatter and handlers after a re-render', () => {
-    // Regresja: nasłuch rejestrowany z pustą listą zależności zamrażał wartości z pierwszego renderu.
+    // Regression: a listener registered with an empty dependency list froze the values from the first render.
     const statusRef = { current: { ...DEFAULT_PLAYBACK_STATUS, volume: 1.0 } };
     const firstNotify = vi.fn();
     const latestNotify = vi.fn();

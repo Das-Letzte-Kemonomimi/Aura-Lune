@@ -76,7 +76,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         }
       })
       .catch((err) => {
-        console.error('Błąd pobierania Auralune Recap:', err);
+        console.error('Failed to fetch Auralune Recap:', err);
         if (isMounted) {
           setLoading(false);
         }
@@ -123,7 +123,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
       layer="top"
       className="flex max-h-[90vh] max-w-180 flex-col gap-5 overflow-y-auto rounded-3xl border border-accent-pink/35 p-7 text-fg"
     >
-      {/* Nagłówek i przełącznik okresów */}
+      {/* Header and period toggle */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
@@ -149,7 +149,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Przyciski filtrów okresów */}
+          {/* Period filter buttons */}
           <div className="flex rounded-xl border border-line bg-white/5 p-1">
             {(['week', 'month', 'year', 'all'] as Period[]).map((p) => {
               const isSelected = period === p;
@@ -179,7 +179,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         </div>
       </div>
 
-      {/* Obliczone i znormalizowane statystyki */}
+      {/* Computed and normalised statistics */}
       {(() => {
         const totalSeconds =
           recapData?.total_listening_seconds ??
@@ -247,9 +247,9 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
 
         return (
           <>
-            {/* Główne kafelki liczników */}
+            {/* Main counter tiles */}
             <div className="grid grid-cols-2 gap-3.5">
-              {/* Łączny czas */}
+              {/* Total time */}
               <div
                 className="flex items-center gap-4 rounded-2xl border border-accent-pink/35 bg-linear-135 from-accent-pink/15 to-accent-purple/10 p-5"
               >
@@ -266,7 +266,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                 </div>
               </div>
 
-              {/* Odsłuchane utwory */}
+              {/* Tracks listened to */}
               <div
                 className="flex items-center gap-4 rounded-2xl border border-accent-cyan/35 bg-linear-135 from-accent-cyan/15 to-blue-500/10 p-5"
               >
@@ -284,7 +284,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
               </div>
             </div>
 
-            {/* Ranking Top Utworów */}
+            {/* Top tracks ranking */}
             {normalizedTracks.length > 0 && (
               <div className="rounded-2xl border border-line bg-white/3 p-4.5">
                 <div className="mb-3.5 flex items-center gap-2">
@@ -354,7 +354,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
               </div>
             )}
 
-            {/* Ranking Top Wykonawców */}
+            {/* Top artists ranking */}
             {normalizedArtists.length > 0 && (
               <div className="rounded-2xl border border-line bg-white/3 p-4.5">
                 <div className="mb-3 flex items-center gap-2">
@@ -390,13 +390,13 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         );
       })()}
 
-      {/* Stopka */}
+      {/* Footer */}
       <div className="mt-1 flex justify-end">
         <button
           onClick={onClose}
           className="rounded-xl border border-line bg-white/8 px-5.5 py-2.5 text-sm font-bold text-fg"
         >
-          {loc.common?.close || 'Zamknij'}
+          {loc.common?.close || 'Close'}
         </button>
       </div>
     </ModalShell>

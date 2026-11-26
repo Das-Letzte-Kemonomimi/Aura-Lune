@@ -81,7 +81,7 @@ export const ChordChart: React.FC<ChordChartProps> = ({
       {bars.map((bar, barIdx) => {
         const isActiveBar = barIdx === activeBarIdx;
         const isPast = bar.end_ms <= currentTimeMs;
-        // Pewność taktu = najniższa pewność jego akordów (najsłabsze ogniwo).
+        // Bar confidence = the lowest confidence of its chords (the weakest link).
         const barConfidence = Math.min(...bar.cells.map((c) => c.confidence));
         const barConfidencePct = Math.round(barConfidence * 100);
         const barLowConfidence = barConfidence < LOW_CONFIDENCE;
@@ -145,12 +145,12 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                   >
                     {isActive && (
                       <>
-                        {/* Wypełnienie tła: ile z akordu już wybrzmiało */}
+                        {/* Background fill: how much of the chord has already sounded */}
                         <div
                           className="pointer-events-none absolute top-0 bottom-0 left-0"
                           style={{ width: `${progress * 100}%`, background: `${color}55` }}
                         />
-                        {/* Gruby pasek postępu z poświatą i znacznikiem pozycji */}
+                        {/* Thick progress bar with a glow and a position marker */}
                         <div
                           className="pointer-events-none absolute left-0 bottom-0 h-1.5"
                           style={{

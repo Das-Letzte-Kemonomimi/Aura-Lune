@@ -26,7 +26,7 @@ interface CoverArtPickerModalProps {
   currentLang?: Language;
 }
 
-// Modułowy cache w pamięci RAM: natychmiastowe ładowanie wyników (0ms) dla wcześniej otwieranych albumów
+// Module-level RAM cache: instant results (0 ms) for albums opened before
 const localCoverCache = new Map<string, CoverCandidate[]>();
 
 export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
@@ -209,7 +209,7 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
         </button>
       </div>
 
-      {/* Wgrywanie własnej okładki z dysku / Drag & Drop */}
+      {/* Upload a custom cover from disk / drag & drop */}
       <div
         className={cn(
           'flex items-center justify-between gap-4 border-b border-line px-6 py-4 transition-all duration-200',

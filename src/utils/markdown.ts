@@ -1,7 +1,7 @@
 /**
- * Minimalny parser Markdown dla notatek wydań GitHuba (nagłówki, listy, cytaty, bloki kodu,
- * pogrubienie, kursywa, kod w linii, linki). Zwraca drzewo danych — renderuje je komponent
- * `MarkdownText` jako elementy Reacta, więc surowy HTML z notatek nigdy nie trafia do DOM.
+ * Minimal Markdown parser for GitHub release notes (headings, lists, quotes, code blocks,
+ * bold, italics, inline code, links). Returns a data tree that the `MarkdownText` component
+ * renders as React elements, so raw HTML from the notes never reaches the DOM.
  */
 
 export type InlineNode =
@@ -73,7 +73,7 @@ export function parseMarkdown(source: string): BlockNode[] {
       flushParagraph();
       continue;
     }
-    // Komentarze HTML (np. `<!-- ... -->`) w notatkach nie mają być widoczne.
+    // HTML comments (e.g. `<!-- ... -->`) in the notes must not be visible.
     if (/^<!--.*-->$/.test(trimmed)) continue;
     const heading = /^(#{1,6})\s+(.*?)\s*#*$/.exec(trimmed);
     if (heading) {

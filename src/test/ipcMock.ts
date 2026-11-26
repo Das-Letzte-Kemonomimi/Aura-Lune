@@ -1,15 +1,15 @@
 import { vi } from 'vitest';
 
 /**
- * Wspólny mock `invoke` z `@tauri-apps/api/core` dla wszystkich testów Vitest.
- * Rejestrowany globalnie w `src/test/setup.ts` i resetowany przed każdym testem
- * (domyślnie rozwiązuje się do `undefined`).
+ * Shared mock of `invoke` from `@tauri-apps/api/core` for all Vitest tests.
+ * Registered globally in `src/test/setup.ts` and reset before each test
+ * (resolves to `undefined` by default).
  *
- * Użycie w teście:
+ * Usage in a test:
  *   import { invokeMock } from '../test/ipcMock';
  *   invokeMock.mockResolvedValueOnce({ ... });
  *   expect(invokeMock).toHaveBeenCalledWith('play');
  */
-// Luźne typy celowo: testy podstawiają dowolne odpowiedzi i czytają dowolne argumenty.
+// Loose types on purpose: tests substitute any responses and read any arguments.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const invokeMock = vi.fn<(cmd: string, args?: any) => Promise<any>>();

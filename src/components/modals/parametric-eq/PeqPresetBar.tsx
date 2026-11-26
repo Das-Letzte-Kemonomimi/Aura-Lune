@@ -29,7 +29,7 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
   state,
 }) => (
     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line bg-black/25 px-6 py-3">
-      {/* Wybór Presetu */}
+      {/* Preset choice */}
       <div className="flex items-center gap-2">
         <span className="text-ui font-semibold text-fg-secondary">
           Preset:
@@ -48,7 +48,7 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
         </select>
       </div>
 
-      {/* Przedwzmacniacz (Preamp) z ochroną przed clippingiem */}
+      {/* Preamp with clipping protection */}
       <div className="flex items-center gap-3.5">
         <div className="flex items-center gap-2">
           <span className="text-ui font-semibold text-fg-secondary">
@@ -73,7 +73,7 @@ export const PeqPresetBar: React.FC<PeqPresetBarProps> = ({
           </span>
         </div>
 
-        {/* Ostrzeżenie przed przesterowaniem */}
+        {/* Clipping warning */}
         {maxEffectiveBoost > 0.01 ? (
           <button
             onClick={handleApplySafePreamp}

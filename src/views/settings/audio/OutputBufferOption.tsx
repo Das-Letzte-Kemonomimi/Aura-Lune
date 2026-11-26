@@ -48,7 +48,7 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
         </div>
       </div>
 
-      {/* Suwak + Presety */}
+      {/* Slider + presets */}
       <div className="mt-2 flex items-center gap-3.5">
         <input
           type="range"
@@ -72,7 +72,7 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({
         </div>
       </div>
 
-      {/* Szybkie presety bufora audio */}
+      {/* Quick audio buffer presets */}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {[
           { label: '80 ms (Ultra-low)', value: 80 },

@@ -74,7 +74,7 @@ describe('mode drawers', () => {
     MODE_DRAWERS.bars(state({ gradients }));
     expect(mock.calls.filter((c) => c === 'createLinearGradient').length).toBe(0);
     expect(first).toBeGreaterThan(0);
-    expect(first).toBeLessThanOrEqual(1); // wszystkie słupki o tej samej wysokości dzielą jeden gradient
+    expect(first).toBeLessThanOrEqual(1); // all bars of the same height share one gradient
   });
 
   it('wave mode skips drawing with fewer than two bands (regression: division by zero)', () => {

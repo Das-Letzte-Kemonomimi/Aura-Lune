@@ -22,7 +22,7 @@ export interface SettingsModalProps {
   activeTab: SettingsTab;
   onSelectTab: (tab: SettingsTab) => void;
   loc: Translations;
-  /** Pokazuje pigułkę „nowe” przy zakładce Aktualizacje. */
+  /** Shows the "new" pill next to the Updates tab. */
   updateAvailable?: boolean;
   children: React.ReactNode;
 }
@@ -52,7 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onClose={onClose}
       className="flex h-[86vh] max-h-215 max-w-240 flex-col overflow-hidden rounded-3xl border border-line-accent bg-deep shadow-2xl shadow-black/85"
     >
-      {/* Nagłówek okna ustawień */}
+      {/* Settings window header */}
       <div className="flex shrink-0 items-center justify-between border-b border-line bg-black/35 px-6 py-4">
         <div className="flex items-center gap-2.5">
           <div
@@ -79,7 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
       </div>
 
-      {/* Pasek zakładek ustawień */}
+      {/* Settings tab bar */}
       <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line bg-black/20 px-6 py-2.5">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -107,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         })}
       </div>
 
-      {/* Treść wybranej pod-zakładki ustawień */}
+      {/* Content of the selected settings sub-tab */}
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {children}
       </div>

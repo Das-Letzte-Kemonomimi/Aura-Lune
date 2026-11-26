@@ -1,4 +1,4 @@
-/** Główne widoki aplikacji renderowane przez `MainContentRouter`. */
+/** Main app views rendered by `MainContentRouter`. */
 export type MainTabType =
   | 'player'
   | 'library'
@@ -8,13 +8,13 @@ export type MainTabType =
   | 'dsp'
   | 'stats';
 
-/** Dawne zakładki, które `App` przekierowuje do okna Ustawień (np. z palety poleceń). */
+/** Old tabs that `App` redirects to the Settings window (e.g. from the command palette). */
 export type SettingsRedirectTab = 'devices' | 'transcode' | 'themes';
 
-/** Wszystkie wartości stanu `activeTab` w `App`. */
+/** All values of the `activeTab` state in `App`. */
 export type AppTab = MainTabType | SettingsRedirectTab;
 
-/** Zakładki okna Ustawień. */
+/** Settings window tabs. */
 export type SettingsTab = 'themes' | 'devices' | 'transcode' | 'updates' | 'about' | 'backup';
 
 const MAIN_TABS: ReadonlySet<string> = new Set<MainTabType>([
@@ -27,7 +27,7 @@ const MAIN_TABS: ReadonlySet<string> = new Set<MainTabType>([
   'stats',
 ]);
 
-/** Czy zakładka jest głównym widokiem (a nie przekierowaniem do Ustawień). */
+/** Whether the tab is a main view (not a redirect to Settings). */
 export function isMainTab(tab: string): tab is MainTabType {
   return MAIN_TABS.has(tab);
 }

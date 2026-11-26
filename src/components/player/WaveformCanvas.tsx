@@ -30,11 +30,11 @@ export interface WaveformCanvasProps {
   currentLang?: string;
 }
 
-/** Szerokość jednego szczytu na przewijanej fali DJ (px) — wspólna dla rysowania i przeciągania. */
+/** Width of one peak on the scrolling DJ wave (px), shared by drawing and dragging. */
 const SCROLL_UNIT_WIDTH = 6.5;
-/** Pozycja stałej igły DJ jako ułamek szerokości (środek). */
+/** Position of the fixed DJ needle as a fraction of the width (centre). */
 const SCROLL_PLAYHEAD_RATIO = 0.5;
-/** Minimalne przesunięcie (px), od którego przeciąganie fali DJ jest uznawane za przewijanie, a nie kliknięcie. */
+/** Minimum shift (px) from which dragging the DJ wave counts as scrolling rather than a click. */
 const SCROLL_DRAG_THRESHOLD_PX = 3;
 
 function resolveCssColor(color: string | undefined, fallback: string): string {
@@ -84,23 +84,23 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // Szerokość 0 do czasu pierwszego pomiaru — wcześniej start z 800 px rozciągał płótno na mgnienie.
+  // Width 0 until the first measurement; starting at 800 px used to stretch the canvas for a split second.
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 0, height });
   const [dpr, setDpr] = useState<number>(() => (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [hoverPct, setHoverPct] = useState<number | null>(null);
 
-  // Stan przeciągania fali (drag-to-seek)
+  // Wave dragging state (drag-to-seek)
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState<number | null>(null);
   const isDraggingRef = useRef(false);
   const dragProgressRef = useRef<number | null>(null);
-  // Tryb przewijanej fali DJ: przeciąganie przesuwa utwór pod stałą igłą (jog), zamiast skakać do pozycji kursora
+  // Scrolling DJ wave mode: dragging moves the track under a fixed needle (jog) instead of jumping to the cursor position
   const scrollDragStartXRef = useRef(0);
   const scrollDragStartProgressRef = useRef(0);
   const scrollDragMovedRef = useRef(false);
 
-  // Styl fali (zapamiętywany w localStorage)
+  // Wave style (remembered in localStorage)
   const [activeStyle, setActiveStyle] = useState<WaveformStyle>(() => {
     if (initialStyle) return initialStyle;
     try {
@@ -109,7 +109,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         return saved as WaveformStyle;
       }
     } catch {
-      // Ignoruj błędy localStorage
+      // Ignore localStorage errors
     }
     return 'smooth';
   });
@@ -122,8 +122,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     if (onStyleChange) onStyleChange(newStyle);
   };
 
-  // Obserwacja dynamicznego rozmiaru kontenera (HiDPI / Retina)
-  // useLayoutEffect: pomiar przed pierwszym malowaniem, bez klatki z błędnym rozmiarem.
+  // Observe the dynamic container size (HiDPI / Retina)
+  // useLayoutEffect: measure before the first paint, with no frame at the wrong size.
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -141,7 +141,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 
     updateSize();
 
-    // `resize` łapie też zmianę devicePixelRatio (zoom, przeniesienie na inny monitor).
+    // `resize` also catches devicePixelRatio changes (zoom, moving to another monitor).
     window.addEventListener('resize', updateSize);
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(() => updateSize());
@@ -154,10 +154,10 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     return () => window.removeEventListener('resize', updateSize);
   }, [height]);
 
-  // Interpolacja / wygładzanie danych szczytów
+  // Interpolate / smooth the peak data
   const normalizedPeaks = useMemo(() => sanitizePeaks(peaks), [peaks]);
 
-  // Główna pętla renderowania Canvas
+  // Main canvas render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -168,8 +168,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     const canvasHeight = dimensions.height;
     if (width <= 0 || canvasHeight <= 0) return;
 
-    // Zmiana width/height czyści i realokuje bufor — robimy to tylko przy realnej zmianie rozmiaru,
-    // a nie przy każdym ticku postępu (powodowało to migotanie / puste klatki).
+    // Changing width/height clears and reallocates the buffer, so it happens only on a real size change,
+    // not on every progress tick (that caused flicker / empty frames).
     const pxW = Math.floor(width * dpr);
     const pxH = Math.floor(canvasHeight * dpr);
     if (canvas.width !== pxW || canvas.height !== pxH) {
@@ -186,7 +186,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     const endColor = resolveCssColor(colorPlayedEnd, '#a855f7');
     const unplayedColor = resolveCssColor(colorUnplayed, 'rgba(255, 255, 255, 0.16)');
 
-    // Gradient dla odtworzonej części
+    // Gradient for the played part
     const playedGrad = ctx.createLinearGradient(0, 0, width, 0);
     try {
       playedGrad.addColorStop(0, startColor);
@@ -210,16 +210,16 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     const currentX = (effectiveProgress / 100) * width;
 
     // ==========================================
-    // STYL 1: GŁADKA CIĄGŁA FALA (SMOOTH ANALOG WAVE)
+    // STYLE 1: SMOOTH CONTINUOUS WAVE (SMOOTH ANALOG WAVE)
     // ==========================================
     if (activeStyle === 'smooth') {
-      // Krzywa wymaga co najmniej 2 punktów (inaczej dzielenie przez zero → NaN).
+      // The curve needs at least 2 points (otherwise division by zero → NaN).
       const smoothPeaks = normalizedPeaks.length >= 2 ? normalizedPeaks : [normalizedPeaks[0], normalizedPeaks[0]];
       const count = smoothPeaks.length;
       const step = width / (count - 1);
       const midY = canvasHeight / 2;
 
-      // Punkty krzywej górnej i dolnej
+      // Upper and lower curve points
       const topPoints: { x: number; y: number }[] = [];
       const bottomPoints: { x: number; y: number }[] = [];
 
@@ -235,7 +235,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctxTarget.beginPath();
         ctxTarget.moveTo(topPoints[0].x, topPoints[0].y);
 
-        // Górna krzywa Catmull-Rom do przodu
+        // Upper Catmull-Rom curve forwards
         for (let i = 0; i < count - 1; i++) {
           const p0 = topPoints[Math.max(0, i - 1)];
           const p1 = topPoints[i];
@@ -250,7 +250,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           ctxTarget.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
 
-        // Dolna krzywa z powrotem od prawej do lewej
+        // Lower curve back from right to left
         ctxTarget.lineTo(bottomPoints[count - 1].x, bottomPoints[count - 1].y);
         for (let i = count - 1; i > 0; i--) {
           const p0 = bottomPoints[Math.min(count - 1, i + 1)];
@@ -269,7 +269,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctxTarget.closePath();
       };
 
-      // 1. Warstwa nieodtworzona (tło)
+      // 1. Unplayed layer (background)
       drawSpline(ctx);
       ctx.fillStyle = unplayedColor;
       ctx.fill();
@@ -277,7 +277,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // 2. Warstwa odtworzona (neonowy clip)
+      // 2. Played layer (neon clip)
       if (currentX > 0) {
         ctx.save();
         ctx.beginPath();
@@ -297,7 +297,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.restore();
       }
 
-      // Wskaźnik głowicy (Playhead Laser Line)
+      // Playhead laser line
       if (currentX > 0 && currentX < width) {
         ctx.save();
         ctx.beginPath();
@@ -318,10 +318,10 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     }
 
     // ==========================================
-    // STYL 2: NOWOCZESNE SŁUPKI CYBER (CYBER BARS)
+    // STYLE 2: MODERN CYBER BARS
     // ==========================================
     else if (activeStyle === 'bars') {
-      // Układ wypełnia dokładnie całą szerokość, więc słupki są zgodne z pozycją głowicy.
+      // The layout fills exactly the whole width, so the bars match the playhead position.
       const layout = computeBarLayout(width, normalizedPeaks.length, 3, 2.5);
       const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
       const { barWidth, step } = layout;
@@ -348,7 +348,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.fill();
       };
 
-      // Jedno wypełnienie z jednym cieniem zamiast cienia dla każdego słupka (znacznie mniej pracy GPU/CPU).
+      // One fill with one shadow instead of a shadow per bar (much less GPU/CPU work).
       ctx.save();
       ctx.fillStyle = unplayedColor;
       fillBars(unplayedPath, 4);
@@ -358,7 +358,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       fillBars(playedPath, 4);
       ctx.restore();
 
-      // Wskaźnik playheadu z neonową kropką
+      // Playhead indicator with a neon dot
       if (currentX > 0 && currentX < width) {
         ctx.save();
         ctx.beginPath();
@@ -376,15 +376,15 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     // ==========================================
     else if (activeStyle === 'scrolling') {
       const midY = canvasHeight / 2;
-      const playheadX = Math.floor(width * SCROLL_PLAYHEAD_RATIO); // Stała igła DJ w środku
+      const playheadX = Math.floor(width * SCROLL_PLAYHEAD_RATIO); // Fixed DJ needle in the centre
       const count = normalizedPeaks.length;
-      const waveUnitWidth = SCROLL_UNIT_WIDTH; // Szerokość pojedynczego taktu
+      const waveUnitWidth = SCROLL_UNIT_WIDTH; // Width of a single bar
       const totalWaveWidth = count * waveUnitWidth;
 
-      // Przesunięcie fali w zależności od postępu odtwarzania
+      // Wave offset based on playback progress
       const scrollOffset = (effectiveProgress / 100) * totalWaveWidth;
 
-      // Siatka tła (DJ Beat Grid)
+      // Background grid (DJ beat grid)
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.lineWidth = 1;
       for (let gx = 0; gx < width; gx += 40) {
@@ -394,14 +394,14 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.stroke();
       }
 
-      // Rysowanie przewijanych słupków (zbiorczo: jedno wypełnienie na grupę, jeden cień)
+      // Draw the scrolling bars (batched: one fill per group, one shadow)
       const bWidth = 4.5;
       const played: { x: number; y: number; h: number }[] = [];
       const upcoming: { x: number; y: number; h: number }[] = [];
       for (let i = 0; i < count; i++) {
         const barX = playheadX - scrollOffset + i * waveUnitWidth;
 
-        // Rysuj tylko te elementy, które mieszczą się na ekranie
+        // Draw only the elements that fit on the screen
         if (barX < -20 || barX > width + 20) continue;
 
         const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
@@ -431,7 +431,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       fillScrollBars(played);
       ctx.restore();
 
-      // Centralna laserowa igła DJ z poświatą (Playhead Marker)
+      // Central laser DJ needle with a glow (playhead marker)
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(playheadX, 0);
@@ -442,12 +442,12 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.shadowBlur = isPlaying ? 16 : 8;
       ctx.stroke();
 
-      // Wyświetlanie aktualnego czasu na igle DJ
+      // Show the current time on the DJ needle
       const effectivePosMs = isDragging && dragProgress !== null && durationMs > 0
         ? (dragProgress / 100) * durationMs
         : positionMs;
       if (durationMs > 0 && effectivePosMs > 0) {
-        // Bez poświaty igły: inaczej tło i tekst etykiety czasu są rozmyte.
+        // No needle glow: otherwise the time label background and text are blurred.
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(15, 20, 32, 0.85)';
@@ -457,7 +457,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.fillText(formatTimeSec(effectivePosMs / 1000), playheadX + 7, 14);
       }
 
-      // Znacznik głowicy na górze i dole
+      // Playhead marker at the top and bottom
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
       ctx.fillStyle = isPlaying ? '#06b6d4' : '#f43f5e';
@@ -478,7 +478,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     }
 
     // ==========================================
-    // STYL 4: SYMETRYCZNA FALA LUSTRZANA (MIRROR SPECTRUM)
+    // STYLE 4: SYMMETRIC MIRROR WAVE (MIRROR SPECTRUM)
     // ==========================================
     else if (activeStyle === 'mirror') {
       const layout = computeBarLayout(width, normalizedPeaks.length, 2.5, 2);
@@ -502,8 +502,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         }
       };
 
-      // Górna połowa (główna) i dolna (lustrzane odbicie z niższą przezroczystością) —
-      // po jednym wypełnieniu na grupę zamiast cienia dla każdego słupka.
+      // Upper half (main) and lower half (mirror with a lower opacity),
+      // one fill per group instead of a shadow per bar.
       const fillGroup = (
         bars: { x: number; h: number }[],
         fill: string | CanvasGradient,
@@ -530,7 +530,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       fillGroup(unplayedBars, unplayedColor, 0.15, false);
       fillGroup(playedBars, playedGrad, 0.45, true);
 
-      // Linia zerowa (Central Zero-Line)
+      // Central zero line
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -538,7 +538,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       ctx.lineTo(width, midY);
       ctx.stroke();
 
-      // Laserowy wskaźnik
+      // Laser indicator
       if (currentX > 0 && currentX < width) {
         ctx.save();
         ctx.strokeStyle = '#fff';
@@ -554,7 +554,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     }
 
     // ==========================================
-    // INTERAKTYWNA LINIA HOVERA (CURSOR PREVIEW)
+    // INTERACTIVE HOVER LINE (CURSOR PREVIEW)
     // ==========================================
     if (hoverX !== null && hoverX >= 0 && hoverX <= width && !(activeStyle === 'scrolling' && isDragging)) {
       ctx.save();
@@ -571,14 +571,14 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     }
 
     // ==========================================
-    // WIZUALIZACJA OBSZARU PĘTLI A-B (LOOP ZONE)
+    // A-B LOOP ZONE VISUALISATION
     // ==========================================
     if (durationMs > 0 && (loopPointA !== null || loopPointB !== null)) {
       ctx.save();
       const xA = loopPointA !== null ? Math.max(0, Math.min(width, (loopPointA / durationMs) * width)) : null;
       const xB = loopPointB !== null ? Math.max(0, Math.min(width, (loopPointB / durationMs) * width)) : null;
 
-      // Obszar podświetlenia pętli pomiędzy A i B
+      // Loop highlight area between A and B
       if (xA !== null && xB !== null && xB > xA) {
         const loopGrad = ctx.createLinearGradient(xA, 0, xB, 0);
         loopGrad.addColorStop(0, 'rgba(6, 182, 212, 0.22)');
@@ -586,14 +586,14 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.fillStyle = loopGrad;
         ctx.fillRect(xA, 0, xB - xA, canvasHeight);
 
-        // Krawędzie pętli (subtelne akcenty świetlne)
+        // Loop edges (subtle light accents)
         ctx.fillStyle = 'rgba(6, 182, 212, 0.35)';
         ctx.fillRect(xA, 0, Math.min(3, xB - xA), canvasHeight);
         ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
         ctx.fillRect(Math.max(xA, xB - 3), 0, Math.min(3, xB - xA), canvasHeight);
       }
 
-      // Pionowy znacznik punktu A (Cyan)
+      // Vertical point A marker (cyan)
       if (xA !== null) {
         ctx.strokeStyle = '#06b6d4';
         ctx.lineWidth = 2;
@@ -606,7 +606,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Etykieta [A (bez cienia — inaczej tekst jest rozmyty)
+        // [A label (no shadow, otherwise the text is blurred)
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#06b6d4';
@@ -614,7 +614,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.fillText('[A', Math.min(width - 18, Math.max(2, xA + 3)), 11);
       }
 
-      // Pionowy znacznik punktu B (Pink)
+      // Vertical point B marker (pink)
       if (xB !== null) {
         ctx.strokeStyle = '#f43f5e';
         ctx.lineWidth = 2;
@@ -627,7 +627,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Etykieta B]
+        // B] label
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#f43f5e';
@@ -659,13 +659,13 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 
   const isScrolling = activeStyle === 'scrolling';
 
-  /** Całkowita szerokość przewijanej fali (px) — 1 px przeciągnięcia = utwór / ta szerokość. */
+  /** Total width of the scrolling wave (px): 1 px of dragging = track / this width. */
   const scrollTotalWidth = normalizedPeaks.length * SCROLL_UNIT_WIDTH;
 
   /**
-   * Zwraca pozycję (0..1) wskazywaną przez kursor w punkcie `clientX` oraz jego `x` w kontenerze.
-   * Dla przewijanej fali DJ `pct` to czas pod kursorem względem stałej igły (podgląd po najechaniu);
-   * dla pozostałych stylów to bezwzględna pozycja na osi czasu.
+   * Returns the position (0..1) pointed at by the cursor at `clientX` and its `x` in the container.
+   * For the scrolling DJ wave `pct` is the time under the cursor relative to the fixed needle (hover preview);
+   * for the other styles it is the absolute position on the timeline.
    */
   const getPctFromClientX = (clientX: number): { pct: number; x: number } => {
     const container = containerRef.current;
@@ -681,7 +681,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     return { pct, x };
   };
 
-  /** Nowy postęp (0..1) po przeciągnięciu fali DJ: fala podąża za kursorem, więc utwór cofa się/przewija odwrotnie. */
+  /** New progress (0..1) after dragging the DJ wave: the wave follows the cursor, so the track moves the opposite way. */
   const getScrollDragPct = (clientX: number): number => {
     const dx = clientX - scrollDragStartXRef.current;
     const next = scrollDragStartProgressRef.current - (dx / scrollTotalWidth) * 100;
@@ -695,7 +695,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     setHoverPct(pct);
 
     if (isScrolling) {
-      // Fala stoi w miejscu do czasu faktycznego przeciągnięcia; samo kliknięcie nic nie przewija.
+      // The wave stays put until it is actually dragged; a click alone does not seek.
       scrollDragStartXRef.current = clientX;
       scrollDragStartProgressRef.current = progress;
       scrollDragMovedRef.current = false;
@@ -729,7 +729,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     onSeekPreview?.(pct);
   };
 
-  /** Kończy przeciąganie; zwraca pozycję do zatwierdzenia albo null, gdy nic nie trzeba przewijać. */
+  /** Ends dragging; returns the position to commit, or null when nothing needs seeking. */
   const endDrag = (clientX: number, pct: number): number | null => {
     isDraggingRef.current = false;
     setIsDragging(false);
@@ -811,13 +811,13 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     }
   };
 
-  // Najnowsze funkcje przeciągania dla nasłuchów okna (rejestrowanych tylko na czas przeciągania)
+  // The latest drag functions for the window listeners (registered only while dragging)
   const dragApiRef = useRef({ getPctFromClientX, moveDrag, endDrag, commitSeek });
   useEffect(() => {
     dragApiRef.current = { getPctFromClientX, moveDrag, endDrag, commitSeek };
   });
 
-  // Obsługa przeciągania na poziomie okna, gdyby kursor opuścił kontener
+  // Window-level drag handling, in case the cursor leaves the container
   useEffect(() => {
     if (!isDragging) return;
 
@@ -872,7 +872,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ...style,
       }}
     >
-      {/* Pasek narzędzi fali NAD paskiem postępu */}
+      {/* Wave toolbar ABOVE the progress bar */}
       {showStyleSelector && (
         <div className="flex w-full items-center justify-end gap-1.5">
           <div className="flex items-center gap-1 rounded-lg border border-line bg-ink/90 px-1 py-0.5 backdrop-blur-sm">
@@ -903,7 +903,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         </div>
       )}
 
-      {/* Kontener płótna fali (obsługa przeciągania myszą i dotykiem) */}
+      {/* Wave canvas container (mouse and touch dragging) */}
       <div
         ref={containerRef}
         className={cn(
@@ -932,7 +932,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           className="block h-full w-full will-change-transform"
         />
 
-        {/* Pływający wskaźnik czasu przy najechaniu myszą lub przeciąganiu */}
+        {/* Floating time indicator on hover or while dragging */}
         {(isDragging || hoverX !== null) && hoverX !== null && hoverTimeStr && !(isScrolling && isDragging) && (
           <div
             className={cn(

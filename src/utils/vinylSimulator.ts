@@ -1,13 +1,13 @@
 /**
  * Auralune Vinyl & Tape Analog Lo-Fi FX Simulator
  * 
- * Generuje w czasie rzeczywistym organiczny szum analogowy:
- * 1. Winyl: szum powierzchniowy mikrorowków, okresowy sweep obrotowy 33⅓ / 45 RPM,
- *    trzaski kurzu (dust crackle) i mechaniczny pomruk igły (stylus rumble).
- * 2. Taśma magnetofonowa: równomierny szum taśmy chromowej/żelazowej (tape hiss)
- *    z ciepłym filtrem analogowym.
+ * Generates organic analog noise in real time:
+ * 1. Vinyl: micro-groove surface noise, a periodic 33⅓ / 45 RPM rotation sweep,
+ *    dust crackle and mechanical stylus rumble.
+ * 2. Magnetic tape: even chrome/ferric tape hiss
+ *    with a warm analog filter.
  * 
- * W pełni zsynchronizowany z odtwarzaniem (płynne opadanie i podnoszenie igły).
+ * Fully synced with playback (smooth needle drop and lift).
  */
 
 export type AnalogNoiseMode = 'vinyl' | 'tape';
@@ -15,8 +15,8 @@ export type AnalogNoiseMode = 'vinyl' | 'tape';
 export interface VinylSimConfig {
   enabled: boolean;
   mode: AnalogNoiseMode;
-  intensity: number; // 0.0 - 1.0 (np. 0.25 = 25%)
-  autoSync: boolean; // wyciszanie na pauzie
+  intensity: number; // 0.0 - 1.0 (e.g. 0.25 = 25%)
+  autoSync: boolean; // mute while paused
 }
 
 const STORAGE_KEY = 'auralune_vinyl_sim_config_v1';
@@ -32,14 +32,14 @@ class VinylSimulatorEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
 
-  // Węzły winyla
+  // Vinyl nodes
   private vinylGrooveGain: GainNode | null = null;
   private vinylRumbleGain: GainNode | null = null;
   private vinylGrooveSource: AudioBufferSourceNode | null = null;
   private vinylRumbleSource: AudioBufferSourceNode | null = null;
   private grooveLfo: OscillatorNode | null = null;
 
-  // Węzły taśmy
+  // Tape nodes
   private tapeHissGain: GainNode | null = null;
   private tapeHissSource: AudioBufferSourceNode | null = null;
 
@@ -71,7 +71,7 @@ class VinylSimulatorEngine {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.config));
     } catch {
-      // Ignoruj błędy zapisu localStorage
+      // Ignore localStorage write errors
     }
     this.notify();
   }
@@ -119,7 +119,7 @@ class VinylSimulatorEngine {
   public setRpm(rpm: 33 | 45) {
     this.rpm = rpm;
     if (this.grooveLfo && this.ctx) {
-      // Częstotliwość obrotu: 33.33 RPM = 0.555 Hz, 45 RPM = 0.75 Hz
+      // Rotation frequency: 33.33 RPM = 0.555 Hz, 45 RPM = 0.75 Hz
       const freq = rpm === 33 ? 0.555 : 0.75;
       this.grooveLfo.frequency.setValueAtTime(freq, this.ctx.currentTime);
     }
@@ -140,15 +140,15 @@ class VinylSimulatorEngine {
     this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
     this.masterGain.connect(this.ctx.destination);
 
-    // Kanał szumu rowka winyla (groove hiss)
+    // Vinyl groove hiss channel
     this.vinylGrooveGain = this.ctx.createGain();
     this.vinylGrooveGain.connect(this.masterGain);
 
-    // Kanał mechanicznego basowego dudnienia (rumble)
+    // Mechanical low rumble channel
     this.vinylRumbleGain = this.ctx.createGain();
     this.vinylRumbleGain.connect(this.masterGain);
 
-    // Kanał szumu taśmy (tape hiss)
+    // Tape hiss channel
     this.tapeHissGain = this.ctx.createGain();
     this.tapeHissGain.connect(this.masterGain);
 
@@ -196,7 +196,7 @@ class VinylSimulatorEngine {
   private setupVinylSynthesis() {
     if (!this.ctx || !this.vinylGrooveGain || !this.vinylRumbleGain) return;
 
-    // 1. Szum powierzchniowy rowka (Highpass + Bandpass)
+    // 1. Groove surface noise (high-pass + band-pass)
     const pinkBuf = this.createPinkNoiseBuffer(5);
     this.vinylGrooveSource = this.ctx.createBufferSource();
     this.vinylGrooveSource.buffer = pinkBuf;
@@ -206,7 +206,7 @@ class VinylSimulatorEngine {
     hp.type = 'highpass';
     hp.frequency.setValueAtTime(2800, this.ctx.currentTime);
 
-    // LFO modulujący obrót płyty (33 RPM ~ 0.55 Hz)
+    // LFO modulating the record rotation (33 RPM ~ 0.55 Hz)
     this.grooveLfo = this.ctx.createOscillator();
     this.grooveLfo.frequency.setValueAtTime(this.rpm === 33 ? 0.555 : 0.75, this.ctx.currentTime);
     const lfoGain = this.ctx.createGain();
@@ -224,7 +224,7 @@ class VinylSimulatorEngine {
     this.vinylGrooveSource.start();
     this.grooveLfo.start();
 
-    // 2. Mechaniczny basowy pomruk silnika i talerza (Rumble 35 Hz)
+    // 2. Mechanical low rumble of the motor and platter (rumble 35 Hz)
     const brownBuf = this.createBrownNoiseBuffer(4);
     this.vinylRumbleSource = this.ctx.createBufferSource();
     this.vinylRumbleSource.buffer = brownBuf;
@@ -242,7 +242,7 @@ class VinylSimulatorEngine {
   private setupTapeSynthesis() {
     if (!this.ctx || !this.tapeHissGain) return;
 
-    // Ciepły, gęsty szum taśmy Type II Chrome (Pink noise + Lowpass 7 kHz)
+    // Warm, dense Type II Chrome tape hiss (pink noise + low-pass 7 kHz)
     const pinkBuf = this.createPinkNoiseBuffer(6);
     this.tapeHissSource = this.ctx.createBufferSource();
     this.tapeHissSource.buffer = pinkBuf;
@@ -269,7 +269,7 @@ class VinylSimulatorEngine {
     }
     if (!this.isRunning || !this.config.enabled || this.config.mode !== 'vinyl') return;
 
-    // Losowy odstęp między trzaskami (zależny od intensywności)
+    // Random gap between crackles (depends on the intensity)
     const baseDelay = 50 + Math.random() * 250;
     const delay = Math.max(25, baseDelay * (1.2 - this.config.intensity * 0.7));
 
@@ -283,7 +283,7 @@ class VinylSimulatorEngine {
     if (!this.ctx || !this.masterGain || !this.isRunning || this.config.intensity <= 0.01) return;
     const now = this.ctx.currentTime;
 
-    // Krótki impuls szpilkowy igły o losowej polaryzacji
+    // Short needle spike impulse with a random polarity
     const frames = Math.floor(this.ctx.sampleRate * 0.006);
     const buf = this.ctx.createBuffer(1, frames, this.ctx.sampleRate);
     const data = buf.getChannelData(0);
@@ -357,7 +357,7 @@ class VinylSimulatorEngine {
       this.isRunning = true;
       this.updateGainLevels();
 
-      // Płynne podgłośnienie (fade-in 100ms)
+      // Smooth fade-in (100 ms)
       if (this.masterGain) {
         this.masterGain.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.08);
       }
@@ -369,7 +369,7 @@ class VinylSimulatorEngine {
         this.crackleTimer = null;
       }
     } else {
-      // Płynne wyciszenie (fade-out 120ms)
+      // Smooth fade-out (120 ms)
       if (this.masterGain && this.ctx) {
         this.masterGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.08);
       }

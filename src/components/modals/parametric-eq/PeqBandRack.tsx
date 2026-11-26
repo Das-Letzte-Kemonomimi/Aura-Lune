@@ -45,7 +45,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
         </button>
       </div>
 
-      {/* Lista pasm */}
+      {/* Band list */}
       <div className="flex flex-col gap-1.5">
         {state.bands.map((band, idx) => {
           const color = PEQ_BAND_COLORS[idx % PEQ_BAND_COLORS.length];
@@ -65,7 +65,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                   : '1px solid rgba(255, 255, 255, 0.05)',
               }}
             >
-              {/* Aktywność pasma */}
+              {/* Band activity */}
               <input
                 type="checkbox"
                 checked={band.enabled}
@@ -74,7 +74,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 className="cursor-pointer"
               />
 
-              {/* Numer pasma z kolorem */}
+              {/* Band number with its colour */}
               <div
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xxs font-extrabold text-fg"
                 style={{ background: color }}
@@ -82,7 +82,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 {idx + 1}
               </div>
 
-              {/* Typ filtru */}
+              {/* Filter type */}
               <select
                 value={normalizeFilterType(band.filter_type)}
                 onChange={(e) =>
@@ -104,7 +104,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 </option>
               </select>
 
-              {/* Częstotliwość Hz */}
+              {/* Frequency (Hz) */}
               <div className="flex w-37.5 items-center gap-1.5">
                 <span className="text-xxs text-fg-muted">Freq:</span>
                 <input
@@ -122,7 +122,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 <span className="text-xxs text-fg-muted">Hz</span>
               </div>
 
-              {/* Wzmocnienie Gain dB */}
+              {/* Gain (dB) */}
               <div className="flex w-52.5 items-center gap-1.5">
                 <span className="text-xxs text-fg-muted">Gain:</span>
                 <input
@@ -147,7 +147,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 </span>
               </div>
 
-              {/* Dobroć Q */}
+              {/* Q factor */}
               <div className="flex w-35 items-center gap-1.5">
                 <span className="text-xxs text-fg-muted">Q:</span>
                 <input
@@ -164,7 +164,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
                 />
               </div>
 
-              {/* Usuń */}
+              {/* Delete */}
               <button
                 onClick={(e) => handleDeleteBand(band.id, e)}
                 title={loc.parametricEq.deleteBand}

@@ -61,7 +61,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
       });
       setPreviews(res);
     } catch (err) {
-      console.error('Błąd podglądu zmiany nazw:', err);
+      console.error('Rename preview failed:', err);
       setError(String(err));
     } finally {
       setIsLoading(false);
@@ -120,7 +120,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-212.5 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
     >
-      {/* Nagłówek */}
+      {/* Header */}
       <div
         className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
       >
@@ -145,7 +145,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
         </button>
       </div>
 
-      {/* Zawartość */}
+      {/* Content */}
       <div className="flex flex-col gap-4 overflow-y-auto p-5">
         {error && (
           <div
@@ -165,7 +165,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
           </div>
         )}
 
-        {/* Konfiguracja wzorca */}
+        {/* Pattern configuration */}
         <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-white/3 p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-ui font-semibold text-fg">
@@ -194,7 +194,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
             </button>
           </div>
 
-          {/* Presety */}
+          {/* Presets */}
           <div className="mt-0.5 flex flex-wrap gap-1.5">
             <span className="self-center text-xs text-fg-muted">
               {loc.fileRenamer.presets}
@@ -217,7 +217,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
           </div>
         </div>
 
-        {/* Tabela podglądu zmian */}
+        {/* Change preview table */}
         <div className="flex flex-col gap-2">
           <span className="text-ui font-semibold text-fg-secondary">
             {fmt(loc.fileRenamer.previewCount, String(previews.length))}
@@ -287,7 +287,7 @@ export const FileRenamerModal: React.FC<FileRenamerModalProps> = ({
         </div>
       </div>
 
-      {/* Stopka */}
+      {/* Footer */}
       <div className="flex items-center justify-between border-t border-line bg-black/20 px-5 py-3.5">
         <button
           onClick={onClose}

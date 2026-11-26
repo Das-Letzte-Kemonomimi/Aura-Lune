@@ -17,7 +17,7 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
         {loc.dsp.engine}:
       </label>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-3.5">
-        {/* Karta Bypass (Bez DSP / Czysty dźwięk) */}
+        {/* Bypass card (no DSP / clean sound) */}
         <div
           onClick={() => handleEngineChange('Bypass')}
           className={cn(
@@ -37,7 +37,7 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
           </p>
         </div>
 
-        {/* Karta Rubber Band */}
+        {/* Rubber Band card */}
         <div
           onClick={() => handleEngineChange('RubberBand')}
           className={cn(
@@ -57,7 +57,7 @@ export const DspEngineSelector: React.FC<DspEngineSelectorProps> = ({
           </p>
         </div>
 
-        {/* Karta SoundTouch */}
+        {/* SoundTouch card */}
         <div
           onClick={() => handleEngineChange('SoundTouch')}
           className={cn(

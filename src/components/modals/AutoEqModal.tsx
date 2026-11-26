@@ -50,8 +50,8 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
   const loc = getTranslations(currentLang);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState<string>('Wszystkie');
-  const [selectedType, setSelectedType] = useState<string>('Wszystkie');
+  const [selectedBrand, setSelectedBrand] = useState<string>('All');
+  const [selectedType, setSelectedType] = useState<string>('All');
   const [selectedProfileId, setSelectedProfileId] = useState<string>(
     AUTO_EQ_PROFILES[0].id
   );
@@ -61,10 +61,10 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
   const filteredProfiles = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return AUTO_EQ_PROFILES.filter((profile) => {
-      if (selectedBrand !== 'Wszystkie' && profile.brand !== selectedBrand) {
+      if (selectedBrand !== 'All' && profile.brand !== selectedBrand) {
         return false;
       }
-      if (selectedType !== 'Wszystkie' && profile.type !== selectedType) {
+      if (selectedType !== 'All' && profile.type !== selectedType) {
         return false;
       }
       if (q) {
@@ -101,7 +101,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
       layer="tool"
       className="flex max-h-[90vh] max-w-240 flex-col overflow-hidden rounded-2xl border border-line bg-card text-fg"
     >
-      {/* NAGŁÓWEK */}
+      {/* HEADER */}
       <div
         className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/10 to-blue-500/8 px-6 py-4.5"
       >
@@ -128,7 +128,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
         </button>
       </div>
 
-      {/* GÓRNY PASEK: WYSZUKIWARKA I FILTRY TYPU */}
+      {/* TOP BAR: SEARCH AND TYPE FILTERS */}
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
         <div className="flex min-w-55 flex-1 items-center gap-2 rounded-lg border border-line bg-white/5 px-3 py-1.5">
           <Search size={16} className="text-fg-muted" />
@@ -149,9 +149,9 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
           )}
         </div>
 
-        {/* Filtry typów */}
+        {/* Type filters */}
         <div className="flex gap-1.5">
-          {['Wszystkie', 'Over-Ear', 'In-Ear', 'Wireless'].map((type) => (
+          {['All', 'Over-Ear', 'In-Ear', 'Wireless'].map((type) => (
             <button
               key={type}
               onClick={() => setSelectedType(type)}
@@ -164,7 +164,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                 border: '1px solid ' + (selectedType === type ? '#f472b6' : 'rgba(255, 255, 255, 0.1)'),
               }}
             >
-              {type === 'Wszystkie' ? loc.autoEq.all : type}
+              {type === 'All' ? loc.autoEq.all : type}
             </button>
           ))}
         </div>
@@ -180,7 +180,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
         </button>
       </div>
 
-      {/* PRZEWIJANA LISTA MAREK */}
+      {/* SCROLLABLE BRAND LIST */}
       <div className="flex gap-2 overflow-x-auto border-b border-line bg-black/15 px-6 py-2">
         {AUTO_EQ_BRANDS.map((brand) => (
           <button
@@ -193,14 +193,14 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
               selectedBrand === brand ? 'border-pink-500' : 'border-transparent',
             )}
           >
-            {brand === 'Wszystkie' ? loc.autoEq.all : brand}
+            {brand === 'All' ? loc.autoEq.all : brand}
           </button>
         ))}
       </div>
 
-      {/* GŁÓWNA ZAWARTOŚĆ: DWIE KOLUMNY (LISTA PROFILI + PODGLĄD WYKRESU) */}
+      {/* MAIN CONTENT: TWO COLUMNS (PROFILE LIST + CHART PREVIEW) */}
       <div className="grid flex-1 grid-cols-2 overflow-hidden">
-        {/* LEWA KOLUMNA: LISTA SŁUCHAWEK */}
+        {/* LEFT COLUMN: HEADPHONE LIST */}
         <div className="flex flex-col gap-2 overflow-y-auto border-r border-line px-5 py-4">
           {filteredProfiles.length === 0 ? (
             <div className="px-0 py-7.5 text-center text-gray-400">
@@ -243,10 +243,10 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
           )}
         </div>
 
-        {/* PRAWA KOLUMNA: WIZUALIZACJA I ZASTOSOWANIE WYBRANEGO PROFILU */}
+        {/* RIGHT COLUMN: VISUALISATION AND APPLYING THE SELECTED PROFILE */}
         <div className="flex flex-col justify-between overflow-y-auto bg-black/20 px-6 py-5">
           <div>
-            {/* TYTUŁ I METRYKA */}
+            {/* TITLE AND METRICS */}
             <div className="flex items-start justify-between">
               <div>
                 <span className="rounded-sm bg-pink-500/20 px-2 py-0.5 text-xxs font-bold text-pink-500">
@@ -269,7 +269,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
               </div>
             )}
 
-            {/* WIZUALIZACJA 10 PASM */}
+            {/* 10-BAND VISUALISATION */}
             <div className="mt-4">
               <div className="mb-2 flex justify-between text-xs font-semibold text-gray-400">
                 <span>{loc.autoEq.bandGain}</span>
@@ -280,7 +280,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                 className="grid h-35 grid-cols-10 items-center gap-1.5 rounded-lg border border-white/6 bg-black/30 p-2"
               >
                 {activeProfile.bands.map((gain, idx) => {
-                  // Skalowanie słupka: 0dB to środek (50%)
+                  // Bar scaling: 0 dB is the middle (50%)
                   const heightPercent = Math.min(100, Math.abs(gain) * 10);
                   const isPositive = gain >= 0;
                   return (
@@ -288,7 +288,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                       key={idx}
                       className="relative flex h-full flex-col items-center justify-end"
                     >
-                      {/* Wartość dB */}
+                      {/* dB value */}
                       <span
                         className={cn(
                           'mb-1 text-2xs font-bold',
@@ -298,11 +298,11 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                         {gain > 0 ? `+${gain.toFixed(1)}` : gain.toFixed(1)}
                       </span>
 
-                      {/* Kontener słupka */}
+                      {/* Bar container */}
                       <div className="relative h-17.5 w-3 overflow-hidden rounded-sm bg-white/5">
-                        {/* Linia 0 dB */}
+                        {/* 0 dB line */}
                         <div className="absolute top-1/2 left-0 right-0 h-px bg-white/25" />
-                        {/* Wypełnienie słupka */}
+                        {/* Bar fill */}
                         <div
                           className={cn(
                             'absolute left-0 right-0 rounded-xs',
@@ -314,7 +314,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
                         />
                       </div>
 
-                      {/* Etykieta częstotliwości */}
+                      {/* Frequency label */}
                       <span className="mt-1.5 text-2xs whitespace-nowrap text-gray-400">
                         {EQUALIZER_LABELS[idx].replace(' Hz', '').replace(' kHz', 'k')}
                       </span>
@@ -324,7 +324,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
               </div>
             </div>
 
-            {/* OPCJA PREAMP */}
+            {/* PREAMP OPTION */}
             <div className="mt-4 flex items-center justify-between rounded-lg bg-white/4 px-3.5 py-2.5">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={16} className="text-accent-green" />
@@ -347,7 +347,7 @@ export const AutoEqModal: React.FC<AutoEqModalProps> = ({
             </div>
           </div>
 
-          {/* PRZYCISK ZASTOSOWANIA */}
+          {/* APPLY BUTTON */}
           <div className="mt-5">
             <button
               onClick={() => handleApply(activeProfile)}

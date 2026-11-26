@@ -72,7 +72,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
           setResult(null);
         }
       });
-      // Pobierz domyślny folder muzyki
+      // Fetch the default music folder
       invoke<string>('get_default_music_dir')
         .then((dir) => {
           if (active) setTargetDir(dir);
@@ -107,7 +107,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
         setErrorMessage(null);
       }
     } catch {
-      // Ignoruj błąd dostępu do schowka
+      // Ignore clipboard access errors
     }
   };
 
@@ -189,7 +189,7 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
       await invoke('play').catch(() => {});
     }
 
-    // Dodaj pozostałe do kolejki
+    // Add the rest to the queue
     for (let i = 1; i < result.items.length; i++) {
       const it = result.items[i];
       if (it.track && onAddToQueue) {
@@ -265,11 +265,11 @@ export const UrlAudioImportModal: React.FC<UrlAudioImportModalProps> = (props) =
           </button>
         </div>
 
-        {/* Treść formularza lub widok sukcesu */}
+        {/* Form content or the success view */}
         {!result ? (
           <UrlImportForm {...props} handleImport={handleImport} loc={loc} url={url} setUrl={setUrl} isLoading={isLoading} handlePasteClipboard={handlePasteClipboard} handleFormatChange={handleFormatChange} format={format} setBitrate={setBitrate} bitrate={bitrate} downloadPlaylist={downloadPlaylist} setDownloadPlaylist={setDownloadPlaylist} maxItems={maxItems} setMaxItems={setMaxItems} folderStructure={folderStructure} setFolderStructure={setFolderStructure} targetDir={targetDir} setTargetDir={setTargetDir} handlePickDirectory={handlePickDirectory} errorMessage={errorMessage} />
         ) : (
-          /* Widok sukcesu (Single item lub Multi-track playlist review) */
+          /* Success view (single item or multi-track playlist review) */
           <UrlImportResultView {...props} result={result} loc={loc} bitrate={bitrate} formatDuration={formatDuration} handlePlayAll={handlePlayAll} handleQueueAll={handleQueueAll} handlePlaySingle={handlePlaySingle} handleQueueSingle={handleQueueSingle} handleOpenFolder={handleOpenFolder} handleResetForAnother={handleResetForAnother} />
         )}
       </div>

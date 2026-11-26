@@ -23,11 +23,11 @@ export interface MusicAnalysisModalProps {
   trackPath?: string;
   trackTitle?: string;
   trackArtist?: string;
-  /** Pozycja zapasowa (do pierwszego statusu na żywo); karty czytają pozycję na żywo same. */
+  /** Fallback position (until the first live status); the cards read the live position themselves. */
   currentTimeMs: number;
   durationMs?: number;
   isPlaying?: boolean;
-  /** Prędkość czasu źródła względem rzeczywistego (zob. `playbackSpeed`). */
+  /** Speed of the source time relative to real time (see `playbackSpeed`). */
   playbackSpeed?: number;
   onNotify?: (message: string, isError?: boolean) => void;
   pitchSemitones?: number;
@@ -139,11 +139,11 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
       layer="studio"
       className="flex h-[88vh] max-h-230 max-w-300 flex-col overflow-hidden rounded-3xl border border-accent-purple/35 text-fg"
     >
-      {/* Górny pasek narzędziowy studia analizy */}
+      {/* Analysis studio top toolbar */}
       <div
         className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-white/8 bg-black/35 px-6 py-4"
       >
-        {/* Tytuł studia i odtwarzany utwór */}
+        {/* Studio title and playing track */}
         <div className="flex min-w-0 items-center gap-3">
           <div
             className="flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl border border-accent-pink/35 bg-linear-135 from-accent-pink/25 to-accent-purple/25 text-accent-pink shadow-halo-md shadow-accent-pink/20"
@@ -162,7 +162,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
           </div>
         </div>
 
-        {/* Przełącznik zakładek */}
+        {/* Tab switcher */}
         <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-white/8 bg-black/40 p-1">
           {tabItems.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -187,7 +187,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
           })}
         </div>
 
-        {/* Przycisk zamknięcia [✕] */}
+        {/* Close button [✕] */}
         <button
           onClick={onClose}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-fg-secondary transition-all duration-200"
@@ -197,7 +197,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
         </button>
       </div>
 
-      {/* Główna zawartość wybranej zakładki */}
+      {/* Main content of the selected tab */}
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         {activeTab === 'chords' && (
           <ChordTimelineView

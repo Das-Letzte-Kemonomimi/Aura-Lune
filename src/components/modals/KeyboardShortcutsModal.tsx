@@ -69,7 +69,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
       onClose={onClose}
       className="flex max-h-[90vh] max-w-170 flex-col gap-5 overflow-y-auto rounded-3xl border border-line-accent p-7 shadow-2xl shadow-black/80"
     >
-      {/* Nagłówek */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
@@ -94,7 +94,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
         </button>
       </div>
 
-      {/* Lista kategorii */}
+      {/* Category list */}
       <div className="grid grid-cols-2 gap-4">
         {shortcuts.map((cat) => (
           <div

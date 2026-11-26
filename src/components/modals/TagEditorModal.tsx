@@ -373,7 +373,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         ) : (
           <form id="tag-editor-form" onSubmit={handleSave}>
             <div className="grid grid-cols-2 gap-4">
-              {/* Tytuł */}
+              {/* Title */}
               <div className="col-span-2">
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.trackTitle}
@@ -387,7 +387,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 />
               </div>
 
-              {/* Wykonawca */}
+              {/* Artist */}
               <div>
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.artist}
@@ -428,7 +428,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 />
               </div>
 
-              {/* Rok / Rok wydania */}
+              {/* Year / release year */}
               <div>
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.year}
@@ -444,7 +444,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 />
               </div>
 
-              {/* Gatunek */}
+              {/* Genre */}
               <div>
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.genre}
@@ -458,7 +458,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 />
               </div>
 
-              {/* Numer ścieżki i suma */}
+              {/* Track number and total */}
               <div>
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.trackNumber}
@@ -484,7 +484,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 </div>
               </div>
 
-              {/* Numer płyty i suma */}
+              {/* Disc number and total */}
               <div>
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.discNumber}
@@ -510,7 +510,7 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
                 </div>
               </div>
 
-              {/* Komentarz */}
+              {/* Comment */}
               <div className="col-span-2">
                 <label className="mb-1.5 block text-ui font-semibold text-slate-200">
                   {loc.tagEditor.comment}

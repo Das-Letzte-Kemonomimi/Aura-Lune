@@ -28,7 +28,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
     });
   }, []);
 
-  // Obsługa klawisza Escape do zamknięcia
+  // Escape closes the modal
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -38,7 +38,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Gdy modal jest otwarty i użytkownik kliknie preview, tymczasowo wymuś stan odtwarzania
+  // While the modal is open and the user clicks preview, temporarily force the playing state
   useEffect(() => {
     if (!isOpen && previewActive) {
       setPreviewActive(false);
@@ -69,7 +69,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-140 flex-col overflow-hidden rounded-3xl border border-accent-purple/45"
     >
-      {/* Nagłówek okna pop-up */}
+      {/* Pop-up header */}
       <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 pt-5 pb-4">
         <div className="flex items-center gap-3.5">
           <div
@@ -96,10 +96,10 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
         </button>
       </div>
 
-      {/* Zawartość modala */}
+      {/* Modal content */}
       <div className="flex flex-col gap-5 overflow-y-auto px-6 py-5.5">
         
-        {/* Główny przełącznik WŁĄCZ / WYŁĄCZ */}
+        {/* Main ON / OFF toggle */}
         <div
           className={cn(
             'flex items-center justify-between rounded-2xl border px-4.5 py-3.5 transition-all duration-300',
@@ -137,14 +137,14 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
           </button>
         </div>
 
-        {/* Wybór nośnika: Winyl vs Taśma */}
+        {/* Medium choice: vinyl vs tape */}
         <div>
           <label className="mb-2.5 block text-ui font-bold text-slate-300">
             {t.analogLoFi.mediumLabel}
           </label>
           <div className="grid grid-cols-2 gap-3">
             
-            {/* Opcja Winyl */}
+            {/* Vinyl option */}
             <button
               onClick={() => vinylSimulator.setMode('vinyl')}
               className={cn(
@@ -172,7 +172,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
               </p>
             </button>
 
-            {/* Opcja Taśma */}
+            {/* Tape option */}
             <button
               onClick={() => vinylSimulator.setMode('tape')}
               className={cn(
@@ -203,7 +203,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
           </div>
         </div>
 
-        {/* Suwak intensywności szumu */}
+        {/* Noise intensity slider */}
         <div className="flex flex-col gap-3 rounded-2xl border border-white/6 bg-white/2 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
             className="h-1.5 w-full cursor-pointer accent-accent-pink"
           />
 
-          {/* Szybkie presety */}
+          {/* Quick presets */}
           <div className="flex flex-wrap gap-2">
             {presets.map((preset) => {
               const isSelected = Math.abs(config.intensity - preset.value) < 0.03;
@@ -249,7 +249,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
           </div>
         </div>
 
-        {/* Opcje synchronizacji z odtwarzaniem */}
+        {/* Playback sync options */}
         <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/2 px-4 py-3.5">
           <div>
             <span className="text-ui font-semibold text-slate-200">
@@ -268,7 +268,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
           />
         </div>
 
-        {/* Belka diagnostyczna & Podgląd na żywo */}
+        {/* Diagnostics bar & live preview */}
         <div className="flex items-center justify-between rounded-xl border border-white/4 bg-black/30 px-3.5 py-2.5">
           <div className="flex items-center gap-2">
             <Radio size={14} color={isActuallyAudible ? '#22c55e' : '#94a3b8'} />
@@ -293,7 +293,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
 
       </div>
 
-      {/* Stopka okna */}
+      {/* Window footer */}
       <div className="flex justify-end border-t border-white/8 bg-black/25 px-6 py-3.5">
         <button
           onClick={onClose}

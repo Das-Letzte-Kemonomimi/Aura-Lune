@@ -121,7 +121,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   onVolumeChange,
   onToggleMiniPlayer,
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const status = useLiveStatus(statusProp);
   const seekProgressPercent =
     status.duration_ms && status.duration_ms > 0
@@ -135,7 +135,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex h-19 items-center justify-between gap-4 border-t border-line-accent bg-ink/95 px-6 shadow-dock motion-safe:animate-fade-in">
-      {/* Lewa strona: Mini okładka, Tytuł, Wykonawca */}
+      {/* Left side: mini cover, title, artist */}
       <div
         onClick={onScrollToTopOrSwitchTab}
         className="flex max-w-3/10 min-w-55 cursor-pointer items-center gap-3.5"
@@ -179,7 +179,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
         </div>
       </div>
 
-      {/* Środek: Sterowanie odtwarzaniem i pasek pozycji */}
+      {/* Centre: playback controls and the position bar */}
       <div className="flex max-w-140 flex-1 flex-col items-center gap-1.5">
         <div className="flex items-center gap-3.5">
           {/* Shuffle */}
@@ -274,7 +274,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
         </div>
       </div>
 
-      {/* Prawa strona: DSP, Głośność, Maksymalizacja */}
+      {/* Right side: DSP, volume, maximise */}
       <div className="flex min-w-60 items-center justify-end gap-3">
         <div className="flex items-center gap-1.5">
           <div

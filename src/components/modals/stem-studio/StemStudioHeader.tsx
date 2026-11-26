@@ -68,9 +68,9 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
         </div>
       </div>
 
-      {/* Zarządzanie miksami, odsłuch na żywo A/B i powrót do utworu */}
+      {/* Mix management, live A/B listening and return to the track */}
       <div className="flex items-center gap-2.5">
-        {/* Przełącznik odsłuchu na żywo (A/B Live Comparison) */}
+        {/* Live listening toggle (A/B live comparison) */}
         <div className="flex items-center rounded-xl border border-white/15 bg-black/45 p-1">
           <button
             onClick={handleSwitchToOriginal}
@@ -100,7 +100,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
           </button>
         </div>
 
-        {/* Przycisk powrotu do oryginalnego utworu i zamknięcia studia */}
+        {/* Return to the original track and close the studio */}
         <button
           onClick={handleReturnToOriginalAndClose}
           title={t.stems.returnToOriginalCloseTooltip}
@@ -110,7 +110,7 @@ export const StemStudioHeader: React.FC<StemStudioHeaderProps> = ({
           {t.stems.returnToTrack}
         </button>
 
-        {/* Selektor miksu */}
+        {/* Mix selector */}
         <select
           value={activeMixName}
           onChange={(e) => {

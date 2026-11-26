@@ -59,7 +59,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
   const [jobs, setJobs] = useState<DownloadJobDto[]>([]);
   const pollTimerRef = useRef<number | null>(null);
 
-  // Pobierz domyślny katalog muzyki przy pierwszym otwarciu
+  // Fetch the default music folder on first open
   useEffect(() => {
     if (isOpen) {
       invoke<string>('get_default_music_dir')
@@ -71,7 +71,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     }
   }, [isOpen]);
 
-  // Automatycznie zaproponuj nazwę pliku na podstawie wpisywanego URL
+  // Suggest a file name automatically from the URL being typed
   useEffect(() => {
     if (!remoteUrl) return;
     try {
@@ -84,11 +84,11 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         setFilename((prev) => prev || 'audio_download.mp3');
       }
     } catch {
-      // Ignoruj niepełny URL podczas pisania
+      // Ignore an incomplete URL while typing
     }
   }, [remoteUrl]);
 
-  // Cykliczne odpytywanie o stan pobierania (co 1s, gdy modal otwarty)
+  // Poll the download state periodically (every 1 s while the modal is open)
   useEffect(() => {
     if (!isOpen) {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -108,7 +108,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       const list = await invoke<DownloadJobDto[]>('list_download_jobs');
       setJobs(list);
     } catch (err) {
-      console.warn('Błąd pobierania listy zadań:', err);
+      console.warn('Failed to fetch the job list:', err);
     }
   };
 
@@ -139,7 +139,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
     }
 
     const cleanFilename = filename.trim() || 'audio_track.mp3';
-    // Konstrukcja pełnej ścieżki
+    // Build the full path
     const sep = destinationFolder.endsWith('/') ? '' : '/';
     const fullDestinationPath = `${destinationFolder}${sep}${cleanFilename}`;
 
@@ -168,7 +168,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       await invoke('cancel_download_job', { jobId });
       await fetchJobs();
     } catch (err) {
-      console.error('Błąd anulowania zadania:', err);
+      console.error('Failed to cancel the job:', err);
     }
   };
 
@@ -180,7 +180,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-205 flex-col overflow-hidden rounded-3xl border border-line text-fg shadow-modal"
     >
-      {/* NAGŁÓWEK */}
+      {/* HEADER */}
       <div className="flex items-center justify-between border-b border-white/8 bg-accent-pink/4 px-6 py-5">
         <div className="flex items-center gap-3">
           <div
@@ -205,9 +205,9 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         </button>
       </div>
 
-      {/* TREŚĆ MODALA */}
+      {/* MODAL CONTENT */}
       <div className="flex flex-col gap-5.5 overflow-y-auto p-6">
-        {/* BANER BEZPIECZEŃSTWA AGENTS.md */}
+        {/* SAFETY BANNER (AGENTS.md) */}
         <div
           className="flex items-center gap-3 rounded-xl border border-sky-400/25 bg-sky-400/8 px-4 py-3 text-ui text-sky-200"
         >
@@ -235,7 +235,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
           </div>
         )}
 
-        {/* FORMULARZ NOWEGO POBIERANIA */}
+        {/* NEW DOWNLOAD FORM */}
         <form onSubmit={handleStartDownload} className="flex flex-col gap-3.5">
           <div>
             <label className="mb-1.5 block text-ui font-semibold text-slate-300">
@@ -319,7 +319,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
           </button>
         </form>
 
-        {/* LISTA ZADAŃ W KOLEJCE */}
+        {/* QUEUED JOB LIST */}
         <div className="mt-2.5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="m-0 flex items-center gap-2 text-md font-bold text-slate-200">
@@ -394,7 +394,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
                       </div>
                     </div>
 
-                    {/* PASEK POSTĘPU */}
+                    {/* PROGRESS BAR */}
                     {job.state === 'Downloading' && (
                       <div>
                         <div className="mt-1 h-1.5 w-full overflow-hidden rounded-sm bg-black/40">
@@ -433,7 +433,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
         </div>
       </div>
 
-      {/* STOPKA */}
+      {/* FOOTER */}
       <div className="flex items-center justify-between border-t border-white/8 bg-black/25 px-6 py-4">
         <span className="text-xs text-fg-muted">
           {loc.downloadHub.compliance}

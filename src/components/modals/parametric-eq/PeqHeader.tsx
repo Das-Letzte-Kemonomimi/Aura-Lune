@@ -56,7 +56,7 @@ export const PeqHeader: React.FC<PeqHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2.5">
-        {/* Przełącznik Włącz / Bypass */}
+        {/* On / Bypass toggle */}
         <button
           onClick={handleToggleEnabled}
           className={cn(
@@ -80,7 +80,7 @@ export const PeqHeader: React.FC<PeqHeaderProps> = ({
           Reset Flat
         </button>
 
-        {/* Przycisk Import / Export */}
+        {/* Import / Export button */}
         <button
           onClick={() => setIsImportModalOpen(true)}
           className="flex items-center gap-1.5 rounded-xl border border-blue-500/35 bg-blue-500/20 px-3 py-2 text-ui font-semibold text-blue-400"
@@ -89,7 +89,7 @@ export const PeqHeader: React.FC<PeqHeaderProps> = ({
           Import / Export
         </button>
 
-        {/* Zamknij */}
+        {/* Close */}
         <button
           onClick={onClose}
           className="flex items-center rounded-lg border-0 bg-transparent p-2 text-fg-muted"

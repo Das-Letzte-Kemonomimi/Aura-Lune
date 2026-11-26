@@ -98,7 +98,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
 
   return (
     <div className="w-full px-0 py-6">
-      {/* Nagłówek sekcji biblioteki */}
+      {/* Library section header */}
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="m-0 text-2xl font-extrabold text-fg">
@@ -152,7 +152,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
               key={project.id}
               className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-slate-900/75 p-4 transition-all duration-200"
             >
-              {/* Tytuł i status */}
+              {/* Title and status */}
               <div className="flex items-start justify-between gap-2.5">
                 <div className="min-w-0 flex-1">
                   {editingProjectId === project.id ? (
@@ -221,7 +221,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                 </div>
               </div>
 
-              {/* Informacje techniczne */}
+              {/* Technical info */}
               <div className="flex items-center gap-3.5 border-t border-white/5 pt-2 text-xs text-fg-muted">
                 <span className="flex items-center gap-1">
                   <Layers size={13} /> {fmt(t.stems.tracksCount, String(project.channels.length))}
@@ -231,7 +231,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                 </span>
               </div>
 
-              {/* Przyciski akcji */}
+              {/* Action buttons */}
               <div className="mt-auto flex items-center justify-between pt-1.5">
                 <button
                   onClick={() => onOpenProject(project.id)}

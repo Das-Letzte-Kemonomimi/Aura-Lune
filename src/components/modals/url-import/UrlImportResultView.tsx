@@ -47,7 +47,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
         </div>
       </div>
 
-      {/* Wariant A: Pojedynczy utwór */}
+      {/* Variant A: single track */}
       {(!result.items || result.items.length <= 1) && (
         <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-black/35 p-4">
           <div
@@ -79,10 +79,10 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
         </div>
       )}
 
-      {/* Wariant B: Lista pobranych utworów (Playlista / Kanał) */}
+      {/* Variant B: list of downloaded tracks (playlist / channel) */}
       {result.items && result.items.length > 1 && (
         <div className="flex flex-col gap-2">
-          {/* Przyciski zbiorcze na górze listy */}
+          {/* Bulk buttons at the top of the list */}
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
@@ -102,7 +102,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
             </button>
           </div>
 
-          {/* Przewijana lista pobranych utworów */}
+          {/* Scrollable list of downloaded tracks */}
           <div
             className="flex max-h-65 flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-black/35 p-1.5"
           >
@@ -155,7 +155,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
         </div>
       )}
 
-      {/* Przyciski po sukcesie (pojedynczy utwór) */}
+      {/* Buttons after success (single track) */}
       {(!result.items || result.items.length <= 1) && (
         <div className="grid grid-cols-2 gap-2.5">
           <button
@@ -177,7 +177,7 @@ export const UrlImportResultView: React.FC<UrlImportResultViewProps> = ({
         </div>
       )}
 
-      {/* Dolny pasek nawigacyjny po pobraniu */}
+      {/* Bottom navigation bar after the download */}
       <div className="mt-1.5 flex items-center justify-between">
         <button
           type="button"

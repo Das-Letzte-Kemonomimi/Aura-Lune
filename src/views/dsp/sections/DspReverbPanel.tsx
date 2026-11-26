@@ -50,12 +50,12 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
         </button>
       </div>
 
-      {/* Suwaki parametrów Reverb */}
+      {/* Reverb parameter sliders */}
       <div className={cn('grid grid-cols-2 gap-4', reverbEnabled ? 'opacity-100' : 'opacity-45')}>
-        {/* Rozmiar pomieszczenia (Room Size) */}
+        {/* Room size */}
         <div>
           <div className="mb-1 flex justify-between text-xs">
-            <span className="text-fg-secondary">Room Size (Rozmiar):</span>
+            <span className="text-fg-secondary">Room Size:</span>
             <span className="font-mono font-bold">{Math.round(reverbRoomSize * 100)}%</span>
           </div>
           <input
@@ -70,7 +70,7 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
           />
         </div>
 
-        {/* Tłumienie (Damping) */}
+        {/* Damping */}
         <div>
           <div className="mb-1 flex justify-between text-xs">
             <span className="text-fg-secondary">{loc.dsp.dampingLabel}</span>
@@ -88,7 +88,7 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
           />
         </div>
 
-        {/* Szerokość stereo (Width) */}
+        {/* Stereo width */}
         <div>
           <div className="mb-1 flex justify-between text-xs">
             <span className="text-fg-secondary">{loc.dsp.stereoWidthLabel}</span>
@@ -106,10 +106,10 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
           />
         </div>
 
-        {/* Poziom pogłosu (Wet Level) */}
+        {/* Reverb wet level */}
         <div>
           <div className="mb-1 flex justify-between text-xs">
-            <span className="text-fg-secondary">Wet Level (Nasycenie):</span>
+            <span className="text-fg-secondary">Wet Level:</span>
             <span className="font-mono font-bold">{Math.round(reverbLevel * 100)}%</span>
           </div>
           <input
@@ -125,10 +125,10 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
         </div>
       </div>
 
-      {/* Szybkie presety pogłosu */}
+      {/* Quick reverb presets */}
       <div className="mt-4 flex flex-wrap gap-2">
         <span className="flex items-center text-xs text-fg-muted">
-          Presety:
+          Presets:
         </span>
         <button
           onClick={() => handleUpdateReverb(true, 0.40, 0.50, 0.70, 0.25)}
@@ -148,13 +148,13 @@ export const DspReverbPanel: React.FC<DspReverbPanelProps> = ({
         >
           Cathedral
         </button>
-        {/* Wymarzony profil użytkowniczki: Slowed + Reverb */}
+        {/* The user's favourite profile: Slowed + Reverb */}
         <button
           onClick={() => {
             handleTempoChange(0.82);
             handlePitchChange(-2.0);
             handleUpdateReverb(true, 0.75, 0.35, 1.0, 0.40);
-            showMessage('Aktywowano profil: Slowed + Reverb 🌌');
+            showMessage('Activated profile: Slowed + Reverb 🌌');
           }}
           className="rounded-lg border border-accent-pink bg-linear-135 from-accent-pink/30 to-accent-purple/30 px-3 py-1 text-xs font-bold text-fg"
         >

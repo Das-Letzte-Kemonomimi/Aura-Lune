@@ -56,7 +56,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   onToggleVolumeUnit,
   onRestore,
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const positionMs = useLivePositionMs(positionMsProp);
   const t = getTranslations(currentLang);
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
@@ -66,9 +66,9 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
     <div
       className="flex h-screen w-screen select-none flex-col justify-between overflow-hidden rounded-xl border border-line-accent bg-deep px-3.5 py-3 text-fg"
     >
-      {/* Górna belka: Okładka, Tytuł, DSP i Przycisk Przywrócenia */}
+      {/* Top bar: cover, title, DSP and the restore button */}
       <div className="flex items-center gap-2.5">
-        {/* Okładka */}
+        {/* Cover */}
         <div
           className={cn(
             'flex size-10.5 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-card transition-shadow duration-300',
@@ -89,7 +89,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           )}
         </div>
 
-        {/* Tytuł i wykonawca */}
+        {/* Title and artist */}
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-bold text-fg">
             {title || 'Auralune'}
@@ -99,7 +99,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           </div>
         </div>
 
-        {/* Ewentualny badge aktywnego DSP */}
+        {/* Optional active DSP badge */}
         {isDspActive && (
           <span
             className="flex shrink-0 items-center gap-0.5 rounded-sm border border-accent-pink/40 bg-accent-pink/20 px-1.5 py-0.5 text-xxs font-bold text-accent-pink"
@@ -109,7 +109,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
           </span>
         )}
 
-        {/* Przycisk powrotu do pełnego okna */}
+        {/* Back to the full window */}
         <button
           onClick={onRestore}
           title={`${t.nav.miniPlayer} (${t.common.close})`}
@@ -119,7 +119,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
         </button>
       </div>
 
-      {/* Pasek postępu */}
+      {/* Progress bar */}
       <div className="mx-0 my-1">
         <div
           onClick={(e) => {
@@ -142,7 +142,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
         </div>
       </div>
 
-      {/* Przyciski sterowania */}
+      {/* Control buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <button

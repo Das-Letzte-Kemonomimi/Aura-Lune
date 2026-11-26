@@ -11,7 +11,7 @@ export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmar
   status: PlaybackStatus;
 };
 
-// Memo: sekcja nie zależy od pozycji odtwarzania — nie renderuje się w każdej klatce statusu.
+// Memo: the section does not depend on the playback position, so it does not render on every status frame.
 export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = React.memo(({
   activeTrackId,
   currentBookmark,
@@ -51,9 +51,9 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   volumeUnit,
 }) => (
     <div className="flex items-center justify-between">
-      {/* Narzędzia lewe: Zakładka, Pętla A-B, Sleep Timer, Skróty */}
+      {/* Left tools: bookmark, A-B loop, sleep timer, shortcuts */}
       <div className="flex items-center gap-1.5">
-        {/* 1. Przycisk Zakładki (Bookmark) */}
+        {/* 1. Bookmark button */}
         {currentBookmark === null ? (
           <button
             onClick={handleSaveBookmark}
@@ -91,7 +91,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           </div>
         )}
 
-        {/* 2. Przycisk Wielopunktowych Zakładek (Points / Cue Points) */}
+        {/* 2. Multi-point bookmarks button (cue points) */}
         <button
           onClick={() => {
             if (!activeTrackId && !status.current_track?.track_id) {
@@ -107,7 +107,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           <span>{currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}</span>
         </button>
 
-        {/* 3. Przycisk Punktu A */}
+        {/* 3. Point A button */}
         <button
           onClick={() => {
             const pos = currentPositionMs(status.position_ms);
@@ -125,7 +125,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           A
         </button>
 
-        {/* 4. Przycisk Punktu B */}
+        {/* 4. Point B button */}
         <button
           onClick={() => {
             const pos = currentPositionMs(status.position_ms);
@@ -143,7 +143,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           B
         </button>
 
-        {/* 5. Przycisk Edytora Pętli A-B (Sliders) */}
+        {/* 5. A-B loop editor button (sliders) */}
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => setIsLoopEditorOpen(true)}
@@ -171,7 +171,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           )}
         </div>
 
-        {/* 6. Przycisk Wyłącznika czasowego (Sleep Timer) */}
+        {/* 6. Sleep timer button */}
         <button
           onClick={() => setIsSleepTimerOpen(true)}
           className={cn(
@@ -190,7 +190,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           )}
         </button>
 
-        {/* 7. Przycisk Skrótów klawiszowych */}
+        {/* 7. Keyboard shortcuts button */}
         <button
           onClick={() => setIsShortcutsModalOpen(true)}
           className="glass-card flex h-8 min-w-8 items-center justify-center rounded-lg border border-line bg-white/5 px-2 py-0 text-xs text-fg-secondary"
@@ -199,7 +199,7 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
           <Keyboard size={13} />
         </button>
 
-        {/* 8. Przycisk Tekstów piosenki (Lyrics) */}
+        {/* 8. Lyrics button */}
         <button
           onClick={() => setShowLyrics(!showLyrics)}
           className={cn(

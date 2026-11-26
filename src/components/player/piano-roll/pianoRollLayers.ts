@@ -1,7 +1,7 @@
 /**
- * Warstwy statyczne Piano-Rolla, renderowane do canvasów offscreen i tylko blitowane w każdej klatce:
- * klawiatura + tło wierszy oraz minimapa gęstości. Przebudowa wyłącznie przy zmianie rozmiaru / DPR / zakresu /
- * przewinięcia pionowego / danych — nigdy przy ruchu głowicy.
+ * Static Piano Roll layers, rendered to offscreen canvases and only blitted on each frame:
+ * the keyboard + row background, and the density minimap. Rebuilt only when the size / DPR / range /
+ * vertical scroll / data change, never when the playhead moves.
  */
 import { computeBackingSize } from '../../../utils/canvasDraw';
 import { isBlackKey, type PitchAxis } from './pianoRollModel';
@@ -27,7 +27,7 @@ export const COLORS = {
   noteBass: '#38bdf8',
   noteDrums: '#facc15',
   noteActive: '#fb7185',
-  // Ciemny tekst ma ≥ 7:1 kontrastu na fioletowych, niebieskich, żółtych i różowych nutach (biały ≈ 2,4:1 na fiolecie).
+  // Dark text has ≥ 7:1 contrast on purple, blue, yellow and pink notes (white ≈ 2.4:1 on purple).
   noteLabel: '#0b1020',
   noteOutline: 'rgba(255, 255, 255, 0.9)',
   scrollTrack: 'rgba(148, 163, 184, 0.18)',
@@ -56,7 +56,7 @@ function makeLayer(width: number, height: number, dpr: number): { canvas: HTMLCa
   canvas.width = size.width;
   canvas.height = size.height;
   const ctx = canvas.getContext('2d');
-  // Rysujemy w pikselach CSS; bufor jest `dpr` razy gęstszy, więc linie i tekst są ostre.
+  // Drawing happens in CSS pixels; the buffer is `dpr` times denser, so lines and text are sharp.
   ctx?.setTransform(size.width / Math.max(1, width), 0, 0, size.height / Math.max(1, height), 0, 0);
   return { canvas, ctx };
 }
@@ -87,8 +87,8 @@ export function rowsKeyEquals(a: RowsLayerKey | null, b: RowsLayerKey): boolean 
 }
 
 /**
- * Warstwa: tło wierszy (paski czarnych/białych klawiszy, linie podziału, mocniejsza linia przy C) w obszarze
- * nut oraz kolumna klawiatury. Zwraca dwa osobne canvasy (rysowane w różnych miejscach i kolejności).
+ * Layer: row background (black/white key stripes, divider lines, a stronger line at C) in the note
+ * area, plus the keyboard column. Returns two separate canvases (drawn in different places and order).
  */
 export function renderRowsLayer(
   key: RowsLayerKey,
@@ -99,7 +99,7 @@ export function renderRowsLayer(
   const keys = makeLayer(key.keyWidth, key.height, key.dpr);
   const rc = rows.ctx;
   const kc = keys.ctx;
-  // Układ współrzędnych jak na ekranie (oś `top` względem warstwy = 0).
+  // Coordinate system as on screen (the `top` axis relative to the layer = 0).
   const local: PitchAxis = { ...axis, top: 0 };
   const rowY = (midi: number) => (local.maxMidi - midi - local.scrollRows) * local.keyHeight;
 
@@ -146,7 +146,7 @@ export interface MinimapKey {
   width: number;
   height: number;
   dpr: number;
-  /** Tożsamość tablicy gęstości (zmiana danych → przebudowa). */
+  /** Identity of the density array (a data change → rebuild). */
   density: readonly number[];
 }
 
@@ -154,7 +154,7 @@ export function minimapKeyEquals(a: MinimapKey | null, b: MinimapKey): boolean {
   return a !== null && a.width === b.width && a.height === b.height && a.dpr === b.dpr && a.density === b.density;
 }
 
-/** Warstwa minimapy: słupki gęstości nut dla całego utworu. */
+/** Minimap layer: note density bars for the whole track. */
 export function renderMinimapLayer(key: MinimapKey): HTMLCanvasElement {
   const { canvas, ctx } = makeLayer(key.width, key.height, key.dpr);
   if (!ctx) return canvas;

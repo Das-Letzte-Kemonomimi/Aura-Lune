@@ -35,7 +35,7 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
             ID: {card.name} | {loc.settings.active}: {card.active_profile || 'default'}
           </p>
 
-          {/* Akcje Pro Audio */}
+          {/* Pro Audio actions */}
           {card.profiles && card.profiles.some((p) => p.is_pro_audio) && (
             <div className="mb-2.5">
               {card.active_profile === 'pro-audio' ? (
@@ -56,7 +56,7 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
             </div>
           )}
 
-          {/* Lista wszystkich dostępnych profili sprzętowych karty */}
+          {/* All available hardware profiles of the card */}
           {card.profiles && card.profiles.length > 0 && (
             <div className="mb-2.5">
               <span className="mb-1 block text-xs text-fg-secondary">
@@ -87,7 +87,7 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
             </div>
           )}
 
-          {/* Kodeki Bluetooth */}
+          {/* Bluetooth codecs */}
           {card.is_bluetooth && card.profiles && (
             <div>
               <span className="mb-1.5 block text-xs text-fg-secondary">

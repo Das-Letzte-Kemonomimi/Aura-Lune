@@ -34,10 +34,10 @@ export const DspPresetManager: React.FC<DspPresetManagerProps> = ({
         </button>
       </div>
 
-      {/* Profile Sygnaturowe 1.0 */}
+      {/* Signature profiles 1.0 */}
       <div className="mb-4">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-accent-pink">
-          <Sparkles size={14} /> Profile Sygnaturowe Auralune 1.0 (Mastering Profiles)
+          <Sparkles size={14} /> Auralune Signature Profiles 1.0 (Mastering Profiles)
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-2">
           <button

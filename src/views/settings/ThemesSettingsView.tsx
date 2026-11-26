@@ -101,7 +101,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Wybór języka interfejsu w ustawieniach */}
+      {/* UI language choice */}
       <div className="glass-panel flex items-center justify-between p-5">
         <div>
           <h3 className="m-0 flex items-center gap-2 text-base font-bold">
@@ -114,7 +114,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         <LanguageSelector currentLang={language} onLanguageChange={onLanguageChange} />
       </div>
 
-      {/* Opcja podświetlenia kursorowego przycisków (Hover Glow) */}
+      {/* Button hover glow option */}
       <div className="glass-panel flex items-center justify-between p-5">
         <div>
           <h3 className="m-0 flex items-center gap-2 text-base font-bold">
@@ -139,7 +139,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </button>
       </div>
 
-      {/* Skala interfejsu i szerokość robocza (UI Scale & Layout Width) */}
+      {/* UI scale and working width */}
       <div className="glass-panel p-5">
         <div className="mb-3.5 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -225,7 +225,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </p>
       </div>
 
-      {/* Siatka presetów Anime */}
+      {/* Anime preset grid */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
         {themes.map((th) => {
           const isActive = currentTheme?.id === th.id;
@@ -254,7 +254,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
                 {th.attribution || 'Auralune Theme'}
               </p>
 
-              {/* Próbnik kolorów tokenów */}
+              {/* Token colour swatches */}
               <div className="mt-1 flex items-center gap-2">
                 <div
                   title={`${loc.settings.tokenBg}: ${th.tokens.bg_deep}`}
@@ -299,7 +299,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         })}
       </div>
 
-      {/* Menedżer własnego tła anime */}
+      {/* Custom anime background manager */}
       <div className="glass-panel p-6">
         <div className="mb-4 flex items-center gap-2.5">
           <ImageIcon size={22} className="text-accent-cyan" />
@@ -310,7 +310,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-6">
           <div className="flex flex-col gap-4">
-            {/* Strefa Drag & Drop dla tapety */}
+            {/* Wallpaper drag & drop zone */}
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -412,7 +412,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
             </button>
           </div>
 
-          {/* Suwaki Overlay i Blur */}
+          {/* Overlay and blur sliders */}
           <div className="flex flex-col gap-5">
             <div>
               <div className="mb-2 flex justify-between">
@@ -466,7 +466,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Wybór stylu ikony aplikacji (Neon Lineout vs Classic Anime) */}
+      {/* App icon style (Neon Lineout vs Classic Anime) */}
       <div className="glass-panel p-6">
         <div className="mb-2 flex items-center gap-2.5">
           <Sparkles size={22} className="text-accent-pink" />
@@ -479,7 +479,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </p>
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-4">
-          {/* Opcja 1: Neon Lineout */}
+          {/* Option 1: Neon Lineout */}
           <div
             onClick={() => onSelectIconStyle('lineout')}
             className={cn(
@@ -515,7 +515,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
             </div>
           </div>
 
-          {/* Opcja 2: Classic Anime */}
+          {/* Option 2: Classic Anime */}
           <div
             onClick={() => onSelectIconStyle('classic')}
             className={cn(
@@ -553,7 +553,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Bezpieczny Import i Eksport JSON */}
+      {/* Safe JSON import and export */}
       <div className="glass-panel p-6">
         <div className="mb-4 flex items-center gap-2.5">
           <Download size={22} className="text-accent-pink" />
@@ -563,7 +563,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </div>
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-5">
-          {/* Eksport */}
+          {/* Export */}
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <label className="text-sm text-fg-secondary">

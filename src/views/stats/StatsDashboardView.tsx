@@ -34,7 +34,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
 }) => {
   const loc = getTranslations(currentLang);
 
-  // Podsumowanie globalne
+  // Global summary
   const stats = useMemo(() => {
     const totalTracks = tracks.length;
     const totalAlbums = albums.length;
@@ -44,13 +44,13 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
     const totalPlays = tracks.reduce((acc, t) => acc + (t.play_count || 0), 0);
     const totalListenedMs = tracks.reduce((acc, t) => acc + (t.play_count || 0) * (t.duration_ms || 0), 0);
 
-    // Top Utwory wg odtworzeń
+    // Top tracks by plays
     const topTracks = [...tracks]
       .filter((t) => (t.play_count || 0) > 0)
       .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
       .slice(0, 5);
 
-    // Top Wykonawcy wg odtworzeń
+    // Top artists by plays
     const artistMap = new Map<string, { artist: string; plays: number; tracks: number }>();
     tracks.forEach((t) => {
       const art = t.artist || loc.stats.unknownArtist;
@@ -65,7 +65,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       .sort((a, b) => b.plays - a.plays)
       .slice(0, 5);
 
-    // Rozkład formatów
+    // Format distribution
     const formatMap = new Map<string, number>();
     let hiResCount = 0;
     tracks.forEach((t) => {
@@ -84,7 +84,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       }))
       .sort((a, b) => b.count - a.count);
 
-    // Ostatnio słuchane
+    // Recently played
     const recentTracks = [...tracks]
       .filter((t) => t.last_played_at)
       .sort((a, b) => (b.last_played_at || 0) - (a.last_played_at || 0))
@@ -138,7 +138,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
 
   return (
     <div className="mx-auto flex max-w-[min(100rem,98vw)] flex-col gap-5.5">
-      {/* Baner Tytułowy */}
+      {/* Title banner */}
       <div
         className="glass-panel flex items-center justify-between rounded-2xl border border-line-accent bg-linear-135 from-accent-purple/20 to-accent-pink/15 px-7 py-6"
       >
@@ -171,9 +171,9 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 4 Kluczowe Karty Metryk (KPI) */}
+      {/* 4 key metric cards (KPI) */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-3.5">
-        {/* Łączny czas */}
+        {/* Total time */}
         <div
           className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-purple/30 bg-card px-5 py-4.5"
         >
@@ -190,7 +190,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Całkowite odtworzenia */}
+        {/* Total plays */}
         <div
           className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-amber/30 bg-card px-5 py-4.5"
         >
@@ -207,7 +207,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Rozmiar biblioteki */}
+        {/* Library size */}
         <div
           className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-cyan/30 bg-card px-5 py-4.5"
         >
@@ -224,7 +224,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Udział Hi-Res */}
+        {/* Hi-Res share */}
         <div
           className="glass-card flex items-center gap-3.5 rounded-2xl border border-accent-pink/30 bg-card px-5 py-4.5"
         >
@@ -242,9 +242,9 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Środkowa Sekcja: Top Utwory & Top Wykonawcy */}
+      {/* Middle section: top tracks & top artists */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(90),1fr))] gap-4.5">
-        {/* Kolumna 1: Top 5 Utworów */}
+        {/* Column 1: top 5 tracks */}
         <div className="glass-panel rounded-2xl px-5.5 py-5">
           <div className="mb-3.5 flex items-center justify-between">
             <h4 className="m-0 flex items-center gap-2 text-md font-bold text-fg">
@@ -300,7 +300,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           )}
         </div>
 
-        {/* Kolumna 2: Top 5 Wykonawców */}
+        {/* Column 2: top 5 artists */}
         <div className="glass-panel rounded-2xl px-5.5 py-5">
           <div className="mb-3.5 flex items-center justify-between">
             <h4 className="m-0 flex items-center gap-2 text-md font-bold text-fg">
@@ -346,9 +346,9 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Dolna Sekcja: Rozkład Formatów & Ostatnio Odtwarzane */}
+      {/* Bottom section: format distribution & recently played */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(90),1fr))] gap-4.5">
-        {/* Rozkład Kodeków / Formatów */}
+        {/* Codec / format distribution */}
         <div className="glass-panel rounded-2xl px-5.5 py-5">
           <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-md font-bold text-fg">
             <Disc size={17} className="text-accent-cyan" /> {loc.stats.formatBreakdown}
@@ -378,7 +378,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Ostatnio Odtwarzane Utwory */}
+        {/* Recently played tracks */}
         <div className="glass-panel rounded-2xl px-5.5 py-5">
           <h4 className="mx-0 mt-0 mb-3.5 flex items-center gap-2 text-md font-bold text-fg">
             <Clock size={17} className="text-accent-pink" /> {loc.stats.recentTracks}

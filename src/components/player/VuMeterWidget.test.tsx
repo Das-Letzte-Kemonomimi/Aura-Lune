@@ -27,7 +27,7 @@ describe('VuMeterWidget', () => {
     const widthSets = canvas.widthAssignments();
     expect(raf.pending()).toBe(1);
 
-    // 100 ms tiki spektrum: dawniej przy każdym zrywano i budowano pętlę oraz realokowano bufor
+    // 100 ms spectrum ticks: formerly each one tore down and rebuilt the loop and reallocated the buffer
     for (let i = 0; i < 20; i++) {
       act(() => livePlayback.publish({ positionMs: i * 100, spectrum: Array(32).fill(0.2 + (i % 5) * 0.1) }));
       view.rerender(<VuMeterWidget isPlaying spectrum={Array(32).fill(0.2 + (i % 5) * 0.1)} />);
@@ -43,7 +43,7 @@ describe('VuMeterWidget', () => {
     const gradientsAfterFirst = canvas.calls.filter((c) => c === 'createLinearGradient').length;
     for (let i = 0; i < 10; i++) raf.step();
     const gradientsAfter = canvas.calls.filter((c) => c === 'createLinearGradient').length;
-    expect(gradientsAfter).toBe(gradientsAfterFirst); // statyczne gradienty tylko w warstwie, raz
+    expect(gradientsAfter).toBe(gradientsAfterFirst); // static gradients only in the layer, once
     expect(canvas.calls.filter((c) => c === 'drawImage').length).toBeGreaterThanOrEqual(10);
   });
 

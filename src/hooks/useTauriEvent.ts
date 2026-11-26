@@ -2,16 +2,16 @@ import { useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 
 /**
- * Subskrybuje zdarzenie Tauri na czas życia komponentu.
+ * Subscribes to a Tauri event for the lifetime of the component.
  *
- * - Handler zawsze widzi najnowsze propsy/stan (trzymany w ref), więc zmiana handlera
- *   nie powoduje ponownej rejestracji nasłuchu.
- * - Jeśli komponent zostanie odmontowany, zanim `listen()` się rozwiąże, nasłuch jest
- *   wyrejestrowywany natychmiast po rozwiązaniu (brak wycieku nasłuchów).
+ * - The handler always sees the latest props/state (kept in a ref), so changing the handler
+ *   does not re-register the listener.
+ * - If the component unmounts before `listen()` resolves, the listener is
+ *   unregistered right after it resolves (no leaked listeners).
  *
- * @param eventName nazwa zdarzenia emitowanego przez backend
- * @param handler   wywoływany z `payload` zdarzenia
- * @param enabled   pozwala warunkowo wyłączyć subskrypcję (np. gdy modal jest zamknięty)
+ * @param eventName name of the event emitted by the backend
+ * @param handler   called with the event `payload`
+ * @param enabled   lets the subscription be disabled conditionally (e.g. while a modal is closed)
  */
 export function useTauriEvent<T>(
   eventName: string,
@@ -40,7 +40,7 @@ export function useTauriEvent<T>(
         }
       })
       .catch((err) => {
-        console.warn(`Nie udało się zarejestrować nasłuchu zdarzenia ${eventName}:`, err);
+        console.warn(`Failed to register the listener for event ${eventName}:`, err);
       });
 
     return () => {

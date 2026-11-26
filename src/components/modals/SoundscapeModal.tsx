@@ -48,7 +48,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
     return () => cancelAnimationFrame(anim);
   }, [isOpen]);
 
-  // Obsługa zamykania klawiszem Esc
+  // Esc closes the modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -155,7 +155,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-145 flex-col gap-5 overflow-y-auto rounded-3xl border border-accent-purple/35 p-7 text-fg"
     >
-      {/* Zamknięcie */}
+      {/* Close */}
       <button
         onClick={onClose}
         className="absolute top-5 right-5 flex size-9 items-center justify-center rounded-full border-0 bg-white/8 text-fg transition-colors duration-200 hover:bg-white/20"
@@ -164,7 +164,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         <X size={18} />
       </button>
 
-      {/* Nagłówek */}
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-135 from-accent-purple/40 to-pink-500/30 text-pink-400 shadow-halo-lg shadow-pink-500/35"
@@ -181,7 +181,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         </div>
       </div>
 
-      {/* Główna głośność i stan Master */}
+      {/* Master volume and state */}
       <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         />
       </div>
 
-      {/* Gotowe presety */}
+      {/* Ready-made presets */}
       <div>
         <div className="mb-2 text-ui font-semibold text-fg-secondary">
           {loc.soundscape.quickPresets}
@@ -256,7 +256,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         </div>
       </div>
 
-      {/* Lista kanałów ambientowych */}
+      {/* Ambient channel list */}
       <div className="flex flex-col gap-2.5">
         <div className="text-ui font-semibold text-fg-secondary">
           {loc.soundscape.individualLayers}
@@ -324,7 +324,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
         })}
       </div>
 
-      {/* Opcja synchronizacji z cząsteczkami anime */}
+      {/* Sync with the anime particles option */}
       <div
         onClick={handleAutoSyncToggle}
         className="flex cursor-pointer items-center justify-between rounded-xl border border-white/8 bg-white/3 px-3.5 py-3 transition-colors duration-200"

@@ -28,7 +28,7 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
           <div className="flex items-center gap-2.5">
             <Globe size={22} className="text-accent-cyan" />
             <h3 className="text-lg font-bold">
-              Dopasowanie wydania w MusicBrainz
+              MusicBrainz release match
             </h3>
           </div>
           <button
@@ -68,7 +68,7 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
           </button>
         </div>
 
-        {/* Lista kandydatów */}
+        {/* Candidate list */}
         <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
           {mbCandidates.length === 0 && !isSearchingMb && (
             <p className="p-6 text-center text-sm text-fg-muted">

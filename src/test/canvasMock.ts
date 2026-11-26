@@ -1,16 +1,16 @@
 /**
- * Opt-in pomocnik testowy dla kodu rysującego na canvasie (jsdom nie ma canvasu: `getContext` zwraca null).
- * - `installFakeRaf()` — ręcznie sterowany `requestAnimationFrame`,
- * - `installCanvasMock()` — nagrywający kontekst 2D, rozmiar CSS canvasu, DPR, ResizeObserver i licznik
- *   przypisań `canvas.width/height` (realokacje bufora).
- * Każdy z nich zwraca obiekt z `restore()`; wołaj go w `afterEach`.
+ * Opt-in test helper for code that draws on a canvas (jsdom has no canvas: `getContext` returns null).
+ * - `installFakeRaf()`: a manually driven `requestAnimationFrame`,
+ * - `installCanvasMock()`: a recording 2D context, the canvas CSS size, DPR, ResizeObserver and a counter
+ *   of `canvas.width/height` assignments (buffer reallocations).
+ * Each returns an object with `restore()`; call it in `afterEach`.
  */
 import { vi } from 'vitest';
 
 export interface FakeRaf {
-  /** Przesuwa czas o `ms` i wykonuje wszystkie zaplanowane klatki. */
+  /** Advances time by `ms` and runs all scheduled frames. */
   step: (ms?: number) => void;
-  /** Liczba zaplanowanych, jeszcze niewykonanych klatek. */
+  /** Number of scheduled frames not run yet. */
   pending: () => number;
   restore: () => void;
 }
@@ -42,14 +42,14 @@ export function installFakeRaf(): FakeRaf {
 }
 
 export interface CanvasMock {
-  /** Nagrane wywołania metod kontekstu (nazwy). */
+  /** Recorded context method calls (names). */
   calls: string[];
-  /** Ile razy przypisano `canvas.width` / `canvas.height` (każde = realokacja i wyczyszczenie bufora). */
+  /** How many times `canvas.width` / `canvas.height` was assigned (each one reallocates and clears the buffer). */
   widthAssignments: () => number;
   heightAssignments: () => number;
   setCssSize: (width: number, height: number) => void;
   setDpr: (dpr: number) => void;
-  /** Wywołuje callbacki wszystkich ResizeObserverów. */
+  /** Calls the callbacks of every ResizeObserver. */
   triggerResize: () => void;
   restore: () => void;
 }

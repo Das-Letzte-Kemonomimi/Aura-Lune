@@ -72,7 +72,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   const [analyzedCurrentKey, setAnalyzedCurrentKey] = useState<string | null>(null);
   const [analyzedCurrentBpm, setAnalyzedCurrentBpm] = useState<number | null>(null);
 
-  // Jeśli brak aktywnego utworu w odtwarzaczu, używamy wybranego utworu referencyjnego z biblioteki
+  // Without an active track in the player, the reference track selected from the library is used
   const effectiveCurrentTrack = useMemo(() => {
     if (currentTrack) return currentTrack;
     if (selectedTrackId) {
@@ -82,13 +82,13 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
     return libraryTracks[0] || null;
   }, [currentTrack, selectedTrackId, libraryTracks]);
 
-  // Synchronizacja z localStorage (np. jeśli KeyBpmModal wcześniej przeanalizował ten utwór)
+  // Sync with localStorage (e.g. if KeyBpmModal analysed this track before)
   useEffect(() => {
     if (!isOpen || !effectiveCurrentTrack) return;
     setAnalyzedCurrentKey(null);
     setAnalyzedCurrentBpm(null);
 
-    // Jeśli utwór ma już poprawnie sparsowany Camelot i BPM, nie trzeba szukać w cache
+    // If the track already has a correctly parsed Camelot key and BPM, there is no need to search the cache
     if (parseCamelotKey(effectiveCurrentTrack.initial_key) && effectiveCurrentTrack.bpm) {
       return;
     }
@@ -121,12 +121,12 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   const currentCamelot = parseCamelotKey(effectiveKey);
   const currentBpm = effectiveBpm && effectiveBpm > 0 ? effectiveBpm : 128;
 
-  // Obliczenia czasów dla 4, 8, 16 beatów w milisekundach na podstawie BPM
+  // Times for 4, 8 and 16 beats in milliseconds, from the BPM
   const ms4 = calculateBeatMatchedCrossfadeMs(currentBpm, 4);
   const ms8 = calculateBeatMatchedCrossfadeMs(currentBpm, 8);
   const ms16 = calculateBeatMatchedCrossfadeMs(currentBpm, 16);
 
-  // Wykrycie, który tryb taktów jest aktualnie aktywny (dopasowany do bieżącego crossfadeDurationMs)
+  // Detect which bar mode is active now (matched to the current crossfadeDurationMs)
   const activeBeatMode: 4 | 8 | 16 | null = useMemo(() => {
     if (crossfadeDurationMs === 0) return null;
     if (Math.abs(crossfadeDurationMs - ms4) < 150) return 4;
@@ -135,13 +135,13 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
     return null;
   }, [crossfadeDurationMs, ms4, ms8, ms16]);
 
-  // Auto-dostrojenie crossfade do beatów utworu
+  // Auto-tune the crossfade to the track's beats
   const handleSetBeatMatch = (beats: 4 | 8 | 16) => {
     const targetMs = calculateBeatMatchedCrossfadeMs(currentBpm, beats);
     onSetCrossfadeDuration(targetMs);
   };
 
-  // Analiza klucza i BPM dla utworu bazowego, jeśli nie ma w bazie
+  // Analyse the key and BPM of the base track if they are not in the database
   const handleAnalyzeCurrent = useCallback(async () => {
     if (!effectiveCurrentTrack) return;
     setIsAnalyzingCurrent(true);
@@ -164,7 +164,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         }
       }
     } catch (e) {
-      console.error('Błąd analizy utworu:', e);
+      console.error('Track analysis failed:', e);
     } finally {
       setIsAnalyzingCurrent(false);
     }
@@ -173,14 +173,14 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
   const hasCamelot = Boolean(currentCamelot);
   const hasBpm = Boolean(effectiveBpm);
 
-  // Automatyczna próba wykrycia klucza i BPM po otwarciu okna dla utworu, który ich nie posiada
+  // Try to detect the key and BPM automatically on open for a track that has none
   useEffect(() => {
     if (isOpen && effectiveCurrentTrack && (!currentCamelot || !effectiveBpm) && !isAnalyzingCurrent) {
       handleAnalyzeCurrent();
     }
   }, [isOpen, effectiveCurrentTrack, currentCamelot, effectiveBpm, hasCamelot, hasBpm, isAnalyzingCurrent, handleAnalyzeCurrent]);
 
-  // Ranking utworów z biblioteki
+  // Ranking of library tracks
   const rankedTracks = useMemo(() => {
     if (!isOpen || !effectiveCurrentTrack) return [];
 
@@ -201,7 +201,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         };
       });
 
-    // Filtrowanie
+    // Filtering
     return candidates
       .filter(({ track, match }) => {
         if (query) {
@@ -233,7 +233,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
       layer="tool"
       className="flex max-h-[90vh] max-w-230 flex-col overflow-hidden rounded-2xl border border-line bg-card text-fg"
     >
-      {/* NAGŁÓWEK */}
+      {/* HEADER */}
       <div
         className="flex items-center justify-between border-b border-line bg-linear-to-r from-accent-pink/10 to-violet-500/8 px-6 py-4.5"
       >
@@ -260,9 +260,9 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         </button>
       </div>
 
-      {/* KARTA BIEŻĄCEGO UTWORU I DJ CROSSFADE */}
+      {/* CURRENT TRACK AND DJ CROSSFADE CARD */}
       <div className="grid grid-cols-2 gap-4 border-b border-line bg-black/25 px-6 py-4">
-        {/* LEWA KOLUMNA: Aktualnie odtwarzany utwór */}
+        {/* LEFT COLUMN: currently playing track */}
         <div className="rounded-xl border border-white/6 bg-white/4 p-3.5">
           <div
             className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-accent-pink uppercase"
@@ -334,7 +334,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
           </div>
         </div>
 
-        {/* PRAWA KOLUMNA: DJ Beat-Matched Crossfade */}
+        {/* RIGHT COLUMN: DJ beat-matched crossfade */}
         <div className="flex flex-col justify-between rounded-xl border border-white/6 bg-white/4 p-3.5">
           <div>
             <div
@@ -426,7 +426,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         </div>
       </div>
 
-      {/* PASEK WYSZUKIWANIA I FILTRÓW */}
+      {/* SEARCH AND FILTER BAR */}
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
         <div className="flex min-w-55 flex-1 items-center gap-2 rounded-lg border border-line bg-white/5 px-3 py-1.5">
           <Search size={16} className="text-fg-muted" />
@@ -476,7 +476,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
         </div>
       </div>
 
-      {/* LISTA KANDYDATÓW */}
+      {/* CANDIDATE LIST */}
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-3">
         {rankedTracks.length === 0 ? (
           <div className="px-5 py-10 text-center text-fg-muted">
@@ -495,7 +495,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                 className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/3 px-4 py-3 transition-all duration-150 hover:border-(--badge) hover:bg-white/7"
                 style={cssVars({ '--badge': match.badgeColor })}
               >
-                {/* WSKAŹNIK DOPASOWANIA I PROCENT */}
+                {/* MATCH INDICATOR AND PERCENTAGE */}
                 <div className="flex min-w-27.5 items-center gap-3.5">
                   <div
                     className="flex h-11.5 w-11.5 flex-col items-center justify-center rounded-xl text-md leading-tight font-extrabold"
@@ -519,7 +519,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   </div>
                 </div>
 
-                {/* INFORMACJE O UTWORZE */}
+                {/* TRACK INFO */}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-md font-semibold">
                     {track.title}
@@ -554,7 +554,7 @@ export const HarmonicSuggesterModal: React.FC<HarmonicSuggesterModalProps> = ({
                   </div>
                 </div>
 
-                {/* PRZYCISKI AKCJI */}
+                {/* ACTION BUTTONS */}
                 <div className="flex items-center gap-2">
                   {track.bpm && effectiveBpm && Math.abs(track.bpm - effectiveBpm) > 0.5 && (
                     <button

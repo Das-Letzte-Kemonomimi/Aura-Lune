@@ -43,24 +43,24 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
   const [selectedPresetName, setSelectedPresetName] = useState<string>('');
   const [selectedBandId, setSelectedBandId] = useState<string | null>(null);
 
-  // Modal importu/eksportu
+  // Import/export modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [copiedExport, setCopiedExport] = useState(false);
 
-  // Drag & drop węzłów na wykresie
+  // Drag & drop of nodes on the chart
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingBandId, setDraggingBandId] = useState<string | null>(null);
 
-  // Throttling IPC do backendu (płynne 60/120 FPS bez zalewania GStreamera)
+  // IPC throttling to the backend (smooth 60/120 FPS without flooding GStreamer)
   const throttleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestStateRef = useRef<ParametricEqStateDto>(state);
   latestStateRef.current = state;
 
   const sendToBackend = (st: ParametricEqStateDto) => {
     invoke('set_parametric_eq_state', { eqState: st }).catch((e) =>
-      console.error('Błąd zapisu stanu PEQ:', e)
+      console.error('Failed to save the PEQ state:', e)
     );
   };
 
@@ -85,7 +85,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     }
   };
 
-  // Pobranie aktualnego stanu PEQ i presetów z backendu
+  // Fetch the current PEQ state and presets from the backend
   useEffect(() => {
     if (!isOpen) return;
 
@@ -103,7 +103,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
           latestStateRef.current = normState;
           setSelectedBandId(normState.bands[0].id);
         } else {
-          // Jeśli pusty, załaduj domyślne pasma i zsynchronizuj z silnikiem audio
+          // If empty, load the default bands and sync them with the audio engine
           const defaultState: ParametricEqStateDto = {
             enabled: false,
             preamp_db: 0.0,
@@ -121,7 +121,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
           sendToBackend(defaultState);
         }
       })
-      .catch((e) => console.error('Błąd pobierania stanu PEQ:', e));
+      .catch((e) => console.error('Failed to fetch the PEQ state:', e));
 
     invoke<ParametricEqPresetDto[]>('get_parametric_eq_presets')
       .then((p) => {
@@ -137,16 +137,16 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
         }));
         setPresets(normPresets);
       })
-      .catch((e) => console.error('Błąd pobierania presetów PEQ:', e));
+      .catch((e) => console.error('Failed to fetch the PEQ presets:', e));
   }, [isOpen]);
 
-  // Przełączanie włączenia / bypass
+  // Enable / bypass toggle
   const handleToggleEnabled = () => {
     const updated = { ...state, enabled: !state.enabled };
     applyStateToBackend(updated, true);
   };
 
-  // Zmiana preamp (z automatyczną aktywacją)
+  // Preamp change (enables PEQ automatically)
   const handlePreampChange = (val: number) => {
     const updated = { ...state, enabled: true, preamp_db: Math.round(val * 10) / 10 };
     applyStateToBackend(updated);
@@ -182,7 +182,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     setSelectedPresetName('');
   };
 
-  // Aplikowanie presetu
+  // Apply a preset
   const handleSelectPreset = (presetName: string) => {
     const found = presets.find((p) => p.name === presetName);
     if (found) {
@@ -202,7 +202,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     }
   };
 
-  // Dodawanie pasma
+  // Add a band
   const handleAddBand = () => {
     if (state.bands.length >= 32) return;
     const newId = `band-${Date.now().toString(36)}`;
@@ -223,7 +223,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     setSelectedBandId(newId);
   };
 
-  // Usuwanie pasma
+  // Remove a band
   const handleDeleteBand = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const current = latestStateRef.current;
@@ -237,7 +237,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     }
   };
 
-  // Edycja pojedynczego pasma (automatycznie włącza PEQ, aby użytkownik słyszał zmiany)
+  // Edit a single band (enables PEQ automatically so the user hears the changes)
   const handleUpdateBand = (id: string, patch: Partial<ParametricBandDto>) => {
     const current = latestStateRef.current;
     const updated = {
@@ -258,12 +258,12 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     applyStateToBackend(updated);
   };
 
-  // Punkty krzywej częstotliwości
+  // Frequency curve points
   const curvePoints = useMemo(() => {
     return generateFrequencyResponseCurve(state.bands, state.preamp_db, state.enabled, 160);
   }, [state]);
 
-  // Generowanie ścieżki SVG dla krzywej (-24 dB do +12 dB)
+  // SVG path for the curve (-24 dB to +12 dB)
   const svgPathD = useMemo(() => {
     if (curvePoints.length === 0) return '';
     return curvePoints
@@ -281,7 +281,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     return `${svgPathD} L 1000,${zeroY} L 0,${zeroY} Z`;
   }, [svgPathD]);
 
-  // Obsługa przeciągania węzłów na wykresie SVG
+  // Node dragging on the SVG chart
   const handlePointerDown = (bandId: string, e: React.PointerEvent) => {
     e.stopPropagation();
     setDraggingBandId(bandId);
@@ -313,12 +313,12 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
         } catch {}
       }
       setDraggingBandId(null);
-      // Natychmiastowe wysłanie ostatecznego stanu po zakończeniu przeciągania
+      // Send the final state right after dragging ends
       applyStateToBackend(latestStateRef.current, true);
     }
   };
 
-  // Import tekstu EqualizerAPO
+  // EqualizerAPO text import
   const handleImportSubmit = async () => {
     setImportError(null);
     try {
@@ -347,7 +347,7 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     }
   };
 
-  // Eksport tekstu
+  // Text export
   const exportedApoText = useMemo(() => {
     let out = '# EqualizerAPO Parametric EQ configuration from Auralune\n';
     out += `Preamp: ${state.preamp_db.toFixed(1)} dB\n`;
@@ -379,20 +379,20 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
         className="flex max-h-[92vh] w-full max-w-270 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl shadow-black/65 motion-safe:animate-fade-in-scale"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* NAGŁÓWEK OKNA */}
+        {/* WINDOW HEADER */}
         <PeqHeader {...props} state={state} loc={loc} handleToggleEnabled={handleToggleEnabled} handleResetFlat={handleResetFlat} setIsImportModalOpen={setIsImportModalOpen} />
 
-        {/* PASEK KONTROLI PRESETÓW I PREAMP */}
+        {/* PRESET AND PREAMP CONTROL BAR */}
         <PeqPresetBar {...props} selectedPresetName={selectedPresetName} handleSelectPreset={handleSelectPreset} loc={loc} presets={presets} state={state} handlePreampChange={handlePreampChange} maxEffectiveBoost={maxEffectiveBoost} handleApplySafePreamp={handleApplySafePreamp} safePreampDb={safePreampDb} />
 
-        {/* WIDOK WYKRESU CZĘSTOTLIWOŚCI (INTERACTIVE SVG CANVAS) */}
+        {/* FREQUENCY CHART (INTERACTIVE SVG CANVAS) */}
         <PeqResponseChart {...props} state={state} loc={loc} svgRef={svgRef} draggingBandId={draggingBandId} handlePointerMove={handlePointerMove} handlePointerUp={handlePointerUp} svgAreaD={svgAreaD} svgPathD={svgPathD} selectedBandId={selectedBandId} handlePointerDown={handlePointerDown} />
 
-        {/* DOLNY PANEL KONTROLI PASM (BAND RACK & TABLE) */}
+        {/* BOTTOM BAND CONTROL PANEL (BAND RACK & TABLE) */}
         <PeqBandRack {...props} loc={loc} state={state} handleAddBand={handleAddBand} selectedBandId={selectedBandId} setSelectedBandId={setSelectedBandId} handleUpdateBand={handleUpdateBand} handleDeleteBand={handleDeleteBand} />
       </div>
 
-      {/* MODAL IMPORTU / EKSPORTU (EQUALIZERAPO / AUTOEQ) */}
+      {/* IMPORT / EXPORT MODAL (EQUALIZERAPO / AUTOEQ) */}
       {isImportModalOpen && (
         <PeqImportExportDialog {...props} setIsImportModalOpen={setIsImportModalOpen} loc={loc} importText={importText} exportedApoText={exportedApoText} setImportText={setImportText} importError={importError} handleCopyExport={handleCopyExport} copiedExport={copiedExport} handleImportSubmit={handleImportSubmit} />
       )}

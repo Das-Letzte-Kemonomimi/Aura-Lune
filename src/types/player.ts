@@ -1,6 +1,6 @@
 import type { PlaybackStatus } from './playback';
-// Typy współdzielone są zdefiniowane w modułach domenowych (library / playback / audioDevices)
-// i tutaj jedynie re-eksportowane — jedno źródło prawdy dla kontraktów z backendem.
+// Shared types are defined in the domain modules (library / playback / audioDevices)
+// and only re-exported here: one source of truth for the backend contracts.
 export type { TrackRecord, AlbumRecord, ReleaseCandidateDto, SampleTrackDto } from './library';
 export type { PlaybackStatus, DspCapabilities, DspPresetRecord, AlbumPlaybackBehavior } from './playback';
 export type { AudioCard, AudioCardProfile } from './audioDevices';

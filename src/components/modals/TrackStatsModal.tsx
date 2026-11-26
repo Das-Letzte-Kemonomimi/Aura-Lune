@@ -79,7 +79,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
       layer="studio"
       className="flex max-w-140 flex-col overflow-hidden rounded-2xl border border-line-accent shadow-2xl shadow-black/70"
     >
-      {/* Nagłówek modala */}
+      {/* Modal header */}
       <div className="flex items-center justify-between border-b border-white/8 bg-white/2 px-6 py-4.5">
         <div className="flex items-center gap-2.5">
           <div
@@ -104,9 +104,9 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
         </button>
       </div>
 
-      {/* Zawartość statystyk */}
+      {/* Statistics content */}
       <div className="flex flex-col gap-4.5 p-6">
-        {/* Tytuł i wykonawca */}
+        {/* Title and artist */}
         <div>
           <h4 className="mx-0 mt-0 mb-1 text-xl font-bold text-fg">
             {track.title}
@@ -116,9 +116,9 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
           </p>
         </div>
 
-        {/* Kafelki metryk odsłuchu */}
+        {/* Listening metric tiles */}
         <div className="grid grid-cols-3 gap-2.5">
-          {/* Licznik odtworzeń */}
+          {/* Play counter */}
           <div className="glass-card flex flex-col gap-1 border-l-3 border-accent-amber p-3.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-accent-amber uppercase">
               <Flame size={14} />
@@ -132,7 +132,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
             </span>
           </div>
 
-          {/* Łączny czas odsłuchu */}
+          {/* Total listening time */}
           <div className="glass-card flex flex-col gap-1 border-l-3 border-accent-purple p-3.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-accent-purple uppercase">
               <Clock size={14} />
@@ -146,7 +146,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
             </span>
           </div>
 
-          {/* Ostatnio odtwarzano */}
+          {/* Last played */}
           <div className="glass-card flex flex-col gap-1 border-l-3 border-accent-cyan p-3.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-accent-cyan uppercase">
               <RefreshCw size={14} />
@@ -161,7 +161,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
           </div>
         </div>
 
-        {/* Szczegóły techniczne i ścieżka pliku */}
+        {/* Technical details and file path */}
         <div className="glass-card flex flex-col gap-2 px-4.5 py-3.5 text-ui">
           <div className="flex justify-between border-b border-white/5 pb-1.5">
             <span className="text-fg-muted">{loc.trackStatsModal.formatCodec}</span>
@@ -184,7 +184,7 @@ export const TrackStatsModal: React.FC<TrackStatsModalProps> = ({
         </div>
       </div>
 
-      {/* Dolny pasek akcji */}
+      {/* Bottom action bar */}
       <div className="flex items-center justify-between border-t border-white/8 bg-black/30 px-6 py-3.5">
         {onResetPlays && (track.play_count || 0) > 0 ? (
           <button

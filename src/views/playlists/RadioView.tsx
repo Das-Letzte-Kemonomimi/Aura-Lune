@@ -117,7 +117,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
 
   return (
     <div className="flex flex-col gap-6 px-0 pt-2 pb-10 motion-safe:animate-fade-in">
-      {/* Nagłówek zakładki Radio */}
+      {/* Radio tab header */}
       <div
         className="glass-card flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line-accent bg-modal p-6"
       >
@@ -153,7 +153,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
         </button>
       </div>
 
-      {/* Aktywny odtwarzany strumień (Live Status Hero Card) */}
+      {/* Currently playing stream (live status hero card) */}
       {currentStation && (
         <div
           className="glass-card flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-pink-500/40 bg-linear-135 from-pink-500/10 to-accent-purple/15 px-6 py-5 shadow-2xl shadow-pink-500/20"
@@ -232,7 +232,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
         </div>
       )}
 
-      {/* Sekcja: Polecane Stacje */}
+      {/* Section: recommended stations */}
       <div>
         <div className="mb-3.5 flex items-center gap-2">
           <Sparkles size={18} className="text-accent-pink" />
@@ -322,7 +322,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
         </div>
       </div>
 
-      {/* Sekcja: Własne Stacje */}
+      {/* Section: custom stations */}
       <div className="mt-2.5">
         <div className="mb-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">

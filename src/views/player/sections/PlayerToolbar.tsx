@@ -9,7 +9,7 @@ export type PlayerToolbarProps = Pick<PlayerViewProps, 'setIsAudioPathModalOpen'
   status: PlaybackStatus;
 };
 
-// Memo: sekcja nie zależy od pozycji odtwarzania — nie renderuje się w każdej klatce statusu.
+// Memo: the section does not depend on the playback position, so it does not render on every status frame.
 export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
   filePath,
   handleLoadFile,
@@ -43,7 +43,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
         )}
       </div>
 
-      {/* Dyskretne otwieranie pliku zamiast wielkiego pola tekstowego */}
+      {/* Discreet file opening instead of a large text field */}
       <div className="relative">
         <button
           onClick={() => setIsQuickLoadOpen(!isQuickLoadOpen)}
@@ -57,7 +57,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
           <span>{loc.player.openFile}</span>
         </button>
 
-        {/* Zwijany elegancki dropdown szybkiego ładowania */}
+        {/* Collapsible quick-load dropdown */}
         {isQuickLoadOpen && (
           <div
             className="glass-panel absolute top-full right-0 z-20 mt-2 w-95 rounded-2xl border border-line-accent bg-surface p-4 shadow-2xl shadow-black/65"

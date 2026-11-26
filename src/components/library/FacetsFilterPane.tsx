@@ -51,7 +51,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
   const [artistSearch, setArtistSearch] = useState('');
   const [albumSearch, setAlbumSearch] = useState('');
 
-  // 1. Zliczanie i filtrowanie formatów
+  // 1. Count and filter the formats
   const formatCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of tracks) {
@@ -69,7 +69,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
     return formatCounts.filter((f) => f.format.toLowerCase().includes(q));
   }, [formatCounts, formatSearch]);
 
-  // 2. Utwory zawężone do wybranego formatu (dla kolumny wykonawców)
+  // 2. Tracks narrowed to the selected format (for the artist column)
   const tracksInFormat = useMemo(() => {
     if (!selectedFormat) return tracks;
     return tracks.filter((t) => t.format.toUpperCase() === selectedFormat);
@@ -92,7 +92,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
     return artistCounts.filter((a) => a.artist.toLowerCase().includes(q));
   }, [artistCounts, artistSearch]);
 
-  // 3. Utwory zawężone do formatu i wykonawcy (dla kolumny albumów)
+  // 3. Tracks narrowed to the format and artist (for the album column)
   const tracksInArtist = useMemo(() => {
     if (!selectedArtist) return tracksInFormat;
     return tracksInFormat.filter((t) => t.artist.trim() === selectedArtist);
@@ -136,7 +136,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line bg-black/25 p-3">
-      {/* Pasek narzędziowy filtrów fasetowych */}
+      {/* Faceted filter toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers size={16} className="text-accent-pink" />
@@ -161,9 +161,9 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
         )}
       </div>
 
-      {/* 3 Panele kolumnowe */}
+      {/* 3 column panels */}
       <div className="grid h-52.5 grid-cols-[minmax(--spacing(35),--spacing(45))_1fr_1fr] gap-2.5">
-        {/* Kolumna 1: Format */}
+        {/* Column 1: format */}
         <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
           <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
             <span className="text-xs font-bold text-fg-secondary">
@@ -213,7 +213,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
           </div>
         </div>
 
-        {/* Kolumna 2: Wykonawca */}
+        {/* Column 2: artist */}
         <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
           <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
             <span className="text-xs font-bold text-fg-secondary">
@@ -265,7 +265,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
           </div>
         </div>
 
-        {/* Kolumna 3: Album */}
+        {/* Column 3: album */}
         <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
           <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
             <span className="text-xs font-bold text-fg-secondary">

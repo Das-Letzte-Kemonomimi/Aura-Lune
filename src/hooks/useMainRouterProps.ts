@@ -18,7 +18,7 @@ import type {
 } from '../views';
 import type { StemProjectsRouterProps, RadioRouterProps } from '../components/layout/MainContentRouter';
 
-/** Wszystkie wartości, z których budowane są propsy widoków głównych. */
+/** All values the main view props are built from. */
 export type MainViewInputs = PlayerViewProps &
   LibraryViewProps &
   DspStudioViewProps &
@@ -28,12 +28,12 @@ export type MainViewInputs = PlayerViewProps &
   RadioRouterProps;
 
 /**
- * Parametry: menedżery (hooki domenowe) oraz pojedyncze wartości z `App`.
- * Każde pole jest typowane typem propsa widoku, do którego trafia — błędny typ przekazany
- * z `App` jest błędem kompilacji. Kompletność (czy każde pole zostało dostarczone przez
- * menedżer lub `App`) nie jest sprawdzana — to zadanie docelowych kontekstów Reacta.
+ * Parameters: managers (domain hooks) and single values from `App`.
+ * Every field is typed with the prop type of the view it goes to, so a wrong type passed
+ * from `App` is a compile error. Completeness (whether every field was provided by a
+ * manager or `App`) is not checked; that is the job of the target React contexts.
  */
-/** Wyniki hooków domenowych scalane do wspólnej puli wartości. */
+/** Results of the domain hooks merged into one shared pool of values. */
 type ManagerOutputs = ReturnType<typeof useLibraryManager> &
   ReturnType<typeof useLibraryPlaybackActions> &
   ReturnType<typeof useModalManager> &
@@ -69,7 +69,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     ...(params.playlistsManager || {}),
     ...(params.musicbrainz || {}),
     ...(params.mastering || {}),
-    // Crossfeed i skan ReplayGain pojedynczego utworu (wcześniej nie były przekazywane — przyciski nie działały).
+    // Crossfeed and the single-track ReplayGain scan (previously not passed, so the buttons did nothing).
     ...(params.audioSettings || {}),
     ...(params.queueManager ? {
       handlePlayQueueIndex: params.queueManager.playQueueIndex,

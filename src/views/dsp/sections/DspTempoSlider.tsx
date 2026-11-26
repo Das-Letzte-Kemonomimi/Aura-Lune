@@ -124,7 +124,7 @@ export const DspTempoSlider: React.FC<DspTempoSliderProps> = ({
               x ({Math.round((status.tempo_ratio ?? 1) * 100)}%)
             </span>
           </div>
-          {/* Wskaźnik wynikowego tempa (BPM) pod wskaźnikiem */}
+          {/* Resulting tempo (BPM) below the readout */}
           <div className="flex flex-wrap items-center justify-end gap-1 text-xs font-semibold text-accent-cyan">
             {dspCombination.totalBpm ? (
               <span>

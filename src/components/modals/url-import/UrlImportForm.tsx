@@ -63,7 +63,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="np. https://soundcloud.com/... lub YouTube, Bandcamp, Mixcloud"
+            placeholder="e.g. https://soundcloud.com/... or YouTube, Bandcamp, Mixcloud"
             disabled={isLoading}
             autoFocus
             className="flex-1 rounded-lg border border-line bg-black/35 px-3.5 py-2.5 text-sm text-fg outline-none transition-[border-color] duration-200"
@@ -84,7 +84,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </span>
       </div>
 
-      {/* Wybór formatu audio */}
+      {/* Audio format choice */}
       <div>
         <label className="mb-2 block text-sm font-medium">
           {loc.urlImport.targetFormat}
@@ -118,7 +118,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </div>
       </div>
 
-      {/* Wybór bitratu / jakości audio */}
+      {/* Audio bitrate / quality choice */}
       {format !== 'flac' ? (
         <div className="rounded-xl border border-white/8 bg-black/20 p-3">
           <div className="mb-2 flex items-center gap-2">
@@ -132,9 +132,9 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
               <>
                 {[
                   { id: '320k', label: '320 kbps (CBR)', desc: 'Studio' },
-                  { id: '256k', label: '256 kbps (CBR)', desc: 'Wysoka' },
+                  { id: '256k', label: '256 kbps (CBR)', desc: 'High' },
                   { id: '192k', label: '192 kbps (CBR)', desc: 'Standard' },
-                  { id: '0', label: 'V0 VBR (~245k)', desc: 'Zmienna' },
+                  { id: '0', label: 'V0 VBR (~245k)', desc: 'Variable' },
                 ].map((b) => (
                   <button
                     key={b.id}
@@ -157,9 +157,9 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
             {format === 'opus' && (
               <>
                 {[
-                  { id: '160k', label: '160 kbps (Studio)', desc: 'Transparentny Hi-Fi' },
-                  { id: '128k', label: '128 kbps (Standard)', desc: 'Optymalny' },
-                  { id: '96k', label: '96 kbps (Kompakt)', desc: 'Lekki' },
+                  { id: '160k', label: '160 kbps (Studio)', desc: 'Transparent Hi-Fi' },
+                  { id: '128k', label: '128 kbps (Standard)', desc: 'Optimal' },
+                  { id: '96k', label: '96 kbps (Compact)', desc: 'Light' },
                 ].map((b) => (
                   <button
                     key={b.id}
@@ -184,7 +184,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
                 {[
                   { id: '256k', label: '256 kbps (AAC)', desc: 'iTunes Plus' },
                   { id: '192k', label: '192 kbps (AAC)', desc: 'Standard' },
-                  { id: '128k', label: '128 kbps (AAC)', desc: 'Kompakt' },
+                  { id: '128k', label: '128 kbps (AAC)', desc: 'Compact' },
                 ].map((b) => (
                   <button
                     key={b.id}
@@ -217,7 +217,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </div>
       )}
 
-      {/* Opcja pobierania całej playlisty / albumu / kanału SoundCloud */}
+      {/* Download a whole playlist / album / SoundCloud channel */}
       <div
         className={cn(
           'flex flex-col gap-3 rounded-xl border p-3.5 transition-all duration-200',
@@ -253,10 +253,10 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
           )}
         </div>
 
-        {/* Dodatkowe opcje przy włączonej playliście */}
+        {/* Extra options when the playlist option is on */}
         {downloadPlaylist && (
           <div className="grid grid-cols-2 gap-3 border-t border-white/8 pt-2">
-            {/* Limit pobieranych utworów */}
+            {/* Downloaded track limit */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-300">
                 {loc.urlImport.trackLimit}
@@ -276,7 +276,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
               </select>
             </div>
 
-            {/* Struktura folderów */}
+            {/* Folder structure */}
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-300">
                 {loc.urlImport.folderHierarchy}
@@ -302,7 +302,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         )}
       </div>
 
-      {/* Folder docelowy */}
+      {/* Target folder */}
       <div>
         <label className="mb-1.5 block text-sm font-medium">
           {loc.urlImport.destFolder}
@@ -327,7 +327,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </div>
       </div>
 
-      {/* Informacje o silniku yt-dlp */}
+      {/* yt-dlp engine info */}
       <div
         className="flex items-center gap-2 rounded-lg border border-accent-purple/20 bg-accent-purple/8 px-3 py-2.5 text-ui text-purple-200"
       >
@@ -337,7 +337,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </span>
       </div>
 
-      {/* Błąd */}
+      {/* Error */}
       {errorMessage && (
         <div
           className="flex gap-2.5 rounded-lg border border-accent-red/40 bg-accent-red/15 p-3 text-ui whitespace-pre-line text-red-300"
@@ -347,7 +347,7 @@ export const UrlImportForm: React.FC<UrlImportFormProps> = ({
         </div>
       )}
 
-      {/* Przycisk akcji */}
+      {/* Action button */}
       <div className="mt-1.5 flex justify-end gap-2.5">
         <button
           type="button"

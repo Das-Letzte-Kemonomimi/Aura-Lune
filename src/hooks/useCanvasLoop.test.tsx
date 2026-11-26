@@ -37,8 +37,8 @@ describe('useCanvasLoop', () => {
     expect(frame.width).toBe(201);
     expect(frame.height).toBe(101);
     expect(frame.dpr).toBe(1.5);
-    expect(canvas.widthAssignments()).toBe(1); // 201 * 1.5 = 301.5 -> 302 (różne od domyślnych 300)
-    // 101 * 1.5 = 151.5 -> 152 (różne od domyślnych 150)
+    expect(canvas.widthAssignments()).toBe(1); // 201 * 1.5 = 301.5 -> 302 (differs from the default 300)
+    // 101 * 1.5 = 151.5 -> 152 (differs from the default 150)
     expect(canvas.heightAssignments()).toBe(1);
     expect(canvas.calls).toContain('setTransform');
   });
@@ -51,7 +51,7 @@ describe('useCanvasLoop', () => {
     expect(canvas.widthAssignments()).toBe(1);
     expect(canvas.heightAssignments()).toBe(1);
 
-    // Ten sam rozmiar zgłoszony przez ResizeObserver nie realokuje bufora
+    // The same size reported by ResizeObserver does not reallocate the buffer
     act(() => canvas.triggerResize());
     expect(canvas.widthAssignments()).toBe(1);
   });

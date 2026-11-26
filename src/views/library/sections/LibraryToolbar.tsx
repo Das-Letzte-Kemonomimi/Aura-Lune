@@ -31,7 +31,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   tracks,
 }) => (
     <div className="mb-4.5 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-black/20 px-4 py-3">
-      {/* Przełącznik widoku: Utwory vs Albumy */}
+      {/* View toggle: tracks vs albums */}
       <div className="flex gap-1.5">
         <button
           onClick={() => setLibrarySubView('tracks')}
@@ -61,11 +61,11 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             librarySubView === 'artists' ? 'bg-accent-purple' : 'bg-white/6',
           )}
         >
-          <Mic2 size={14} /> {loc.library.artists || 'Wykonawcy'} ({filteredArtists.length})
+          <Mic2 size={14} /> {loc.library.artists || 'Artists'} ({filteredArtists.length})
         </button>
       </div>
 
-      {/* Pole wyszukiwania Live Search */}
+      {/* Live Search field */}
       <div className="relative grow basis-50">
         <Search
           size={14}
@@ -81,12 +81,12 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
             if (e.key === 'Enter') {
               if (librarySubView === 'tracks' && sortedTracks.length > 0) {
                 handlePlayLibraryTrack(sortedTracks[0]);
-                showMessage(`Odtwarzanie ${sortedTracks[0].title}`);
+                showMessage(`Playing ${sortedTracks[0].title}`);
               } else if (librarySubView === 'albums' && sortedAlbums.length > 0) {
                 const albumTracks = tracks.filter((t) => t.album_id === sortedAlbums[0].id);
                 if (albumTracks.length > 0) {
                   handlePlayLibraryTrack(albumTracks[0], albumTracks);
-                  showMessage(`Odtwarzanie albumu ${sortedAlbums[0].title}`);
+                  showMessage(`Playing the album ${sortedAlbums[0].title}`);
                 }
               }
             } else if (e.key === 'Escape') {
@@ -105,7 +105,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         )}
       </div>
 
-      {/* Filtry formatów audio */}
+      {/* Audio format filters */}
       <div className="flex items-center gap-1.5">
         {(['all', 'flac', 'mp3', 'opus', 'wav', 'lossless'] as const).map((fmt) => {
           const label =
@@ -132,7 +132,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         })}
       </div>
 
-      {/* Przełącznik ukrywania duplikatów */}
+      {/* Hide duplicates toggle */}
       <button
         type="button"
         onClick={() => {
@@ -157,7 +157,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         {hideDuplicates ? loc.library.duplicatesHidden : loc.library.duplicates}
       </button>
 
-      {/* Kontrola sortowania */}
+      {/* Sort control */}
       <div className="ml-auto flex items-center gap-1.5">
         <ArrowUpDown size={13} className="text-fg-muted" />
         <span className="text-xs font-semibold text-fg-muted">{loc.library.sortBy}</span>

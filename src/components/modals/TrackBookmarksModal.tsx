@@ -35,7 +35,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   onSetAsLoop,
   currentLang = 'pl',
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = getTranslations(currentLang);
   const [bookmarks, setBookmarks] = useState<TrackBookmarkDto[]>([]);
@@ -53,7 +53,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
       const bms = await invoke<TrackBookmarkDto[]>('get_track_bookmarks', { trackId });
       setBookmarks(bms);
     } catch (err) {
-      console.error('Błąd pobierania zakładek utworu:', err);
+      console.error('Failed to fetch the track bookmarks:', err);
       setError(String(err));
     } finally {
       setIsLoading(false);
@@ -144,7 +144,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-140 flex-col overflow-hidden rounded-2xl border border-line-accent bg-surface"
     >
-      {/* Nagłówek modala */}
+      {/* Modal header */}
       <div
         className="flex items-center justify-between border-b border-line bg-linear-to-r from-pink-500/15 to-accent-cyan/15 px-5 py-4"
       >
@@ -169,7 +169,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
         </button>
       </div>
 
-      {/* Zawartość */}
+      {/* Content */}
       <div className="flex flex-col gap-4 overflow-y-auto p-5">
         {error && (
           <div className="rounded-lg border border-accent-red/40 bg-accent-red/15 px-3.5 py-2.5 text-ui text-red-400">
@@ -177,7 +177,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
           </div>
         )}
 
-        {/* Formularz dodania nowego znacznika */}
+        {/* Form for adding a new marker */}
         <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-white/3 p-3.5">
           <span className="text-ui font-semibold text-fg">
             {loc.trackBookmarks.addNewBookmark}
@@ -221,7 +221,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
           </div>
         </div>
 
-        {/* Lista zakładek */}
+        {/* Bookmark list */}
         <div className="flex flex-col gap-2">
           <span className="text-ui font-semibold text-fg-secondary">
             {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
@@ -382,7 +382,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
         </div>
       </div>
 
-      {/* Stopka modala */}
+      {/* Modal footer */}
       <div className="flex items-center justify-between border-t border-line bg-black/20 px-5 py-3">
         <span className="text-xs text-fg-muted">
           {loc.trackBookmarks.quickAddTip}

@@ -40,7 +40,7 @@ function note(onset_ms: number, duration_ms: number, midi_pitch = 60): DetectedN
   return { onset_ms, duration_ms, midi_pitch, pitch_name: 'C4', cents_offset: 0, velocity: 90 };
 }
 
-/** Indeksy nut, które faktycznie nachodzą na okno (po filtrowaniu, jak w pętli rysowania). */
+/** Indices of the notes that actually overlap the window (after filtering, as in the drawing loop). */
 function visible(notes: DetectedNote[], t0: number, t1: number): DetectedNote[] {
   const index = buildNoteIndex(notes);
   const [s, e] = visibleNoteRange(index, t0, t1);
@@ -160,7 +160,7 @@ describe('view origin', () => {
 
   it('clamps free panning to the track', () => {
     expect(clampOriginMs(-500, 60_000, 1000, 100)).toBe(0);
-    // okno ma 10 s, utwór 60 s → maksymalny początek to 50 s
+    // the window is 10 s, the track 60 s → the maximum start is 50 s
     expect(clampOriginMs(999_999, 60_000, 1000, 100)).toBe(50_000);
     expect(clampOriginMs(5, 3000, 1000, 100)).toBe(0);
   });
@@ -286,12 +286,12 @@ describe('vertical follow', () => {
 
   it('does not move when the span already fits (no jitter)', () => {
     const goal = followScrollGoal({ span: { lo: 60, hi: 64 }, maxMidi: 80, viewRows: 20, current: 5, maxScroll: 30 });
-    expect(goal).toBe(5); // wiersze 16–21 mieszczą się w oknie 5–25
+    expect(goal).toBe(5); // rows 16–21 fit in the 5–25 window
   });
 
   it('scrolls up by the minimum needed when notes rise above the view', () => {
     const goal = followScrollGoal({ span: { lo: 76, hi: 80 }, maxMidi: 80, viewRows: 20, current: 10, maxScroll: 30 });
-    expect(goal).toBe(0); // górna krawędź (wiersz 0) wraca do widoku
+    expect(goal).toBe(0); // the top edge (row 0) comes back into view
   });
 
   it('scrolls down by the minimum needed when notes fall below the view', () => {
@@ -334,7 +334,7 @@ describe('resolveKeyHeight', () => {
   });
 
   it('never leaves an empty strip under the lowest row', () => {
-    // 24 wierszy po 8 px = 192 < 300 → wiersze rosną do wysokości obszaru
+    // 24 rows of 8 px = 192 < 300 → the rows grow to the area height
     expect(resolveKeyHeight(300, 24, 8, false) * 24).toBeGreaterThanOrEqual(300 - 1e-9);
   });
 

@@ -135,7 +135,7 @@ describe('WaveformCanvas Component', () => {
     expect(handleSeek).toHaveBeenCalledWith(0.75);
   });
   describe('scrolling DJ wave', () => {
-    // 160 szczytów * 6.5 px = 1040 px całej fali => 1 px przeciągnięcia = 1/1040 utworu
+    // 160 peaks * 6.5 px = 1040 px for the whole wave => 1 px of dragging = 1/1040 of the track
     const manyPeaks = Array.from({ length: 160 }, (_, i) => 20 + (i % 60));
 
     function setup(overrides: Partial<React.ComponentProps<typeof WaveformCanvas>> = {}) {
@@ -164,11 +164,11 @@ describe('WaveformCanvas Component', () => {
     it('drags the track under a fixed playhead instead of jumping to the pointer position', () => {
       const { el, onSeekPreview, onSeekCommit } = setup();
 
-      // Naciśnięcie nie przewija (stara wersja skakała do 25%)
+      // Pressing does not seek (the old version jumped to 25%)
       fireEvent.pointerDown(el, { clientX: 400, button: 0, pointerId: 1 });
       expect(onSeekPreview).not.toHaveBeenCalled();
 
-      // Przeciągnięcie w lewo o 52 px przesuwa utwór do przodu o 52/1040 = 5%
+      // Dragging left by 52 px moves the track forward by 52/1040 = 5%
       fireEvent.pointerMove(el, { clientX: 348, pointerId: 1 });
       expect(onSeekPreview).toHaveBeenLastCalledWith(expect.closeTo(0.55, 6));
       expect(onSeekCommit).not.toHaveBeenCalled();
@@ -189,7 +189,7 @@ describe('WaveformCanvas Component', () => {
     it('a plain click (no drag) does not seek', () => {
       const { el, onSeekPreview, onSeekCommit } = setup();
       fireEvent.pointerDown(el, { clientX: 250, button: 0, pointerId: 1 });
-      fireEvent.pointerMove(el, { clientX: 251, pointerId: 1 }); // poniżej progu
+      fireEvent.pointerMove(el, { clientX: 251, pointerId: 1 }); // below the threshold
       fireEvent.pointerUp(el, { clientX: 251, pointerId: 1 });
       expect(onSeekPreview).not.toHaveBeenCalled();
       expect(onSeekCommit).not.toHaveBeenCalled();
@@ -199,14 +199,14 @@ describe('WaveformCanvas Component', () => {
       const { el, onSeekCommit } = setup();
       fireEvent.pointerDown(el, { clientX: 500, button: 0, pointerId: 1 });
       fireEvent.pointerMove(el, { clientX: 100, pointerId: 1 }); // -400 px => +38% => 88%
-      fireEvent.pointerMove(el, { clientX: -2000, pointerId: 1 }); // daleko w lewo => 100%
+      fireEvent.pointerMove(el, { clientX: -2000, pointerId: 1 }); // far to the left => 100%
       fireEvent.pointerUp(el, { clientX: -2000, pointerId: 1 });
       expect(onSeekCommit).toHaveBeenLastCalledWith(1);
     });
 
     it('hover shows the time under the cursor relative to the centred playhead', () => {
       const { el } = setup();
-      // Środek kontenera (x = 200) to bieżąca pozycja: 50% z 200 s = 1:40
+      // The container centre (x = 200) is the current position: 50% of 200 s = 1:40
       fireEvent.pointerMove(el, { clientX: 300, pointerId: 1 });
       expect(screen.getByText('1:40')).toBeTruthy();
     });

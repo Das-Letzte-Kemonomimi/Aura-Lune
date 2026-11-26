@@ -28,7 +28,7 @@ describe('useFrameLoop', () => {
     const dts = onFrame.mock.calls.map(([f]) => f.dt);
     expect(dts[0]).toBe(0);
     expect(dts[1]).toBeCloseTo(0.016, 3);
-    expect(dts[2]).toBe(0.1); // ograniczone do 100 ms po długiej przerwie
+    expect(dts[2]).toBe(0.1); // capped at 100 ms after a long pause
   });
 
   it('sleeps when onFrame returns false and resumes on wake()', () => {
@@ -55,7 +55,7 @@ describe('useFrameLoop', () => {
     expect(raf.pending()).toBe(1);
 
     rerender({ cb: second });
-    expect(raf.pending()).toBe(1); // wciąż jedna zaplanowana klatka — brak restartu
+    expect(raf.pending()).toBe(1); // still one scheduled frame: no restart
     raf.step();
     expect(second).toHaveBeenCalledTimes(1);
     expect(first).toHaveBeenCalledTimes(1);
@@ -91,7 +91,7 @@ describe('useFrameLoop', () => {
     const onFrame = vi.fn();
     renderHook(() => useFrameLoop(onFrame, { maxFps: 30 }));
     for (let i = 0; i < 10; i++) raf.step(16.7); // ~60 Hz
-    // przy limicie 30 fps wywołań jest ok. połowa
+    // with a 30 fps cap, about half as many calls
     expect(onFrame.mock.calls.length).toBeGreaterThanOrEqual(4);
     expect(onFrame.mock.calls.length).toBeLessThanOrEqual(6);
   });

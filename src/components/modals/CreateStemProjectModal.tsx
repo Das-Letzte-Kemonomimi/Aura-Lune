@@ -78,7 +78,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
         setModelPacks(packs);
         setCapabilities(caps);
       } catch (err: unknown) {
-        console.error('Błąd pobierania pakietów:', err);
+        console.error('Failed to fetch the packages:', err);
       }
     };
 
@@ -88,13 +88,13 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
   if (!isOpen) return null;
 
   const togglePack = (packId: string) => {
-    if (packId === 'pack_dsp_cascade') return; // Zawsze aktywny fallback
+    if (packId === 'pack_dsp_cascade') return; // Always-active fallback
     setSelectedPackIds((prev) =>
       prev.includes(packId) ? prev.filter((id) => id !== packId) : [...prev, packId]
     );
   };
 
-  // Obliczenie wypadkowych stemów, które powstaną
+  // Compute the resulting stems that will be created
   const calculatedStems = Array.from(
     new Set(
       modelPacks
@@ -135,7 +135,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
       layer="studio"
       className="flex max-h-[90vh] max-w-170 flex-col overflow-hidden rounded-3xl border border-pink-500/35"
     >
-      {/* Nagłówek */}
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
         <div className="flex items-center gap-3">
           <div
@@ -160,7 +160,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
         </button>
       </div>
 
-      {/* Zawartość z przewijaniem */}
+      {/* Scrollable content */}
       <div className="flex flex-col gap-5 overflow-y-auto p-6">
         {error && (
           <div className="rounded-xl border border-accent-red/30 bg-accent-red/15 px-4 py-3 text-sm text-red-400">
@@ -168,7 +168,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           </div>
         )}
 
-        {/* Nazwa projektu */}
+        {/* Project name */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-slate-300">
             {t.stems.projectName}
@@ -181,7 +181,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           />
         </div>
 
-        {/* Wykryty sprzęt */}
+        {/* Detected hardware */}
         <div className="flex items-center justify-between rounded-xl border border-white/6 bg-white/3 px-4 py-3">
           <div className="flex items-center gap-2.5">
             <Cpu size={18} className="text-sky-400" />
@@ -198,7 +198,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           </span>
         </div>
 
-        {/* Wybór pakietów modeli */}
+        {/* Model package choice */}
         <div>
           <label className="mb-2.5 block text-sm font-semibold text-slate-300">
             {t.stems.selectPacks}
@@ -262,7 +262,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           </div>
         </div>
 
-        {/* Podgląd wynikowych stemów */}
+        {/* Resulting stems preview */}
         <div>
           <label className="mb-2 block text-sm font-semibold text-slate-300">
             {fmt(t.stems.outputTracks, String(calculatedStems.length))}
@@ -280,7 +280,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
           </div>
         </div>
 
-        {/* Szacunki (Czas i Rozmiar) */}
+        {/* Estimates (time and size) */}
         <div className="flex gap-3 rounded-xl border border-white/5 bg-slate-900/40 px-4 py-3">
           <div className="flex flex-1 items-center gap-2 text-ui text-fg-secondary">
             <Clock size={16} className="text-accent-amber" />
@@ -293,7 +293,7 @@ export const CreateStemProjectModal: React.FC<CreateStemProjectModalProps> = ({
         </div>
       </div>
 
-      {/* Przyciski dolne */}
+      {/* Bottom buttons */}
       <div className="flex justify-end gap-3 border-t border-white/8 px-6 py-4">
         <button
           onClick={onClose}

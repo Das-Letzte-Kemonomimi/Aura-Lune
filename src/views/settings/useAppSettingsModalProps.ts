@@ -103,17 +103,17 @@ export interface UseAppSettingsModalPropsParams {
 }
 
 /**
- * Buduje propsy zakładek okna Ustawień z hooków domenowych i nadpisań z `App`.
- * Każda zakładka scala kilka menedżerów; asercje typów opisują, skąd pochodzą wartości
- * (typy pól są sprawdzane, kompletność — nie; docelowo zastąpią to konteksty Reacta).
+ * Builds the Settings window tab props from the domain hooks and overrides from `App`.
+ * Each tab merges several managers; the type assertions describe where the values come from
+ * (field types are checked, completeness is not; React contexts will replace this eventually).
  */
 export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams) {
   const { language, loc, updateManager } = params;
 
   const audioDevices = {
     ...(params.audioSettings || {}),
-    // „Przywracaj sesję przy starcie” należy do useSessionManager (wcześniej brakowało go tutaj,
-    // przez co przełącznik w zakładce Urządzenia nie działał).
+    // "Restore the session at start-up" belongs to useSessionManager (it was missing here before,
+    // so the toggle in the Devices tab did nothing).
     ...(params.sessionManager || {}),
     ...(params.dspManager || {}),
     ...(params.modalManager || {}),

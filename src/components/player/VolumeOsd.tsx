@@ -32,7 +32,7 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
     : `${percentage}%`;
 
   useEffect(() => {
-    // Nie wyświetlaj przy inicjalizacji
+    // Do not show on initialisation
     if (isFirstMount.current) {
       isFirstMount.current = false;
       return;
@@ -91,7 +91,7 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
         </div>
       </div>
 
-      {/* Wskaźnik paska głośności */}
+      {/* Volume bar indicator */}
       <div className="relative h-2 w-35 overflow-hidden rounded-sm bg-white/10">
         <div
           className="h-full rounded-sm bg-linear-to-r from-accent-cyan to-accent-pink shadow-halo-sm shadow-accent-pink/50 transition-[width] duration-75"

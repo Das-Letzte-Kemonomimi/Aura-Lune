@@ -121,7 +121,7 @@ export const DspRateSlider: React.FC<DspRateSliderProps> = ({
               x ({Math.round((status.rate_ratio ?? 1) * 100)}%)
             </span>
           </div>
-          {/* Wskaźnik wynikowej tonacji i tempa pod wskaźnikiem */}
+          {/* Resulting key and tempo below the readout */}
           <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-semibold text-accent-amber">
             {dspCombination.totalKey ? (
               <span>

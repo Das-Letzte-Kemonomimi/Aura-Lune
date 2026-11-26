@@ -6,7 +6,7 @@ export type PlayerQuickDspVibesProps = Pick<PlayerViewProps, 'activeDspVibe' | '
   t: PlayerViewProps['loc'];
 };
 
-// Memo: sekcja nie zależy od pozycji odtwarzania — nie renderuje się w każdej klatce statusu.
+// Memo: the section does not depend on the playback position, so it does not render on every status frame.
 export const PlayerQuickDspVibes: React.FC<PlayerQuickDspVibesProps> = React.memo(({
   activeDspVibe,
   handleApplyDspVibe,

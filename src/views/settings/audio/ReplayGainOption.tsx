@@ -51,7 +51,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
         {loc.settings.replaygainDesc}
       </div>
 
-      {/* Tryby normalizacji: Off / Track / Album / Auto */}
+      {/* Normalisation modes: Off / Track / Album / Auto */}
       <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(27.5),1fr))] gap-2">
         {(['Off', 'Track', 'Album', 'Auto'] as const).map((m) => {
           const isActive = replaygainMode === m;
@@ -80,13 +80,13 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
         })}
       </div>
 
-      {/* Suwaki i opcje ReplayGain */}
+      {/* ReplayGain sliders and options */}
       <div className={cn(
         'flex flex-col gap-3 transition-opacity duration-200',
         replaygainMode === 'Off' ? 'opacity-45' : 'opacity-100',
         replaygainMode === 'Off' ? 'pointer-events-none' : 'pointer-events-auto',
       )}>
-        {/* Suwak Przedwzmacniacza (Pre-Amp Gain) */}
+        {/* Preamp slider (pre-amp gain) */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-ui text-fg-secondary">
@@ -128,7 +128,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
           />
         </div>
 
-        {/* Przełącznik True-Peak Limiter */}
+        {/* True-Peak Limiter toggle */}
         <div className="flex items-center justify-between pt-1">
           <span className="flex items-center gap-1.5 text-ui text-fg-secondary">
             <ShieldCheck size={14} className="text-accent-green" /> {loc.settings.replaygainPreventClipping}
@@ -142,7 +142,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
         </div>
       </div>
 
-      {/* Status w czasie rzeczywistym i wskaźnik Peak Limiter */}
+      {/* Real-time status and Peak Limiter indicator */}
       {replaygainMode !== 'Off' && (
         <div className="mt-3 flex items-center justify-between rounded-lg bg-black/25 px-3 py-2 text-xs">
           <div className="flex items-center gap-1.5 text-fg-muted">
@@ -157,7 +157,7 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
         </div>
       )}
 
-      {/* Sekcja kalkulatora / skanera głośności EBU R128 */}
+      {/* EBU R128 loudness calculator / scanner section */}
       <div className="mt-4 border-t border-line pt-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <label className="flex cursor-pointer items-center gap-2 text-ui text-fg-secondary">

@@ -24,7 +24,7 @@ import { fmt } from '../../utils/fmt';
 
 export interface AppHeaderProps {
   appVersion: string;
-  /** Nowa wersja (niepominięta) albo pobrana aktualizacja czekająca na restart. */
+  /** A new version (not skipped), or a downloaded update waiting for a restart. */
   updateAvailable: boolean;
   updateTitle: string;
   onOpenUpdates: () => void;
@@ -152,7 +152,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   return (
     <header className="relative z-30 mb-3.5 flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2">
-      {/* Logo i Nazwa Aplikacji */}
+      {/* App logo and name */}
       <div className="flex min-w-0 shrink-0 items-center gap-3">
         <div className="flex shrink-0 flex-col items-center gap-0.5">
           <span className="rounded-sm border border-accent-purple/40 bg-accent-purple/25 px-1.5 py-0.5 text-2xs leading-none font-bold tracking-wide text-accent-purple">
@@ -167,7 +167,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             )}
           />
         </div>
-        {/* Z pigułką aktualizacji: pigułka równo z plakietką wersji (góra), tytuł równo z logo (dół). */}
+        {/* With the update pill: the pill is level with the version badge (top), the title level with the logo (bottom). */}
         <div className={cn('flex min-w-0 flex-col items-start', updateAvailable && 'self-stretch justify-between')}>
           {updateAvailable && (
             <button
@@ -188,7 +188,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
       </div>
 
-      {/* Zakładki nawigacyjne */}
+      {/* Navigation tabs */}
       <AppNavbar
         activeTab={activeTab}
         onSelectTab={onSelectTab}
@@ -198,7 +198,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         loc={loc}
       />
 
-      {/* Narzędzia i Ustawienia po prawej */}
+      {/* Tools and Settings on the right */}
       <div className="flex min-w-0 shrink-0 items-center gap-1.5">
         {/* Recap */}
         <HeaderButton
@@ -298,7 +298,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </HeaderButton>
 
         {/* Command Palette */}
-        <HeaderButton onClick={onOpenCommandPalette} tone="purple" title="Command Palette / Szukaj (Ctrl + K)">
+        <HeaderButton onClick={onOpenCommandPalette} tone="purple" title="Command Palette / Search (Ctrl + K)">
           <Search size={14} />
           <span className="font-mono text-xs opacity-85">Ctrl+K</span>
         </HeaderButton>

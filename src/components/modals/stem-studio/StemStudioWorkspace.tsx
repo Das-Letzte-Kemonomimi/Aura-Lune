@@ -43,7 +43,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
   t,
 }) => (
     <div className="flex min-h-0 flex-1 gap-3.5">
-      {/* Kontener suwaków kanałów (z przewijaniem poziomym) */}
+      {/* Channel slider container (with horizontal scrolling) */}
       <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-2">
         {channels.map((ch) => {
           const isMuted = ch.mute || (anySoloActive && !ch.solo);
@@ -66,7 +66,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                     : '0 4px 12px rgba(0,0,0,0.3)',
               }}
             >
-              {/* Nagłówek kanału */}
+              {/* Channel header */}
               <div className="mb-2 text-center">
                 <div
                   className="mx-auto mt-0 mb-1 h-2.5 w-2.5 rounded-full"
@@ -83,7 +83,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                 </span>
               </div>
 
-              {/* Przyciski Solo i Mute */}
+              {/* Solo and Mute buttons */}
               <div className="mb-2.5 flex gap-1.5">
                 <button
                   onClick={() => handleToggleSolo(ch.id)}
@@ -111,7 +111,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                 </button>
               </div>
 
-              {/* Suwak Panoramy (Pan) */}
+              {/* Pan slider */}
               <div className="mb-2.5">
                 <div className="mb-0.5 flex justify-between text-xxs text-fg-secondary">
                   <span>L</span>
@@ -140,7 +140,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                 />
               </div>
 
-              {/* Suwak Fader Głośności (0 - 100%, 75% = 0 dB) */}
+              {/* Volume fader (0 - 100%, 75% = 0 dB) */}
               <div className="relative flex flex-1 flex-col items-center justify-center">
                 <input
                   type="range"
@@ -156,7 +156,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
                 />
               </div>
 
-              {/* Odczyt decybeli / procentów */}
+              {/* Decibel / percent readout */}
               <div className="mt-2 text-center">
                 <span
                   className="font-mono text-xs font-extrabold"
@@ -177,7 +177,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
         })}
       </div>
 
-      {/* Panel boczny Master & Presety */}
+      {/* Master & presets side panel */}
       <div className="flex w-65 flex-col gap-3.5 rounded-2xl border border-white/8 bg-slate-900/80 p-4">
         <div className="border-b border-white/8 pb-2">
           <span className="text-sm font-extrabold text-fg">
@@ -210,7 +210,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
           />
         </div>
 
-        {/* Przycisk Reset do 75% */}
+        {/* Reset to 75% button */}
         <button
           onClick={handleResetAllToUnity}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/6 p-2 text-xs font-bold text-fg"
@@ -219,7 +219,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
           {t.stems.resetAllUnity}
         </button>
 
-        {/* Szybkie presety */}
+        {/* Quick presets */}
         <div className="flex flex-col gap-1.5">
           <span className="text-xxs font-bold text-fg-secondary uppercase">
             {t.stems.quickModes}
@@ -264,7 +264,7 @@ export const StemStudioWorkspace: React.FC<StemStudioWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Narzędzia analityczne powiązane ze stemami */}
+        {/* Analysis tools linked to the stems */}
         <div className="mt-auto border-t border-white/8 pt-2.5">
           <span className="mb-1.5 block text-xxs font-bold text-fg-secondary uppercase">
             {t.stems.trackAnalysis}

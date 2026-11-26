@@ -159,7 +159,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
     const handleResize = applySize;
     window.addEventListener('resize', handleResize);
 
-    // 1. Inicjalizacja płatków Sakury
+    // 1. Initialise the sakura petals
     const petalColors = [
       'rgba(255, 183, 197, 0.75)',
       'rgba(244, 114, 182, 0.70)',
@@ -180,7 +180,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       color: petalColors[Math.floor(Math.random() * petalColors.length)],
     }));
 
-    // 2. Inicjalizacja kropel Cyberpunk Neon Rain
+    // 2. Initialise the Cyberpunk Neon Rain drops
     const neonColors = [
       'rgba(6, 182, 212, 0.85)', // Cyan
       'rgba(168, 85, 247, 0.80)', // Purple
@@ -196,7 +196,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       width: 1 + Math.random() * 1.5,
     }));
 
-    // 3. Inicjalizacja świetlików (Fireflies / Stardust)
+    // 3. Initialise the fireflies (Fireflies / Stardust)
     const fireflyGlowColors = [
       'rgba(234, 179, 8, 0.55)',
       'rgba(163, 230, 53, 0.50)',
@@ -226,7 +226,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       };
     });
 
-    // 4. Inicjalizacja płatków śniegu (Snow)
+    // 4. Initialise the snowflakes (Snow)
     const snowColors = [
       'rgba(255, 255, 255, 0.85)',
       'rgba(240, 249, 255, 0.80)',
@@ -244,7 +244,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       color: snowColors[Math.floor(Math.random() * snowColors.length)],
     }));
 
-    // 5. Inicjalizacja Meteor Shower / Starlight
+    // 5. Initialise Meteor Shower / Starlight
     const backgroundStars: Star[] = Array.from({ length: 45 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -267,7 +267,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       cooldown: Math.floor(Math.random() * 120),
     }));
 
-    // 6. Inicjalizacja Cyber Matrix Rain
+    // 6. Initialise Cyber Matrix Rain
     const katakana =
       'アカサタナハマヤラワイキシチニヒミリウクスツヌフムユルエケセテネヘメレオコソトノホモヨロヲン0123456789AZX';
     const matrixDropCount = Math.floor(width / 16);
@@ -280,7 +280,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       tickCounter: 0,
     }));
 
-    // 7. Inicjalizacja jesiennych liści klonu (Momiji)
+    // 7. Initialise the autumn maple leaves (Momiji)
     const momijiColors = [
       { fill: 'rgba(220, 38, 38, 0.85)', stem: '#7f1d1d' }, // Crimson
       { fill: 'rgba(234, 88, 12, 0.85)', stem: '#9a3412' }, // Red-orange
@@ -307,7 +307,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       };
     });
 
-    // 8. Inicjalizacja gotyckich płonących iskier (Gothic Embers / Torch Sparks)
+    // 8. Initialise the gothic burning sparks (Gothic Embers / Torch Sparks)
     const emberColorPairs = [
       { core: 'rgba(255, 255, 255, 0.95)', glow: 'rgba(239, 68, 68, 0.85)' },
       { core: 'rgba(254, 240, 138, 0.95)', glow: 'rgba(249, 115, 22, 0.80)' },
@@ -332,7 +332,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       };
     });
 
-    // Rysowanie pojedynczego płatka sakury
+    // Draw a single sakura petal
     const drawPetal = (p: Petal) => {
       ctx.save();
       ctx.translate(p.x, p.y);
@@ -348,7 +348,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       ctx.restore();
     };
 
-    // Rysowanie liścia klonu (Momiji) o 5 klapach
+    // Draw a 5-lobed maple leaf (Momiji)
     const drawMomiji = (m: MomijiLeaf) => {
       ctx.save();
       ctx.translate(m.x, m.y);
@@ -357,23 +357,23 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
 
       const s = m.size;
       ctx.beginPath();
-      ctx.moveTo(0, s * 0.6); // Ogonek
+      ctx.moveTo(0, s * 0.6); // Stem
       ctx.lineTo(0, 0);
 
-      // 5 klap liścia
-      // Centralna klapa
+      // The 5 leaf lobes
+      // Central lobe
       ctx.lineTo(-s * 0.25, -s * 0.4);
       ctx.lineTo(-s * 0.15, -s * 0.55);
       ctx.lineTo(0, -s * 0.95);
       ctx.lineTo(s * 0.15, -s * 0.55);
       ctx.lineTo(s * 0.25, -s * 0.4);
 
-      // Lewa klapa
+      // Left lobe
       ctx.lineTo(-s * 0.65, -s * 0.3);
       ctx.lineTo(-s * 0.5, -s * 0.1);
       ctx.lineTo(-s * 0.8, s * 0.1);
 
-      // Prawa klapa
+      // Right lobe
       ctx.lineTo(s * 0.8, s * 0.1);
       ctx.lineTo(s * 0.5, -s * 0.1);
       ctx.lineTo(s * 0.65, -s * 0.3);
@@ -450,7 +450,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
 
           const brightness = Math.max(0.08, (Math.sin(f.phase) + 1) / 2);
 
-          // Zewnętrzna poświata
+          // Outer glow
           ctx.save();
           ctx.beginPath();
           ctx.arc(f.x, f.y, f.radius * 2.8, 0, Math.PI * 2);
@@ -458,7 +458,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.globalAlpha = brightness * 0.65;
           ctx.fill();
 
-          // Jasny rdzeń
+          // Bright core
           ctx.beginPath();
           ctx.arc(f.x, f.y, f.radius * 0.9, 0, Math.PI * 2);
           ctx.fillStyle = f.color;
@@ -488,7 +488,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.fill();
         }
       } else if (mode === 'meteor_shower') {
-        // Tło gwiazd
+        // Star background
         for (const s of backgroundStars) {
           s.phase += s.pulseSpeed;
           const alpha = 0.3 + (Math.sin(s.phase) + 1) * 0.35;
@@ -501,7 +501,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.restore();
         }
 
-        // Spadające meteory
+        // Falling meteors
         for (const m of meteors) {
           if (!m.active) {
             m.cooldown--;
@@ -531,7 +531,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.lineCap = 'round';
           ctx.stroke();
 
-          // Jasna kropka głowicy meteoru
+          // Bright dot at the meteor head
           ctx.beginPath();
           ctx.arc(m.x, m.y, m.thickness * 1.4, 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
@@ -552,7 +552,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
         for (const drop of matrixDrops) {
           drop.tickCounter++;
           if (drop.tickCounter % 3 === 0) {
-            // Losowo zmień jeden znak
+            // Randomly change one character
             const rIdx = Math.floor(Math.random() * drop.chars.length);
             drop.chars[rIdx] = katakana[Math.floor(Math.random() * katakana.length)];
           }
@@ -562,12 +562,12 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
             if (charY < -20 || charY > height + 20) continue;
 
             if (i === 0) {
-              // Prowadzący znak - biały, świecący
+              // Leading character: white and glowing
               ctx.fillStyle = '#ffffff';
               ctx.shadowColor = '#4ade80';
               ctx.shadowBlur = 6 * pxScale;
             } else {
-              // Ogon zielono-neonowy z zanikaniem
+              // Neon green tail that fades out
               const alpha = Math.max(0.1, 1 - i / drop.chars.length);
               ctx.fillStyle = `rgba(74, 222, 128, ${alpha})`;
               ctx.shadowBlur = 0;
@@ -605,7 +605,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       } else if (mode === 'embers') {
         const wind = Math.sin(tick * 0.012) * 0.5;
         for (const e of embers) {
-          e.y -= e.speedY; // Iskry wznoszą się w górę
+          e.y -= e.speedY; // Sparks rise upwards
           e.sway += e.swaySpeed;
           e.x += Math.sin(e.sway) * 0.6 + e.speedX + wind;
           e.phase += e.pulseSpeed;

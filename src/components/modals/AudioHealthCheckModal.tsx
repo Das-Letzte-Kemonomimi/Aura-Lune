@@ -166,7 +166,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
 
         {!loading && health && (
           <>
-            {/* Sekcja 1: Serwer Audio PipeWire */}
+            {/* Section 1: PipeWire audio server */}
             <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
               <div className="mb-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -212,7 +212,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
               </div>
             </div>
 
-            {/* Sekcja 2: Silniki DSP */}
+            {/* Section 2: DSP engines */}
             <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
               <div className="mb-2.5 flex items-center gap-2">
                 <Cpu size={16} className="text-accent-purple" />
@@ -236,7 +236,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
               </div>
             </div>
 
-            {/* Sekcja 3: Kodeki Audio GStreamera */}
+            {/* Section 3: GStreamer audio codecs */}
             <div className="rounded-2xl border border-white/7 bg-white/3 px-4 py-3.5">
               <div className="mb-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -270,7 +270,7 @@ export const AudioHealthCheckModal: React.FC<AudioHealthCheckModalProps> = ({
               </div>
             </div>
 
-            {/* Sekcja 4: Baza Danych i Integracja Pulpitu */}
+            {/* Section 4: database and desktop integration */}
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-white/7 bg-white/3 px-3.5 py-3">
                 <div className="mb-1.5 flex items-center gap-1.5">

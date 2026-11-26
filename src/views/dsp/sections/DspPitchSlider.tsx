@@ -129,7 +129,7 @@ export const DspPitchSlider: React.FC<DspPitchSliderProps> = ({
               {loc.dsp.semitones} ({Math.round((status.pitch_semitones ?? 0) * 100)} {loc.dsp.cents}) | {(2 ** ((status.pitch_semitones ?? 0) / 12)).toFixed(3)}x
             </span>
           </div>
-          {/* Wskaźnik wynikowej tonacji (Key) pod wskaźnikiem */}
+          {/* Resulting key below the readout */}
           <div className="flex flex-wrap items-center justify-end gap-1 text-xs font-semibold text-accent-pink">
             {dspCombination.totalKey ? (
               <span>

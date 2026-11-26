@@ -1,24 +1,24 @@
 /**
- * Moduł miksowania harmonicznego (Camelot Wheel & BPM Matching) dla Auralune.
+ * Harmonic mixing module (Camelot Wheel & BPM matching) for Auralune.
  * 
- * Zasady koła Camelot (Mixed In Key):
- * - 12 pozycji (1 - 12), każda z dwoma trybami: 'A' (moll / minor) i 'B' (dur / major).
- * - Idealny miks: ten sam kod (np. 8A -> 8A, 100%).
- * - Zmiana nastroju (Relative Major/Minor): ta sama liczba, przeciwna litera (np. 8A <-> 8B, 95%).
- * - Zmiana energii (Adjacent / Steps): ±1 na kole Camelota (np. 8A -> 7A lub 9A, 90%).
- * - Przekątna (Diagonal): ±1 i przeciwna litera (np. 8A -> 7B lub 9B, 85%).
- * - Energy Boost (+1 semiton): +7 godzin na kole Camelota (np. 8A -> 3A, 80%).
+ * Camelot wheel rules (Mixed In Key):
+ * - 12 positions (1 - 12), each with two modes: 'A' (minor) and 'B' (major).
+ * - Perfect mix: the same code (e.g. 8A -> 8A, 100%).
+ * - Mood change (relative major/minor): the same number, the opposite letter (e.g. 8A <-> 8B, 95%).
+ * - Energy change (adjacent steps): ±1 on the Camelot wheel (e.g. 8A -> 7A or 9A, 90%).
+ * - Diagonal: ±1 and the opposite letter (e.g. 8A -> 7B or 9B, 85%).
+ * - Energy Boost (+1 semitone): +7 hours on the Camelot wheel (e.g. 8A -> 3A, 80%).
  * 
- * Zgodność tempa (BPM):
- * - Zgodność bezpośrednia: różnica <= 3% (100%), <= 6% (85%), <= 10% (60%), <= 15% (30%).
- * - Zgodność half-time / double-time: np. 70 BPM do 140 BPM, lub 175 BPM (DnB) do 87.5 BPM (Halftime).
+ * Tempo (BPM) compatibility:
+ * - Direct match: difference <= 3% (100%), <= 6% (85%), <= 10% (60%), <= 15% (30%).
+ * - Half-time / double-time match: e.g. 70 BPM to 140 BPM, or 175 BPM (DnB) to 87.5 BPM (halftime).
  */
 
 export interface CamelotKey {
   number: number; // 1 - 12
   letter: 'A' | 'B';
-  raw: string; // np. "8A"
-  keyName: string; // np. "A min" lub "C Maj"
+  raw: string; // e.g. "8A"
+  keyName: string; // e.g. "A min" or "C Maj"
 }
 
 export type HarmonicBadgeKey =
@@ -37,14 +37,14 @@ export interface HarmonicMatchResult {
   keyScore: number; // 0 - 100
   bpmScore: number; // 0 - 100
   matchType:
-    | 'perfect' // Ten sam klucz (100%)
-    | 'relative' // Molowy <-> durowy odpowiednik (95%)
-    | 'adjacent' // Krok energii ±1 (90%)
-    | 'diagonal' // Krok przekątny ±1 (85%)
-    | 'energy_boost' // Podbicie energii +1 semiton / +7 (80%)
-    | 'half_double' // Dopasowanie połowiczne/podwójne BPM
-    | 'compatible' // Akceptowalny miks
-    | 'dissonant'; // Ryzyko dysonansu
+    | 'perfect' // The same key (100%)
+    | 'relative' // Relative minor <-> major (95%)
+    | 'adjacent' // Energy step ±1 (90%)
+    | 'diagonal' // Diagonal step ±1 (85%)
+    | 'energy_boost' // Energy boost +1 semitone / +7 (80%)
+    | 'half_double' // Half/double BPM match
+    | 'compatible' // Acceptable mix
+    | 'dissonant'; // Risk of dissonance
   /** Translation key (under `harmonicSuggester`) of the badge describing the key relation. */
   badgeKey: HarmonicBadgeKey;
   badgeColor: string;
@@ -53,7 +53,7 @@ export interface HarmonicMatchResult {
   suggestedCrossfadeMs: number;
 }
 
-// Mapowanie tonacji muzycznych na kod Camelot
+// Musical key to Camelot code mapping
 export const CAMELOT_KEY_MAP: Record<string, CamelotKey> = {
   // Minor (A)
   'G#m': { number: 1, letter: 'A', raw: '1A', keyName: 'G# min' },
@@ -95,14 +95,14 @@ export const CAMELOT_KEY_MAP: Record<string, CamelotKey> = {
 };
 
 /**
- * Parsuje kod Camelot (np. "8A", "11B") lub standardową notację (np. "Am", "A m", "A min", "C Maj", "F# m")
+ * Parses a Camelot code (e.g. "8A", "11B") or standard notation (e.g. "Am", "A m", "A min", "C Maj", "F# m")
  */
 export function parseCamelotKey(raw?: string | null): CamelotKey | null {
   if (!raw) return null;
   const s = raw.trim();
   if (!s) return null;
 
-  // 1. Sprawdź kod Camelot (np. 8A, 12B, 11a, 4b)
+  // 1. Check for a Camelot code (e.g. 8A, 12B, 11a, 4b)
   const camelotMatch = s.match(/^(\d{1,2})\s*([ABab])$/);
   if (camelotMatch) {
     const num = parseInt(camelotMatch[1], 10);
@@ -117,18 +117,18 @@ export function parseCamelotKey(raw?: string | null): CamelotKey | null {
     }
   }
 
-  // 2. Normalizacja standardowej notacji (np. "A min", "A m", "Am", "C Maj", "F# m", "F# minor", "Bb moll")
+  // 2. Normalise standard notation (e.g. "A min", "A m", "Am", "C Maj", "F# m", "F# minor", "Bb moll")
   const upper = s.toUpperCase();
   const isMinor =
     upper.includes('MIN') ||
     upper.includes('MOLL') ||
     (upper.includes('M') && !upper.includes('MAJ') && !upper.includes('DUR'));
 
-  // Wyciągnij prymę (nutę bazową, np. "C", "C#", "Db", "F#", "Bb", itp.)
+  // Extract the root note (e.g. "C", "C#", "Db", "F#", "Bb", etc.)
   const noteMatch = s.match(/^([A-Ga-g][#b]?)/);
   if (!noteMatch) return null;
 
-  // Ujednolić wielkość liter nuty: pierwsza duża, druga (krzyżyk lub bemol) mała/#
+  // Normalise the note case: first letter upper case, the second (sharp or flat) lower case/#
   let rootNote = noteMatch[1].charAt(0).toUpperCase();
   if (noteMatch[1].length > 1) {
     rootNote += noteMatch[1].charAt(1) === 'b' || noteMatch[1].charAt(1) === 'B' ? 'b' : '#';
@@ -139,7 +139,7 @@ export function parseCamelotKey(raw?: string | null): CamelotKey | null {
     return CAMELOT_KEY_MAP[lookupKey];
   }
 
-  // Fallback: bezpośrednie wyszukanie bez spacji
+  // Fallback: direct lookup without spaces
   const noSpaces = s.replace(/\s+/g, '');
   if (CAMELOT_KEY_MAP[noSpaces]) {
     return CAMELOT_KEY_MAP[noSpaces];
@@ -149,7 +149,7 @@ export function parseCamelotKey(raw?: string | null): CamelotKey | null {
 }
 
 /**
- * Oblicza tonację po transpozycji o zadaną liczbę półtonów (w tym ułamkowych).
+ * Computes the key after transposing by the given number of semitones (fractional ones included).
  */
 export function getTransposedKey(
   baseKeyStr?: string | null,
@@ -196,7 +196,7 @@ export function getTransposedKey(
 }
 
 /**
- * Oblicza najkrótszy dystans na 12-godzinnym kole zegarowym Camelot (0 - 6)
+ * Computes the shortest distance on the 12-hour Camelot clock wheel (0 - 6)
  */
 export function getCamelotDistance(num1: number, num2: number): number {
   const diff = Math.abs(num1 - num2);
@@ -204,25 +204,25 @@ export function getCamelotDistance(num1: number, num2: number): number {
 }
 
 /**
- * Oblicza harmoniczne dopasowanie tonacji na kole Camelota (0 - 100%)
+ * Computes the harmonic key match on the Camelot wheel (0 - 100%)
  */
 export function calculateKeyHarmonicScore(
   k1: CamelotKey,
   k2: CamelotKey
 ): { score: number; type: HarmonicMatchResult['matchType']; badgeKey: HarmonicBadgeKey } {
-  // Ten sam klucz (np. 8A -> 8A)
+  // The same key (e.g. 8A -> 8A)
   if (k1.number === k2.number && k1.letter === k2.letter) {
     return { score: 100, type: 'perfect', badgeKey: 'badgePerfect' };
   }
 
-  // Odpowiednik molowy <-> durowy (np. 8A <-> 8B)
+  // Relative minor <-> major (e.g. 8A <-> 8B)
   if (k1.number === k2.number && k1.letter !== k2.letter) {
     return { score: 95, type: 'relative', badgeKey: 'badgeRelative' };
   }
 
   const dist = getCamelotDistance(k1.number, k2.number);
 
-  // Krok energii ±1 na kole Camelota (np. 8A -> 7A lub 9A)
+  // Energy step ±1 on the Camelot wheel (e.g. 8A -> 7A or 9A)
   if (dist === 1 && k1.letter === k2.letter) {
     const isStepUp = (k1.number % 12) + 1 === k2.number || (k1.number === 12 && k2.number === 1);
     return {
@@ -232,12 +232,12 @@ export function calculateKeyHarmonicScore(
     };
   }
 
-  // Przekątna: ±1 i zmiana litery (np. 8A -> 7B lub 9B)
+  // Diagonal: ±1 and a letter change (e.g. 8A -> 7B or 9B)
   if (dist === 1 && k1.letter !== k2.letter) {
     return { score: 85, type: 'diagonal', badgeKey: 'badgeDiagonal' };
   }
 
-  // Podbicie energii +1 semiton (+7 godzin na Camelocie, np. 8A -> 3A)
+  // Energy boost +1 semitone (+7 hours on the Camelot wheel, e.g. 8A -> 3A)
   if (dist === 5 || dist === 7) {
     return { score: 80, type: 'energy_boost', badgeKey: 'badgeSemitone' };
   }
@@ -250,7 +250,7 @@ export function calculateKeyHarmonicScore(
 }
 
 /**
- * Oblicza zgodność tempa (BPM) z uwzględnieniem tolerancji ±6% oraz relacji half-time / double-time
+ * Computes tempo (BPM) compatibility with a ±6% tolerance and half-time / double-time relations
  */
 export function calculateBpmMatchScore(
   bpm1: number,
@@ -276,12 +276,12 @@ export function calculateBpmMatchScore(
     relation = 'double';
   }
 
-  const diffPercent = Math.round(bestDiff * 1000) / 10; // np. 2.4%
+  const diffPercent = Math.round(bestDiff * 1000) / 10; // e.g. 2.4%
 
-  // Punktacja:
+  // Scoring:
   // <= 1% = 100
   // <= 3% = 95
-  // <= 6% = 85 (standardowy limit DJ pitch fader bez deformacji)
+  // <= 6% = 85 (the standard DJ pitch fader limit without distortion)
   // <= 10% = 65
   // <= 15% = 40
   // > 15% = 15
@@ -304,23 +304,23 @@ export function calculateBpmMatchScore(
 }
 
 /**
- * Oblicza czas crossfade w milisekundach zsynchronizowany do tempa utworu (w takt/beaty)
+ * Computes a crossfade time in milliseconds synced to the track tempo (in bars/beats)
  */
 export function calculateBeatMatchedCrossfadeMs(
   bpm: number,
-  beats: number = 8 // domyślnie 8 beatów = 2 takty w 4/4
+  beats: number = 8 // default 8 beats = 2 bars in 4/4
 ): number {
   if (bpm <= 40 || bpm > 260) {
     return 3000;
   }
   const beatDurationSec = 60 / bpm;
   const targetMs = Math.round(beatDurationSec * beats * 1000);
-  // Ogranicz do bezpiecznego zakresu [1000ms, 8000ms]
+  // Clamp to a safe range [1000ms, 8000ms]
   return Math.min(8000, Math.max(1000, targetMs));
 }
 
 /**
- * Główna funkcja porównująca dwa utwory pod kątem miksowania harmonicznego
+ * Main function comparing two tracks for harmonic mixing
  */
 export function evaluateHarmonicMatch(
   currentKeyStr?: string | null,
@@ -369,7 +369,7 @@ export function evaluateHarmonicMatch(
     }
   }
 
-  // Ważona punktacja końcowa: 60% klucz, 40% tempo
+  // Weighted final score: 60% key, 40% tempo
   const finalScore = Math.round(keyScore * 0.6 + bpmScore * 0.4);
   const suggestedCrossfadeMs = calculateBeatMatchedCrossfadeMs(cBpm, 8);
 

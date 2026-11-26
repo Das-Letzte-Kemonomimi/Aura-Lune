@@ -26,7 +26,7 @@ export interface UseAppBootstrapOptions {
   stereoWidenerAmount: number;
 }
 
-/** Okno czasowe, w którym identyczne upuszczenie z innego kanału zdarzeń jest ignorowane. */
+/** Time window in which an identical drop from another event channel is ignored. */
 const DUPLICATE_DROP_WINDOW_MS = 1000;
 
 export function useAppBootstrap({
@@ -50,19 +50,19 @@ export function useAppBootstrap({
 }: UseAppBootstrapOptions) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
-  // Najnowszy handler upuszczenia — rejestracja nasłuchów odbywa się raz, przy montowaniu.
+  // The latest drop handler; listeners are registered once, on mount.
   const handleDropPathsRef = useRef(handleDropPaths);
   useEffect(() => {
     handleDropPathsRef.current = handleDropPaths;
   }, [handleDropPaths]);
 
-  // 1. Wczytanie początkowych ustawień aplikacji z SQLite
+  // 1. Load the initial app settings from SQLite
   useEffect(() => {
     getSetting('eq_enabled_on_startup')
       .then((val) => {
         setEqAutoStartup(val === 'true');
       })
-      .catch((e) => console.warn('Błąd odczytu eq_enabled_on_startup:', e));
+      .catch((e) => console.warn('Failed to read eq_enabled_on_startup:', e));
 
     getSetting('app_language')
       .then((val) => {
@@ -70,7 +70,7 @@ export function useAppBootstrap({
           setLanguage(val as Language);
         }
       })
-      .catch((e) => console.warn('Błąd odczytu app_language:', e));
+      .catch((e) => console.warn('Failed to read app_language:', e));
 
     getSetting('seek_fade_enabled')
       .then((val) => {
@@ -78,13 +78,13 @@ export function useAppBootstrap({
           setSeekFadeEnabled(val === 'true');
         }
       })
-      .catch((e) => console.warn('Błąd odczytu seek_fade_enabled:', e));
+      .catch((e) => console.warn('Failed to read seek_fade_enabled:', e));
 
     getSetting('close_to_tray')
       .then((val) => {
         setCloseToTray(val !== 'false');
       })
-      .catch((e) => console.warn('Błąd odczytu close_to_tray:', e));
+      .catch((e) => console.warn('Failed to read close_to_tray:', e));
 
     getSetting('crossfade_duration')
       .then((val) => {
@@ -94,7 +94,7 @@ export function useAppBootstrap({
           invoke('set_crossfade_duration', { durationMs: ms }).catch(() => {});
         }
       })
-      .catch((e) => console.warn('Błąd odczytu crossfade_duration:', e));
+      .catch((e) => console.warn('Failed to read crossfade_duration:', e));
 
     getSetting('bass_boost')
       .then((val) => {
@@ -103,7 +103,7 @@ export function useAppBootstrap({
           if (!isNaN(num)) setBassBoost(num);
         }
       })
-      .catch((e) => console.warn('Błąd odczytu bass_boost:', e));
+      .catch((e) => console.warn('Failed to read bass_boost:', e));
 
     getSetting('stereo_widener_active')
       .then((val) => {
@@ -111,7 +111,7 @@ export function useAppBootstrap({
         setStereoWidenerActive(active);
         invoke('set_stereo_widener', { active, amount: stereoWidenerAmount }).catch(() => {});
       })
-      .catch((e) => console.warn('Błąd odczytu stereo_widener_active:', e));
+      .catch((e) => console.warn('Failed to read stereo_widener_active:', e));
 
     getSetting('stereo_widener_amount')
       .then((val) => {
@@ -123,7 +123,7 @@ export function useAppBootstrap({
           }
         }
       })
-      .catch((e) => console.warn('Błąd odczytu stereo_widener_amount:', e));
+      .catch((e) => console.warn('Failed to read stereo_widener_amount:', e));
 
     getSetting('limiter_enabled')
       .then((val) => {
@@ -131,14 +131,14 @@ export function useAppBootstrap({
         setLimiterEnabled(enabled);
         invoke('set_limiter_enabled', { enabled }).catch(() => {});
       })
-      .catch((e) => console.warn('Błąd odczytu limiter_enabled:', e));
-    // Jednorazowe wczytanie ustawień przy montowaniu — zależności to stabilne settery i wartości startowe.
+      .catch((e) => console.warn('Failed to read limiter_enabled:', e));
+    // Settings are loaded once on mount; the dependencies are stable setters and initial values.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2. Inicjalizacja usług, biblioteki, motywów, kolejki i rejestracja zdarzeń drag & drop
+  // 2. Initialise services, the library, themes and the queue, and register drag & drop events
   useEffect(() => {
-    // Presety DSP i playlisty wczytują własne hooki (useDspManager / usePlaylistManager).
+    // DSP presets and playlists are loaded by their own hooks (useDspManager / usePlaylistManager).
     refreshDevices();
     loadLibrary();
     loadThemes();
@@ -152,9 +152,9 @@ export function useAppBootstrap({
 
     let isInternalDragging = false;
 
-    // To samo upuszczenie może dotrzeć kilkoma kanałami (zdarzenie webview, okna, surowe
-    // `tauri://drag-drop` oraz HTML5 `drop` — zależnie od platformy/WebKitGTK). Identyczny
-    // zestaw ścieżek w krótkim oknie czasowym jest obsługiwany tylko raz.
+    // The same drop can arrive through several channels (webview event, window event, raw
+    // `tauri://drag-drop` and HTML5 `drop`, depending on the platform/WebKitGTK). An identical
+    // set of paths within a short time window is handled only once.
     const createDropDispatcher = () => {
       let lastKey = '';
       let lastAt = 0;
@@ -252,7 +252,7 @@ export function useAppBootstrap({
     window.addEventListener('drop', handleWindowDrop);
     window.addEventListener('keydown', handleKeyDown);
 
-    // Cleanup może nastąpić, zanim rejestracje się rozwiążą — wtedy wyrejestrowujemy od razu.
+    // Cleanup can happen before the registrations resolve; in that case we unregister right away.
     let disposed = false;
     let unlistenWebview: (() => void) | null = null;
     let unlistenWindow: (() => void) | null = null;
@@ -294,7 +294,7 @@ export function useAppBootstrap({
           else unlistenWebview = unlisten;
         })
         .catch((err) => {
-          console.warn('getCurrentWebview.onDragDropEvent niedostępne:', err);
+          console.warn('getCurrentWebview.onDragDropEvent unavailable:', err);
         });
     } catch (err) {
       console.warn('getCurrentWebview error:', err);
@@ -321,7 +321,7 @@ export function useAppBootstrap({
           else unlistenWindow = unlisten;
         })
         .catch((err) => {
-          console.warn('getCurrentWindow.onDragDropEvent niedostępne:', err);
+          console.warn('getCurrentWindow.onDragDropEvent unavailable:', err);
         });
     } catch (err) {
       console.warn('getCurrentWindow error:', err);
@@ -352,7 +352,7 @@ export function useAppBootstrap({
       if (unlistenTauriEvent) unlistenTauriEvent();
       if (unlistenQueueEvent) unlistenQueueEvent();
     };
-    // Inicjalizacja usług i rejestracja nasłuchów drag & drop dokładnie raz (handler czytany z ref).
+    // Initialise services and register the drag & drop listeners exactly once (the handler is read from a ref).
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -8,7 +8,7 @@ export type PlayerDspMiniBarProps = Pick<PlayerViewProps, 'handleEngineChange' |
   status: PlaybackStatus;
 };
 
-// Memo: sekcja nie zależy od pozycji odtwarzania — nie renderuje się w każdej klatce statusu.
+// Memo: the section does not depend on the playback position, so it does not render on every status frame.
 export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
   handleEngineChange,
   handlePitchChange,
@@ -27,7 +27,7 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
           DSP:
         </span>
 
-        {/* Szybki przełącznik Bypass / DSP */}
+        {/* Quick Bypass / DSP toggle */}
         <button
           onClick={() => handleEngineChange(status.engine === 'Bypass' ? (lastActiveDspEngineRef.current || 'RubberBand') : 'Bypass')}
           className={cn(
@@ -39,7 +39,7 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
           {status.engine === 'Bypass' ? '● BYPASS' : `● ${status.engine === 'RubberBand' ? 'Rubber Band' : 'SoundTouch'}`}
         </button>
 
-        {/* Wskaźnik i przycisk powrotu ze stemów (jeśli stemy są aktywne) */}
+        {/* Indicator and button to return from stems (when stems are active) */}
         {status.is_stems_active && (
           <div
             className="flex items-center gap-1.5 rounded-lg border border-pink-500/45 bg-pink-500/20 px-2 py-1 text-xs font-bold text-accent-pink"
@@ -92,7 +92,7 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
         </div>
       </div>
 
-      {/* Szybkie przejście do pełnego korektora DSP */}
+      {/* Quick jump to the full DSP equalizer */}
       <button
         onClick={() => setActiveTab('dsp')}
         className="flex items-center gap-1.5 rounded-lg border border-accent-purple/35 bg-accent-purple/15 px-3 py-1.5 text-ui font-semibold text-accent-purple"

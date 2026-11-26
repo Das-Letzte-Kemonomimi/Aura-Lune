@@ -37,13 +37,13 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   loc: propLoc,
   currentLang = 'pl',
 }) => {
-  // Pozycja/spektrum na żywo (livePlayback) — renderuje się ten komponent, nie cała aplikacja.
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = propLoc || getTranslations(currentLang);
   const [inputA, setInputA] = useState('');
   const [inputB, setInputB] = useState('');
 
-  // Synchronizacja po otwarciu okna
+  // Sync when the window opens
   useEffect(() => {
     if (isOpen) {
       setInputA(loopPointA !== null ? `${loopPointA}ms` : '');
@@ -102,7 +102,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
       layer="studio"
       className="flex max-w-130 flex-col gap-4.5 rounded-2xl border border-accent-cyan/35 p-6 text-fg"
     >
-      {/* Nagłówek modalu */}
+      {/* Modal header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
@@ -127,7 +127,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         </button>
       </div>
 
-      {/* Informacja o bieżącej pozycji utworu */}
+      {/* Current track position */}
       <div className="flex items-center justify-between rounded-xl border border-line bg-white/3 px-3 py-2 text-ui">
         <span className="text-fg-muted">{loc.player.useCurrentPos}:</span>
         <span className="font-mono font-bold text-accent-cyan">
@@ -135,7 +135,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         </span>
       </div>
 
-      {/* Sekcja Punktu A */}
+      {/* Point A section */}
       <div className="flex flex-col gap-2.5 rounded-xl border border-accent-cyan/25 bg-accent-cyan/5 p-3.5">
         <div className="flex items-center justify-between">
           <span className="text-sm font-extrabold text-accent-cyan">
@@ -147,16 +147,16 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
               onClick={() => handleSetCurrent('A')}
               className="rounded-md border border-accent-cyan/40 bg-accent-cyan/20 px-2 py-1 text-xs font-semibold text-accent-cyan"
             >
-              {loc.player.useCurrentPos || 'Ustaw teraz'}
+              {loc.player.useCurrentPos || 'Set now'}
             </button>
             {parsedA !== null && (
               <button
                 type="button"
                 onClick={() => onSeek(parsedA)}
                 className="flex items-center gap-1 rounded-md border border-line bg-white/6 px-2 py-1 text-xs text-fg"
-                title={loc.player.jumpToA || 'Skocz do A'}
+                title={loc.player.jumpToA || 'Jump to A'}
               >
-                <Play size={10} fill="currentColor" /> {loc.player.jumpToA || 'Skocz'}
+                <Play size={10} fill="currentColor" /> {loc.player.jumpToA || 'Jump'}
               </button>
             )}
           </div>
@@ -167,7 +167,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
             type="text"
             value={inputA}
             onChange={(e) => setInputA(e.target.value)}
-            placeholder="np. 860ms, 860 lub 0:00.860"
+            placeholder="e.g. 860ms, 860 or 0:00.860"
             className={cn(
               'flex-1 rounded-lg border bg-black/35 px-3 py-2 font-mono text-sm text-fg outline-none',
               !isAValid ? 'border-accent-pink' : 'border-accent-cyan/40',
@@ -182,7 +182,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
           </div>
         </div>
 
-        {/* Przyciski mikro-korekty (Nudge A) */}
+        {/* Fine adjustment buttons (nudge A) */}
         <div className="flex flex-wrap gap-1">
           <span className="mr-1 self-center text-xxs text-fg-muted">
             Korekta:
@@ -203,7 +203,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         </div>
       </div>
 
-      {/* Sekcja Punktu B */}
+      {/* Point B section */}
       <div className="flex flex-col gap-2.5 rounded-xl border border-accent-pink/25 bg-accent-pink/5 p-3.5">
         <div className="flex items-center justify-between">
           <span className="text-sm font-extrabold text-accent-pink">
@@ -215,7 +215,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
               onClick={() => handleSetCurrent('B')}
               className="rounded-md border border-accent-pink/40 bg-accent-pink/20 px-2 py-1 text-xs font-semibold text-accent-pink"
             >
-              {loc.player.useCurrentPos || 'Ustaw teraz'}
+              {loc.player.useCurrentPos || 'Set now'}
             </button>
             {parsedB !== null && (
               <button
@@ -224,7 +224,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
                 className="flex items-center gap-1 rounded-md border border-line bg-white/6 px-2 py-1 text-xs text-fg"
                 title={loc.player.jumpToA ? loc.player.jumpToA.replace('A', 'B') : 'Jump to B'}
               >
-                <Play size={10} fill="currentColor" /> Skocz
+                <Play size={10} fill="currentColor" /> Jump
               </button>
             )}
           </div>
@@ -235,7 +235,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
             type="text"
             value={inputB}
             onChange={(e) => setInputB(e.target.value)}
-            placeholder="np. 5000ms, 5200 lub 0:05.200"
+            placeholder="e.g. 5000ms, 5200 or 0:05.200"
             className={cn(
               'flex-1 rounded-lg border bg-black/35 px-3 py-2 font-mono text-sm text-fg outline-none',
               !isBValid ? 'border-accent-pink' : 'border-accent-pink/40',
@@ -250,7 +250,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
           </div>
         </div>
 
-        {/* Przyciski mikro-korekty (Nudge B) */}
+        {/* Fine adjustment buttons (nudge B) */}
         <div className="flex flex-wrap gap-1">
           <span className="mr-1 self-center text-xxs text-fg-muted">
             Korekta:
@@ -271,7 +271,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         </div>
       </div>
 
-      {/* Podsumowanie pętli / Walidacja */}
+      {/* Loop summary / validation */}
       <div className="flex flex-col gap-1.5 rounded-xl border border-line bg-black/25 px-3.5 py-2.5 text-ui">
         <div className="flex items-center justify-between">
           <span className="text-fg-muted">{loc.player.loopDuration}:</span>
@@ -295,7 +295,7 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
         )}
       </div>
 
-      {/* Przyciski dolne modalu */}
+      {/* Modal bottom buttons */}
       <div className="mt-1 flex items-center justify-between">
         <button
           type="button"

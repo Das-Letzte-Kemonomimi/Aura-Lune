@@ -108,7 +108,7 @@ export interface StemChannel {
   file_path: string;
   color_hex: string;
   quality_tier: StemQualityTier;
-  volume: number; // 0.0 .. 1.0 (domyślnie 0.75 = 0 dB)
+  volume: number; // 0.0 .. 1.0 (default 0.75 = 0 dB)
   pan: number;    // -1.0 .. +1.0
   mute: boolean;
   solo: boolean;

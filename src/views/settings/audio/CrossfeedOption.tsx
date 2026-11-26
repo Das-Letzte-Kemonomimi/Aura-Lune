@@ -44,7 +44,7 @@ export const CrossfeedOption: React.FC<CrossfeedOptionProps> = ({
         {loc.settings.crossfeedDesc}
       </div>
 
-      {/* Wybór presetu: Default / ChuMoy / JanMeier / Custom */}
+      {/* Preset choice: Default / ChuMoy / JanMeier / Custom */}
       <div className={cn(
         'mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(--spacing(32.5),1fr))] gap-2',
         crossfeedEnabled ? 'opacity-100' : 'opacity-45',
@@ -74,7 +74,7 @@ export const CrossfeedOption: React.FC<CrossfeedOptionProps> = ({
         })}
       </div>
 
-      {/* Suwaki częstotliwości i feedu */}
+      {/* Frequency and feed sliders */}
       <div className={cn(
         'flex flex-col gap-2.5 transition-opacity duration-200',
         crossfeedEnabled ? 'opacity-100' : 'opacity-45',

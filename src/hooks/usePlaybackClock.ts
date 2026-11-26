@@ -2,18 +2,18 @@ import { useCallback, useEffect, useRef } from 'react';
 import { easeDisplayPosition, extrapolatePositionMs, type ClockAnchor } from '../utils/playbackClock';
 
 export interface PlaybackClockOptions {
-  /** Ostatnia pozycja z backendu (ms); każda zmiana ustawia nową kotwicę zegara. */
+  /** The last position from the backend (ms); every change sets a new clock anchor. */
   positionMs: number;
   playing: boolean;
-  /** Prędkość czasu źródła względem rzeczywistego (zob. `playbackSpeed`). */
+  /** Speed of the source time relative to real time (see `playbackSpeed`). */
   speed: number;
   durationMs?: number | null;
   loopB?: number | null;
 }
 
 /**
- * Zwraca funkcję `(dtSec) => pozycja (ms)` do wołania w każdej klatce rysowania: pozycja ekstrapolowana między
- * tickami backendu (~10 Hz) i wygładzona. Kotwica jest przestawiana, gdy zmieni się `positionMs`.
+ * Returns a `(dtSec) => position (ms)` function to call on every drawing frame: the position is extrapolated between
+ * backend ticks (~10 Hz) and smoothed. The anchor moves when `positionMs` changes.
  */
 export function usePlaybackClock(options: PlaybackClockOptions): (dtSec: number) => number {
   const optionsRef = useRef(options);
@@ -21,7 +21,7 @@ export function usePlaybackClock(options: PlaybackClockOptions): (dtSec: number)
   const displayRef = useRef<number | null>(null);
   const lastPlayingRef = useRef(options.playing);
 
-  // Kotwica z czasem nadejścia pozycji; zmiana odtwarzania resetuje wygładzanie
+  // Anchor with the position's arrival time; a playback change resets the smoothing
   useEffect(() => {
     optionsRef.current = options;
     if (options.positionMs !== anchorRef.current.positionMs) {

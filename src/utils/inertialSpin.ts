@@ -1,26 +1,26 @@
 import { smoothTo } from './smoothing';
 
 export interface SpinState {
-  /** Kąt w stopniach (0..360). */
+  /** Angle in degrees (0..360). */
   angle: number;
-  /** Aktualna prędkość kątowa (stopnie/s). */
+  /** Current angular speed (degrees/s). */
   speed: number;
 }
 
 export interface SpinStep extends SpinState {
-  /** `true`, gdy obrót całkowicie się zatrzymał i nic nie trzeba już animować. */
+  /** `true` when the rotation has fully stopped and nothing needs animating. */
   settled: boolean;
 }
 
-/** Poniżej tej prędkości (stopnie/s) bez odtwarzania silnik uznajemy za zatrzymany. */
+/** Below this speed (degrees/s) without playback the motor counts as stopped. */
 export const SPIN_STOP_THRESHOLD = 0.1;
-/** Poniżej tej prędkości kąt nie jest już aktualizowany. */
+/** Below this speed the angle is no longer updated. */
 const SPIN_MOVE_THRESHOLD = 0.01;
 
 /**
- * Jeden krok bezwładnego obrotu (talerz gramofonu, szpula magnetofonu).
- * Prędkość dąży do `targetDegPerSec` z `tauUp` (rozpędzanie, gdy `playing`) lub `tauDown` (wytracanie).
- * `direction` = 1 obrót zgodnie z ruchem wskazówek zegara, -1 przeciwnie.
+ * One step of inertial rotation (turntable platter, tape reel).
+ * The speed moves towards `targetDegPerSec` with `tauUp` (spin-up while `playing`) or `tauDown` (spin-down).
+ * `direction` = 1 rotates clockwise, -1 counter-clockwise.
  */
 export function stepSpin(
   state: SpinState,

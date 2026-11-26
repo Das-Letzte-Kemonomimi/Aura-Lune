@@ -47,7 +47,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
 
   const loc = getTranslations(currentLang);
 
-  // Weryfikacja czy sygnał płynie w 100% bit-perfect bez modyfikacji próbek
+  // Checks whether the signal flows 100% bit-perfect without modifying the samples
   const isBypass = status.engine === 'Bypass';
   const isDefaultTempo = Math.abs((status.tempo_ratio ?? 1.0) - 1.0) < 0.001;
   const isDefaultPitch = Math.abs(status.pitch_semitones ?? 0.0) < 0.01;
@@ -155,7 +155,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* 1. Źródło dźwięku (Input Source) */}
+          {/* 1. Audio input source */}
           <div className="rounded-xl border border-accent-cyan/25 bg-black/25 px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-ui font-bold text-accent-cyan">
@@ -186,7 +186,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* 2. Przetwarzanie DSP & Efekty */}
+          {/* 2. DSP processing & effects */}
           <div
             className={cn(
               'rounded-xl border bg-black/25 px-4 py-3.5',
@@ -236,7 +236,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* 3. Wyjście PipeWire (Audio Sink) */}
+          {/* 3. PipeWire output (audio sink) */}
           <div className="rounded-xl border border-accent-green/25 bg-black/25 px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-ui font-bold text-accent-green">
@@ -269,7 +269,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
             </div>
           </div>
 
-          {/* Informacja podsumowująca */}
+          {/* Summary */}
           <div
             className={cn(
               'flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-ui text-slate-300',
@@ -288,7 +288,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
           </div>
         </div>
 
-        {/* Footer z przyciskiem resetu Bit-Perfect */}
+        {/* Footer with the Bit-Perfect reset button */}
         <div className="flex items-center justify-between border-t border-white/8 bg-white/2 px-6 py-3.5">
           {onResetBitPerfect && !isBitPerfect ? (
             <button

@@ -112,7 +112,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
       ref={containerRef}
       className="mx-auto my-0 flex max-w-210 flex-col gap-5"
     >
-      {/* Nagłówek sekcji */}
+      {/* Section header */}
       <div
         className="glass-card flex flex-wrap items-center justify-between gap-3.5 border-l-4 border-accent-pink px-6 py-5"
       >
@@ -134,7 +134,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
         </div>
       </div>
 
-      {/* Pasek nawigacji / filtrowania stron na górze */}
+      {/* Page navigation / filter bar at the top */}
       <div
         className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-line bg-black/25 px-4 py-2.5 text-ui"
       >
@@ -149,7 +149,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
           </span>
         </div>
 
-        {/* Wybór liczby wydań na stronę */}
+        {/* Releases per page */}
         <div className="flex items-center gap-1.5">
           <span className="text-fg-muted">{loc.changelog.perPage}</span>
           {PAGE_SIZE_OPTIONS.map((size) => (
@@ -169,13 +169,13 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
         </div>
       </div>
 
-      {/* Lista wydań bieżącej strony */}
+      {/* Releases on the current page */}
       {paginatedReleases.map((rel) => (
         <div
           key={rel.version}
           className="glass-card relative flex flex-col gap-4.5 overflow-hidden p-6"
         >
-          {/* Pasek wersji i metadanych */}
+          {/* Version and metadata bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-3.5">
             <div className="flex items-center gap-3">
               <div
@@ -210,7 +210,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             </div>
           </div>
 
-          {/* Sekcja: Dodano (Added) */}
+          {/* Section: Added */}
           {rel.added && rel.added.length > 0 && (
             <div>
               <h5 className="mx-0 mt-0 mb-2.5 flex items-center gap-2 text-sm font-bold text-accent-cyan">
@@ -227,7 +227,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             </div>
           )}
 
-          {/* Sekcja: Naprawiono (Fixed) */}
+          {/* Section: Fixed */}
           {rel.fixed && rel.fixed.length > 0 && (
             <div>
               <h5 className="mx-0 mt-0 mb-2.5 flex items-center gap-2 text-sm font-bold text-accent-pink">
@@ -246,10 +246,10 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
         </div>
       ))}
 
-      {/* Paginator dolny z przyciskami stron */}
+      {/* Bottom paginator with page buttons */}
       {totalPages > 1 && (
         <div className="mt-2 mb-6 flex flex-wrap items-center justify-center gap-2">
-          {/* Pierwsza strona */}
+          {/* First page */}
           <button
             onClick={() => handlePageChange(1)}
             disabled={clampedPage === 1}
@@ -263,7 +263,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             <ChevronsLeft size={15} />
           </button>
 
-          {/* Poprzednia strona */}
+          {/* Previous page */}
           <button
             onClick={() => handlePageChange(clampedPage - 1)}
             disabled={clampedPage === 1}
@@ -278,7 +278,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             <span>{loc.changelog.prev}</span>
           </button>
 
-          {/* Numery stron */}
+          {/* Page numbers */}
           <div className="flex items-center gap-1">
             {pageNumbers.map((page, idx) => {
               if (page === '...') {
@@ -310,7 +310,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             })}
           </div>
 
-          {/* Następna strona */}
+          {/* Next page */}
           <button
             onClick={() => handlePageChange(clampedPage + 1)}
             disabled={clampedPage === totalPages}
@@ -325,7 +325,7 @@ export const ChangelogView: React.FC<ChangelogViewProps> = ({ currentLang = 'pl'
             <ChevronRight size={15} />
           </button>
 
-          {/* Ostatnia strona */}
+          {/* Last page */}
           <button
             onClick={() => handlePageChange(totalPages)}
             disabled={clampedPage === totalPages}
