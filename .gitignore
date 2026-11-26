@@ -32,10 +32,10 @@ packaging/archlinux/pkg/
 packaging/archlinux/*.pkg.tar.*
 *.AppImage
 
-# Local agent state. The skill directories (.agents/skills, .claude/skills) are committed so
-# Claude Code and Antigravity see the same skills; see DEVELOPMENT.md, "Agent skills".
+# Local agent state. Third-party skills and generated symlinks (.agents/, .claude/) are
+# restored on demand via `npm run skills:install`; only `skills/` and `skills-lock.json` are committed.
 .plans
-.claude/*
-!.claude/skills/
+.agents/
+.claude/
 .gemini
 CLAUDE.local.md

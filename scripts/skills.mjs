@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Keeps the agent skills identical for Claude Code and Antigravity.
 //
-// Layout (both directories are committed):
+// Layout (skills/ and skills-lock.json are committed; .agents/ and .claude/ are generated):
 //   skills/<area>/<name>/         authored project skills, the source of truth
+//   skills-lock.json              pins every third-party skill (source, commit, content hash)
 //   .agents/skills/<name>         real directory for third-party skills (Antigravity reads it),
 //                                 symlink to skills/<area>/<name> for authored skills
 //   .claude/skills/<name>         symlink to ../../.agents/skills/<name> (Claude Code reads it)
-//   skills-lock.json              pins every third-party skill (source, commit, content hash)
 //
 // Commands (see DEVELOPMENT.md, "Agent skills"):
 //   npm run skills:check     offline: fail when an expected skill is missing for either agent
@@ -152,7 +152,7 @@ const report = (root) => {
   for (const name of extra) console.warn(`note: unmanaged skill .agents/skills/${name} (not in skills-lock.json or skills/)`);
   for (const issue of problems) console.error(`problem: ${issue}`);
   if (missing.length > 0) {
-    console.error(`Missing skill entries:\n${missing.map((m) => `  ${m}`).join('\n')}\nRun: npm run skills:install`);
+    console.error(`Missing skill entries:\n${missing.map((m) => `  ${m}`).join('\n')}\nRun: npm run skills:install (requires network + Node >= ${MIN_NODE.join('.')}), then reload skills (/skills reload or start a new session).`);
   }
   if (missing.length > 0 || problems.length > 0) return false;
   console.log(`OK: ${expected.length} skills available to Claude Code and Antigravity.`);

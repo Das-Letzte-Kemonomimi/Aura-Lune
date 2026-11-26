@@ -6,33 +6,34 @@ metadata:
 ---
 # React Monolith Refactoring & State Best Practices
 
-This skill guides agents when reading, modifying, or refactoring `src/App.tsx` (~20,700 lines) and complex React 19 components.
+This skill guides agents when reading, modifying, or keeping `src/App.tsx` (~1,280 lines), `src/components/modals/AppModalsContainer.tsx` (~1,034 lines), and large React 19 components slim.
 
 ## Guidelines for Handling `App.tsx`
 
 1. **Targeted Reading**:
-   - Avoid reading all 20,000 lines of `App.tsx` into context at once.
-   - Use `view_file` with precise line slices or grep for specific state variables / modal names before inspecting surrounding code.
+   - Read targeted line slices or search for specific state variables, hooks, or modal names before editing large files.
 
 2. **Domain-Driven Hook Extraction**:
-   - When modifying or adding state, extract state and handlers into dedicated custom hooks in `src/hooks/`:
-     - `useAudioPlayer.ts`: Playback status, progress slider, volume, seeking.
-     - `useLibrary.ts`: Tracks, albums, artists, scan progress, search query.
-     - `useThemeEngine.ts`: Glassmorphism blur, background wallpaper, anime FX particles.
+   - Keep `App.tsx` as a declarative shell. Extract state, IPC calls, and handlers into dedicated custom hooks in `src/hooks/`:
+     - `usePlaybackController.ts`: Playback status, seek preview/commit, volume, transport.
+     - `useLibraryManager.ts`: Tracks, albums, artists, scan progress, search query.
+     - `useThemeManager.ts`: Theme tokens, background wallpaper, overlay opacity, blur.
      - `usePlaybackQueue.ts`: Playback queue items, loop mode, shuffle.
-   - Re-export clean hook interfaces to keep component files modular.
+     - `useAppHeaderProps.ts`, `useBottomPlaybackDockProps.ts`, `useMainRouterProps.ts`, `useAppModalsProps.ts`: Prop builders covered by completeness unit tests.
+   - Persist UI preferences with `usePersistedState` rather than raw `localStorage` pairs.
 
 3. **Performance & Render Isolation**:
-   - High-frequency UI updates (e.g. waveform scrubbing, volume OSD, FFT spectrum bars) must not trigger re-renders of the entire library list or modal tree.
-   - Use React 19 hooks (`useCallback`, `useMemo`, `useTransition`) and isolate animated widgets (`SpectrumVisualizer`, `VuMeterWidget`) so only the canvas element re-draws.
+   - High-frequency UI updates (waveform scrubbing, volume OSD, FFT spectrum bars) read from `src/state/livePlayback.ts` (`useLiveStatus`, `useLivePositionMs`, `useLiveSpectrum`) so `App` does not re-render every tick.
+   - Wrap layout and non-ticking section components in `React.memo`, and isolate animated canvas widgets (`SpectrumVisualizer`, `VuMeterWidget`, `WaveformCanvas`, `PianoRollCanvas`) so only the canvas redraws via `useCanvasLoop`.
 
 4. **Localization Requirement**:
-   - Every user-visible string must use the `t(...)` translation function from `src/i18n.ts`. Never hardcode UI strings in JSX.
+   - Every user-visible string must live in all five `src/locales/*.json` dictionaries (`en`, `pl`, `de`, `fi`, `la`) and use `fmt()` (`src/utils/fmt.ts`) for `{n}` placeholders. Never hardcode UI strings in JSX.
 
 5. **Mandatory Pre-Commit Frontend Verification**:
    - Before committing any frontend modifications, always execute:
      ```bash
      npm run lint
+     npm run typecheck
      npm test
      npm run build
      ```

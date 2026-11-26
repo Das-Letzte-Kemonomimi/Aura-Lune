@@ -202,9 +202,9 @@ Verify that the Rust workspace compiles:
 cargo check --workspace
 ```
 
-Verify that the AI agent skills are in place for both Claude Code and Antigravity (they are committed, so this normally passes straight after cloning; see [Agent Skills](#6-agent-skills-claude-code-and-antigravity)):
+Install the shared AI agent skills for Claude Code and Antigravity from `skills-lock.json` and `skills/` (they are gitignored and installed on demand; see [Agent Skills](#6-agent-skills-claude-code-and-antigravity)):
 ```bash
-npm run skills:check
+npm run skills:check || npm run skills:install
 ```
 
 ---
@@ -289,17 +289,17 @@ Both agents already agree on a file format ([`SKILL.md`](https://agentskills.io)
 
 | Agent | Reads project skills from | How they get there |
 |---|---|---|
-| Antigravity (App and CLI) | `.agents/skills/` | Committed. Third-party skills are real folders, authored skills are symlinks. |
-| Claude Code | `.claude/skills/` | Committed symlinks into `.agents/skills/`. |
+| Antigravity (App and CLI) | `.agents/skills/` | Gitignored; populated by `npm run skills:install`. Third-party skills are real folders, authored skills are symlinks into `skills/`. |
+| Claude Code | `.claude/skills/` | Gitignored; symlinks into `.agents/skills/` created by `npm run skills:install`. |
 
 ```
-skills/<area>/<name>/SKILL.md    authored project skills: the only place to edit them
-skills-lock.json                 pins every third-party skill (source, commit, content hash)
-.agents/skills/<name>            third-party: real folder · authored: symlink into skills/
-.claude/skills/<name>            symlink to ../../.agents/skills/<name>
+skills/<area>/<name>/SKILL.md    authored project skills (committed): the only place to edit them
+skills-lock.json                 pins every third-party skill (committed: source, commit, content hash)
+.agents/skills/<name>            gitignored · third-party: real folder · authored: symlink into skills/
+.claude/skills/<name>            gitignored · symlink to ../../.agents/skills/<name>
 ```
 
-Because the directories are committed, **a fresh clone already has every skill**; there is nothing to install. `npx skills` is still the tool behind everything: it created the third-party folders and links, it verifies them against the hashes in `skills-lock.json`, and it pulls newer versions. The `npm run skills:*` scripts ([`scripts/skills.mjs`](scripts/skills.mjs)) wrap it and add the authored-skill links, so both agents always end up with the same set. Other agents that read `.agents/skills/` (Codex, Cursor, Gemini CLI, GitHub Copilot, …) get the set too.
+Only `skills/` and `skills-lock.json` are committed, so the repository stays lean and agents or contributors install the third-party skills themselves on first setup (`npm run skills:install`). `npx skills` is the tool behind everything: it restores the third-party folders from `skills-lock.json` (hash-verified) and pulls newer versions, while `npm run skills:*` ([`scripts/skills.mjs`](scripts/skills.mjs)) wraps it and adds the authored-skill links so both agents always end up with the same set. Other agents that read `.agents/skills/` (Codex, Cursor, Gemini CLI, GitHub Copilot, …) get the set too.
 
 Two kinds of skills are deliberately **not** shared: ones that depend on one tool's API. Antigravity ships its own built-in `run-workflow` (a `run_workflow` tool that runs Python scripts), and Claude Code has its own subagent tools. The portable replacement is `dispatching-parallel-agents`.
 
@@ -323,9 +323,9 @@ npx skills add <owner/repo> --skill <name> -a claude-code -a antigravity -y
 npm run skills:check
 ```
 
-Then add a row to the table in [`AGENTS.md`](AGENTS.md#skills--agents) and commit `skills-lock.json`, `.agents/skills/<name>` and `.claude/skills/<name>` together. Do not hand-edit a third-party skill; change it upstream or pin another source.
+Then add a row to the table in [`AGENTS.md`](AGENTS.md#skills--agents) and commit `skills-lock.json` together with `AGENTS.md`. Do not hand-edit `.agents/skills/`; change it upstream or pin another source.
 
-**Remove one:** `npx skills remove <name>`, delete its row from `AGENTS.md`, commit.
+**Remove one:** `npx skills remove <name>`, delete its row from `AGENTS.md`, commit `skills-lock.json` and `AGENTS.md`.
 
 **Add an authored skill.** Create `skills/<area>/<name>/SKILL.md` with frontmatter whose `name` equals the folder name and a `description` that says what it does and when to use it, then run `npm run skills:install` (it creates both links) and add the `AGENTS.md` row. Keep it harness-neutral: no instructions that only one tool can follow (`run_workflow`, a specific `Agent` or `AskUserQuestion` call, …). Use the `skills/` tree, not `.agents/skills/`, so the source of truth stays in one place.
 
@@ -342,7 +342,7 @@ Then add a row to the table in [`AGENTS.md`](AGENTS.md#skills--agents) and commi
 | `npx skills list` shows a skill as `modified` | Someone edited a vendored file. Restore it with `npx skills experimental_install --force -a claude-code -a antigravity`, or run `npm run skills:update` if upstream changed. |
 | A new skill does not show up in Antigravity or Claude | Start a new conversation. In the Antigravity CLI run `/skills reload`. |
 | Links are broken after cloning on a filesystem without symlinks | Enable symlinks (Windows: Developer Mode and `git config core.symlinks true`), re-clone, then `npm run skills:install`. |
-| `.claude/settings.json` or `.claude/worktrees/` shows up in `git status` | It should not: only `.claude/skills/` is tracked. Check that `.gitignore` still has `.claude/*` followed by `!.claude/skills/`. |
+| `.claude/settings.json` or `.claude/worktrees/` shows up in `git status` | Neither `.agents/` nor `.claude/` should be tracked; check that `.gitignore` ignores `.agents/` and `.claude/`. |
 
 ---
 

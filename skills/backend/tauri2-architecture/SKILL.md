@@ -20,24 +20,24 @@ This skill guides agents working on the desktop integration and backend IPC laye
      - `devices.rs`: PipeWire/PulseAudio sink devices, Bluetooth codec negotiation.
 
 2. **IPC Error Serialization**:
-   - Commands must return `Result<T, String>` or a typed error that implements `serde::Serialize`.
-   - Never panic or unwrap errors inside a Tauri command handler; always propagate errors through `Result`.
+   - Every command must return `Result<T, CommandError>` (`src-tauri/src/commands/error.rs`) and propagate crate errors with `?` or `.map_err(|e| CommandError::from(e).context("Failed to ..."))`.
+   - Never return `Result<T, String>`, never flatten errors with `.map_err(|e| e.to_string())`, and never panic or unwrap inside a command handler.
 
-3. **Thread-Safe State Access**:
-   - Shared resources (database connection pools, audio engine channels) must be registered in the Tauri builder:
-     ```rust
-     .manage(AppState::new(...))
-     ```
-   - In commands, inject state via `tauri::State<'_, AppState>`.
-   - Use non-blocking async operations (`tauri::async_runtime::spawn`) for operations involving disk I/O or network requests.
+3. **Thread-Safe State & Blocking Contract**:
+   - Shared resources (database connection pool, audio engine, `QueueSaver`) are registered via `.manage(AppState::new(...))` and injected with `tauri::State<'_, AppState>`.
+   - Any command that sleeps, spawns a process, decodes audio, or touches the engine pipeline must be `pub async fn` and run blocking work inside `tokio::task::spawn_blocking` (clone `AppState` first); async file I/O uses `tokio::fs`.
+   - Commands accepting UI file paths must validate through `commands/paths.rs` (`paths::ensure_writable` / `paths::ensure_readable`).
 
-4. **Event Emission & Cleanup**:
-   - Backend-to-frontend updates (playback time, spectrum FFT data, scan progress) use `app_handle.emit("event_name", payload)`.
-   - Throttle high-frequency events (e.g. playback progress should emit at 20-30 Hz, not on every audio buffer).
-   - Ensure the React frontend unregisters listeners in `useEffect` cleanup routines.
+4. **Event Emission & Contracts**:
+   - Backend-to-frontend updates use `auralune://<kebab-name>` (e.g. `auralune://playback-status` from `setup/playback_ticker.rs` at 100 ms playing / 250 ms paused).
+   - Never call `tick_status` from commands (use `snapshot_status`). Frontend components subscribe via `useTauriEvent` rather than raw `listen()`.
 
 5. **Mandatory Pre-Commit Quality Checks**:
-   - Before committing any backend changes, run:
+   - After adding, removing, or renaming a Tauri command, regenerate `src/api/commands.generated.ts`:
+     ```bash
+     npm run gen:commands
+     ```
+   - Before committing backend changes, run:
      ```bash
      cargo fmt --all --check
      cargo clippy --workspace --all-targets --all-features -- -D warnings

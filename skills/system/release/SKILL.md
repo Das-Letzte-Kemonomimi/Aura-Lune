@@ -39,7 +39,7 @@ workflow) and `chore(aur): update AppImage sha256 checksum for vX.Y.Z`.
 
 Do **not** edit version numbers by hand for the release: *Prepare release*
 runs `packaging/bump-version.sh X.Y.Z`, which rewrites `Cargo.toml`,
-`tauri.conf.json`, both `package.json` files and `package-lock.json`,
+`tauri.conf.json`, `package.json` and `package-lock.json`,
 `install.sh`, `PKGBUILD`/`PKGBUILD-bin`, `.SRCINFO`, `docs/FEATURE_MATRIX.md`
 and `DEVELOPMENT.md`, and fails when a file still carries the previous release
 (typically the README badge). To rehearse it, run the script in a scratch
