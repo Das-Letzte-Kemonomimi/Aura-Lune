@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, Globe, Search, X } from 'lucide-react';
 import type { LibraryViewProps } from '../LibraryView';
+import { cn } from '../../../utils/cn';
 
 export type LibraryMusicBrainzMatchPanelProps = Pick<LibraryViewProps, 'setSelectedAlbumForMb' | 'loc' | 'mbSearchTitle' | 'setMbSearchTitle' | 'mbSearchArtist' | 'setMbSearchArtist' | 'handleSearchMusicBrainz' | 'isSearchingMb' | 'mbCandidates' | 'handleSelectCandidateAndFetchCover' | 'isFetchingCover'>;
 
@@ -18,97 +19,49 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
   setSelectedAlbumForMb,
 }) => (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        padding: '20px',
-      }}
+      className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm motion-safe:animate-fade-in"
     >
       <div
-        className="glass-panel"
-        style={{
-          width: '100%',
-          maxWidth: '680px',
-          maxHeight: '85vh',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '24px',
-          borderRadius: '20px',
-          border: '1px solid var(--border-accent)',
-        }}
+        className="glass-panel flex max-h-[85vh] w-full max-w-170 flex-col rounded-3xl border border-line-accent p-6"
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Globe size={22} color="var(--accent-cyan)" />
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Globe size={22} className="text-accent-cyan" />
+            <h3 className="text-lg font-bold">
               Dopasowanie wydania w MusicBrainz
             </h3>
           </div>
           <button
             onClick={() => setSelectedAlbumForMb(null)}
-            style={{
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
+            className="bg-transparent text-fg-muted"
           >
             <X size={20} />
           </button>
         </div>
 
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+        <p className="mb-4 text-ui text-fg-secondary">
           {loc.covers.mbSubtitle}
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginBottom: '16px' }}>
+        <div className="mb-4 grid grid-cols-[1fr_1fr_auto] gap-2.5">
           <input
             type="text"
             value={mbSearchTitle}
             onChange={(e) => setMbSearchTitle(e.target.value)}
             placeholder={loc.covers.searchAlbumPlaceholder}
-            style={{
-              padding: '10px 14px',
-              borderRadius: '10px',
-              background: 'rgba(0,0,0,0.3)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
-              fontSize: '0.85rem',
-            }}
+            className="rounded-xl border border-line bg-black/30 px-3.5 py-2.5 text-sm text-fg"
           />
           <input
             type="text"
             value={mbSearchArtist}
             onChange={(e) => setMbSearchArtist(e.target.value)}
             placeholder={loc.covers.searchArtistPlaceholder}
-            style={{
-              padding: '10px 14px',
-              borderRadius: '10px',
-              background: 'rgba(0,0,0,0.3)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
-              fontSize: '0.85rem',
-            }}
+            className="rounded-xl border border-line bg-black/30 px-3.5 py-2.5 text-sm text-fg"
           />
           <button
             onClick={handleSearchMusicBrainz}
             disabled={isSearchingMb}
-            style={{
-              padding: '10px 18px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className="flex items-center gap-1.5 rounded-xl bg-accent-gradient px-4.5 py-2.5 text-sm font-semibold text-on-accent"
           >
             <Search size={15} />
             {isSearchingMb ? loc.covers.searching : loc.covers.searchBtn}
@@ -116,9 +69,9 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
         </div>
 
         {/* Lista kandydatów */}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
           {mbCandidates.length === 0 && !isSearchingMb && (
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '24px' }}>
+            <p className="p-6 text-center text-sm text-fg-muted">
               {loc.covers.mbSearchHint}
             </p>
           )}
@@ -126,37 +79,27 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
           {mbCandidates.map((cand) => (
             <div
               key={cand.mbid}
-              className="glass-card"
-              style={{
-                padding: '14px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-              }}
+              className="glass-card flex items-center justify-between gap-3 p-3.5"
             >
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <strong className="text-sm text-fg">
                     {cand.title}
                   </strong>
                   <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: cand.score >= 90 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                      color: cand.score >= 90 ? 'var(--accent-green)' : 'var(--accent-amber)',
-                    }}
+                    className={cn(
+                      'rounded-sm px-1.5 py-0.5 text-xxs font-bold',
+                      cand.score >= 90 ? 'bg-accent-green/20' : 'bg-accent-amber/20',
+                      cand.score >= 90 ? 'text-accent-green' : 'text-accent-amber',
+                    )}
                   >
                     {cand.score}% {loc.covers.mbMatchScore}
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                <p className="mt-0.5 text-ui text-fg-secondary">
                   {loc.player.artist}: {cand.artist} {cand.date ? `| ${cand.date}` : ''} {cand.country ? `(${cand.country})` : ''} {cand.track_count ? `| ${loc.library.tracks}: ${cand.track_count}` : ''}
                 </p>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                <p className="font-mono text-xxs text-fg-muted">
                   MBID: {cand.mbid}
                 </p>
               </div>
@@ -164,18 +107,10 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
               <button
                 onClick={() => handleSelectCandidateAndFetchCover(cand)}
                 disabled={isFetchingCover}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: 'var(--accent-cyan)',
-                  color: '#000',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.8rem',
-                  cursor: isFetchingCover ? 'not-allowed' : 'pointer',
-                }}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg bg-accent-cyan px-3.5 py-2 text-ui font-bold text-black',
+                  isFetchingCover ? 'cursor-not-allowed' : 'cursor-pointer',
+                )}
               >
                 <CheckCircle size={14} />
                 {isFetchingCover ? loc.covers.downloading : loc.covers.applyCover}

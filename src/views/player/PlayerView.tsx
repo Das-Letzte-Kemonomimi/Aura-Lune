@@ -171,8 +171,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
   );
 
   return (
-            <div className="mx-auto my-0 flex flex-col gap-5 pb-8"
-            style={{ maxWidth: layoutMaxWidth }}>
+            <div className="mx-auto my-0 flex flex-col gap-5 pb-8" style={{ maxWidth: layoutMaxWidth }}>
               <div className="glass-panel flex flex-col gap-5 px-7 py-6">
                 {/* Górny pasek narzędziowy: silnik audio i dyskretny przycisk otwarcia pliku */}
                 <PlayerToolbar {...props} status={statusProp} />

@@ -296,8 +296,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         {showLyrics && (
           // The lyrics are absolutely positioned inside this cell so their content
           // height never stretches the grid row (the cell sizes from the cover column).
-          <div className="relative min-w-0 self-stretch"
-          style={{ minHeight: 'min(380px, 50vh)' }}>
+          <div className="relative min-w-0 self-stretch" style={{ minHeight: 'min(380px, 50vh)' }}>
             <div className="absolute inset-0 min-w-0 overflow-hidden">
             <LyricsView
               trackTitle={title}

@@ -3,6 +3,7 @@ import { ArrowLeft, Clock, Disc, FolderOpen, Heart, Music, Play, Plus, Shuffle, 
 import { invoke } from '../../../api/ipc';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type LibraryAlbumDetailProps = Pick<LibraryViewProps, 'handleBackFromAlbumDetail' | 'loc' | 'tracks' | 'handleOpenCoverPicker' | 'formatTime' | 'handlePlayAlbum' | 'handleShuffleAll' | 'refreshQueue' | 'showMessage' | 'handleOpenContainingFolder' | 'activeTrackId' | 'currentPlayingTrack' | 'handlePlayLibraryTrack' | 'status' | 'handleToggleFavorite' | 'handleAddTrackToQueue' | 'setTagEditorTrack' | 'setCreateStemProjectTrack' | 'setIsCreateStemProjectOpen'> & {
   selectedAlbumDetail: NonNullable<LibraryViewProps['selectedAlbumDetail']>;
@@ -32,32 +33,18 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
   t,
   tracks,
 }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div className="flex flex-col gap-4.5">
       {/* Pasek nawigacyjny powrotu */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="flex items-center justify-between">
         <button
           onClick={handleBackFromAlbumDetail}
-          className="glass-card"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-cyan)',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
+          className="glass-card flex items-center gap-2 rounded-lg border border-line bg-white/6 px-4 py-2 text-ui font-semibold text-accent-cyan transition-all duration-200"
         >
           <ArrowLeft size={16} />
           {loc.library.backToAlbums}
         </button>
 
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        <span className="text-ui text-fg-muted">
           {selectedAlbumDetail.title}
         </span>
       </div>
@@ -74,91 +61,41 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
         return (
           <>
             <div
-              className="glass-card"
+              className="glass-card relative flex items-center gap-6 overflow-hidden rounded-3xl border border-white/10 p-6 shadow-2xl shadow-black/40"
               style={{
-                padding: '24px',
-                borderRadius: '20px',
-                display: 'flex',
-                gap: '24px',
-                alignItems: 'center',
                 background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.75), rgba(15, 20, 35, 0.75))',
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-                position: 'relative',
-                overflow: 'hidden',
               }}
             >
               {/* Duża okładka albumu */}
               <div
+                className="relative flex h-45 w-45 min-w-45 items-center justify-center overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/60"
                 style={{
-                  width: '180px',
-                  height: '180px',
-                  minWidth: '180px',
-                  borderRadius: '16px',
                   background: selectedAlbumDetail.cover_path
                     ? `url("${selectedAlbumDetail.cover_path}") center/cover no-repeat`
                     : 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(6,182,212,0.2))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
-                  position: 'relative',
-                  overflow: 'hidden',
                 }}
               >
-                {!selectedAlbumDetail.cover_path && <Disc size={64} color="rgba(255,255,255,0.3)" />}
+                {!selectedAlbumDetail.cover_path && <Disc size={64} className="text-white/30" />}
                 <button
                   onClick={() => handleOpenCoverPicker(selectedAlbumDetail)}
                   title={loc.covers.matchCover}
-                  style={{
-                    position: 'absolute',
-                    bottom: '8px',
-                    right: '8px',
-                    background: 'rgba(0,0,0,0.75)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    fontSize: '0.7rem',
-                    color: 'var(--accent-pink)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer',
-                  }}
+                  className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md border border-white/20 bg-black/75 px-2 py-1 text-xxs text-accent-pink"
                 >
                   <Sparkles size={12} /> {loc.covers.matchCover}
                 </button>
               </div>
 
               {/* Metadane albumu */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
-                    style={{
-                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                      color: '#fff',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
+                    className="rounded-sm bg-accent-gradient px-2 py-0.5 text-xxs font-bold tracking-wider text-on-accent uppercase"
                   >
                     ALBUM
                   </span>
                   {hasHiRes && (
                     <span
-                      style={{
-                        background: 'rgba(6, 182, 212, 0.2)',
-                        border: '1px solid var(--accent-cyan)',
-                        color: 'var(--accent-cyan)',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                      }}
+                      className="rounded-sm border border-accent-cyan bg-accent-cyan/20 px-2 py-0.5 text-xxs font-bold text-accent-cyan"
                     >
                       HI-RES AUDIO
                     </span>
@@ -166,64 +103,39 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                   {uniqueFormats.map((fmt) => (
                     <span
                       key={fmt}
-                      style={{
-                        background: 'rgba(255,255,255,0.08)',
-                        color: 'var(--text-muted)',
-                        fontSize: '0.68rem',
-                        fontFamily: 'var(--font-mono)',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                      }}
+                      className="rounded-sm bg-white/8 px-1.5 py-0.5 font-mono text-xxs text-fg-muted"
                     >
                       {fmt}
                     </span>
                   ))}
                   {selectedAlbumDetail.release_mbid && (
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        fontFamily: 'var(--font-mono)',
-                        color: 'var(--accent-cyan)',
-                        background: 'rgba(6,182,212,0.12)',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                      }}
-                    >
+                    <span className="rounded-sm bg-accent-cyan/10 px-1.5 py-0.5 font-mono text-xxs text-accent-cyan">
                       MBID: {selectedAlbumDetail.release_mbid.slice(0, 8)}...
                     </span>
                   )}
                 </div>
 
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize: '1.8rem',
-                    fontWeight: 800,
-                    color: '#fff',
-                    lineHeight: 1.2,
-                    textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-                  }}
-                >
+                <h2 className="m-0 text-3xl leading-tight font-extrabold text-fg text-shadow-soft">
                   {selectedAlbumDetail.title}
                 </h2>
 
-                <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--accent-pink)' }}>
+                <p className="m-0 text-base font-semibold text-accent-pink">
                   {selectedAlbumDetail.album_artist}
                   {selectedAlbumDetail.year ? ` • ${selectedAlbumDetail.year}` : ''}
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Music size={14} color="var(--accent-cyan)" /> {albumTracks.length} {loc.library.tracks}
+                <div className="mt-0.5 flex items-center gap-3.5 text-ui text-fg-muted">
+                  <span className="flex items-center gap-1.5">
+                    <Music size={14} className="text-accent-cyan" /> {albumTracks.length} {loc.library.tracks}
                   </span>
                   <span>•</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Clock size={14} color="var(--text-muted)" /> {formatTime(totalDurationMs)}
+                  <span className="flex items-center gap-1.5">
+                    <Clock size={14} className="text-fg-muted" /> {formatTime(totalDurationMs)}
                   </span>
                 </div>
 
                 {/* Przyciski akcji na albumie */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                <div className="mt-2.5 flex flex-wrap gap-2.5">
                   <button
                     onClick={() => {
                       if (albumTracks.length > 0) {
@@ -231,42 +143,23 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                       }
                     }}
                     disabled={albumTracks.length === 0}
-                    style={{
-                      padding: '9px 18px',
-                      borderRadius: '10px',
-                      background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                      color: '#fff',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      cursor: albumTracks.length === 0 ? 'default' : 'pointer',
-                      border: 'none',
-                      boxShadow: '0 4px 14px rgba(236, 72, 153, 0.4)',
-                    }}
+                    className={cn(
+                      'flex items-center gap-2 rounded-xl border-0 bg-accent-gradient px-4.5 py-2.5 text-sm font-bold text-on-accent shadow-lift shadow-pink-500/40',
+                      albumTracks.length === 0 ? 'cursor-default' : 'cursor-pointer',
+                    )}
                   >
                     <Play size={16} fill="#fff" /> {loc.library.playFromStart}
                   </button>
                   <button
                     onClick={() => handleShuffleAll(albumTracks)}
                     disabled={albumTracks.length === 0}
-                    style={{
-                      padding: '9px 16px',
-                      borderRadius: '10px',
-                      background: 'rgba(236, 72, 153, 0.2)',
-                      color: '#fff',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      cursor: albumTracks.length === 0 ? 'default' : 'pointer',
-                      border: '1px solid rgba(236, 72, 153, 0.45)',
-                    }}
+                    className={cn(
+                      'flex items-center gap-2 rounded-xl border border-pink-500/45 bg-pink-500/20 px-4 py-2.5 text-sm font-bold text-fg',
+                      albumTracks.length === 0 ? 'cursor-default' : 'cursor-pointer',
+                    )}
                     title={loc.library.shuffleAlbumTooltip}
                   >
-                    <Shuffle size={15} color="var(--accent-pink)" /> {loc.library.shuffleAlbum}
+                    <Shuffle size={15} className="text-accent-pink" /> {loc.library.shuffleAlbum}
                   </button>
                   <button
                     onClick={async () => {
@@ -277,61 +170,27 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                       }
                     }}
                     disabled={albumTracks.length === 0}
-                    className="glass-card"
-                    style={{
-                      padding: '9px 16px',
-                      borderRadius: '10px',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: 'var(--accent-cyan)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      cursor: albumTracks.length === 0 ? 'default' : 'pointer',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                    }}
+                    className={cn(
+                      'glass-card flex items-center gap-2 rounded-xl border border-white/10 bg-white/8 px-4 py-2.5 text-sm font-semibold text-accent-cyan',
+                      albumTracks.length === 0 ? 'cursor-default' : 'cursor-pointer',
+                    )}
                     title={loc.library.addToQueue}
                   >
                     <Plus size={16} /> {loc.library.addAlbumToQueue}
                   </button>
                   <button
                     onClick={() => handleOpenCoverPicker(selectedAlbumDetail)}
-                    className="glass-card"
-                    style={{
-                      padding: '9px 14px',
-                      borderRadius: '10px',
-                      background: 'rgba(255,255,255,0.05)',
-                      color: '#fff',
-                      fontSize: '0.82rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
+                    className="glass-card flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/5 px-3.5 py-2.5 text-ui text-fg"
                   >
-                    <Sparkles size={15} color="var(--accent-pink)" /> {loc.covers.matchCover}
+                    <Sparkles size={15} className="text-accent-pink" /> {loc.covers.matchCover}
                   </button>
                   {albumTracks.length > 0 && (
                     <button
                       onClick={(e) => handleOpenContainingFolder(albumTracks[0].path, e)}
-                      className="glass-card"
-                      style={{
-                        padding: '9px 14px',
-                        borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.05)',
-                        color: 'var(--text-muted)',
-                        fontSize: '0.82rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: 'pointer',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                      }}
+                      className="glass-card flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/5 px-3.5 py-2.5 text-ui text-fg-muted"
                       title={loc.library.openContainingFolder}
                     >
-                      <FolderOpen size={15} color="var(--accent-cyan)" />
+                      <FolderOpen size={15} className="text-accent-cyan" />
                     </button>
                   )}
                 </div>
@@ -339,22 +198,22 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
             </div>
 
             {/* Tabela utworów wybranego albumu */}
-            <div style={{ overflowX: 'auto', marginTop: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <div className="mt-2.5 overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '10px 12px', width: '45px' }}>#</th>
-                    <th style={{ padding: '10px 12px' }}>{loc.library.sortTitle}</th>
-                    <th style={{ padding: '10px 12px' }}>{loc.library.sortArtist}</th>
-                    <th style={{ padding: '10px 12px' }}>{loc.library.sortFormat}</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>{loc.queue.duration}</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'center', width: '160px' }}>{loc.library.actions}</th>
+                  <tr className="border-b border-line text-fg-muted">
+                    <th className="w-11.5 px-3 py-2.5">#</th>
+                    <th className="px-3 py-2.5">{loc.library.sortTitle}</th>
+                    <th className="px-3 py-2.5">{loc.library.sortArtist}</th>
+                    <th className="px-3 py-2.5">{loc.library.sortFormat}</th>
+                    <th className="px-3 py-2.5 text-right">{loc.queue.duration}</th>
+                    <th className="w-40 px-3 py-2.5 text-center">{loc.library.actions}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {albumTracks.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <td colSpan={6} className="p-9 text-center text-fg-muted">
                         {loc.library.noAlbumTracks}
                       </td>
                     </tr>
@@ -365,82 +224,80 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                         <tr
                           key={t.id}
                           onClick={() => handlePlayLibraryTrack(t, albumTracks)}
-                          className="glass-card"
-                          style={{
-                            cursor: 'pointer',
-                            background: isCurrent ? 'rgba(168, 85, 247, 0.22)' : 'transparent',
-                            borderBottom: '1px solid rgba(255,255,255,0.03)',
-                            height: '48px',
-                            transition: 'background 0.15s ease',
-                          }}
+                          className={cn(
+                            'glass-card h-12 cursor-pointer border-b border-white/3 transition-[background] duration-150',
+                            isCurrent ? 'bg-accent-purple/20' : 'bg-transparent',
+                          )}
                         >
-                          <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          <td className="p-3 font-mono whitespace-nowrap text-fg-muted">
                             {isCurrent ? (
                               status.state === 'Playing' ? (
-                                <Zap size={14} color="var(--accent-pink)" />
+                                <Zap size={14} className="text-accent-pink" />
                               ) : (
-                                <Play size={13} color="var(--accent-pink)" fill="var(--accent-pink)" />
+                                <Play size={13} className="text-accent-pink" fill="var(--accent-pink)" />
                               )
                             ) : (
                               t.track_no ? (t.disc_no && t.disc_no > 1 ? `${t.disc_no}.${t.track_no}` : t.track_no) : idx + 1
                             )}
                           </td>
-                          <td style={{ padding: '12px', fontWeight: 600, color: isCurrent ? 'var(--accent-pink)' : '#fff', maxWidth: '340px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" color="var(--accent-pink)" style={{ flexShrink: 0 }} />}
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.title}>{t.title}</span>
+                          <td className={cn(
+                            'max-w-85 p-3 font-semibold',
+                            isCurrent ? 'text-accent-pink' : 'text-fg',
+                          )}>
+                            <div className="flex items-center gap-1.5 truncate">
+                              {t.is_favorite && <Heart size={13} fill="var(--accent-pink)" className="shrink-0 text-accent-pink" />}
+                              <span className="truncate" title={t.title}>{t.title}</span>
                             </div>
                           </td>
-                          <td style={{ padding: '12px', color: 'var(--text-secondary)', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.artist}>
+                          <td className="max-w-55 truncate p-3 text-fg-secondary" title={t.artist}>
                             {t.artist}
                           </td>
-                          <td style={{ padding: '12px' }}>
+                          <td className="p-3">
                             <span
-                              style={{
-                                background: (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255,255,255,0.08)',
-                                color: (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'var(--accent-cyan)' : 'inherit',
-                                padding: '2px 7px',
-                                borderRadius: '5px',
-                                fontSize: '0.7rem',
-                                fontFamily: 'var(--font-mono)',
-                                fontWeight: 600,
-                                border: (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? '1px solid rgba(6, 182, 212, 0.4)' : 'none',
-                              }}
+                              className={cn(
+                                'rounded-md px-2 py-0.5 font-mono text-xxs font-semibold',
+                                (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'bg-accent-cyan/20' : 'bg-white/8',
+                                (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'text-accent-cyan' : 'text-inherit',
+                                (t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200 ? 'border border-accent-cyan/40' : 'border-0',
+                              )}
                             >
                               {t.format}
                               {t.bit_depth && t.bit_depth >= 24 ? ` ${t.bit_depth}b` : ''}
                             </span>
                           </td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                          <td className="p-3 text-right font-mono text-fg-muted">
                             {formatTime(t.duration_ms)}
                           </td>
-                          <td style={{ padding: '12px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={(e) => handleToggleFavorite(t.id, e)}
                                 title={t.is_favorite ? loc.library.removeFromFavorites : loc.library.addToFavorites}
-                                style={{ background: 'transparent', border: 'none', color: t.is_favorite ? 'var(--accent-pink)' : 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                                className={cn(
+                                  'border-0 bg-transparent p-1',
+                                  t.is_favorite ? 'text-accent-pink' : 'text-fg-muted',
+                                )}
                               >
                                 <Heart size={15} fill={t.is_favorite ? 'var(--accent-pink)' : 'none'} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handlePlayLibraryTrack(t, albumTracks); }}
                                 title={loc.player.play}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer', padding: '4px' }}
+                                className="border-0 bg-transparent p-1 text-accent-pink"
                               >
                                 <Play size={15} />
                               </button>
                               <button
                                 onClick={(e) => handleAddTrackToQueue(t, e)}
                                 title={loc.library.addToQueue}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
+                                className="border-0 bg-transparent p-1 text-accent-cyan"
                               >
                                 <Plus size={15} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setTagEditorTrack(t); }}
                                 title={loc.library.tagEditorTooltip}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
+                                className="border-0 bg-transparent p-1 text-accent-cyan"
                               >
                                 <TagIcon size={15} />
                               </button>
@@ -451,14 +308,14 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
                                   setIsCreateStemProjectOpen(true);
                                 }}
                                 title={loc.library.createStemProjectTooltip}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--accent-pink, #f43f5e)', cursor: 'pointer', padding: '4px' }}
+                                className="border-0 bg-transparent p-1 text-accent-pink"
                               >
                                 <Sliders size={15} />
                               </button>
                               <button
                                 onClick={(e) => handleOpenContainingFolder(t.path, e)}
                                 title={loc.library.openContainingFolder}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', padding: '4px' }}
+                                className="border-0 bg-transparent p-1 text-accent-cyan"
                               >
                                 <FolderOpen size={15} />
                               </button>

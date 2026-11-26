@@ -3,46 +3,6 @@
  * the phase that migrates its component; this file is removed at the end of the migration.
  */
 
-/* LibraryTracksView (phase 4): fixed row height keeps virtual scrolling hitboxes exact. */
-.library-track-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed !important;
-}
-
-.library-track-row {
-  box-sizing: border-box;
-  height: 48px !important;
-  max-height: 48px !important;
-}
-
-.library-track-cell {
-  box-sizing: border-box;
-  height: 48px !important;
-  max-height: 48px !important;
-  padding: 0 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.library-track-actions {
-  display: grid;
-  grid-template-columns: repeat(5, 21px);
-  grid-auto-rows: 21px;
-  gap: 2px;
-  align-content: center;
-  justify-content: center;
-}
-
-.library-track-actions > button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px !important;
-}
-
 /* Keyframes still referenced by inline `animation:` strings until each component migrates. */
 @keyframes spin {
   to {

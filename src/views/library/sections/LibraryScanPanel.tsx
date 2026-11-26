@@ -2,6 +2,7 @@ import React from 'react';
 import { FolderOpen, RefreshCw, X } from 'lucide-react';
 import type { LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
 
 export type LibraryScanPanelProps = Pick<LibraryViewProps, 'loc' | 'setIsScanFolderOpen' | 'scanFolder' | 'setScanFolder' | 'handlePickFolder' | 'handleScanLibrary' | 'isScanning' | 'scanResult'>;
 
@@ -15,59 +16,29 @@ export const LibraryScanPanel: React.FC<LibraryScanPanelProps> = ({
   setIsScanFolderOpen,
   setScanFolder,
 }) => (
-    <div
-      className="glass-card"
-      style={{
-        padding: '16px 18px',
-        borderRadius: '14px',
-        border: '1px solid var(--border-accent)',
-        marginBottom: '20px',
-        background: 'rgba(0,0,0,0.4)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+    <div className="glass-card mb-5 rounded-2xl border border-line-accent bg-black/40 px-4.5 py-4">
+      <div className="mb-2 flex items-center justify-between">
+        <label className="text-ui font-semibold text-fg-secondary">
           {loc.library.scanPathLabel}
         </label>
         <button
           onClick={() => setIsScanFolderOpen(false)}
-          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+          className="border-0 bg-transparent p-0.5 text-fg-muted"
         >
           <X size={14} />
         </button>
       </div>
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div className="flex gap-2.5">
         <input
           type="text"
           value={scanFolder}
           onChange={(e) => setScanFolder(e.target.value)}
           placeholder={loc.library.scanPathPlaceholder}
-          style={{
-            flex: 1,
-            padding: '8px 12px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-subtle)',
-            background: 'rgba(0,0,0,0.3)',
-            color: '#fff',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.85rem',
-          }}
+          className="flex-1 rounded-lg border border-line bg-black/30 px-3 py-2 font-mono text-sm text-fg"
         />
         <button
           onClick={handlePickFolder}
-          className="glass-card"
-          style={{
-            padding: '8px 14px',
-            borderRadius: '8px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--accent-cyan)',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-          }}
+          className="glass-card flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-3.5 py-2 font-semibold text-accent-cyan"
           title={loc.library.browseDolphinTooltip}
         >
           <FolderOpen size={15} /> {loc.library.browseDolphin}
@@ -75,24 +46,17 @@ export const LibraryScanPanel: React.FC<LibraryScanPanelProps> = ({
         <button
           onClick={handleScanLibrary}
           disabled={isScanning}
-          style={{
-            padding: '8px 18px',
-            borderRadius: '8px',
-            background: isScanning ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-            color: '#fff',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: isScanning ? 'default' : 'pointer',
-            border: 'none',
-          }}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border-0 px-4.5 py-2 font-semibold text-fg',
+            isScanning ? 'bg-fg-muted' : 'bg-linear-135 from-accent-cyan to-accent-purple',
+            isScanning ? 'cursor-default' : 'cursor-pointer',
+          )}
         >
           <RefreshCw size={15} className={isScanning ? 'spin' : ''} /> {isScanning ? loc.library.scanning : loc.library.runScan}
         </button>
       </div>
       {scanResult && (
-        <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: 'var(--accent-green)' }}>
+        <p className="mx-0 mt-2.5 mb-0 text-ui text-accent-green">
           ✓ {fmt(loc.library.scanSummary, String(scanResult.total_files_found), String(scanResult.new_or_updated_tracks), String(scanResult.skipped_unchanged))}
         </p>
       )}

@@ -272,8 +272,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     >
       {/* Nagłówek okna tekstów */}
       <div className="flex flex-wrap items-center justify-between gap-y-2 border-b border-line bg-black/35 px-5 py-3.5">
-        <div className="flex min-w-0 items-center gap-2.5"
-        style={{ flex: '1 1 180px' }}>
+        <div className="flex min-w-0 items-center gap-2.5" style={{ flex: '1 1 180px' }}>
           <div
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-135 from-accent-purple to-accent-pink text-on-accent"
           >

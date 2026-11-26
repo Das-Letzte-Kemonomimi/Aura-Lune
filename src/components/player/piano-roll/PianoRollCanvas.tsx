@@ -555,7 +555,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       const w = wrapRef.current?.clientWidth ?? 0;
       // Tooltip po prawej od kursora, a przy prawej krawędzi — po lewej.
       const flip = w > 0 && x > w * 0.6;
-      tip.style.transform = `translate(${Math.round(x + (flip ? -12 : 14))}px, ${Math.round(y + 14)}px)${flip ? 'translateX(-100%)' : ''}`;
+      tip.style.transform = `translate(${Math.round(x + (flip ? -12 : 14))}px, ${Math.round(y + 14)}px)${flip ? ' translateX(-100%)' : ''}`;
     }
 
     const drag = dragRef.current;

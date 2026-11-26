@@ -173,7 +173,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   }, []);
 
   return (
-            <div className="glass-panel" style={{ padding: '28px', maxWidth: layoutMaxWidth, margin: '0 auto' }}>
+            <div className="glass-panel mx-auto my-0 p-7" style={{ maxWidth: layoutMaxWidth }}>
               {/* Nagłówek biblioteki: tytuł, statystyka i przyciski akcji */}
               <LibraryHeader {...props} />
 
@@ -183,28 +183,28 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
               )}
 
               {/* Kompaktowe statystyki biblioteki */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '18px' }}>
-                <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Music size={22} color="var(--accent-pink)" />
+              <div className="mb-4.5 grid grid-cols-3 gap-3">
+                <div className="glass-card flex items-center gap-3 px-4 py-3">
+                  <Music size={22} className="text-accent-pink" />
                   <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{loc.library.tracks}</span>
-                    <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{tracks.length}</p>
+                    <span className="text-xs text-fg-muted">{loc.library.tracks}</span>
+                    <p className="m-0 text-base font-bold">{tracks.length}</p>
                   </div>
                 </div>
 
-                <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Disc size={22} color="var(--accent-purple)" />
+                <div className="glass-card flex items-center gap-3 px-4 py-3">
+                  <Disc size={22} className="text-accent-purple" />
                   <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{loc.library.albums}</span>
-                    <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{albums.length}</p>
+                    <span className="text-xs text-fg-muted">{loc.library.albums}</span>
+                    <p className="m-0 text-base font-bold">{albums.length}</p>
                   </div>
                 </div>
 
-                <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Clock size={22} color="var(--accent-cyan)" />
+                <div className="glass-card flex items-center gap-3 px-4 py-3">
+                  <Clock size={22} className="text-accent-cyan" />
                   <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{loc.library.totalDuration}</span>
-                    <p style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
+                    <span className="text-xs text-fg-muted">{loc.library.totalDuration}</span>
+                    <p className="m-0 text-base font-bold">
                       {formatTime(tracks.reduce((acc, t) => acc + t.duration_ms, 0))}
                     </p>
                   </div>
@@ -213,7 +213,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
 
               {/* 3-Kolumnowy panel filtrów fasetowych (foobar2000 Facets) */}
               {isFacetsFilterEnabled && (
-                <div style={{ marginBottom: '18px' }}>
+                <div className="mb-4.5">
                   <FacetsFilterPane
                     tracks={tracks}
                     albums={albums}

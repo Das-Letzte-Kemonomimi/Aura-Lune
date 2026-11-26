@@ -53,8 +53,7 @@ export const BigScreenTapeDeck: React.FC<BigScreenTapeDeckProps> = ({
           <span className="text-xxs font-extrabold tracking-label text-accent-pink">
             {t.bigScreenModes.sideA}
           </span>
-          <span className="text-2xs font-bold"
-          style={{ color: '#6b21a8' }}>
+          <span className="text-2xs font-bold" style={{ color: '#6b21a8' }}>
             {t.bigScreenModes.stereo}
           </span>
         </div>

@@ -48,7 +48,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               title={`DSP (${dspCombination.engine}): Σ Speed ${dspCombination.totalSpeedRatio.toFixed(2)}x, Σ Pitch ${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st (Tempo: ${dspCombination.tempoRatio.toFixed(2)}x, Pitch: ${dspCombination.pitchSt.toFixed(2)}st, Rate: ${dspCombination.rateRatio.toFixed(2)}x)`}
             >
               DSP {dspCombination.totalSpeedRatio !== 1.0 ? `${dspCombination.totalSpeedRatio.toFixed(2)}x` : ''}
-              {dspCombination.totalSpeedRatio !== 1.0 && Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? ',' : ''}
+              {dspCombination.totalSpeedRatio !== 1.0 && Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? ', ' : ''}
               {Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? `${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st` : ''}
             </span>
           )}

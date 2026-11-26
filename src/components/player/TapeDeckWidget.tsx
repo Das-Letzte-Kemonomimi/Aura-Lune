@@ -237,8 +237,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         <div className="flex items-center gap-1.5">
           <CassetteTape size={14} style={{ color: currentTheme.accentColor }} />
           <span className="tracking-label text-fg">{t.player.tapeDeckTitle}</span>
-          <span className="text-2xs font-extrabold"
-          style={{ color: currentTheme.accentColor }}>
+          <span className="text-2xs font-extrabold" style={{ color: currentTheme.accentColor }}>
             {currentTheme.name}
           </span>
         </div>
@@ -445,8 +444,7 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
               boxShadow: isPlaying ? `0 0 6px ${currentTheme.accentColor}` : 'none',
             }}
           />
-          <span className="text-2xs font-bold"
-          style={{ color: isPlaying ? currentTheme.accentColor : '#64748b' }}>
+          <span className="text-2xs font-bold" style={{ color: isPlaying ? currentTheme.accentColor : '#64748b' }}>
             {isPlaying ? (tapeSpeed === '7.5' ? '7.5 IPS' : '3.75 IPS') : 'STOP'}
           </span>
         </div>

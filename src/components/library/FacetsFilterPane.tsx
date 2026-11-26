@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Layers, Search, X } from 'lucide-react';
 import { type Language, getTranslations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
+import { cn } from '../../utils/cn';
 
 export interface FacetTrack {
   id: number;
@@ -134,35 +135,16 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
   const hasActiveFilter = selectedFormat !== null || selectedArtist !== null || selectedAlbumId !== null;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        background: 'rgba(0, 0, 0, 0.25)',
-        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-        borderRadius: '12px',
-        padding: '12px',
-      }}
-    >
+    <div className="flex flex-col gap-2 rounded-xl border border-line bg-black/25 p-3">
       {/* Pasek narzędziowy filtrów fasetowych */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Layers size={16} style={{ color: 'var(--accent-pink, #ec4899)' }} />
-          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#fff' }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Layers size={16} className="text-accent-pink" />
+          <span className="text-ui font-bold text-fg">
             {loc.facetsFilter.title}
           </span>
           {hasActiveFilter && (
-            <span
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--accent-cyan, #06b6d4)',
-                background: 'rgba(6, 182, 212, 0.15)',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
+            <span className="rounded-md bg-accent-cyan/15 px-2 py-0.5 font-mono text-xs text-accent-cyan">
               {fmt(loc.facetsFilter.activeFilter, String(tracksInArtist.length))}
             </span>
           )}
@@ -171,18 +153,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
         {hasActiveFilter && (
           <button
             onClick={onResetAll}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#f87171',
-              fontSize: '0.74rem',
-              cursor: 'pointer',
-            }}
+            className="flex items-center gap-1 rounded-md border border-accent-red/30 bg-accent-red/15 px-2 py-1 text-xs text-red-400"
           >
             <X size={12} />
             {loc.facetsFilter.clearFilters}
@@ -191,271 +162,156 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
       </div>
 
       {/* 3 Panele kolumnowe */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(140px, 180px) 1fr 1fr',
-          gap: '10px',
-          height: '210px',
-        }}
-      >
+      <div className="grid h-52.5 grid-cols-[minmax(140px,180px)_1fr_1fr] gap-2.5">
         {/* Kolumna 1: Format */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '6px 10px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'rgba(0,0,0,0.2)',
-            }}
-          >
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+        <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
+          <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
+            <span className="text-xs font-bold text-fg-secondary">
               FORMAT ({formatCounts.length})
             </span>
           </div>
-          <div style={{ padding: '4px 6px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', padding: '2px 6px' }}>
-              <Search size={12} style={{ color: 'var(--text-muted)' }} />
+          <div className="border-b border-white/4 px-1.5 py-1">
+            <div className="flex items-center rounded-sm bg-black/30 px-1.5 py-0.5">
+              <Search size={12} className="text-fg-muted" />
               <input
                 type="text"
                 placeholder={loc.facetsFilter.search}
                 value={formatSearch}
                 onChange={(e) => setFormatSearch(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#fff',
-                  fontSize: '0.72rem',
-                  marginLeft: '4px',
-                  width: '100%',
-                }}
+                className="ml-1 w-full border-0 bg-transparent text-xs text-fg outline-none"
               />
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+          <div className="flex-1 overflow-y-auto p-1">
             <div
               onClick={() => onSelectFormat(null)}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '0.76rem',
-                cursor: 'pointer',
-                background: selectedFormat === null ? 'var(--accent-pink, #ec4899)' : 'transparent',
-                color: selectedFormat === null ? '#fff' : 'var(--text-secondary)',
-                fontWeight: selectedFormat === null ? 700 : 400,
-              }}
+              className={cn(
+                'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs',
+                selectedFormat === null ? 'bg-accent-pink' : 'bg-transparent',
+                selectedFormat === null ? 'text-fg' : 'text-fg-secondary',
+                selectedFormat === null ? 'font-bold' : 'font-normal',
+              )}
             >
               <span>{loc.facetsFilter.all}</span>
-              <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{tracks.length}</span>
+              <span className="font-mono opacity-70">{tracks.length}</span>
             </div>
             {filteredFormats.map((f) => (
               <div
                 key={f.format}
                 onClick={() => onSelectFormat(f.format === selectedFormat ? null : f.format)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '0.76rem',
-                  cursor: 'pointer',
-                  background: selectedFormat === f.format ? 'var(--accent-pink, #ec4899)' : 'transparent',
-                  color: selectedFormat === f.format ? '#fff' : 'var(--text-primary)',
-                  fontWeight: selectedFormat === f.format ? 700 : 400,
-                }}
+                className={cn(
+                  'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs text-fg',
+                  selectedFormat === f.format ? 'bg-accent-pink' : 'bg-transparent',
+                  selectedFormat === f.format && '',
+                  selectedFormat === f.format ? 'font-bold' : 'font-normal',
+                )}
               >
                 <span>{f.format}</span>
-                <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{f.count}</span>
+                <span className="font-mono opacity-70">{f.count}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Kolumna 2: Wykonawca */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '6px 10px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'rgba(0,0,0,0.2)',
-            }}
-          >
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+        <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
+          <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
+            <span className="text-xs font-bold text-fg-secondary">
               {loc.facetsFilter.artistHeader} ({artistCounts.length})
             </span>
           </div>
-          <div style={{ padding: '4px 6px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', padding: '2px 6px' }}>
-              <Search size={12} style={{ color: 'var(--text-muted)' }} />
+          <div className="border-b border-white/4 px-1.5 py-1">
+            <div className="flex items-center rounded-sm bg-black/30 px-1.5 py-0.5">
+              <Search size={12} className="text-fg-muted" />
               <input
                 type="text"
                 placeholder={loc.facetsFilter.searchArtist}
                 value={artistSearch}
                 onChange={(e) => setArtistSearch(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#fff',
-                  fontSize: '0.72rem',
-                  marginLeft: '4px',
-                  width: '100%',
-                }}
+                className="ml-1 w-full border-0 bg-transparent text-xs text-fg outline-none"
               />
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+          <div className="flex-1 overflow-y-auto p-1">
             <div
               onClick={() => onSelectArtist(null)}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '0.76rem',
-                cursor: 'pointer',
-                background: selectedArtist === null ? 'var(--accent-pink, #ec4899)' : 'transparent',
-                color: selectedArtist === null ? '#fff' : 'var(--text-secondary)',
-                fontWeight: selectedArtist === null ? 700 : 400,
-              }}
+              className={cn(
+                'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs',
+                selectedArtist === null ? 'bg-accent-pink' : 'bg-transparent',
+                selectedArtist === null ? 'text-fg' : 'text-fg-secondary',
+                selectedArtist === null ? 'font-bold' : 'font-normal',
+              )}
             >
               <span>{loc.facetsFilter.allArtists}</span>
-              <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{tracksInFormat.length}</span>
+              <span className="font-mono opacity-70">{tracksInFormat.length}</span>
             </div>
             {filteredArtists.map((a) => (
               <div
                 key={a.artist}
                 onClick={() => onSelectArtist(a.artist === selectedArtist ? null : a.artist)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '0.76rem',
-                  cursor: 'pointer',
-                  background: selectedArtist === a.artist ? 'var(--accent-pink, #ec4899)' : 'transparent',
-                  color: selectedArtist === a.artist ? '#fff' : 'var(--text-primary)',
-                  fontWeight: selectedArtist === a.artist ? 700 : 400,
-                }}
+                className={cn(
+                  'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs text-fg',
+                  selectedArtist === a.artist ? 'bg-accent-pink' : 'bg-transparent',
+                  selectedArtist === a.artist && '',
+                  selectedArtist === a.artist ? 'font-bold' : 'font-normal',
+                )}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '6px' }}>
+                <span className="mr-1.5 truncate">
                   {a.artist}
                 </span>
-                <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{a.count}</span>
+                <span className="font-mono opacity-70">{a.count}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Kolumna 3: Album */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '6px 10px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'rgba(0,0,0,0.2)',
-            }}
-          >
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+        <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-white/3">
+          <div className="flex items-center justify-between border-b border-white/6 bg-black/20 px-2.5 py-1.5">
+            <span className="text-xs font-bold text-fg-secondary">
               ALBUM ({albumCounts.length})
             </span>
           </div>
-          <div style={{ padding: '4px 6px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', padding: '2px 6px' }}>
-              <Search size={12} style={{ color: 'var(--text-muted)' }} />
+          <div className="border-b border-white/4 px-1.5 py-1">
+            <div className="flex items-center rounded-sm bg-black/30 px-1.5 py-0.5">
+              <Search size={12} className="text-fg-muted" />
               <input
                 type="text"
                 placeholder={loc.facetsFilter.searchAlbum}
                 value={albumSearch}
                 onChange={(e) => setAlbumSearch(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#fff',
-                  fontSize: '0.72rem',
-                  marginLeft: '4px',
-                  width: '100%',
-                }}
+                className="ml-1 w-full border-0 bg-transparent text-xs text-fg outline-none"
               />
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
+          <div className="flex-1 overflow-y-auto p-1">
             <div
               onClick={() => onSelectAlbumId(null)}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '0.76rem',
-                cursor: 'pointer',
-                background: selectedAlbumId === null ? 'var(--accent-pink, #ec4899)' : 'transparent',
-                color: selectedAlbumId === null ? '#fff' : 'var(--text-secondary)',
-                fontWeight: selectedAlbumId === null ? 700 : 400,
-              }}
+              className={cn(
+                'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs',
+                selectedAlbumId === null ? 'bg-accent-pink' : 'bg-transparent',
+                selectedAlbumId === null ? 'text-fg' : 'text-fg-secondary',
+                selectedAlbumId === null ? 'font-bold' : 'font-normal',
+              )}
             >
               <span>{loc.facetsFilter.all}</span>
-              <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{tracksInArtist.length}</span>
+              <span className="font-mono opacity-70">{tracksInArtist.length}</span>
             </div>
             {filteredAlbums.map((alb) => (
               <div
                 key={alb.albumId}
                 onClick={() => onSelectAlbumId(alb.albumId === selectedAlbumId ? null : alb.albumId)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  fontSize: '0.76rem',
-                  cursor: 'pointer',
-                  background: selectedAlbumId === alb.albumId ? 'var(--accent-pink, #ec4899)' : 'transparent',
-                  color: selectedAlbumId === alb.albumId ? '#fff' : 'var(--text-primary)',
-                  fontWeight: selectedAlbumId === alb.albumId ? 700 : 400,
-                }}
+                className={cn(
+                  'flex cursor-pointer justify-between rounded-sm px-2 py-1 text-xs text-fg',
+                  selectedAlbumId === alb.albumId ? 'bg-accent-pink' : 'bg-transparent',
+                  selectedAlbumId === alb.albumId && '',
+                  selectedAlbumId === alb.albumId ? 'font-bold' : 'font-normal',
+                )}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '6px' }}>
+                <span className="mr-1.5 truncate">
                   {alb.title} {alb.year ? `(${alb.year})` : ''}
                 </span>
-                <span style={{ opacity: 0.7, fontFamily: 'var(--font-mono)' }}>{alb.count}</span>
+                <span className="font-mono opacity-70">{alb.count}</span>
               </div>
             ))}
           </div>
