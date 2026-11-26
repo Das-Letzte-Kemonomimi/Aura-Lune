@@ -283,6 +283,81 @@ impl Database {
         }))
     }
 
+    /// Predicate shared by count and list queries for albums eligible for background cover fetch.
+    const BACKGROUND_COVER_PENDING_WHERE: &'static str = r#"
+        (a.cover_path IS NULL OR a.cover_path = '')
+          AND TRIM(a.title) != ''
+          AND LOWER(TRIM(a.title)) != 'unknown album'
+          AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = a.id)
+          AND (
+                c.album_id IS NULL
+                OR (c.status = 'error' AND c.attempted_at <= ?2)
+                OR (c.status IN ('not_found', 'ambiguous') AND c.attempted_at <= ?1)
+              )
+    "#;
+
+    /// Counts albums currently eligible for a background cover lookup.
+    pub async fn count_albums_needing_background_cover(
+        &self,
+        non_error_cutoff_unix: i64,
+        error_cutoff_unix: i64,
+    ) -> Result<usize, StorageError> {
+        let query = format!(
+            "SELECT COUNT(*) FROM albums a LEFT JOIN cover_lookup_attempts c ON c.album_id = a.id WHERE {};",
+            Self::BACKGROUND_COVER_PENDING_WHERE
+        );
+        let count: i64 = sqlx::query_scalar(&query)
+            .bind(non_error_cutoff_unix)
+            .bind(error_cutoff_unix)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(count.max(0) as usize)
+    }
+
+    /// Lists IDs of all albums needing a cover lookup in priority order (`release_mbid` first, then
+    /// newest). When `include_recent_attempts` is `true`, previous miss/error cooldowns are ignored
+    /// so a manual user-triggered sync retries every album currently lacking artwork.
+    pub async fn list_album_ids_needing_background_cover(
+        &self,
+        include_recent_attempts: bool,
+        non_error_cutoff_unix: i64,
+        error_cutoff_unix: i64,
+    ) -> Result<Vec<i64>, StorageError> {
+        if include_recent_attempts {
+            let ids = sqlx::query_scalar::<_, i64>(
+                r#"
+                SELECT a.id
+                FROM albums a
+                WHERE (a.cover_path IS NULL OR a.cover_path = '')
+                  AND TRIM(a.title) != ''
+                  AND LOWER(TRIM(a.title)) != 'unknown album'
+                  AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = a.id)
+                ORDER BY (a.release_mbid IS NOT NULL AND a.release_mbid != '') DESC, a.id DESC;
+                "#,
+            )
+            .fetch_all(&self.pool)
+            .await?;
+            return Ok(ids);
+        }
+
+        let query = format!(
+            r#"
+            SELECT a.id
+            FROM albums a
+            LEFT JOIN cover_lookup_attempts c ON c.album_id = a.id
+            WHERE {}
+            ORDER BY (a.release_mbid IS NOT NULL AND a.release_mbid != '') DESC, a.id DESC;
+            "#,
+            Self::BACKGROUND_COVER_PENDING_WHERE
+        );
+        let ids = sqlx::query_scalar::<_, i64>(&query)
+            .bind(non_error_cutoff_unix)
+            .bind(error_cutoff_unix)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(ids)
+    }
+
     /// Lists albums lacking a cover whose background lookup cooldown has elapsed, prioritizing
     /// albums with a `release_mbid` tag and newest additions.
     pub async fn list_albums_needing_background_cover(
@@ -291,29 +366,23 @@ impl Database {
         error_cutoff_unix: i64,
         limit: i64,
     ) -> Result<Vec<AlbumCoverLookupContext>, StorageError> {
-        let albums = sqlx::query_as::<_, AlbumRecord>(
+        let query = format!(
             r#"
             SELECT a.*
             FROM albums a
             LEFT JOIN cover_lookup_attempts c ON c.album_id = a.id
-            WHERE (a.cover_path IS NULL OR a.cover_path = '')
-              AND TRIM(a.title) != ''
-              AND LOWER(TRIM(a.title)) != 'unknown album'
-              AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = a.id)
-              AND (
-                    c.album_id IS NULL
-                    OR (c.status = 'error' AND c.attempted_at <= ?2)
-                    OR (c.status IN ('not_found', 'ambiguous') AND c.attempted_at <= ?1)
-                  )
+            WHERE {}
             ORDER BY (a.release_mbid IS NOT NULL AND a.release_mbid != '') DESC, a.id DESC
             LIMIT ?3;
             "#,
-        )
-        .bind(non_error_cutoff_unix)
-        .bind(error_cutoff_unix)
-        .bind(limit.max(1))
-        .fetch_all(&self.pool)
-        .await?;
+            Self::BACKGROUND_COVER_PENDING_WHERE
+        );
+        let albums = sqlx::query_as::<_, AlbumRecord>(&query)
+            .bind(non_error_cutoff_unix)
+            .bind(error_cutoff_unix)
+            .bind(limit.max(1))
+            .fetch_all(&self.pool)
+            .await?;
 
         let mut contexts = Vec::with_capacity(albums.len());
         for album in albums {

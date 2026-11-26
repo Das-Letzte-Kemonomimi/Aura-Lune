@@ -18,6 +18,9 @@ use tracing::{debug, info, warn};
 /// Event emitted to the frontend whenever a background cover fetch populates an album cover.
 pub const ALBUM_COVER_UPDATED_EVENT: &str = "auralune://album-cover-updated";
 
+/// Event emitted with running state and `processed / total` counts for background cover sync.
+pub const COVER_SYNC_PROGRESS_EVENT: &str = "auralune://cover-sync-progress";
+
 /// Setting key controlling automatic background cover fetching (`"false"` disables it).
 pub const SETTING_AUTO_FETCH_COVERS_BG: &str = "auto_fetch_covers_bg";
 
@@ -25,13 +28,107 @@ const STARTUP_DELAY: Duration = Duration::from_secs(4);
 const INTER_ALBUM_DELAY: Duration = Duration::from_millis(150);
 const RETRY_NOT_FOUND_SECS: i64 = 7 * 24 * 60 * 60;
 const RETRY_ERROR_SECS: i64 = 60 * 60;
-const BATCH_LIMIT: i64 = 30;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverSyncProgress {
+    pub running: bool,
+    pub processed: usize,
+    pub total: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CoverSyncDispatchResult {
+    pub started: bool,
+    pub already_running: bool,
+    pub progress: CoverSyncProgress,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlbumCoverUpdatedPayload {
     pub album_id: i64,
     pub cover_path: String,
     pub release_mbid: Option<String>,
+}
+
+struct ActiveWorkerGuard<'a>(&'a std::sync::atomic::AtomicBool);
+
+impl Drop for ActiveWorkerGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+pub fn current_cover_sync_progress(state: &AppState) -> CoverSyncProgress {
+    state
+        .cover_sync_progress
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
+
+fn publish_cover_sync_progress(app: &AppHandle, state: &AppState, progress: CoverSyncProgress) {
+    {
+        let mut guard = state
+            .cover_sync_progress
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        *guard = progress.clone();
+    }
+    let _ = app.emit(COVER_SYNC_PROGRESS_EVENT, progress);
+}
+
+/// Dispatches a forced background cover pass unless one is already active.
+pub async fn try_dispatch_background_cover_sync(
+    app: &AppHandle,
+    state: &AppState,
+) -> CoverSyncDispatchResult {
+    if state
+        .cover_worker_active
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return CoverSyncDispatchResult {
+            started: false,
+            already_running: true,
+            progress: current_cover_sync_progress(state),
+        };
+    }
+
+    let album_ids = state
+        .db
+        .list_album_ids_needing_background_cover(true, 0, 0)
+        .await
+        .unwrap_or_default();
+
+    if album_ids.is_empty() {
+        let progress = CoverSyncProgress {
+            running: false,
+            processed: 0,
+            total: 0,
+        };
+        publish_cover_sync_progress(app, state, progress.clone());
+        state.cover_worker_active.store(false, Ordering::Release);
+        return CoverSyncDispatchResult {
+            started: false,
+            already_running: false,
+            progress,
+        };
+    }
+
+    let progress = CoverSyncProgress {
+        running: true,
+        processed: 0,
+        total: album_ids.len(),
+    };
+    publish_cover_sync_progress(app, state, progress.clone());
+    state.cover_worker_force_run.store(true, Ordering::Release);
+    state.cover_worker_notify.notify_one();
+
+    CoverSyncDispatchResult {
+        started: true,
+        already_running: false,
+        progress,
+    }
 }
 
 fn unix_now() -> i64 {
@@ -60,11 +157,22 @@ pub fn spawn_background_cover_worker(app: AppHandle) {
     };
     let rt = state.rt.clone();
     rt.spawn(async move {
-        tokio::time::sleep(STARTUP_DELAY).await;
+        tokio::select! {
+            _ = tokio::time::sleep(STARTUP_DELAY) => {}
+            _ = state.cover_worker_notify.notified() => {}
+        }
         loop {
             let forced = state.cover_worker_force_run.swap(false, Ordering::AcqRel);
             if forced || is_background_fetch_enabled(&state).await {
-                run_pending_cover_pass(&app, &state, forced).await;
+                let claimed = forced
+                    || state
+                        .cover_worker_active
+                        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok();
+                if claimed {
+                    let _guard = ActiveWorkerGuard(&state.cover_worker_active);
+                    run_pending_cover_pass(&app, &state, forced).await;
+                }
             }
             state.cover_worker_notify.notified().await;
         }
@@ -72,47 +180,70 @@ pub fn spawn_background_cover_worker(app: AppHandle) {
 }
 
 async fn run_pending_cover_pass(app: &AppHandle, state: &AppState, forced: bool) {
-    loop {
-        if !forced && !is_background_fetch_enabled(state).await {
+    let now = unix_now();
+    let album_ids = match state
+        .db
+        .list_album_ids_needing_background_cover(
+            forced,
+            now.saturating_sub(RETRY_NOT_FOUND_SECS),
+            now.saturating_sub(RETRY_ERROR_SECS),
+        )
+        .await
+    {
+        Ok(ids) => ids,
+        Err(e) => {
+            warn!("Background cover query failed: {e}");
+            publish_cover_sync_progress(app, state, CoverSyncProgress::default());
             return;
         }
-        let now = unix_now();
-        let error_cutoff = if forced {
-            now
-        } else {
-            now.saturating_sub(RETRY_ERROR_SECS)
-        };
-        let pending = match state
-            .db
-            .list_albums_needing_background_cover(
-                now.saturating_sub(RETRY_NOT_FOUND_SECS),
-                error_cutoff,
-                BATCH_LIMIT,
-            )
-            .await
-        {
-            Ok(list) => list,
-            Err(e) => {
-                warn!("Background cover query failed: {e}");
-                return;
-            }
-        };
-        if pending.is_empty() {
-            return;
-        }
-
-        debug!(
-            "Background cover worker: inspecting {} albums lacking covers",
-            pending.len()
-        );
-        for item in pending {
-            if !forced && !is_background_fetch_enabled(state).await {
-                return;
-            }
-            process_one_album(app, state, item).await;
-            tokio::time::sleep(INTER_ALBUM_DELAY).await;
-        }
+    };
+    if album_ids.is_empty() {
+        publish_cover_sync_progress(app, state, CoverSyncProgress::default());
+        return;
     }
+
+    let total = album_ids.len();
+    let mut processed = 0usize;
+    publish_cover_sync_progress(
+        app,
+        state,
+        CoverSyncProgress {
+            running: true,
+            processed,
+            total,
+        },
+    );
+
+    debug!("Background cover worker: inspecting {total} albums lacking covers");
+    for album_id in album_ids {
+        if !forced && !is_background_fetch_enabled(state).await {
+            break;
+        }
+        if let Ok(Some(item)) = state.db.get_album_cover_context(album_id).await {
+            process_one_album(app, state, item).await;
+        }
+        processed += 1;
+        publish_cover_sync_progress(
+            app,
+            state,
+            CoverSyncProgress {
+                running: true,
+                processed,
+                total,
+            },
+        );
+        tokio::time::sleep(INTER_ALBUM_DELAY).await;
+    }
+
+    publish_cover_sync_progress(
+        app,
+        state,
+        CoverSyncProgress {
+            running: false,
+            processed,
+            total,
+        },
+    );
 }
 
 async fn process_one_album(

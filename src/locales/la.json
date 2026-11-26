@@ -526,7 +526,9 @@
     "unknownAlbum": "Album ignotum",
     "moreActions": "Plura facta",
     "syncMissingCovers": "Quaere tegumenta absentia",
-    "syncMissingCoversTooltip": "Tegumenta albumorum absentia in curriculo cape cum indicia certissime congruunt"
+    "syncingMissingCovers": "Tegumenta quaeruntur...",
+    "syncMissingCoversTooltip": "Tegumenta albumorum absentia in curriculo cape cum indicia certissime congruunt",
+    "syncMissingCoversUpToDate": "Omnia alba apta iam tegumenta habent aut nuper inspecta sunt."
   },
   "playlists": {
     "title": "Indices Cantuum Tui",

@@ -201,6 +201,7 @@ describe('useMainRouterProps', () => {
       refreshQueue: vi.fn(),
       loadLibrary: vi.fn(),
       handleTriggerBackgroundCoverFetch: vi.fn(),
+      coverSyncProgress: { running: false, processed: 0, total: 0 },
       // dsp:
       uiScale: 1,
       activeTrackKeyBpm: null,

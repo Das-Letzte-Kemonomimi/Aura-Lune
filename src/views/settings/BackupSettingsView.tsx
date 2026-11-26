@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
   Image as ImageIcon,
-  RefreshCw,
+  Loader2,
 } from '../../components/ui/icons';
 import {
   Badge,
@@ -28,6 +28,7 @@ import {
   ToggleCard,
 } from '../../components/ui';
 import { type Language, type Translations } from '../../i18n';
+import type { CoverSyncProgress } from '../../types/library';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
 import { SettingsPage } from './SettingsPage';
@@ -54,6 +55,7 @@ export interface BackupSettingsViewProps {
   autoFetchCoversBg: boolean;
   onToggleAutoFetchCoversBg: (enabled: boolean) => void;
   onTriggerBackgroundCoverFetch: () => void;
+  coverSyncProgress?: CoverSyncProgress;
   discordRpcEnabled: boolean;
   discordRpcConnected: boolean;
   discordClientId: string;
@@ -96,6 +98,7 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
   autoFetchCoversBg,
   onToggleAutoFetchCoversBg,
   onTriggerBackgroundCoverFetch,
+  coverSyncProgress,
   discordRpcEnabled,
   discordRpcConnected,
   discordClientId,
@@ -178,9 +181,30 @@ export const BackupSettingsView: React.FC<BackupSettingsViewProps> = ({
       >
         {autoFetchCoversBg && (
           <div className="flex justify-end">
-            <Button variant="tinted" tone="pink" size="sm" onClick={onTriggerBackgroundCoverFetch}>
-              <RefreshCw size={14} />
-              {loc.settings.autoFetchCoversNow}
+            <Button
+              variant="tinted"
+              tone="pink"
+              size="sm"
+              disabled={coverSyncProgress?.running}
+              aria-busy={coverSyncProgress?.running}
+              onClick={onTriggerBackgroundCoverFetch}
+            >
+              {coverSyncProgress?.running ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  {loc.library.syncingMissingCovers}
+                  {coverSyncProgress.total > 0 && (
+                    <Badge tone="pink" size="xs" mono>
+                      {coverSyncProgress.processed}/{coverSyncProgress.total}
+                    </Badge>
+                  )}
+                </>
+              ) : (
+                <>
+                  <ImageIcon size={14} />
+                  {loc.settings.autoFetchCoversNow}
+                </>
+              )}
             </Button>
           </div>
         )}

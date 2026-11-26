@@ -54,6 +54,7 @@ export const COMMAND_NAMES = [
   'get_cached_chords',
   'get_cached_transcription',
   'get_cached_update_info',
+  'get_cover_sync_progress',
   'get_default_music_dir',
   'get_discord_rpc_status',
   'get_dsp_block_size',

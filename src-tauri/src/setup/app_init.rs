@@ -434,6 +434,10 @@ pub fn init_app(
         window_revealed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         cover_worker_notify: Arc::new(tokio::sync::Notify::new()),
         cover_worker_force_run: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        cover_worker_active: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        cover_sync_progress: Arc::new(std::sync::Mutex::new(
+            crate::setup::background_covers::CoverSyncProgress::default(),
+        )),
     };
 
     let state_for_cli = app_state.clone();

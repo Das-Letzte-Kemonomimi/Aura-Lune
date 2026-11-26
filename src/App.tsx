@@ -37,6 +37,8 @@ import { StartupSplash } from './components/layout/StartupSplash';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { errorMessage, invoke } from './api/ipc';
 import { setSetting } from './api/settings';
+import { useTauriEvent } from './hooks/useTauriEvent';
+import type { CoverSyncDispatchResult, CoverSyncProgress } from './types/library';
 import {
   type TapeType,
   MiniPlayerWidget,
@@ -224,6 +226,28 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('player');
   const [closeToTray, setCloseToTray] = useState<boolean>(true);
   const [autoFetchCoversBg, setAutoFetchCoversBg] = useState<boolean>(true);
+  const [coverSyncProgress, setCoverSyncProgress] = useState<CoverSyncProgress>({
+    running: false,
+    processed: 0,
+    total: 0,
+  });
+  const isTriggeringCoverSyncRef = useRef(false);
+
+  useTauriEvent<CoverSyncProgress>('auralune://cover-sync-progress', (progress) => {
+    setCoverSyncProgress(progress);
+  });
+
+  useEffect(() => {
+    let active = true;
+    invoke<CoverSyncProgress>('get_cover_sync_progress')
+      .then((progress) => {
+        if (active) setCoverSyncProgress(progress);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Album and playlist playback behaviour (autoplay and queue)
   const [albumPlaybackMode, setAlbumPlaybackMode] = usePersistedState<AlbumPlaybackBehavior>(
@@ -723,11 +747,22 @@ export default function App() {
   };
 
   const handleTriggerBackgroundCoverFetch = async () => {
+    if (isTriggeringCoverSyncRef.current || coverSyncProgress.running) return;
+    isTriggeringCoverSyncRef.current = true;
+    setCoverSyncProgress((prev) => (prev.running ? prev : { running: true, processed: 0, total: 0 }));
     try {
-      await invoke('trigger_background_cover_fetch');
-      showMessage(loc.settings.autoFetchCoversStarted);
+      const res = await invoke<CoverSyncDispatchResult>('trigger_background_cover_fetch');
+      setCoverSyncProgress(res.progress);
+      if (res.started) {
+        showMessage(loc.settings.autoFetchCoversStarted);
+      } else if (!res.already_running) {
+        showMessage(loc.library.syncMissingCoversUpToDate);
+      }
     } catch (e: unknown) {
+      setCoverSyncProgress({ running: false, processed: 0, total: 0 });
       showMessage(`${t.common.errorPrefix} ${errorMessage(e)}`, true);
+    } finally {
+      isTriggeringCoverSyncRef.current = false;
     }
   };
 
@@ -894,6 +929,7 @@ export default function App() {
       autoFetchCoversBg,
       handleToggleAutoFetchCoversBg,
       handleTriggerBackgroundCoverFetch,
+      coverSyncProgress,
       discordRpcEnabled,
       discordRpcConnected,
       discordClientId,
@@ -958,6 +994,7 @@ export default function App() {
     handleUploadCustomCoverDirect,
     handlePickFiles,
     handleTriggerBackgroundCoverFetch,
+    coverSyncProgress,
     formatTime,
     formatTimeMs,
     showMessage,

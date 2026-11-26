@@ -68,6 +68,10 @@ pub struct AppState {
     pub cover_worker_notify: Arc<tokio::sync::Notify>,
     /// Forces the next worker wake-up to run even when automatic background fetching is disabled.
     pub cover_worker_force_run: Arc<std::sync::atomic::AtomicBool>,
+    /// Prevents concurrent or stacked background cover passes from manual triggers.
+    pub cover_worker_active: Arc<std::sync::atomic::AtomicBool>,
+    /// Snapshot of the active/latest background cover sync progress.
+    pub cover_sync_progress: Arc<std::sync::Mutex<setup::background_covers::CoverSyncProgress>>,
 }
 
 pub fn run() {
@@ -203,6 +207,7 @@ pub fn run() {
             fetch_and_apply_cover,
             auto_fetch_album_cover,
             trigger_background_cover_fetch,
+            get_cover_sync_progress,
             search_cover_candidates,
             apply_cover_url,
             apply_custom_cover_file,

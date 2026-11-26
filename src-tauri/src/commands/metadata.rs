@@ -684,13 +684,17 @@ pub async fn auto_fetch_album_cover(
 
 #[tauri::command]
 pub async fn trigger_background_cover_fetch(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), CommandError> {
-    state
-        .cover_worker_force_run
-        .store(true, std::sync::atomic::Ordering::Release);
-    state.cover_worker_notify.notify_one();
-    Ok(())
+) -> Result<crate::setup::background_covers::CoverSyncDispatchResult, CommandError> {
+    Ok(crate::setup::background_covers::try_dispatch_background_cover_sync(&app, &state).await)
+}
+
+#[tauri::command]
+pub async fn get_cover_sync_progress(
+    state: State<'_, AppState>,
+) -> Result<crate::setup::background_covers::CoverSyncProgress, CommandError> {
+    Ok(crate::setup::background_covers::current_cover_sync_progress(&state))
 }
 
 #[tauri::command]

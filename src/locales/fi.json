@@ -526,7 +526,9 @@
     "unknownAlbum": "Tuntematon albumi",
     "moreActions": "Lisää toimintoja",
     "syncMissingCovers": "Hae puuttuvat kansikuvat",
-    "syncMissingCoversTooltip": "Hae puuttuvat albumien kansikuvat taustalla, kun metatiedot täsmäävät varmasti"
+    "syncingMissingCovers": "Synkronoidaan kansikuvia...",
+    "syncMissingCoversTooltip": "Hae puuttuvat albumien kansikuvat taustalla, kun metatiedot täsmäävät varmasti",
+    "syncMissingCoversUpToDate": "Kaikilla kelvollisilla albumeilla on jo kansikuva tai ne tarkistettiin äskettäin."
   },
   "playlists": {
     "title": "Omat Soittolistat",

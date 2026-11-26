@@ -81,3 +81,15 @@ export interface AlbumCoverUpdatedPayload {
   cover_path: string;
   release_mbid?: string | null;
 }
+
+export interface CoverSyncProgress {
+  running: boolean;
+  processed: number;
+  total: number;
+}
+
+export interface CoverSyncDispatchResult {
+  started: boolean;
+  already_running: boolean;
+  progress: CoverSyncProgress;
+}

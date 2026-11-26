@@ -149,6 +149,7 @@ describe('useAppSettingsModalProps', () => {
       autoFetchCoversBg: true,
       handleToggleAutoFetchCoversBg: vi.fn(),
       handleTriggerBackgroundCoverFetch: vi.fn(),
+      coverSyncProgress: { running: false, processed: 0, total: 0 },
       discordRpcEnabled: false,
       discordRpcConnected: false,
       discordClientId: '',

@@ -526,7 +526,9 @@
     "unknownAlbum": "Nieznany album",
     "moreActions": "Więcej akcji",
     "syncMissingCovers": "Synchronizuj brakujące okładki",
-    "syncMissingCoversTooltip": "Pobieraj brakujące okładki albumów w tle dla pewnych dopasowań metadanych"
+    "syncingMissingCovers": "Synchronizacja okładek...",
+    "syncMissingCoversTooltip": "Pobieraj brakujące okładki albumów w tle dla pewnych dopasowań metadanych",
+    "syncMissingCoversUpToDate": "Wszystkie pasujące albumy mają już okładki lub były niedawno sprawdzane."
   },
   "playlists": {
     "title": "Twoje Playlisty",

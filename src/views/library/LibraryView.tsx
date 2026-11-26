@@ -3,10 +3,12 @@ import React, { useCallback } from "react";
 import {
   Clock,
   Disc,
+  Loader2,
   Music,
 } from "../../components/ui/icons";
 import { FacetsFilterPane } from '../../components/library/FacetsFilterPane';
 import type { AlbumRecord, TrackRecord, PlaybackStatus, ReleaseCandidateDto } from '../../types/player';
+import type { CoverSyncProgress } from '../../types/library';
 import { type Language, getTranslations } from '../../i18n';
 import { LibraryMusicBrainzMatchPanel } from './sections/LibraryMusicBrainzMatchPanel';
 import { LibraryArtistsView } from './sections/LibraryArtistsView';
@@ -130,6 +132,7 @@ export interface LibraryViewProps {
   refreshQueue: () => Promise<void>;
   loadLibrary: () => Promise<void>;
   handleTriggerBackgroundCoverFetch: () => Promise<void>;
+  coverSyncProgress: CoverSyncProgress;
   showMessage: (msg: string, isError?: boolean) => void;
   formatTime: (ms: number) => string;
 }
@@ -183,7 +186,21 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   }, []);
 
   return (
-            <Card variant="panel" padding="none" className="mx-auto p-7" style={{ maxWidth: layoutMaxWidth }}>
+            <Card variant="panel" padding="none" className="relative mx-auto p-7" style={{ maxWidth: layoutMaxWidth }}>
+              {props.coverSyncProgress.running && (
+                <div role="status" aria-live="polite" className="-mt-2 mb-3 flex justify-end">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-accent-pink/40 bg-accent-pink/12 px-3 py-1 text-xs font-semibold text-accent-pink">
+                    <Loader2 size={13} className="shrink-0 animate-spin" />
+                    <span>{loc.library.syncingMissingCovers}</span>
+                    {props.coverSyncProgress.total > 0 && (
+                      <span className="font-mono font-bold tabular-nums">
+                        {props.coverSyncProgress.processed}/{props.coverSyncProgress.total}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Library header: title, stats and action buttons */}
               <LibraryHeader {...props} />
 

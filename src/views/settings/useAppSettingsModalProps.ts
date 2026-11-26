@@ -98,6 +98,7 @@ export interface UseAppSettingsModalPropsParams {
     autoFetchCoversBg: boolean;
     handleToggleAutoFetchCoversBg: (enabled: boolean) => Promise<void>;
     handleTriggerBackgroundCoverFetch: () => Promise<void>;
+    coverSyncProgress: import('../../types/library').CoverSyncProgress;
     discordRpcEnabled: boolean;
     discordRpcConnected: boolean;
     discordClientId: string;
@@ -352,6 +353,7 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     autoFetchCoversBg: backup.autoFetchCoversBg ?? true,
     onToggleAutoFetchCoversBg: backup.handleToggleAutoFetchCoversBg,
     onTriggerBackgroundCoverFetch: backup.handleTriggerBackgroundCoverFetch,
+    coverSyncProgress: backup.coverSyncProgress,
     discordRpcEnabled: backup.discordRpcEnabled,
     discordRpcConnected: backup.discordRpcConnected,
     discordClientId: backup.discordClientId,

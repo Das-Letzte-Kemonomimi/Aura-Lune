@@ -526,7 +526,9 @@
     "unknownAlbum": "Unbekanntes Album",
     "moreActions": "Weitere Aktionen",
     "syncMissingCovers": "Fehlende Cover abrufen",
-    "syncMissingCoversTooltip": "Fehlende Albumcover im Hintergrund bei eindeutigen Metadaten-Treffern laden"
+    "syncingMissingCovers": "Cover werden synchronisiert...",
+    "syncMissingCoversTooltip": "Fehlende Albumcover im Hintergrund bei eindeutigen Metadaten-Treffern laden",
+    "syncMissingCoversUpToDate": "Alle passenden Alben haben bereits ein Cover oder wurden kürzlich geprüft."
   },
   "playlists": {
     "title": "Deine Wiedergabelisten",

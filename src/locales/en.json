@@ -526,7 +526,9 @@
     "unknownAlbum": "Unknown album",
     "moreActions": "More actions",
     "syncMissingCovers": "Sync Missing Covers",
-    "syncMissingCoversTooltip": "Fetch missing album covers in the background for high-confidence metadata matches"
+    "syncingMissingCovers": "Syncing Covers...",
+    "syncMissingCoversTooltip": "Fetch missing album covers in the background for high-confidence metadata matches",
+    "syncMissingCoversUpToDate": "All eligible albums already have covers or were checked recently."
   },
   "playlists": {
     "title": "Your Playlists",

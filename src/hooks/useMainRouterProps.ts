@@ -300,6 +300,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     refreshQueue: p.refreshQueue,
     loadLibrary: p.loadLibrary,
     handleTriggerBackgroundCoverFetch: p.handleTriggerBackgroundCoverFetch,
+    coverSyncProgress: p.coverSyncProgress,
     showMessage: p.showMessage,
     formatTime: p.formatTime,
   };

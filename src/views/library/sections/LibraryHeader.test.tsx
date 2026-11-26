@@ -9,6 +9,7 @@ function buildProps(overrides: Partial<LibraryHeaderProps> = {}): LibraryHeaderP
     filteredTracks: [],
     tracks: [],
     albumsWithoutCoverCount: 0,
+    coverSyncProgress: { running: false, processed: 0, total: 0 },
     handleShuffleAll: vi.fn(),
     setShowDownloadHub: vi.fn(),
     setIsUrlImportModalOpen: vi.fn(),
@@ -66,5 +67,26 @@ describe('LibraryHeader', () => {
 
     fireEvent.click(btn);
     expect(handleTriggerBackgroundCoverFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows processed/total progress and disables the button while sync is running', () => {
+    const handleTriggerBackgroundCoverFetch = vi.fn(async () => {});
+    render(
+      <LibraryHeader
+        {...buildProps({
+          albumsWithoutCoverCount: 12,
+          coverSyncProgress: { running: true, processed: 4, total: 12 },
+          handleTriggerBackgroundCoverFetch,
+        })}
+      />,
+    );
+
+    const btn = screen.getByRole('button', { name: /Syncing Covers/i }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.getAttribute('aria-busy')).toBe('true');
+    expect(btn.textContent).toContain('4/12');
+
+    fireEvent.click(btn);
+    expect(handleTriggerBackgroundCoverFetch).not.toHaveBeenCalled();
   });
 });

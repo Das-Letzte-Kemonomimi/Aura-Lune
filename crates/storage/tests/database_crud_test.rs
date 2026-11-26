@@ -326,6 +326,12 @@ async fn test_background_cover_context_and_cooldowns() {
     .await
     .unwrap();
 
+    assert_eq!(
+        db.count_albums_needing_background_cover(1000, 1000)
+            .await
+            .unwrap(),
+        1
+    );
     let pending = db
         .list_albums_needing_background_cover(1000, 1000, 10)
         .await
@@ -338,10 +344,28 @@ async fn test_background_cover_context_and_cooldowns() {
     );
     let album_id = pending[0].album.id;
 
-    // Recording a recent `not_found` keeps the album out of the pending list until cooldown passes.
+    // Recording a recent `not_found` keeps the album out of the automatic pending list until cooldown passes,
+    // while `include_recent_attempts = true` still returns it for manual user syncs.
     db.record_cover_lookup_attempt(album_id, "not_found", 1200, None)
         .await
         .unwrap();
+    assert_eq!(
+        db.count_albums_needing_background_cover(1100, 1100)
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        db.list_album_ids_needing_background_cover(true, 1100, 1100)
+            .await
+            .unwrap(),
+        vec![album_id]
+    );
+    assert!(db
+        .list_album_ids_needing_background_cover(false, 1100, 1100)
+        .await
+        .unwrap()
+        .is_empty());
     assert!(db
         .list_albums_needing_background_cover(1100, 1100, 10)
         .await
