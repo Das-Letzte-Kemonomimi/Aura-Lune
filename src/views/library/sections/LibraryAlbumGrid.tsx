@@ -6,6 +6,7 @@ import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
 import { Button, Card, EmptyState, SegmentedControl } from '../../../components/ui';
 import { SortControls } from './SortControls';
+import { useProgressiveCount } from '../../../hooks/useProgressiveCount';
 import { buildAlbumStats, type AlbumStats } from './albumModel';
 import { AlbumRow, AlbumTile, type AlbumActions } from './AlbumTiles';
 
@@ -52,6 +53,8 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
   tracks,
 }) => {
   const statsByAlbum = useMemo(() => buildAlbumStats(tracks), [tracks]);
+  const visibleCount = useProgressiveCount(sortedAlbums.length, `${albumViewMode}-${albumGridSize}`);
+  const visibleAlbums = useMemo(() => sortedAlbums.slice(0, visibleCount), [sortedAlbums, visibleCount]);
   const playingAlbumId = currentPlayingTrack?.album_id ?? null;
   const playingState = status.state === 'Playing' ? 'playing' : 'paused';
 
@@ -178,13 +181,13 @@ export const LibraryAlbumGrid: React.FC<LibraryAlbumGridProps> = ({
         )
       ) : albumViewMode === 'list' ? (
         <div className="flex flex-col gap-2">
-          {sortedAlbums.map((album) => (
+          {visibleAlbums.map((album) => (
             <AlbumRow key={album.id} {...tileProps(album)} />
           ))}
         </div>
       ) : (
         <div className={cn('grid', GRID_LAYOUT[albumGridSize])}>
-          {sortedAlbums.map((album) => (
+          {visibleAlbums.map((album) => (
             <AlbumTile key={album.id} {...tileProps(album)} size={albumGridSize} />
           ))}
         </div>

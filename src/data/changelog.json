@@ -262,6 +262,13 @@
         "de": "Crossfeed bleibt jetzt wirklich aus, wenn du ihn ausschaltest. Vorher hat er den Klang still weiter verändert und laute Spitzen abgeflacht.",
         "fi": "Crossfeed pysyy nyt oikeasti pois päältä, kun sammutat sen. Aiemmin se muokkasi ääntä hiljaa ja saattoi litistää kovia huippuja.",
         "la": "Crossfeed nunc vere quiescit cum eum exstinguis. Antea sonum tacite mutabat et apices fortes complanare poterat."
+      },
+      {
+        "en": "Opening the Albums view no longer freezes the app with big libraries: albums now appear in quick batches and covers load in the background.",
+        "pl": "Otwieranie widoku albumów nie zawiesza już aplikacji przy dużych bibliotekach: albumy pojawiają się szybkimi partiami, a okładki wczytują się w tle.",
+        "de": "Das Öffnen der Albumansicht friert die App bei großen Bibliotheken nicht mehr ein: Alben erscheinen in schnellen Schüben und Cover laden im Hintergrund.",
+        "fi": "Albumit-näkymän avaaminen ei enää jäädytä sovellusta suurissa kirjastoissa: albumit ilmestyvät nopeina erinä ja kansikuvat latautuvat taustalla.",
+        "la": "Aperire conspectum albumorum applicationem in magnis bibliothecis non iam congelat: alba celeriter per partes apparent et tegmina in fundo onerantur."
       }
     ]
   },

@@ -58,7 +58,11 @@ function AlbumProgress({ stats, label, className }: { stats: AlbumStats; label: 
   return <ProgressBar size="sm" tone="pink" value={(stats.heardCount / stats.trackCount) * 100} label={label} className={className} />;
 }
 
-/** Album cover as a background, or a disc glyph on a tinted gradient when there is none. */
+/**
+ * Album cover, or a disc glyph on a tinted gradient when there is none. Covers are inline data
+ * URIs, so the image decodes off the main thread (`decoding="async"`) instead of blocking the
+ * render of hundreds of tiles.
+ */
 function AlbumCover({
   album,
   iconSize,
@@ -73,12 +77,15 @@ function AlbumCover({
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center border border-line bg-linear-135 from-accent-purple/20 to-accent-cyan/15 bg-cover bg-center',
+        'relative flex items-center justify-center overflow-hidden border border-line bg-linear-135 from-accent-purple/20 to-accent-cyan/15',
         className,
       )}
-      style={album.cover_path ? { backgroundImage: `url("${album.cover_path}")` } : undefined}
     >
-      {!album.cover_path && <Disc size={iconSize} className="text-fg-muted/50" />}
+      {album.cover_path ? (
+        <img src={album.cover_path} alt="" loading="lazy" decoding="async" draggable={false} className="absolute inset-0 size-full object-cover" />
+      ) : (
+        <Disc size={iconSize} className="text-fg-muted/50" />
+      )}
       {children}
     </div>
   );

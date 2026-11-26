@@ -1,5 +1,5 @@
 use auralune_desktop::commands::dsp::get_equalizer_presets_internal;
-use auralune_desktop::commands::library::resolve_cover_to_data_uri;
+use auralune_desktop::commands::library::{resolve_cover_thumbnail, resolve_cover_to_data_uri};
 use auralune_desktop::commands::metadata::LastFmScrobbleRequest;
 use auralune_desktop::commands::playback::{
     extract_audio_paths_from_args, is_supported_audio, normalize_path_or_url,
@@ -41,6 +41,35 @@ fn test_resolve_cover_to_data_uri_http() {
         resolve_cover_to_data_uri(http_url),
         Some(http_url.to_string())
     );
+}
+
+#[test]
+fn test_resolve_cover_thumbnail_downscales_local_images() {
+    use base64::Engine;
+    let dir = std::env::temp_dir().join(format!("auralune_cover_thumb_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("cover.png");
+    image::RgbImage::from_pixel(1600, 1200, image::Rgb([200, 40, 120]))
+        .save(&path)
+        .unwrap();
+
+    let uri = resolve_cover_thumbnail(&path.to_string_lossy()).expect("thumbnail");
+    let encoded = uri
+        .strip_prefix("data:image/jpeg;base64,")
+        .expect("jpeg data uri");
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .unwrap();
+    let thumb = image::load_from_memory(&bytes).unwrap();
+    assert_eq!((thumb.width(), thumb.height()), (512, 384));
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn test_resolve_cover_thumbnail_passes_urls_through() {
+    let url = "https://example.com/cover.jpg";
+    assert_eq!(resolve_cover_thumbnail(url), Some(url.to_string()));
 }
 
 #[test]

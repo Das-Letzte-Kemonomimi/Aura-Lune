@@ -20,18 +20,11 @@ pub struct ScanSummaryDto {
 /// Maximum size of a local cover file returned to the UI as a data: URI.
 const MAX_COVER_FILE_BYTES: u64 = 20 * 1024 * 1024;
 
-/// Resolves a cover path (local file or URL) to a Base64 data: URI.
-///
-/// A local file must (after resolving links) be an image: a `cover.jpg` that links
-/// to e.g. `~/.ssh/id_rsa` is not read.
-pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
-    if path_str.starts_with("data:")
-        || path_str.starts_with("http://")
-        || path_str.starts_with("https://")
-    {
-        return Some(path_str.to_string());
-    }
+/// Longest edge, in pixels, of the album covers sent to the album list.
+const COVER_THUMBNAIL_EDGE: u32 = 512;
 
+/// Validated, size-limited local image file behind a cover path; `None` for URLs and bad paths.
+fn local_cover_file(path_str: &str) -> Option<PathBuf> {
     let path = super::paths::ensure_readable(
         &audio_engine::uri::local_path(path_str),
         super::paths::IMAGE_EXTENSIONS,
@@ -40,6 +33,23 @@ pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
     if fs::metadata(&path).ok()?.len() > MAX_COVER_FILE_BYTES {
         return None;
     }
+    Some(path)
+}
+
+fn is_remote(path_str: &str) -> bool {
+    path_str.starts_with("http://") || path_str.starts_with("https://")
+}
+
+/// Resolves a cover path (local file or URL) to a Base64 data: URI.
+///
+/// A local file must (after resolving links) be an image: a `cover.jpg` that links
+/// to another file is not read.
+pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
+    if path_str.starts_with("data:") || is_remote(path_str) {
+        return Some(path_str.to_string());
+    }
+
+    let path = local_cover_file(path_str)?;
     let bytes = fs::read(&path).ok()?;
     let ext = path
         .extension()
@@ -47,6 +57,51 @@ pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
         .unwrap_or("jpg")
         .to_lowercase();
     Some(image_data_uri(&ext, &bytes))
+}
+
+/// Downscales image bytes to a JPEG thumbnail data: URI; `None` when they cannot be decoded.
+fn thumbnail_data_uri(bytes: &[u8]) -> Option<String> {
+    let image = image::load_from_memory(bytes).ok()?;
+    let thumb = image
+        .thumbnail(COVER_THUMBNAIL_EDGE, COVER_THUMBNAIL_EDGE)
+        .to_rgb8();
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 85)
+        .encode_image(&thumb)
+        .ok()?;
+    Some(image_data_uri("jpg", &jpeg))
+}
+
+type ThumbnailKey = (PathBuf, u64, std::time::SystemTime);
+
+static THUMBNAIL_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<ThumbnailKey, String>>,
+> = std::sync::OnceLock::new();
+
+/// Like [`resolve_cover_to_data_uri`] but local files are downscaled, so a library of hundreds of
+/// albums does not ship (and the WebView does not decode) hundreds of full-size images. Results
+/// are cached per file (path, size, modification time) for the rest of the session.
+pub fn resolve_cover_thumbnail(path_str: &str) -> Option<String> {
+    if path_str.starts_with("data:") || is_remote(path_str) {
+        return Some(path_str.to_string());
+    }
+
+    let path = local_cover_file(path_str)?;
+    let meta = fs::metadata(&path).ok()?;
+    let key = (path.clone(), meta.len(), meta.modified().ok()?);
+    let cache = THUMBNAIL_CACHE.get_or_init(Default::default);
+    if let Some(hit) = cache.lock().ok()?.get(&key) {
+        return Some(hit.clone());
+    }
+
+    let bytes = fs::read(&path).ok()?;
+    // Undecodable images keep working as the original file.
+    let uri = thumbnail_data_uri(&bytes).or_else(|| {
+        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("jpg");
+        Some(image_data_uri(ext, &bytes))
+    })?;
+    cache.lock().ok()?.insert(key, uri.clone());
+    Some(uri)
 }
 
 /// Encodes image bytes as `data:<mime>;base64,…` (MIME type from the extension).
@@ -144,17 +199,24 @@ pub async fn get_library_albums(
 ) -> Result<Vec<AlbumRecord>, CommandError> {
     let albums = state.db.list_albums().await?;
 
-    // Reading and Base64-encoding all covers is blocking I/O, so off the Tokio threads.
+    // Reading, decoding and downscaling all covers is blocking work: off the Tokio threads and
+    // spread over the available cores.
     tokio::task::spawn_blocking(move || {
+        let mut albums = albums;
+        let workers = std::thread::available_parallelism().map_or(2, |n| n.get());
+        let chunk_size = albums.len().div_ceil(workers).max(1);
+        std::thread::scope(|scope| {
+            for chunk in albums.chunks_mut(chunk_size) {
+                scope.spawn(move || {
+                    for album in chunk {
+                        if let Some(cp) = &album.cover_path {
+                            album.cover_path = resolve_cover_thumbnail(cp);
+                        }
+                    }
+                });
+            }
+        });
         albums
-            .into_iter()
-            .map(|mut album| {
-                if let Some(cp) = &album.cover_path {
-                    album.cover_path = resolve_cover_to_data_uri(cp);
-                }
-                album
-            })
-            .collect()
     })
     .await
     .map_err(CommandError::from)
