@@ -16,12 +16,14 @@ use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 pub mod acoustid;
+pub mod cover_query;
 pub mod http;
 pub mod lastfm;
 pub mod listenbrainz;
 pub mod lyrics;
 pub mod net_guard;
 pub use acoustid::*;
+pub use cover_query::AUTO_ACCEPT_SCORE;
 pub use lastfm::*;
 pub use listenbrainz::*;
 pub use lyrics::*;
@@ -81,6 +83,25 @@ pub struct CoverCandidateDto {
     pub full_url: String,
     pub width: Option<u32>,
     pub height: Option<u32>,
+    /// How well the candidate matches the wanted album and artist, 0-100 (best first in lists).
+    #[serde(default)]
+    pub match_score: u8,
+}
+
+/// Ladder steps tried per search, at most.
+const MAX_LADDER_RUNGS: usize = 6;
+/// Number of well-matching candidates after which the ladder stops relaxing the query.
+const ENOUGH_GOOD_CANDIDATES: usize = 3;
+/// MusicBrainz releases inspected per search (each costs a Cover Art Archive request).
+const MAX_MB_RELEASES: usize = 5;
+/// MusicBrainz releases that score below this are not worth a Cover Art Archive request.
+const MIN_MB_RELEASE_SCORE: u8 = 40;
+
+fn count_good(candidates: &[CoverCandidateDto]) -> usize {
+    candidates
+        .iter()
+        .filter(|c| c.match_score >= AUTO_ACCEPT_SCORE)
+        .count()
 }
 
 /// MusicBrainz API client.
@@ -115,19 +136,59 @@ impl MusicBrainzClient {
         album: &str,
         artist: &str,
     ) -> Result<Vec<ReleaseCandidateDto>, MetadataError> {
+        let mut last_error = None;
+        for query in Self::release_queries(album, artist) {
+            match self.run_release_query(&query).await {
+                Ok(found) if !found.is_empty() => return Ok(found),
+                Ok(_) => {}
+                Err(e) => last_error = Some(e),
+            }
+        }
+        match last_error {
+            Some(e) => Err(e),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    /// Lucene queries from strict to loose: album + full artist, album + primary artist,
+    /// album only, then free text. The first one that finds anything wins.
+    pub fn release_queries(album: &str, artist: &str) -> Vec<String> {
+        let album = clean_album_title(album).replace(['"', '\\'], "");
+        let album = album.trim();
+        let full_artist = clean_artist_name(artist).replace(['"', '\\'], "");
+        let full_artist = full_artist.trim();
+        let primary = cover_query::split_artists(full_artist)
+            .into_iter()
+            .next()
+            .unwrap_or_default();
+        let has_artist = !cover_query::is_neutral_artist(full_artist);
+
+        let mut queries = Vec::new();
+        if album.is_empty() {
+            return queries;
+        }
+        if has_artist {
+            queries.push(format!("release:\"{album}\" AND artist:\"{full_artist}\""));
+            if primary != full_artist {
+                queries.push(format!("release:\"{album}\" AND artist:\"{primary}\""));
+            }
+        }
+        queries.push(format!("release:\"{album}\""));
+        if has_artist {
+            queries.push(format!("{album} {primary}"));
+        }
+        queries
+    }
+
+    async fn run_release_query(
+        &self,
+        query: &str,
+    ) -> Result<Vec<ReleaseCandidateDto>, MetadataError> {
         self.wait_rate_limit().await;
-
-        let clean_album = album.replace('"', "");
-        let clean_artist = artist.replace('"', "");
-
-        let query = format!(
-            "release:\"{}\" AND artist:\"{}\"",
-            clean_album, clean_artist
-        );
 
         let url = format!(
             "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=10",
-            urlencoding::encode(&query)
+            urlencoding::encode(query)
         );
 
         debug!("MusicBrainz API search: {}", url);
@@ -426,6 +487,7 @@ impl CoverArtArchiveClient {
                         full_url: full.to_string(),
                         width: Some(1000),
                         height: Some(1000),
+                        match_score: 0,
                     });
                 }
             }
@@ -480,6 +542,7 @@ impl CoverArtArchiveClient {
                         full_url: full,
                         width: Some(1200),
                         height: Some(1200),
+                        match_score: 0,
                     });
                 }
             }
@@ -487,182 +550,301 @@ impl CoverArtArchiveClient {
         results
     }
 
-    /// Searches the internet for cover candidates (Deezer, Apple Music / iTunes) in the style of the Poweramp Cover Art Picker.
-    /// The service queries run concurrently, and the results are cached in RAM immediately.
+    /// Searches Deezer and Apple Music (iTunes) for cover candidates, in the style of the
+    /// Poweramp Cover Art Picker. See [`Self::search_cover_candidates_with`].
     pub async fn search_cover_candidates(
         &self,
         album: &str,
         artist: &str,
     ) -> Vec<CoverCandidateDto> {
-        let clean_album = clean_album_title(album);
-        let clean_artist = clean_artist_name(artist);
+        self.search_cover_candidates_with(album, artist, None).await
+    }
 
-        if clean_album.trim().is_empty() && clean_artist.trim().is_empty() {
+    /// Searches for cover candidates, album first and artist second, relaxing the query step by
+    /// step ([`cover_query::query_ladder`]): full artist string, primary artist, shortened album
+    /// titles, album only. Each step asks Deezer and iTunes concurrently. When fewer than two
+    /// good matches turn up and a MusicBrainz client is given, releases found there are added
+    /// through the Cover Art Archive.
+    ///
+    /// Every candidate carries a `match_score`; the list is sorted best first and results are
+    /// cached in RAM. Callers that pick a cover unattended must use [`Self::find_best_cover`].
+    pub async fn search_cover_candidates_with(
+        &self,
+        album: &str,
+        artist: &str,
+        mb: Option<&MusicBrainzClient>,
+    ) -> Vec<CoverCandidateDto> {
+        let ladder = cover_query::query_ladder(album, artist);
+        if ladder.is_empty() {
             return Vec::new();
         }
 
         let cache_key = format!(
-            "{}---{}",
-            clean_album.trim().to_lowercase(),
-            clean_artist.trim().to_lowercase()
+            "{}---{}---{}",
+            clean_album_title(album).trim().to_lowercase(),
+            clean_artist_name(artist).trim().to_lowercase(),
+            mb.is_some()
         );
-
-        // 1. Check the fast in-memory cache (0ms)
-        {
-            let cache = self.search_cache.lock().await;
-            if let Some(cached) = cache.get(&cache_key) {
-                debug!(
-                    "Cover art search cache hit for: '{}' / '{}'",
-                    clean_album, clean_artist
-                );
-                return cached.clone();
-            }
+        if let Some(cached) = self.search_cache.lock().await.get(&cache_key) {
+            debug!("Cover art search cache hit for: '{album}' / '{artist}'");
+            return cached.clone();
         }
 
-        // 2. Prepare the parallel queries to Deezer and iTunes/Apple Music
-        let deezer_adv_url = if !clean_artist.is_empty() && !clean_album.is_empty() {
-            Some(format!(
-                "{}/search/album?q=artist:\"{}\" album:\"{}\"&limit=10",
-                self.deezer_base_url,
-                urlencoding::encode(&clean_artist),
-                urlencoding::encode(&clean_album)
-            ))
-        } else {
-            None
-        };
-
-        let deezer_general_query = format!("{clean_artist} {clean_album}").trim().to_string();
-        let deezer_gen_url = if !deezer_general_query.is_empty() {
-            Some(format!(
-                "{}/search/album?q={}&limit=10",
-                self.deezer_base_url,
-                urlencoding::encode(&deezer_general_query)
-            ))
-        } else {
-            None
-        };
-
-        let itunes_q1 = format!("{clean_album} {clean_artist}").trim().to_string();
-        let itunes_url_1 = if !itunes_q1.is_empty() {
-            Some(format!(
-                "{}/search?term={}&entity=album&limit=8",
-                self.itunes_base_url,
-                urlencoding::encode(&itunes_q1)
-            ))
-        } else {
-            None
-        };
-
-        let itunes_q2 = format!("{clean_artist} {clean_album}").trim().to_string();
-        let itunes_url_2 = if !itunes_q2.is_empty() && itunes_q2 != itunes_q1 {
-            Some(format!(
-                "{}/search?term={}&entity=album&limit=8",
-                self.itunes_base_url,
-                urlencoding::encode(&itunes_q2)
-            ))
-        } else {
-            None
-        };
-
-        // Concurrent fetching (tokio::join!)
-        let (res_deezer_adv, res_deezer_gen, res_itunes_1, res_itunes_2) = tokio::join!(
-            async {
-                if let Some(url) = deezer_adv_url {
-                    self.query_deezer(&url, album, artist).await
-                } else {
-                    Vec::new()
-                }
-            },
-            async {
-                if let Some(url) = deezer_gen_url {
-                    self.query_deezer(&url, album, artist).await
-                } else {
-                    Vec::new()
-                }
-            },
-            async {
-                if let Some(url) = itunes_url_1 {
-                    self.query_itunes(&url, album, artist).await
-                } else {
-                    Vec::new()
-                }
-            },
-            async {
-                if let Some(url) = itunes_url_2 {
-                    self.query_itunes(&url, album, artist).await
-                } else {
-                    Vec::new()
-                }
-            }
-        );
-
-        let mut candidates = Vec::new();
+        let mut candidates: Vec<CoverCandidateDto> = Vec::new();
         let mut seen_urls = std::collections::HashSet::new();
-
-        for cand in res_deezer_adv
-            .into_iter()
-            .chain(res_itunes_1)
-            .chain(res_deezer_gen)
-            .chain(res_itunes_2)
-        {
-            if seen_urls.insert(cand.full_url.clone()) {
+        let mut add = |found: Vec<CoverCandidateDto>, candidates: &mut Vec<CoverCandidateDto>| {
+            for mut cand in found {
+                if !seen_urls.insert(cand.full_url.clone()) {
+                    continue;
+                }
+                cand.match_score =
+                    cover_query::match_score(album, artist, &cand.title, &cand.artist);
                 candidates.push(cand);
             }
-        }
+        };
 
-        // Fall back to the raw query if the cleaned one gave few results
-        let raw_album = album.trim();
-        if candidates.len() < 3 && raw_album != clean_album && !raw_album.is_empty() {
-            let fallback_url = format!(
-                "{}/search?term={}&entity=album&limit=6",
-                self.itunes_base_url,
-                urlencoding::encode(raw_album)
-            );
-            let fallback_cands = self.query_itunes(&fallback_url, album, artist).await;
-            for cand in fallback_cands {
-                if seen_urls.insert(cand.full_url.clone()) {
-                    candidates.push(cand);
-                }
+        for query in ladder.iter().take(MAX_LADDER_RUNGS) {
+            let found = self.query_ladder_rung(query).await;
+            add(found, &mut candidates);
+            if count_good(&candidates) >= ENOUGH_GOOD_CANDIDATES {
+                break;
             }
         }
 
-        // Ranking and sorting (exact title and artist matches first)
-        let target_album_lower = clean_album.to_lowercase();
-        let target_artist_lower = clean_artist.to_lowercase();
-
-        candidates.sort_by(|a, b| {
-            let a_title_exact = a.title.to_lowercase() == target_album_lower;
-            let b_title_exact = b.title.to_lowercase() == target_album_lower;
-            let a_artist_match = !target_artist_lower.is_empty()
-                && a.artist.to_lowercase().contains(&target_artist_lower);
-            let b_artist_match = !target_artist_lower.is_empty()
-                && b.artist.to_lowercase().contains(&target_artist_lower);
-
-            let a_score = (if a_title_exact {
-                4
-            } else if a.title.to_lowercase().contains(&target_album_lower) {
-                2
-            } else {
-                0
-            }) + (if a_artist_match { 2 } else { 0 });
-            let b_score = (if b_title_exact {
-                4
-            } else if b.title.to_lowercase().contains(&target_album_lower) {
-                2
-            } else {
-                0
-            }) + (if b_artist_match { 2 } else { 0 });
-
-            b_score.cmp(&a_score)
-        });
-
-        // Store in the cache for instant reopening
-        {
-            let mut cache = self.search_cache.lock().await;
-            cache.insert(cache_key, candidates.clone());
+        if count_good(&candidates) < 2 {
+            if let Some(mb) = mb {
+                let found = self.query_musicbrainz_covers(mb, album, artist).await;
+                add(found, &mut candidates);
+            }
         }
 
+        candidates.sort_by_key(|c| std::cmp::Reverse(c.match_score));
+
+        if !candidates.is_empty() {
+            self.search_cache
+                .lock()
+                .await
+                .insert(cache_key, candidates.clone());
+        }
         candidates
+    }
+
+    /// Asks Deezer (strict and loose) and iTunes about one step of the query ladder.
+    async fn query_ladder_rung(&self, query: &cover_query::CoverQuery) -> Vec<CoverCandidateDto> {
+        let album = query.album.replace('"', "");
+        let album = album.trim();
+        let artist = query.artist.as_deref().unwrap_or_default().replace('"', "");
+        let artist = artist.trim();
+
+        let deezer_strict = (!artist.is_empty() && !album.is_empty()).then(|| {
+            let q = format!("artist:\"{artist}\" album:\"{album}\"");
+            format!(
+                "{}/search/album?q={}&limit=10",
+                self.deezer_base_url,
+                urlencoding::encode(&q)
+            )
+        });
+        let loose = format!("{artist} {album}").trim().to_string();
+        let deezer_loose = (!loose.is_empty()).then(|| {
+            format!(
+                "{}/search/album?q={}&limit=10",
+                self.deezer_base_url,
+                urlencoding::encode(&loose)
+            )
+        });
+        let itunes_term = format!("{album} {artist}").trim().to_string();
+        let itunes = (!itunes_term.is_empty()).then(|| {
+            format!(
+                "{}/search?term={}&entity=album&limit=8",
+                self.itunes_base_url,
+                urlencoding::encode(&itunes_term)
+            )
+        });
+
+        let (strict, itunes, loose) = tokio::join!(
+            async {
+                match &deezer_strict {
+                    Some(url) => self.query_deezer(url, album, artist).await,
+                    None => Vec::new(),
+                }
+            },
+            async {
+                match &itunes {
+                    Some(url) => self.query_itunes(url, album, artist).await,
+                    None => Vec::new(),
+                }
+            },
+            async {
+                match &deezer_loose {
+                    Some(url) => self.query_deezer(url, album, artist).await,
+                    None => Vec::new(),
+                }
+            }
+        );
+        strict.into_iter().chain(itunes).chain(loose).collect()
+    }
+
+    /// Looks releases up on MusicBrainz and returns the ones that have front art in the
+    /// Cover Art Archive. Used when Deezer and iTunes do not know the album (anime and game
+    /// soundtracks, small labels).
+    async fn query_musicbrainz_covers(
+        &self,
+        mb: &MusicBrainzClient,
+        album: &str,
+        artist: &str,
+    ) -> Vec<CoverCandidateDto> {
+        let head = cover_query::album_variants(album)
+            .into_iter()
+            .next()
+            .unwrap_or_default();
+        let primary = cover_query::split_artists(&clean_artist_name(artist))
+            .into_iter()
+            .next()
+            .unwrap_or_default();
+        let Ok(releases) = mb.search_releases(&head, &primary).await else {
+            return Vec::new();
+        };
+
+        let mut out = Vec::new();
+        for release in releases.iter().take(MAX_MB_RELEASES) {
+            if out.len() >= 3 {
+                break;
+            }
+            let score = cover_query::match_score(album, artist, &release.title, &release.artist);
+            if score < MIN_MB_RELEASE_SCORE {
+                continue;
+            }
+            if let Some(cand) = self.caa_front_candidate(release).await {
+                out.push(cand);
+            }
+        }
+        out
+    }
+
+    /// Reads the Cover Art Archive index of a release. `None` when it has no images.
+    async fn caa_front_candidate(
+        &self,
+        release: &ReleaseCandidateDto,
+    ) -> Option<CoverCandidateDto> {
+        ensure_safe_token(&release.mbid).ok()?;
+        let url = format!("https://coverartarchive.org/release/{}", release.mbid);
+        let json = self.get_json(&url).await?;
+        let images = json.get("images")?.as_array()?;
+        let image = images
+            .iter()
+            .find(|i| i.get("front").and_then(|f| f.as_bool()) == Some(true))
+            .or_else(|| images.first())?;
+        let https = |s: &str| s.replacen("http://", "https://", 1);
+        let full = https(image.get("image")?.as_str()?);
+        let thumb = image
+            .get("thumbnails")
+            .and_then(|t| t.get("500").or_else(|| t.get("large")))
+            .and_then(|t| t.as_str())
+            .map(https)
+            .unwrap_or_else(|| full.clone());
+        Some(CoverCandidateDto {
+            source: "Cover Art Archive".to_string(),
+            title: release.title.clone(),
+            artist: release.artist.clone(),
+            thumbnail_url: thumb,
+            full_url: full,
+            width: None,
+            height: None,
+            match_score: 0,
+        })
+    }
+
+    /// Public URL of the front cover of a release (after redirects), or `None` when the
+    /// Cover Art Archive has none. Used for Discord, which needs a direct public image URL.
+    pub async fn release_front_url(&self, mbid: &str) -> Option<String> {
+        ensure_safe_token(mbid).ok()?;
+        let url = format!("https://coverartarchive.org/release/{mbid}/front-500");
+        let resp = tokio::time::timeout(Duration::from_millis(3500), self.http.head(&url).send())
+            .await
+            .ok()?
+            .ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let final_url = resp.url().as_str();
+        final_url
+            .starts_with("https://")
+            .then(|| final_url.to_string())
+    }
+
+    /// Returns the best cover only when it really is the wanted album
+    /// (`match_score >= AUTO_ACCEPT_SCORE`). For callers that pick without asking the user:
+    /// a wrong cover is worse than none. When no album matches, a song lookup with an exact
+    /// artist and title match gives the cover of the album that song is on.
+    pub async fn find_best_cover(
+        &self,
+        album: &str,
+        artist: &str,
+        title_hint: Option<&str>,
+        mb: Option<&MusicBrainzClient>,
+    ) -> Option<CoverCandidateDto> {
+        if !cover_query::is_unknown_album(album) {
+            let candidates = self.search_cover_candidates_with(album, artist, mb).await;
+            if let Some(best) = candidates
+                .into_iter()
+                .find(|c| c.match_score >= AUTO_ACCEPT_SCORE)
+            {
+                return Some(best);
+            }
+        }
+        let title = title_hint?.trim();
+        if title.is_empty() || cover_query::is_neutral_artist(artist) {
+            return None;
+        }
+        self.find_cover_by_song(artist, title).await
+    }
+
+    /// iTunes song lookup: accepts only a song whose title and artist match exactly.
+    async fn find_cover_by_song(&self, artist: &str, title: &str) -> Option<CoverCandidateDto> {
+        let term = format!("{} {}", clean_artist_name(artist), title);
+        let url = format!(
+            "{}/search?term={}&entity=song&limit=10",
+            self.itunes_base_url,
+            urlencoding::encode(term.trim())
+        );
+        let json = self.get_json(&url).await?;
+        let wanted_title = cover_query::normalize(&clean_album_title(title));
+        json.get("results")?.as_array()?.iter().find_map(|res| {
+            let track = res.get("trackName")?.as_str()?;
+            let track_artist = res.get("artistName")?.as_str()?;
+            if cover_query::normalize(&clean_album_title(track)) != wanted_title
+                || !cover_query::artists_match(artist, track_artist)
+            {
+                return None;
+            }
+            let thumb = res.get("artworkUrl100")?.as_str()?;
+            Some(CoverCandidateDto {
+                source: "Apple Music (1200px)".to_string(),
+                title: res
+                    .get("collectionName")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or(track)
+                    .to_string(),
+                artist: track_artist.to_string(),
+                thumbnail_url: thumb.replace("100x100bb.jpg", "300x300bb.jpg"),
+                full_url: thumb.replace("100x100bb.jpg", "1200x1200bb.jpg"),
+                width: Some(1200),
+                height: Some(1200),
+                match_score: 90,
+            })
+        })
+    }
+
+    /// GET with the 3.5 s search timeout; `None` on any failure.
+    async fn get_json(&self, url: &str) -> Option<serde_json::Value> {
+        let resp = tokio::time::timeout(Duration::from_millis(3500), self.http.get(url).send())
+            .await
+            .ok()?
+            .ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        resp.json().await.ok()
     }
 
     /// Downloads a cover from the given direct URL and stores it in the cache under the chosen file stem.

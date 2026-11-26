@@ -389,4 +389,91 @@ describe('useLibraryPlaybackActions', () => {
     expect(invokeMock).toHaveBeenCalledWith('set_shuffle', { enabled: true });
     expect(showMessage).not.toHaveBeenCalledWith(expect.anything(), true);
   });
+
+  it('drops a single audio file, updates activeTrackId/filePath/status, refreshes queue, and starts playback', async () => {
+    const droppedPath = '/home/kamu/Music/20 Sorrowful feather C2Rmix.flac';
+    const scannedTrack: TrackRecord = {
+      ...mockTrack1,
+      id: 42,
+      title: 'Sorrowful feather C2Rmix',
+      artist: 'TENMON & Eiichiro Yanagi',
+      path: droppedPath,
+      duration_ms: 215000,
+    };
+    const nextStatus: PlaybackStatus = {
+      ...mockStatus,
+      state: 'Playing',
+      position_ms: 0,
+      duration_ms: 215000,
+      current_track: {
+        id: 'track-42',
+        track_id: 42,
+        uri: droppedPath,
+        title: 'Sorrowful feather C2Rmix',
+        artist: 'TENMON & Eiichiro Yanagi',
+        album: 'ef - a tale of memories. ORIGINAL SOUNDTRACK -espressivo-',
+        duration_ms: 215000,
+      },
+    };
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_status') return nextStatus;
+      return null;
+    });
+
+    const setActiveTrackId = vi.fn();
+    const setFilePath = vi.fn();
+    const setStatus = vi.fn();
+    const refreshQueue = vi.fn().mockResolvedValue(undefined);
+    const initialStartupPositionRef = { current: 45000 };
+    const handleScanPaths = vi.fn().mockResolvedValue({ tracks: [scannedTrack], albums: [] });
+
+    const { result } = renderHook(() =>
+      useLibraryPlaybackActions({
+        tracks: [],
+        setTracks: vi.fn(),
+        albums: [],
+        queue: mockQueue,
+        refreshQueue,
+        albumPlaybackMode: 'replace',
+        activeTrackId: 1,
+        setActiveTrackId,
+        setFilePath,
+        status: mockStatus,
+        setStatus,
+        trackDirectCover: null,
+        desktopNotificationsEnabled: false,
+        replaygainMode: 'Off',
+        listenbrainzEnabled: false,
+        listenbrainzToken: '',
+        setScrobbledTrackId: vi.fn(),
+        lastfmEnabled: false,
+        lastfmSessionKey: '',
+        lastfmCustomKey: '',
+        lastfmCustomSecret: '',
+        setLastfmScrobbledTrackId: vi.fn(),
+        setCurrentBookmark: vi.fn(),
+        handleSeek: vi.fn().mockResolvedValue(undefined),
+        handleScanPaths,
+        filteredTracks: [],
+        statsModalTrack: null,
+        setStatsModalTrack: vi.fn(),
+        initialStartupPositionRef,
+        showMessage: vi.fn(),
+        loc,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleDropPaths([droppedPath]);
+    });
+
+    expect(handleScanPaths).toHaveBeenCalledWith([droppedPath], { skipAutoActivate: true });
+    expect(initialStartupPositionRef.current).toBeNull();
+    expect(setActiveTrackId).toHaveBeenCalledWith(42);
+    expect(setFilePath).toHaveBeenCalledWith(droppedPath);
+    expect(invokeMock).toHaveBeenCalledWith('load_file', { path: droppedPath });
+    expect(invokeMock).toHaveBeenCalledWith('play');
+    expect(refreshQueue).toHaveBeenCalled();
+    expect(setStatus).toHaveBeenCalledWith(nextStatus);
+  });
 });

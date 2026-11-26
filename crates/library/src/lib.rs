@@ -2,4 +2,4 @@
 
 pub mod scanner;
 
-pub use scanner::{LibraryError, LibraryScanner, ScanSummary};
+pub use scanner::{find_folder_cover, LibraryError, LibraryScanner, ScanSummary};

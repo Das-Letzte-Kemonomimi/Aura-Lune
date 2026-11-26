@@ -199,7 +199,23 @@ pub fn extract_audio_paths_from_args(args: &[String], cwd: Option<&str>) -> Vec<
 }
 
 pub async fn resolve_queue_item(path: &str, state: &AppState) -> QueueItem {
-    let track_opt = state.db.get_track_by_path(path).await.ok().flatten();
+    let mut track_opt = state
+        .db
+        .find_track_by_path_or_uri(path)
+        .await
+        .ok()
+        .flatten();
+    if track_opt.is_none() {
+        if let Ok(canonical) = Path::new(path).canonicalize() {
+            let canon_str = canonical.to_string_lossy().to_string();
+            track_opt = state
+                .db
+                .find_track_by_path_or_uri(&canon_str)
+                .await
+                .ok()
+                .flatten();
+        }
+    }
 
     if let Some(tr) = track_opt {
         return state.db.queue_item_for_track(&tr).await;

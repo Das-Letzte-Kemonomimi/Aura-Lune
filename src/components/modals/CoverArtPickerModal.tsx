@@ -5,15 +5,14 @@ import { type Language, getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
 import { Badge, Button, Card, EmptyState, ModalHeader, ModalShell, SectionHeader, Spinner, TextField } from '../ui';
 
-export interface CoverCandidate {
-  source: string;
-  title: string;
-  artist: string;
-  thumbnail_url: string;
-  full_url: string;
-  width?: number;
-  height?: number;
-}
+import type { CoverCandidate } from '../../types/library';
+import {
+  isBestCoverCandidate,
+  isLowScoreCoverCandidate,
+  sortCoverCandidates,
+} from './coverCandidateModel';
+
+export type { CoverCandidate };
 
 interface CoverArtPickerModalProps {
   isOpen: boolean;
@@ -65,10 +64,12 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
     setIsSearching(true);
     setErrorMsg(null);
     try {
-      const results = await invoke<CoverCandidate[]>('search_cover_candidates', {
-        album: album.trim(),
-        artist: artist.trim(),
-      });
+      const results = sortCoverCandidates(
+        await invoke<CoverCandidate[]>('search_cover_candidates', {
+          album: album.trim(),
+          artist: artist.trim(),
+        }),
+      );
       setCandidates(results);
       localCoverCache.set(cacheKey, results);
       if (results.length === 0) {
@@ -291,13 +292,18 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
           <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(50),1fr))] gap-4.5">
             {candidates.map((cand, idx) => {
               const isSelected = isApplying === cand.full_url;
+              const isBestMatch = isBestCoverCandidate(cand, idx);
+              const isLowScore = isLowScoreCoverCandidate(cand);
               return (
                 <Card
-                  key={idx}
+                  key={cand.full_url || idx}
                   variant="inset"
                   padding="none"
-                  highlight={isSelected && 'pink'}
-                  className="relative flex flex-col overflow-hidden rounded-2xl shadow-xl shadow-black/40"
+                  highlight={isSelected ? 'pink' : isBestMatch ? 'green' : false}
+                  className={cn(
+                    'relative flex flex-col overflow-hidden rounded-2xl shadow-xl shadow-black/40 transition-opacity',
+                    isLowScore && !isSelected && 'opacity-65 hover:opacity-100',
+                  )}
                 >
                   <div className="relative aspect-square w-full overflow-hidden bg-deep">
                     <img
@@ -306,6 +312,11 @@ export const CoverArtPickerModal: React.FC<CoverArtPickerModalProps> = ({
                       loading="lazy"
                       className="absolute inset-0 size-full object-cover"
                     />
+                    {isBestMatch && (
+                      <Badge tone="green" size="xs" className="absolute top-2 left-2 bg-black/75 backdrop-blur-xs">
+                        {t.covers.bestMatch}
+                      </Badge>
+                    )}
                     <Badge tone="cyan" size="xs" className="absolute top-2 right-2 bg-black/75 backdrop-blur-xs">
                       {cand.width ? `${cand.width}×${cand.height}` : 'HD'}
                     </Badge>

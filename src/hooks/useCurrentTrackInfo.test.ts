@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useCurrentTrackInfo } from './useCurrentTrackInfo';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import { getTranslations } from '../i18n';
@@ -232,6 +232,38 @@ describe('useCurrentTrackInfo', () => {
     result.current.trackWaveformPeaks.forEach((val) => {
       expect(val).toBeGreaterThanOrEqual(16);
       expect(val).toBeLessThanOrEqual(100);
+    });
+  });
+
+  it('clears stale trackDirectCover when switching to a track with no embedded cover', async () => {
+    invokeMock.mockResolvedValue(null);
+    const setTrackDirectCover = vi.fn();
+    renderHook(() =>
+      useCurrentTrackInfo({
+        tracks: [mockTrack2],
+        albums: [],
+        status: {
+          ...baseStatus,
+          current_track: {
+            id: 'item-2',
+            track_id: 2,
+            uri: mockTrack2.path,
+            title: mockTrack2.title,
+            artist: mockTrack2.artist,
+            album: null,
+            duration_ms: mockTrack2.duration_ms,
+          },
+        },
+        filePath: mockTrack2.path,
+        activeTrackId: 2,
+        trackDirectCover: 'data:image/jpeg;base64,OLD_COVER',
+        setTrackDirectCover,
+        loc,
+      })
+    );
+
+    await waitFor(() => {
+      expect(setTrackDirectCover).toHaveBeenCalledWith(null);
     });
   });
 });

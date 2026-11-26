@@ -434,8 +434,11 @@ export function useLibraryManager({
     }
   }, [setActiveTrackId, setFilePath, setStatus]);
 
-  const handleScanPaths = useCallback(async (paths: string[]) => {
-    if (!paths || paths.length === 0) return;
+  const handleScanPaths = useCallback(async (
+    paths: string[],
+    options?: { skipAutoActivate?: boolean },
+  ): Promise<{ tracks: TrackRecord[]; albums: AlbumRecord[] } | null> => {
+    if (!paths || paths.length === 0) return null;
     setIsScanning(true);
     try {
       const summary = await invoke<ScanSummaryDto>('scan_paths', { paths });
@@ -445,7 +448,7 @@ export function useLibraryManager({
       setTracks(updatedTracks);
       setAlbums(updatedAlbums);
 
-      if (updatedTracks.length > 0) {
+      if (updatedTracks.length > 0 && !options?.skipAutoActivate) {
         setStatus((prev) => {
           const isSampleTrack = !prev.current_track?.track_id && (
             prev.current_track?.id === 'default-sample-track-skrzydla-biale' ||
@@ -475,11 +478,20 @@ export function useLibraryManager({
         });
       }
 
-      showMessage(
-        `Added to the library: ${summary.new_or_updated_tracks} indexed (found: ${summary.total_files_found}).`
-      );
+      if (summary.errors > 0) {
+        showMessage(
+          `Added to the library: ${summary.new_or_updated_tracks} indexed (found: ${summary.total_files_found}, failed: ${summary.errors}).`,
+          summary.new_or_updated_tracks === 0,
+        );
+      } else {
+        showMessage(
+          `Added to the library: ${summary.new_or_updated_tracks} indexed (found: ${summary.total_files_found}).`,
+        );
+      }
+      return { tracks: updatedTracks, albums: updatedAlbums };
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${String(e)}`, true);
+      return null;
     } finally {
       setIsScanning(false);
     }

@@ -12,7 +12,7 @@ async fn test_artist_album_and_track_crud() {
     assert!(artist_id > 0);
 
     let album_id = db
-        .upsert_album("Your Name.", "RADWIMPS", Some(2016), None)
+        .upsert_album("Your Name.", "RADWIMPS", Some(2016), None, None)
         .await
         .unwrap();
     assert!(album_id > 0);
@@ -70,7 +70,7 @@ async fn test_track_metadata_update() {
 async fn test_duplicate_tracks_detection_and_path_update() {
     let db = setup_test_db().await;
     let album_id = db
-        .upsert_album("Your Name.", "RADWIMPS", Some(2016), None)
+        .upsert_album("Your Name.", "RADWIMPS", Some(2016), None, None)
         .await
         .unwrap();
 
@@ -135,17 +135,19 @@ async fn test_album_cover_preservation_on_rescan() {
             "In Extremo",
             Some(1999),
             Some("/covers/custom_in_extremo.jpg"),
+            Some("11111111-1111-1111-1111-111111111111"),
         )
         .await
         .unwrap();
 
-    // Simulate rescanning a file with an embedded cover tag (e.g. /tmp/extracted_tag.jpg)
+    // Simulate rescanning a file with an embedded cover tag and a different MBID
     let rescan_id = db
         .upsert_album(
             "Verehrt Und Angespien",
             "In Extremo",
             Some(1999),
             Some("/tmp/extracted_tag.jpg"),
+            Some("22222222-2222-2222-2222-222222222222"),
         )
         .await
         .unwrap();
@@ -159,10 +161,34 @@ async fn test_album_cover_preservation_on_rescan() {
         .find(|a| a.id == album_id)
         .expect("Album must exist");
 
-    // The user's cover MUST stay untouched!
+    // The user's cover and existing MBID MUST stay untouched!
     assert_eq!(
         album_rec.cover_path.as_deref(),
         Some("/covers/custom_in_extremo.jpg")
+    );
+    assert_eq!(
+        album_rec.release_mbid.as_deref(),
+        Some("11111111-1111-1111-1111-111111111111")
+    );
+
+    // An album created without an MBID receives it on a later upsert when empty.
+    let no_mbid_id = db
+        .upsert_album("Kein Blick zurück", "In Extremo", Some(2006), None, None)
+        .await
+        .unwrap();
+    db.upsert_album(
+        "Kein Blick zurück",
+        "In Extremo",
+        Some(2006),
+        None,
+        Some("33333333-3333-3333-3333-333333333333"),
+    )
+    .await
+    .unwrap();
+    let updated = db.get_album_by_id(no_mbid_id).await.unwrap().unwrap();
+    assert_eq!(
+        updated.release_mbid.as_deref(),
+        Some("33333333-3333-3333-3333-333333333333")
     );
 }
 
@@ -239,4 +265,29 @@ async fn test_list_app_settings_returns_all_pairs() {
         all.get("crossfade_duration").map(String::as_str),
         Some("3000")
     );
+}
+
+#[tokio::test]
+async fn test_save_scanned_track_atomic_and_prunes_empty_albums() {
+    let db = setup_test_db().await;
+    let track1 = make_dummy_track("/music/ef/01.flac", "Track 1", "TENMON");
+    let t1_id = db
+        .save_scanned_track(&track1, "ef Soundtrack", "TENMON", Some(2008), None, None)
+        .await
+        .unwrap();
+    assert!(t1_id > 0);
+    assert_eq!(db.list_albums().await.unwrap().len(), 1);
+
+    // Deleting the album's only track prunes the orphaned album.
+    db.delete_track(t1_id).await.unwrap();
+    assert!(db.list_albums().await.unwrap().is_empty());
+
+    // Same for stale track cleanup during directory rescans.
+    let track2 = make_dummy_track("/music/ef/02.flac", "Track 2", "TENMON");
+    db.save_scanned_track(&track2, "ef Soundtrack", "TENMON", Some(2008), None, None)
+        .await
+        .unwrap();
+    let removed = db.delete_stale_tracks("/music/ef", &[]).await.unwrap();
+    assert_eq!(removed, 1);
+    assert!(db.list_albums().await.unwrap().is_empty());
 }

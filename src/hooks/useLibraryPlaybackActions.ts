@@ -35,7 +35,10 @@ export interface UseLibraryPlaybackActionsOptions {
   setLastfmScrobbledTrackId: React.Dispatch<React.SetStateAction<number | null>>;
   setCurrentBookmark: React.Dispatch<React.SetStateAction<number | null>>;
   handleSeek: (posMs: number) => Promise<void>;
-  handleScanPaths: (paths: string[]) => Promise<void>;
+  handleScanPaths: (
+    paths: string[],
+    options?: { skipAutoActivate?: boolean },
+  ) => Promise<{ tracks: TrackRecord[]; albums: AlbumRecord[] } | null | void>;
   filteredTracks: TrackRecord[];
   statsModalTrack: TrackStatsData | null;
   setStatsModalTrack: React.Dispatch<React.SetStateAction<TrackStatsData | null>>;
@@ -82,11 +85,10 @@ export function useLibraryPlaybackActions({
   // Player control: load a file directly
   const handleLoadFile = async (path: string) => {
     try {
+      initialStartupPositionRef.current = null;
       setFilePath(path);
       const matchingTrack = tracks.find((t) => t.path === path || path.endsWith(t.path));
-      if (matchingTrack) {
-        setActiveTrackId(matchingTrack.id);
-      }
+      setActiveTrackId(matchingTrack ? matchingTrack.id : null);
       const matchingAlbum = matchingTrack ? albums.find((a) => a.id === matchingTrack.album_id) : null;
       const appCover = matchingAlbum?.release_mbid
         ? `https://coverartarchive.org/release/${matchingAlbum.release_mbid}/front-500`
@@ -163,15 +165,27 @@ export function useLibraryPlaybackActions({
   // Dropped files or folders (drag & drop)
   const handleDropPaths = async (paths: string[]) => {
     if (!paths || paths.length === 0) return;
+    const singlePath = paths.length === 1 ? paths[0] : null;
+    const isSingleAudio = Boolean(
+      singlePath && /\.(flac|mp3|ogg|wav|m4a|aac|opus|alac|aiff|ape|wma)$/i.test(singlePath),
+    );
     try {
-      await handleScanPaths(paths);
-      if (paths.length === 1) {
-        const p = paths[0];
-        const isAudio = /\.(flac|mp3|ogg|wav|m4a|aac|opus|alac|aiff|ape|wma)$/i.test(p);
-        if (isAudio) {
-          setFilePath(p);
-          await invoke('load_file', { path: p });
-          await invoke('play');
+      const scanned = await handleScanPaths(paths, { skipAutoActivate: isSingleAudio });
+      if (singlePath && isSingleAudio) {
+        initialStartupPositionRef.current = null;
+        const latestTracks = scanned?.tracks ?? tracks;
+        const matchedTrack = latestTracks.find(
+          (t) => t.path === singlePath || singlePath.endsWith(t.path) || t.path.endsWith(singlePath),
+        );
+        const targetPath = matchedTrack?.path ?? singlePath;
+        setActiveTrackId(matchedTrack?.id ?? null);
+        setFilePath(targetPath);
+        await invoke('load_file', { path: targetPath });
+        await invoke('play');
+        await refreshQueue();
+        const nextStatus = await invoke<PlaybackStatus | null>('get_status').catch(() => null);
+        if (nextStatus) {
+          setStatus(nextStatus);
         }
       }
     } catch (e: unknown) {

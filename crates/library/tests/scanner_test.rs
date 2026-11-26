@@ -218,3 +218,218 @@ async fn test_rescan_removes_deleted_files_only_under_scanned_root() {
     let _ = std::fs::remove_dir_all(&lib_b);
     let _ = std::fs::remove_dir_all(&cache);
 }
+
+#[tokio::test]
+async fn test_scanner_reads_musicbrainz_release_id_without_overwriting_existing() {
+    use lofty::config::WriteOptions;
+    use lofty::file::{AudioFile, TaggedFileExt};
+    use lofty::probe::Probe;
+    use lofty::tag::{Accessor, ItemKey, ItemValue, TagItem};
+
+    let dir = temp_dir("mbid");
+    let cache = temp_dir("mbid_cache");
+    let track1 = dir.join("01.opus");
+    let track2 = dir.join("02.opus");
+
+    std::fs::copy(fixture("test_sine_440hz.opus"), &track1).unwrap();
+    let mut tagged1 = Probe::open(&track1).unwrap().read().unwrap();
+    let tag1 = tagged1.primary_tag_mut().unwrap();
+    tag1.set_artist("TENMON".to_string());
+    tag1.set_album("ef - a tale of memories.".to_string());
+    tag1.set_title("euphoric field".to_string());
+    tag1.insert(TagItem::new(
+        ItemKey::MusicBrainzReleaseId,
+        ItemValue::Text("aaaa1111-2222-3333-4444-555566667777".into()),
+    ));
+    tagged1
+        .save_to_path(&track1, WriteOptions::default())
+        .unwrap();
+
+    std::fs::copy(fixture("test_sine_440hz.opus"), &track2).unwrap();
+    let mut tagged2 = Probe::open(&track2).unwrap().read().unwrap();
+    let tag2 = tagged2.primary_tag_mut().unwrap();
+    tag2.set_artist("TENMON".to_string());
+    tag2.set_album("ef - a tale of memories.".to_string());
+    tag2.set_title("second track".to_string());
+    tag2.insert(TagItem::new(
+        ItemKey::MusicBrainzReleaseId,
+        ItemValue::Text("bbbb1111-2222-3333-4444-555566667777".into()),
+    ));
+    tagged2
+        .save_to_path(&track2, WriteOptions::default())
+        .unwrap();
+
+    let db = Database::new_in_memory().await.unwrap();
+    LibraryScanner::new(&cache)
+        .scan_directory(&dir, &db)
+        .await
+        .unwrap();
+
+    let albums = db.list_albums().await.unwrap();
+    assert_eq!(albums.len(), 1);
+    let mbid = albums[0]
+        .release_mbid
+        .as_deref()
+        .expect("scanner should save MusicBrainzReleaseId onto the album");
+    assert!(
+        mbid == "aaaa1111-2222-3333-4444-555566667777"
+            || mbid == "bbbb1111-2222-3333-4444-555566667777"
+    );
+
+    // Manually set MBID (e.g. via MusicBrainz release match) must not be overwritten on rescan.
+    db.update_album_cover(albums[0].id, "/covers/manual.jpg", Some("manual-mbid-9999"))
+        .await
+        .unwrap();
+    let track3 = dir.join("03.opus");
+    std::fs::copy(&track1, &track3).unwrap();
+    LibraryScanner::new(&cache)
+        .scan_directory(&dir, &db)
+        .await
+        .unwrap();
+    let refreshed = db.get_album_by_id(albums[0].id).await.unwrap().unwrap();
+    assert_eq!(refreshed.release_mbid.as_deref(), Some("manual-mbid-9999"));
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&cache);
+}
+
+#[tokio::test]
+async fn test_scan_paths_reindexes_individual_file_even_when_size_and_mtime_unchanged() {
+    use lofty::config::WriteOptions;
+    use lofty::file::{AudioFile, TaggedFileExt};
+    use lofty::probe::Probe;
+    use lofty::tag::Accessor;
+
+    let dir = temp_dir("rescan_file");
+    let cache = temp_dir("rescan_file_cache");
+    let file_path = dir.join("song.opus");
+    tagged_copy(&file_path, "Old Artist", "Old Album", None);
+
+    let db = Database::new_in_memory().await.unwrap();
+    let scanner = LibraryScanner::new(&cache);
+    scanner.scan_paths(&[&file_path], &db).await.unwrap();
+
+    // Update the file's tags and restore its original mtime to simulate a same-second edit.
+    let before_meta = std::fs::metadata(&file_path).unwrap();
+    let mut tagged = Probe::open(&file_path).unwrap().read().unwrap();
+    let tag = tagged.primary_tag_mut().unwrap();
+    tag.set_artist("TENMON & Eiichiro Yanagi".to_string());
+    tag.set_album("ef - a tale of memories.".to_string());
+    tag.set_title("Sorrowful feather C2Rmix".to_string());
+    tagged
+        .save_to_path(&file_path, WriteOptions::default())
+        .unwrap();
+    let updated_meta = std::fs::metadata(&file_path).unwrap();
+    let canonical = file_path.canonicalize().unwrap().display().to_string();
+    // Force stored stamp to match post-edit size and mtime so only unconditional file rescan updates it.
+    let mut existing = db.get_track_by_path(&canonical).await.unwrap().unwrap();
+    existing.file_size = updated_meta.len() as i64;
+    existing.modified_time = before_meta
+        .modified()
+        .unwrap()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let _ = db.upsert_track(&existing).await.unwrap();
+
+    let summary = scanner.scan_paths(&[&file_path], &db).await.unwrap();
+    assert_eq!(summary.new_or_updated_tracks, 1);
+
+    let updated = db.get_track_by_path(&canonical).await.unwrap().unwrap();
+    assert_eq!(updated.title, "Sorrowful feather C2Rmix");
+    assert_eq!(updated.artist, "TENMON & Eiichiro Yanagi");
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&cache);
+}
+
+#[tokio::test]
+async fn test_scanner_detects_case_insensitive_and_root_folder_covers() {
+    let collection_root = temp_dir("ef_covers");
+    let album_upper_ext = collection_root.join("Alato Disc 1");
+    let album_root_fallback = collection_root.join("Adagio Single");
+    let disc_nested = collection_root.join("MultiDisc").join("Disc 1");
+    let cache = temp_dir("ef_covers_cache");
+    std::fs::create_dir_all(&album_upper_ext).unwrap();
+    std::fs::create_dir_all(&album_root_fallback).unwrap();
+    std::fs::create_dir_all(&disc_nested).unwrap();
+
+    // Root fallback cover + uppercase extension in album folder.
+    let root_cover = collection_root.join("cover.png");
+    let upper_cover = album_upper_ext.join("cover.JPG");
+    std::fs::write(&root_cover, b"png-root-bytes").unwrap();
+    std::fs::write(&upper_cover, b"jpg-upper-bytes").unwrap();
+
+    tagged_copy(&album_upper_ext.join("01.opus"), "TENMON", "Alato", None);
+    tagged_copy(
+        &album_root_fallback.join("01.opus"),
+        "Miyako",
+        "Adagio",
+        None,
+    );
+    tagged_copy(&disc_nested.join("01.opus"), "ELISA", "MultiDisc", None);
+
+    let db = Database::new_in_memory().await.unwrap();
+    let scanner = LibraryScanner::new(&cache);
+    let summary = scanner.scan_directory(&collection_root, &db).await.unwrap();
+    assert_eq!(summary.new_or_updated_tracks, 3);
+    assert_eq!(summary.errors, 0);
+
+    let albums = db.list_albums().await.unwrap();
+    let alato = albums.iter().find(|a| a.title == "Alato").unwrap();
+    assert_eq!(
+        alato.cover_path.as_deref(),
+        Some(upper_cover.to_string_lossy().as_ref())
+    );
+    let adagio = albums.iter().find(|a| a.title == "Adagio").unwrap();
+    assert_eq!(
+        adagio.cover_path.as_deref(),
+        Some(root_cover.to_string_lossy().as_ref())
+    );
+    let multidisc = albums.iter().find(|a| a.title == "MultiDisc").unwrap();
+    assert_eq!(
+        multidisc.cover_path.as_deref(),
+        Some(root_cover.to_string_lossy().as_ref())
+    );
+
+    // Removing empty-track state isn't triggered; every album has its track.
+    assert_eq!(albums.len(), 3);
+
+    // Direct lookup helper also resolves parent root for single-file lookups.
+    assert_eq!(
+        library::find_folder_cover(&album_root_fallback, None),
+        Some(root_cover.clone())
+    );
+
+    let _ = std::fs::remove_dir_all(&collection_root);
+    let _ = std::fs::remove_dir_all(&cache);
+}
+
+#[tokio::test]
+async fn test_rescan_recovers_missing_album_cover_when_root_cover_added() {
+    let root = temp_dir("recover_cover");
+    let sub = root.join("AlbumA");
+    let cache = temp_dir("recover_cover_cache");
+    std::fs::create_dir_all(&sub).unwrap();
+    tagged_copy(&sub.join("01.opus"), "Artist A", "Album A", None);
+
+    let db = Database::new_in_memory().await.unwrap();
+    let scanner = LibraryScanner::new(&cache);
+    scanner.scan_directory(&root, &db).await.unwrap();
+    assert_eq!(db.list_albums().await.unwrap()[0].cover_path, None);
+
+    // Drop a cover.png into the root later without modifying the audio file.
+    let root_cover = root.join("cover.png");
+    std::fs::write(&root_cover, b"later-root-cover").unwrap();
+    let summary = scanner.scan_directory(&root, &db).await.unwrap();
+    assert_eq!(summary.skipped_unchanged, 1);
+
+    let albums = db.list_albums().await.unwrap();
+    assert_eq!(
+        albums[0].cover_path.as_deref(),
+        Some(root_cover.to_string_lossy().as_ref())
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(&cache);
+}

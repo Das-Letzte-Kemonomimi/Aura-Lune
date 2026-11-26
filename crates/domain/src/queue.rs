@@ -70,8 +70,13 @@ impl PlaybackQueue {
             i.uri == item.uri
                 || (i.track_id.is_some() && item.track_id.is_some() && i.track_id == item.track_id)
         }) {
-            // The queue entry stays untouched (its `id` identifies it in the UI), and the shuffle
-            // cursor must point at the same track, otherwise the next track skips past the current one.
+            // Keep the UI entry's `id` stable, refresh its metadata from the new item, and
+            // align the shuffle cursor so the next track does not skip past this one.
+            let existing_id = self.items[pos].id.clone();
+            self.items[pos] = QueueItem {
+                id: existing_id,
+                ..item
+            };
             self.current_index = Some(pos);
             if let Some(cursor) = self.shuffle_order.iter().position(|&i| i == pos) {
                 self.shuffle_cursor = cursor;

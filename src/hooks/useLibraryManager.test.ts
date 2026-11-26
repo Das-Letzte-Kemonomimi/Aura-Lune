@@ -303,5 +303,91 @@ describe('useLibraryManager hook', () => {
     expect(result.current.sortedTracks[0].title).toBe('Alpha');
     expect(result.current.sortedTracks[1].title).toBe('Beta');
   });
+
+  it('handleScanPaths returns updated tracks and respects skipAutoActivate', async () => {
+    const mockTracks: TrackRecord[] = [
+      {
+        id: 1,
+        title: 'Alphabetically First',
+        artist: 'Artist A',
+        album_artist: 'Artist A',
+        album_id: 10,
+        disc_no: 1,
+        track_no: 1,
+        path: '/music/first.flac',
+        duration_ms: 180000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 1000000,
+        modified_time: 1000,
+      },
+    ];
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'scan_paths') {
+        return { total_files_found: 1, new_or_updated_tracks: 1, skipped_unchanged: 0, errors: 0 };
+      }
+      if (cmd === 'get_library_tracks') return mockTracks;
+      if (cmd === 'get_library_albums') return [];
+      return null;
+    });
+
+    const sampleStatus: PlaybackStatus = {
+      ...mockStatus,
+      current_track: {
+        id: 'default-sample-track-skrzydla-biale',
+        track_id: null,
+        uri: '/sample.flac',
+        title: 'Skrzydła Białe',
+        artist: 'Das Letzte Kemonomimi',
+        album: 'Skrzydła Białe',
+        duration_ms: 56820,
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useLibraryManager({
+        ...defaultProps,
+        status: sampleStatus,
+      }),
+    );
+
+    let scanned: Awaited<ReturnType<typeof result.current.handleScanPaths>> = null;
+    await act(async () => {
+      scanned = await result.current.handleScanPaths(['/music/first.flac'], { skipAutoActivate: true });
+    });
+
+    expect(scanned).toEqual({ tracks: mockTracks, albums: [] });
+    expect(mockInvoke).not.toHaveBeenCalledWith('set_active_track', expect.anything());
+  });
+
+  it('handleScanPaths surfaces indexing errors in toast when errors > 0', async () => {
+    const showMessage = vi.fn();
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'scan_paths') {
+        return { total_files_found: 10, new_or_updated_tracks: 0, skipped_unchanged: 0, errors: 10 };
+      }
+      if (cmd === 'get_library_tracks') return [];
+      if (cmd === 'get_library_albums') return [];
+      return null;
+    });
+
+    const { result } = renderHook(() =>
+      useLibraryManager({
+        ...defaultProps,
+        showMessage,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleScanPaths(['/music/ef']);
+    });
+
+    expect(showMessage).toHaveBeenCalledWith(
+      'Added to the library: 0 indexed (found: 10, failed: 10).',
+      true,
+    );
+  });
 });
 

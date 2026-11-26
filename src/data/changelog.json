@@ -183,6 +183,13 @@
         "de": "Neu gestaltete Titelliste: Albumcover, Albumname, Jahr, Hinzugefügt-Datum und Klangqualität auf einen Blick, 100 Titel pro Seite (25 bis 500 wählbar), aufgeräumte Filter ohne Emojis und seltene Aktionen in einem Menü.",
         "fi": "Uudistettu kappalelista: albumikannet, albumin nimi, vuosi, lisäyspäivä ja äänenlaatu yhdellä silmäyksellä, 100 kappaletta sivulla (valittavissa 25–500), siistityt suodattimet ilman emojeita ja harvemmin käytetyt toiminnot valikossa.",
         "la": "Index carminum renovatus: tegumenta alborum, nomen albi, annus, dies additus et qualitas soni uno obtutu, centum carmina per paginam (25 ad 500), colatoria sine emoji et facta rariora in indice."
+      },
+      {
+        "en": "More reliable cover art matching in Match Cover, auto-fetch, and Discord: searches now step gracefully from full artist and title to primary artist and shortened album names, recognize release tags and soundtracks on MusicBrainz, highlight the best match at the top, and avoid showing a mismatched cover.",
+        "pl": "Skuteczniejsze dopasowywanie okładek w oknie Dopasuj okładkę, auto-pobieraniu i na Discordzie: wyszukiwarka stopniowo luzuje wykonawcę i tytuł albumu, czyta identyfikatory wydań z tagów oraz wyszukuje soundtracki w MusicBrainz, wyróżnia najlepsze trafienie na górze listy i nie podstawia błędnych okładek.",
+        "de": "Zuverlässigere Coversuche in Cover abgleichen, beim automatischen Laden und in Discord: Die Suche lockert Künstler und Albumtitel schrittweise, liest Release-IDs aus Tags, durchsucht MusicBrainz nach Soundtracks, hebt den besten Treffer oben hervor und verhindert falsche Cover.",
+        "fi": "Luotettavampi kansikuvahaku Sovita kansikuva -ikkunassa, automaattihaussa ja Discordissa: haku väljentää esittäjää ja albumin nimeä asteittain, lukee julkaisutunnisteet tageista, hakee soundtrackeja MusicBrainzista, korostaa parhaan osuman ylimpänä ja välttää väärät kansikuvat.",
+        "la": "Melior accommodatio tegumentorum in fenestra eligendi, inquisitione spontanea et Discord: quaestio artificem et titulum gradatim laxat, notas editionum e fasciculis legit, MusicBrainz pro soundtrackis scrutatur, optimum eventum in summo signat et tegumenta falsa vitat."
       }
     ],
     "fixed": [

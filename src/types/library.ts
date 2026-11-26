@@ -61,3 +61,14 @@ export interface ReleaseCandidateDto {
   track_count: number | null;
   score: number;
 }
+
+export interface CoverCandidate {
+  source: string;
+  title: string;
+  artist: string;
+  thumbnail_url: string;
+  full_url: string;
+  width?: number;
+  height?: number;
+  match_score: number;
+}

@@ -152,9 +152,13 @@ fn set_active_item_keeps_queue_entry_and_shuffle_position() {
     let playing = q.current_item().unwrap().clone();
     let mut announced = playing.clone();
     announced.id = "stem-project-9".into();
+    announced.title = "Updated Song 1".into();
+    announced.artist = "Updated Artist".into();
     q.set_active_item(announced);
 
     assert_eq!(q.current_item().unwrap().id, playing.id);
+    assert_eq!(q.current_item().unwrap().title, "Updated Song 1");
+    assert_eq!(q.current_item().unwrap().artist, "Updated Artist");
     assert_eq!(q.shuffle_order[q.shuffle_cursor], q.current_index.unwrap());
 
     // Next must advance to the following shuffled track, not skip or restart.

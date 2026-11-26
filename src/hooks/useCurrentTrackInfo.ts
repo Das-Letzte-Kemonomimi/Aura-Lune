@@ -188,11 +188,15 @@ export function useCurrentTrackInfo({
     if (activePath && !currentAlbum?.cover_path) {
       invoke<string | null>('get_track_cover', { trackPath: activePath })
         .then((cov) => {
-          if (!isCancelled && cov) {
-            setTrackDirectCover(cov);
+          if (!isCancelled) {
+            setTrackDirectCover(cov ?? null);
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!isCancelled) {
+            setTrackDirectCover(null);
+          }
+        });
     } else {
       setTrackDirectCover(null);
     }

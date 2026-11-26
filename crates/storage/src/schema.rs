@@ -263,6 +263,9 @@ impl Database {
         if user_version < 4 {
             self.migrate_v4().await?;
         }
+        if user_version < 5 {
+            self.migrate_v5().await?;
+        }
 
         // Seed the default anime themes (make sure every theme exists)
         for theme in domain::default_themes() {
@@ -414,26 +417,54 @@ impl Database {
         Ok(())
     }
 
-    /// Migration v4: `tracks.added_at` (unix seconds when the track first entered the library).
-    ///
-    /// Existing rows are backfilled from the file modification time, the best available proxy.
-    async fn migrate_v4(&self) -> Result<(), StorageError> {
-        let mut tx = self.pool.begin().await?;
+    /// Ensures `tracks.added_at` exists, backfills rows at 0 from `modified_time`, and creates its index.
+    async fn ensure_tracks_added_at(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    ) -> Result<(), StorageError> {
         let has_column: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM pragma_table_info('tracks') WHERE name = 'added_at';",
         )
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
         if has_column == 0 {
             sqlx::query("ALTER TABLE tracks ADD COLUMN added_at INTEGER NOT NULL DEFAULT 0;")
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await?;
         }
         sqlx::query(
             r#"
             UPDATE tracks SET added_at = modified_time WHERE added_at = 0;
             CREATE INDEX IF NOT EXISTS idx_tracks_added_at ON tracks(added_at);
-            PRAGMA user_version = 4;
+            "#,
+        )
+        .execute(&mut **tx)
+        .await?;
+        Ok(())
+    }
+
+    /// Migration v4: `tracks.added_at` (unix seconds when the track first entered the library).
+    ///
+    /// Existing rows are backfilled from the file modification time, the best available proxy.
+    async fn migrate_v4(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        Self::ensure_tracks_added_at(&mut tx).await?;
+        sqlx::query("PRAGMA user_version = 4;")
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Migration v5: repairs databases stamped at `user_version = 4` before `tracks.added_at`
+    /// existed and prunes orphaned empty albums left behind by failed or deleted track writes.
+    async fn migrate_v5(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        Self::ensure_tracks_added_at(&mut tx).await?;
+        sqlx::query(
+            r#"
+            DELETE FROM albums
+            WHERE NOT EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = albums.id);
+            PRAGMA user_version = 5;
             "#,
         )
         .execute(&mut *tx)

@@ -64,7 +64,7 @@ pub async fn search_cover_candidates_internal(
     );
     state
         .cover_archive
-        .search_cover_candidates(album, artist)
+        .search_cover_candidates_with(album, artist, Some(&state.mb))
         .await
 }
 
@@ -136,7 +136,7 @@ pub async fn apply_cover_url_internal(
         album_id
     } else if let Some(title) = &album_title {
         let art = artist.as_deref().unwrap_or("Unknown");
-        state.db.upsert_album(title, art, None, None).await?
+        state.db.upsert_album(title, art, None, None, None).await?
     } else {
         return Err(CommandError::validation("Invalid album ID"));
     };
@@ -209,7 +209,7 @@ pub async fn apply_custom_cover_file_internal(
         album_id
     } else if let Some(title) = &album_title {
         let art = artist.as_deref().unwrap_or("Unknown");
-        state.db.upsert_album(title, art, None, None).await?
+        state.db.upsert_album(title, art, None, None, None).await?
     } else {
         return Err(CommandError::validation("Invalid album ID"));
     };
@@ -524,30 +524,56 @@ pub async fn auto_fetch_album_cover(
         "Tauri command: auto_fetch_album_cover('{}', '{}')",
         album_title, artist
     );
-    let candidates = state.mb.search_releases(&album_title, &artist).await?;
-    if candidates.is_empty() {
-        return Ok(None);
-    }
+    // MusicBrainz first: an exact release with art in the Cover Art Archive.
+    match state.mb.search_releases(&album_title, &artist).await {
+        Ok(candidates) => {
+            let best = candidates.first().filter(|best| {
+                best.score >= 85
+                    && metadata::cover_query::match_score(
+                        &album_title,
+                        &artist,
+                        &best.title,
+                        &best.artist,
+                    ) >= metadata::AUTO_ACCEPT_SCORE
+            });
+            if let Some(best) = best {
+                match state.cover_archive.fetch_and_cache_cover(&best.mbid).await {
+                    Ok(path) => {
+                        let path_str = path.to_string_lossy().to_string();
+                        state
+                            .db
+                            .update_album_cover(album_id, &path_str, Some(&best.mbid))
+                            .await?;
 
-    let best = &candidates[0];
-    if best.score >= 85 {
-        match state.cover_archive.fetch_and_cache_cover(&best.mbid).await {
-            Ok(path) => {
-                let path_str = path.to_string_lossy().to_string();
-                state
-                    .db
-                    .update_album_cover(album_id, &path_str, Some(&best.mbid))
-                    .await?;
-
-                return Ok(Some(cover_file_data_uri(&path).await?));
-            }
-            Err(e) => {
-                tracing::warn!("Failed to fetch the cover for MBID {}: {}", best.mbid, e);
+                        return Ok(Some(cover_file_data_uri(&path).await?));
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to fetch the cover for MBID {}: {}", best.mbid, e);
+                    }
+                }
             }
         }
+        Err(e) => tracing::warn!("MusicBrainz search failed, trying other sources: {e}"),
     }
 
-    Ok(None)
+    // Deezer / Apple Music, accepted only when the album and artist really match.
+    let Some(found) = state
+        .cover_archive
+        .find_best_cover(&album_title, &artist, None, Some(&state.mb))
+        .await
+    else {
+        return Ok(None);
+    };
+    let data_uri = apply_cover_url_internal(
+        &state,
+        album_id,
+        &found.full_url,
+        Some(album_title),
+        Some(artist),
+        None,
+    )
+    .await?;
+    Ok(Some(data_uri))
 }
 
 #[tauri::command]
@@ -638,7 +664,7 @@ pub async fn apply_custom_cover_data(
         album_id
     } else if let Some(title) = &album_title {
         let art = artist.as_deref().unwrap_or("Unknown");
-        state.db.upsert_album(title, art, None, None).await?
+        state.db.upsert_album(title, art, None, None, None).await?
     } else {
         return Err(CommandError::validation("Invalid album ID"));
     };
@@ -736,22 +762,9 @@ pub async fn get_track_cover(track_path: String) -> Result<Option<String>, Comma
         }
 
         if let Some(parent) = path.parent() {
-            for cand in &[
-                "cover.jpg",
-                "cover.png",
-                "folder.jpg",
-                "folder.png",
-                "front.jpg",
-                "front.png",
-                "Cover.jpg",
-                "Folder.jpg",
-            ] {
-                let cand_path = parent.join(cand);
-                if cand_path.is_file() {
-                    if let Some(data_uri) = resolve_cover_to_data_uri(&cand_path.to_string_lossy())
-                    {
-                        return Ok(Some(data_uri));
-                    }
+            if let Some(cand_path) = library::find_folder_cover(parent, None) {
+                if let Some(data_uri) = resolve_cover_to_data_uri(&cand_path.to_string_lossy()) {
+                    return Ok(Some(data_uri));
                 }
             }
         }

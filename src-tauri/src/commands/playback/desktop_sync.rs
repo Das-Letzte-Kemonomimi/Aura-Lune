@@ -183,6 +183,7 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
                 },
                 !keys.is_generic_album,
                 keys.cache_key,
+                item.track_id,
             );
         }
     }
@@ -262,6 +263,13 @@ pub fn update_mpris_metadata(
         };
         discord.update_playback_status(effective_state, pos, dur);
 
+        let current_track_id = state
+            .engine
+            .queue()
+            .current_item()
+            .filter(|i| i.title.trim() == keys.effective_title.trim())
+            .and_then(|i| i.track_id);
+
         if effective_discord_art.is_none()
             && (!keys.effective_artist.trim().is_empty()
                 || !album.trim().is_empty()
@@ -279,6 +287,7 @@ pub fn update_mpris_metadata(
                 },
                 !keys.is_generic_album,
                 keys.cache_key,
+                current_track_id,
             );
         }
     }
@@ -286,42 +295,133 @@ pub fn update_mpris_metadata(
     Ok(())
 }
 
-/// Searches for a cover online in the background (by album first when `search_album`, then by title),
-/// stores the URL in the Discord cover cache and updates Rich Presence.
+/// How long a failed cover lookup is not repeated (the same album on every track change).
+const COVER_MISS_TTL: std::time::Duration = std::time::Duration::from_secs(600);
+
+fn cover_misses() -> &'static std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>
+{
+    static MISSES: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>,
+    > = std::sync::OnceLock::new();
+    MISSES.get_or_init(Default::default)
+}
+
+fn cover_recently_missed(cache_key: &str) -> bool {
+    let Ok(mut misses) = cover_misses().lock() else {
+        return false;
+    };
+    match misses.get(cache_key) {
+        Some(at) if at.elapsed() < COVER_MISS_TTL => true,
+        Some(_) => {
+            misses.remove(cache_key);
+            false
+        }
+        None => false,
+    }
+}
+
+fn remember_cover_miss(cache_key: String) {
+    if let Ok(mut misses) = cover_misses().lock() {
+        misses.insert(cache_key, std::time::Instant::now());
+    }
+}
+
+/// What to search for, taken from the library when the track is in it: the album title and
+/// album artist from the database are cleaner than the queue item's track artist, and a
+/// MusicBrainz release id from the file tags identifies the cover exactly.
+struct CoverLookup {
+    album: String,
+    artist: String,
+    release_mbid: Option<String>,
+}
+
+async fn resolve_cover_lookup(
+    db: &storage::Database,
+    track: &desktop_integration::DiscordTrackInfo,
+    search_album: bool,
+    track_id: Option<i64>,
+) -> CoverLookup {
+    let mut lookup = CoverLookup {
+        album: if search_album {
+            track.album.clone()
+        } else {
+            String::new()
+        },
+        artist: track.artist.clone(),
+        release_mbid: None,
+    };
+    if !search_album {
+        return lookup;
+    }
+    let Some(track_id) = track_id else {
+        return lookup;
+    };
+    let album_id = match db.get_track_by_id(track_id).await {
+        Ok(Some(record)) => record.album_id,
+        _ => None,
+    };
+    let Some(album_id) = album_id else {
+        return lookup;
+    };
+    let Ok(Some(album)) = db.get_album_by_id(album_id).await else {
+        return lookup;
+    };
+    if !metadata::cover_query::is_unknown_album(&album.title) {
+        lookup.album = album.title;
+    }
+    if !metadata::cover_query::is_neutral_artist(&album.album_artist) {
+        lookup.artist = album.album_artist;
+    }
+    lookup.release_mbid = album.release_mbid.filter(|m| !m.trim().is_empty());
+    lookup
+}
+
+/// Searches for a cover online in the background and updates Rich Presence.
+///
+/// Order: the release id stored for the album (exact), then an album + artist search that
+/// only accepts a real match, then an exact artist + title song lookup. When nothing matches
+/// the default logo stays, which beats showing the wrong album.
 pub(super) fn spawn_discord_cover_search(
     state: &AppState,
     discord: &std::sync::Arc<desktop_integration::DiscordRpcController>,
     track: desktop_integration::DiscordTrackInfo,
     search_album: bool,
     cache_key: String,
+    track_id: Option<i64>,
 ) {
+    if cover_recently_missed(&cache_key) {
+        return;
+    }
     let discord = discord.clone();
     let cover_archive = state.cover_archive.clone();
+    let mb = state.mb.clone();
+    let db = state.db.clone();
     let cache = state.discord_cover_cache.clone();
     state.rt.spawn(async move {
-        let mut candidates = if search_album {
-            cover_archive
-                .search_cover_candidates(&track.album, &track.artist)
+        let lookup = resolve_cover_lookup(&db, &track, search_album, track_id).await;
+
+        let mut found = match &lookup.release_mbid {
+            Some(mbid) => cover_archive.release_front_url(mbid).await,
+            None => None,
+        };
+        if found.is_none() {
+            found = cover_archive
+                .find_best_cover(&lookup.album, &lookup.artist, Some(&track.title), Some(&mb))
                 .await
-        } else {
-            Vec::new()
-        };
-        if candidates.is_empty() && !track.title.trim().is_empty() {
-            candidates = cover_archive
-                .search_cover_candidates(&track.title, &track.artist)
-                .await;
+                .map(|c| {
+                    if c.thumbnail_url.is_empty() {
+                        c.full_url
+                    } else {
+                        c.thumbnail_url
+                    }
+                });
         }
-        let Some(first) = candidates.first() else {
+
+        let best_url = found.filter(|u| u.starts_with("http://") || u.starts_with("https://"));
+        let Some(best_url) = best_url else {
+            remember_cover_miss(cache_key);
             return;
         };
-        let best_url = if first.thumbnail_url.is_empty() {
-            first.full_url.clone()
-        } else {
-            first.thumbnail_url.clone()
-        };
-        if !(best_url.starts_with("http://") || best_url.starts_with("https://")) {
-            return;
-        }
         if let Ok(mut c) = cache.write() {
             c.insert(cache_key, best_url.clone());
         }

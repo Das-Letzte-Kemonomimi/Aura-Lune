@@ -43,7 +43,7 @@ async fn test_fresh_database_reaches_latest_schema_version() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 4);
+    assert_eq!(version, 5);
 }
 
 /// A version 1 database (bookmarks without CASCADE, `album_artist` holding the album title)
@@ -69,7 +69,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .unwrap();
 
         let album_id = db
-            .upsert_album("Kimi no Na wa", "RADWIMPS", Some(2016), None)
+            .upsert_album("Kimi no Na wa", "RADWIMPS", Some(2016), None, None)
             .await
             .unwrap();
         let mut legacy = make_dummy_track("/music/legacy.flac", "Zenzenzense", "RADWIMPS");
@@ -92,7 +92,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 4);
+    assert_eq!(version, 5);
 
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
@@ -261,7 +261,7 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 4);
+    assert_eq!(version, 5);
 
     let indexes: Vec<String> =
         sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
@@ -352,4 +352,54 @@ async fn test_upsert_sets_added_at_once_and_keeps_it_on_rescan() {
     let after = db.get_track_by_id(id).await.unwrap().unwrap();
     assert_eq!(after.added_at, Some(12345));
     assert_eq!(after.title, "New (remaster)");
+}
+
+/// Databases stamped at `user_version = 4` before `tracks.added_at` existed are repaired
+/// in migration v5, and orphaned albums without tracks are pruned.
+#[tokio::test]
+async fn test_upgrade_from_broken_v4_repairs_added_at_and_prunes_empty_albums() {
+    let path = temp_db_path("broken_v4");
+    {
+        let db = Database::open(&path).await.unwrap();
+        let populated_album = db
+            .upsert_album("With Track", "Artist A", Some(2020), None, None)
+            .await
+            .unwrap();
+        let mut t = make_dummy_track("/music/keep.flac", "Keep", "Artist A");
+        t.album_id = Some(populated_album);
+        db.upsert_track(&t).await.unwrap();
+        db.upsert_album("Orphaned Album", "Artist B", Some(2008), None, None)
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "DROP INDEX IF EXISTS idx_tracks_added_at;
+             ALTER TABLE tracks DROP COLUMN added_at;
+             PRAGMA user_version = 4;",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+    }
+
+    let db = Database::open(&path).await.unwrap();
+    let version: i32 = sqlx::query_scalar("PRAGMA user_version;")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(version, 5);
+
+    let added_at: i64 = sqlx::query_scalar("SELECT added_at FROM tracks WHERE path = ?1;")
+        .bind("/music/keep.flac")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(added_at, 1_700_000_000);
+
+    let albums = db.list_albums().await.unwrap();
+    assert_eq!(albums.len(), 1);
+    assert_eq!(albums[0].title, "With Track");
+
+    drop(db);
+    remove_db(&path);
 }

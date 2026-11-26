@@ -175,6 +175,7 @@ fn handle_stream_tag(
                 },
                 false,
                 cache_key,
+                None,
             );
         }
     }
