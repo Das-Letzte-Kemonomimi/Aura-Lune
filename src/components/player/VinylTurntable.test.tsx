@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 const platter = (container: HTMLElement) =>
-  container.querySelector('div[style*="will-change: transform"]') as HTMLDivElement | null;
+  container.querySelector('[data-testid="vinyl-platter"]') as HTMLDivElement | null;
 
 describe('VinylTurntable', () => {
   it('spins the platter while playing', () => {

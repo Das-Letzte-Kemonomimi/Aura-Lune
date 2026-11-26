@@ -36,7 +36,7 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-accent-gradient flex size-25 items-center justify-center rounded-full shadow-halo-2xl shadow-accent-pink/60 motion-safe:animate-bounce-drop"
+        className="flex size-25 items-center justify-center rounded-full bg-accent-gradient shadow-halo-2xl shadow-accent-pink/60 motion-safe:animate-bounce-drop"
       >
         <UploadCloud size={52} className="text-on-accent" />
       </div>

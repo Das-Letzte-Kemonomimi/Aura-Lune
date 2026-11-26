@@ -86,6 +86,8 @@
   --shadow-drawer: -0.5rem 0 2rem rgb(0 0 0 / 0.6);
   /* Upward shadow of the bottom dock. */
   --shadow-dock: 0 -0.5rem 2rem rgb(0 0 0 / 0.65);
+  /* Recessed well behind visualizers. */
+  --inset-shadow-well: inset 0 0.125rem 0.625rem rgb(0 0 0 / 0.5);
   /* Raised call-to-action shadow, also tintable: `shadow-lift shadow-accent-pink/35`. */
   --shadow-lift: 0 0.25rem 0.875rem rgb(0 0 0 / 0.4);
 

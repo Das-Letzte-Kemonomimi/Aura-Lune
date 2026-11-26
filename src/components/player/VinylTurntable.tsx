@@ -5,6 +5,7 @@ import { getTranslations, type Language } from '../../i18n';
 import { useInertialSpin } from '../../hooks/useInertialSpin';
 import { playbackSpeed } from '../../utils/playbackSpeed';
 import { tauFromFrameLerp } from '../../utils/smoothing';
+import { cn } from '../../utils/cn';
 
 // Dawna bezwładność talerza: 0.08 (rozpędzanie) / 0.04 (hamowanie) na klatkę 60 Hz => ~0.2 s / ~0.41 s
 const PLATTER_TAU_UP = tauFromFrameLerp(0.08);
@@ -146,88 +147,57 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
       <div
         onClick={onTogglePlayPause}
         title={`${isPlaying ? t.player.pause : t.player.play} • ${displayArtist} - ${displayTitle}`}
+        className="relative flex cursor-pointer items-center justify-center rounded-full"
         style={{
           width: `${size - 56}px`,
           height: `${size - 56}px`,
-          borderRadius: '50%',
-          position: 'relative',
-          cursor: 'pointer',
           background: 'radial-gradient(circle, #080a10 25%, #151922 45%, #05070a 75%, #020306 100%)',
           border: '4px solid #232a3b',
           boxShadow: '0 0 16px rgba(0,0,0,0.9), inset 0 0 12px rgba(0,0,0,0.95)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
       >
         {/* Obracająca się warstwa winylu (Grooves + Dynamic Highlights + Center Label) */}
         <div
           ref={platterRef}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            willChange: 'transform',
-          }}
+          data-testid="vinyl-platter"
+          className="absolute inset-0 flex items-center justify-center rounded-full will-change-transform"
         >
           {/* Rowki płyty winylowej z teksturą mikrorowków */}
           <div
+            className="pointer-events-none absolute inset-1.5 rounded-full"
             style={{
-              position: 'absolute',
-              inset: '6px',
-              borderRadius: '50%',
               background:
                 'repeating-radial-gradient(circle, transparent 0, transparent 2px, rgba(255, 255, 255, 0.035) 3px, transparent 4px)',
-              pointerEvents: 'none',
             }}
           />
 
           {/* Optyczny refleks światła na rowkach winylu (krzyż optyczny) */}
           <div
+            className="pointer-events-none absolute inset-0 rounded-full"
             style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: '50%',
               background:
                 'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.08) 45deg, transparent 90deg, transparent 180deg, rgba(255,255,255,0.08) 225deg, transparent 270deg)',
-              pointerEvents: 'none',
             }}
           />
 
           {/* Centralna etykieta płyty (Spindle Label) z okładką albumu */}
           <div
+            className="relative flex items-center justify-center overflow-hidden rounded-full shadow-halo-sm shadow-black/80"
             style={{
               width: `${Math.round((size - 56) * 0.44)}px`,
               height: `${Math.round((size - 56) * 0.44)}px`,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              position: 'relative',
               border: '3px solid #1a1727',
-              boxShadow: '0 0 8px rgba(0,0,0,0.8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               background: coverUrl
                 ? `url("${coverUrl}") center/cover no-repeat`
                 : 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
             }}
           >
-            {!coverUrl && <Disc size={28} color="#fff" />}
+            {!coverUrl && <Disc size={28} className="text-fg" />}
 
             {/* Centralny trzpień (Spindle hole) */}
             <div
-              style={{
-                position: 'absolute',
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: '#0a0812',
-                border: '2px solid silver',
-                boxShadow: 'inset 0 0 4px #000',
-              }}
+              className="absolute h-3 w-3 rounded-full"
+              style={{ background: '#0a0812', border: '2px solid silver', boxShadow: 'inset 0 0 4px #000' }}
             />
           </div>
         </div>
@@ -235,129 +205,67 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
 
       {/* Ramię gramofonowe (Tonearm) */}
       <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '18px',
-          width: '50px',
-          height: `${size - 40}px`,
-          pointerEvents: 'none',
-          zIndex: 10,
-        }}
+        className="pointer-events-none absolute top-3 right-4.5 z-10 w-12.5"
+        style={{ height: `${size - 40}px` }}
       >
         {/* Podstawa ramienia (Tonearm Base & Gimbal) */}
         <div
+          className="absolute top-2.5 right-2.5 h-6.5 w-6.5 rounded-full shadow-md shadow-black/60"
           style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            width: '26px',
-            height: '26px',
-            borderRadius: '50%',
             background: 'radial-gradient(circle, #71717a 20%, #27272a 70%, #09090b 100%)',
             border: '2px solid #3f3f46',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.6)',
           }}
         />
 
         {/* Uchwyt spoczynkowy ramienia (Tonearm Rest / Arm Cradle) */}
         <div
           title={t.player.tonearmRest}
-          style={{
-            position: 'absolute',
-            top: `${size - 130}px`,
-            right: '20px',
-            width: '8px',
-            height: '14px',
-            borderRadius: '2px',
-            background: '#27272a',
-            border: '1px solid #52525b',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
-          }}
+          className="absolute right-5 h-3.5 w-2 rounded-xs bg-zinc-800 shadow-sm shadow-black/50"
+          style={{ top: `${size - 130}px`, border: '1px solid #52525b' }}
         />
 
         {/* Ruchome ramię z przeciwwagą i główką igły */}
         <div
+          className="absolute top-6 right-6 w-1 rounded-xs transition-transform duration-700"
           style={{
-            position: 'absolute',
-            top: '23px',
-            right: '23px',
-            width: '4px',
             height: `${size - 110}px`,
             transformOrigin: 'top center',
             transform: `rotate(${tonearmAngle})`,
-            transition: 'transform 0.85s cubic-bezier(0.34, 1.56, 0.64, 1)',
             background: 'linear-gradient(to right, #e4e4e7, #a1a1aa, #71717a)',
             boxShadow: '2px 4px 8px rgba(0,0,0,0.5)',
-            borderRadius: '2px',
           }}
         >
           {/* Przeciwwaga (Counterweight na górze) */}
           <div
-            style={{
-              position: 'absolute',
-              top: '-12px',
-              left: '-8px',
-              width: '20px',
-              height: '14px',
-              borderRadius: '3px',
-              background: '#27272a',
-              border: '1px solid #52525b',
-            }}
+            className="absolute -top-3 -left-2 h-3.5 w-5 rounded-sm bg-zinc-800"
+            style={{ border: '1px solid #52525b' }}
           />
 
           {/* Główka z wkładką i igłą (Headshell / Cartridge na dole) */}
           <div
-            style={{
-              position: 'absolute',
-              bottom: '-14px',
-              left: '-4px',
-              width: '12px',
-              height: '20px',
-              borderRadius: '2px',
-              background: '#e11d48',
-              boxShadow: isPlaying ? '0 0 6px rgba(225, 29, 72, 0.8)' : 'none',
-              border: '1px solid #9f1239',
-              transform: 'rotate(15deg)',
-            }}
+            className={cn(
+              'absolute -bottom-3.5 -left-1 h-5 w-3 rounded-xs bg-rose-600',
+              isPlaying ? 'shadow-halo-sm shadow-rose-600/80' : 'shadow-none',
+            )}
+            style={{ border: '1px solid #9f1239', transform: 'rotate(15deg)' }}
           />
         </div>
       </div>
 
       {/* Dolny pasek kontrolny gramofonu: Przełącznik prędkości RPM i Strobe */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '8px',
-          left: '10px',
-          right: '10px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.7rem',
-          fontWeight: 700,
-          zIndex: 20,
-        }}
-      >
+      <div className="absolute bottom-2 left-2.5 right-2.5 z-20 flex items-center justify-between text-xxs font-bold">
         {/* Przełącznik 33 / 45 RPM & Lo-Fi Analog FX */}
-        <div style={{ display: 'flex', gap: '3px', background: 'rgba(0,0,0,0.5)', padding: '2px', borderRadius: '6px', alignItems: 'center' }}>
+        <div className="flex items-center gap-1 rounded-md bg-black/50 p-0.5">
           <button
             onClick={(e) => {
               e.stopPropagation();
               setRpm(33);
             }}
             title={t.player.vinylSpeed33}
-            style={{
-              padding: '2px 6px',
-              borderRadius: '4px',
-              border: 'none',
-              background: rpm === 33 ? 'var(--accent-pink)' : 'transparent',
-              color: rpm === 33 ? '#fff' : 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: '0.66rem',
-              fontWeight: 700,
-              transition: 'all 0.15s ease',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1.5 py-0.5 text-xxs font-bold transition-all duration-150',
+              rpm === 33 ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
+            )}
           >
             33⅓
           </button>
@@ -367,17 +275,10 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               setRpm(45);
             }}
             title={t.player.vinylSpeed45}
-            style={{
-              padding: '2px 6px',
-              borderRadius: '4px',
-              border: 'none',
-              background: rpm === 45 ? 'var(--accent-pink)' : 'transparent',
-              color: rpm === 45 ? '#fff' : 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: '0.66rem',
-              fontWeight: 700,
-              transition: 'all 0.15s ease',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1.5 py-0.5 text-xxs font-bold transition-all duration-150',
+              rpm === 45 ? 'bg-accent-pink text-fg' : 'bg-transparent text-fg-muted',
+            )}
           >
             45
           </button>
@@ -389,23 +290,11 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
               handleOpenLoFi();
             }}
             title={t.player.vinylLoFiTooltip}
-            style={{
-              padding: '2px 7px',
-              borderRadius: '4px',
-              border: 'none',
-              background: simConfig.enabled
-                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(236, 72, 153, 0.9))'
-                : 'rgba(255, 255, 255, 0.08)',
-              color: simConfig.enabled ? '#fff' : 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: '0.64rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              transition: 'all 0.15s ease',
-              boxShadow: simConfig.enabled ? '0 0 10px rgba(236, 72, 153, 0.4)' : 'none',
-            }}
+            className={cn(
+              'flex items-center gap-1 rounded-sm border-0 px-2 py-0.5 text-2xs font-bold transition-all duration-150',
+              simConfig.enabled ? 'text-fg shadow-halo-sm shadow-pink-500/40' : 'text-fg-muted shadow-none',
+              simConfig.enabled ? 'bg-linear-135 from-accent-purple/90 to-pink-500/90' : 'bg-white/8',
+            )}
           >
             <Sparkles size={10} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
             <span>{simConfig.enabled ? `${simConfig.mode === 'vinyl' ? 'VINYL' : 'TAPE'} ${Math.round(simConfig.intensity * 100)}%` : 'LO-FI'}</span>
@@ -413,21 +302,17 @@ export const VinylTurntable: React.FC<VinylTurntableProps> = ({
         </div>
 
         {/* Dynamiczny wskaźnik prędkości Direct Drive z uwzględnieniem DSP */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', minWidth: 0 }}>
+        <div className="flex min-w-0 items-center gap-1 text-fg-muted">
           <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: isPlaying ? (rpm === 45 ? '#ec4899' : '#22c55e') : '#ef4444',
-              boxShadow: isPlaying ? `0 0 6px ${rpm === 45 ? '#ec4899' : '#22c55e'}` : 'none',
-              transition: 'background 0.3s ease',
-              flexShrink: 0,
-            }}
+            className={cn(
+              'h-1.5 w-1.5 shrink-0 rounded-full transition-[background] duration-300',
+              isPlaying ? rpm === 45 ? 'bg-pink-500' : 'bg-green-500' : 'bg-accent-red',
+              isPlaying ? rpm === 45 ? 'shadow-halo-sm shadow-pink-500' : 'shadow-halo-sm shadow-green-500' : 'shadow-none',
+            )}
           />
           <span
             title={bpm ? `${t.dsp?.tempo || 'Tempo'}: ${bpm} BPM (${Math.round(bpm * effectiveSpeed)} BPM)` : undefined}
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', whiteSpace: 'nowrap' }}
+            className="font-mono text-2xs whitespace-nowrap"
           >
             {isPlaying
               ? `${currentRpm} RPM`

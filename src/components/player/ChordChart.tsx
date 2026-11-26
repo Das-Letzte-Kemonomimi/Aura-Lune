@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Check, Edit3 } from 'lucide-react';
 import { TONE_COLORS, chordTone, type ChordBar, type ChordCell } from '../../utils/chordChart';
 import { formatTime } from '../../utils/timeFormat';
+import { cn } from '../../utils/cn';
 
 const LOW_CONFIDENCE = 0.55;
 
@@ -16,12 +17,6 @@ function chordMinWidth(label: string, fontRem: number): number {
   return Math.max(48, Math.ceil(label.length * fontRem * 9.5 + 22));
 }
 const MANUAL_SCROLL_PAUSE_MS = 4000;
-
-const CHART_CSS = `
-.ct-chip .ct-edit { opacity: 0; transition: opacity 0.12s ease; }
-.ct-chip:hover .ct-edit, .ct-chip:focus-within .ct-edit { opacity: 1; }
-.ct-chip:hover { filter: brightness(1.18); }
-`;
 
 export interface ChordChartProps {
   bars: ChordBar[];
@@ -81,18 +76,9 @@ export const ChordChart: React.FC<ChordChartProps> = ({
       ref={containerRef}
       onWheel={markManualScroll}
       onTouchMove={markManualScroll}
-      style={{
-        position: 'relative',
-        maxHeight: '460px',
-        overflowY: 'auto',
-        paddingRight: '4px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-        gap: '10px',
-        alignContent: 'start',
-      }}
+      className="relative grid max-h-115 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5 overflow-y-auto pr-1"
+      style={{ alignContent: 'start' }}
     >
-      <style>{CHART_CSS}</style>
       {bars.map((bar, barIdx) => {
         const isActiveBar = barIdx === activeBarIdx;
         const isPast = bar.end_ms <= currentTimeMs;
@@ -104,35 +90,26 @@ export const ChordChart: React.FC<ChordChartProps> = ({
           <div
             key={`${bar.bar}-${bar.start_ms}`}
             data-active-bar={isActiveBar ? 'true' : undefined}
-            style={{
-              padding: '8px',
-              borderRadius: '14px',
-              background: isActiveBar ? 'rgba(244, 63, 94, 0.10)' : 'rgba(255, 255, 255, 0.03)',
-              border: isActiveBar ? '1px solid rgba(244, 63, 94, 0.6)' : '1px solid rgba(255, 255, 255, 0.07)',
-              boxShadow: isActiveBar ? '0 0 18px rgba(244, 63, 94, 0.25)' : 'none',
-              opacity: isPast ? 0.5 : 1,
-              transition: 'opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease',
-            }}
+            className={cn(
+              'rounded-2xl border p-2 transition-[opacity,background,border-color] duration-200',
+              isActiveBar ? 'border-accent-pink/60 bg-accent-pink/10 shadow-halo-lg shadow-accent-pink/25' : 'border-white/7 bg-white/3 shadow-none',
+              isPast ? 'opacity-50' : 'opacity-100',
+            )}
           >
             <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginBottom: '6px',
-                fontSize: '0.68rem',
-                fontWeight: 700,
-                letterSpacing: '0.03em',
-                color: isActiveBar ? '#fda4af' : '#94a3b8',
-              }}
+              className={cn(
+                'mb-1.5 flex justify-between text-xxs font-bold tracking-wide',
+                isActiveBar ? 'text-rose-300' : 'text-fg-secondary',
+              )}
             >
               <span>{barLabel(bar.bar)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+              <span className="font-mono font-medium">
                 {formatTime(bar.start_ms)}
-                <span style={{ marginLeft: '6px', color: barLowConfidence ? '#fbbf24' : '#94a3b8' }}>{barConfidencePct}%</span>
+                <span className={cn('ml-1.5', barLowConfidence ? 'text-amber-400' : 'text-fg-secondary')}>{barConfidencePct}%</span>
               </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px' }}>
+            <div className="flex gap-1.5">
               {bar.cells.map((cell) => {
                 const tone = chordTone(cell.quality);
                 const color = TONE_COLORS[tone];
@@ -147,7 +124,7 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                 return (
                   <div
                     key={cell.start_ms}
-                    className="ct-chip"
+                    className="group relative flex h-17 cursor-pointer items-center justify-center overflow-hidden rounded-xl hover:brightness-120"
                     role="button"
                     tabIndex={0}
                     onClick={() => !isEditing && onSeek(cell.start_ms)}
@@ -159,16 +136,8 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                     }}
                     title={lowConfidence ? lowConfidenceLabel(Math.round(cell.confidence * 100)) : undefined}
                     style={{
-                      position: 'relative',
-                      overflow: 'hidden',
                       flex: `${Math.max(1, cell.end_ms - cell.start_ms)} 1 0`,
                       minWidth: `${chordMinWidth(label, fontRem)}px`,
-                      height: '68px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
                       background: `${color}${isActive ? '33' : '1a'}`,
                       borderLeft: `4px ${lowConfidence ? 'dotted' : 'solid'} ${color}`,
                       outline: isActive ? `2px solid ${color}` : 'none',
@@ -179,46 +148,27 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                       <>
                         {/* Wypełnienie tła: ile z akordu już wybrzmiało */}
                         <div
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            bottom: 0,
-                            left: 0,
-                            width: `${progress * 100}%`,
-                            background: `${color}55`,
-                            pointerEvents: 'none',
-                          }}
+                          className="pointer-events-none absolute top-0 bottom-0 left-0"
+                          style={{ width: `${progress * 100}%`, background: `${color}55` }}
                         />
                         {/* Gruby pasek postępu z poświatą i znacznikiem pozycji */}
                         <div
+                          className="pointer-events-none absolute left-0 bottom-0 h-1.5"
                           style={{
-                            position: 'absolute',
-                            left: 0,
-                            bottom: 0,
-                            height: '6px',
                             width: `${progress * 100}%`,
                             background: color,
                             boxShadow: `0 0 10px ${color}`,
-                            pointerEvents: 'none',
                           }}
                         />
                         <div
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            bottom: 0,
-                            left: `calc(${progress * 100}% - 1px)`,
-                            width: '2px',
-                            background: '#ffffff',
-                            opacity: 0.9,
-                            pointerEvents: 'none',
-                          }}
+                          className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white opacity-90"
+                          style={{ left: `calc(${progress * 100}% - 1px)` }}
                         />
                       </>
                     )}
 
                     {isEditing ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="text"
                           value={editValue}
@@ -228,36 +178,23 @@ export const ChordChart: React.FC<ChordChartProps> = ({
                             if (e.key === 'Enter') onCommitEdit();
                             if (e.key === 'Escape') onCancelEdit();
                           }}
-                          style={{
-                            width: '52px',
-                            padding: '2px 4px',
-                            background: '#090a12',
-                            border: `1px solid ${color}`,
-                            borderRadius: '6px',
-                            textAlign: 'center',
-                            fontSize: '0.85rem',
-                            color: '#ffffff',
-                            fontFamily: 'var(--font-mono)',
-                          }}
+                          className="w-13 rounded-md bg-deep px-1 py-0.5 text-center font-mono text-sm text-fg"
+                          style={{ border: `1px solid ${color}` }}
                         />
                         <button
                           onClick={onCommitEdit}
-                          style={{ padding: '2px', background: 'none', border: 'none', color: '#34d399', cursor: 'pointer' }}
+                          className="border-0 bg-transparent p-0.5 text-emerald-400"
                         >
                           <Check size={15} />
                         </button>
                       </div>
                     ) : (
                       <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
-                          fontSize: `${fontRem}rem`,
-                          position: 'relative',
-                          whiteSpace: 'nowrap',
-                          color: '#f8fafc',
-                          opacity: lowConfidence ? 0.75 : 1,
-                        }}
+                        className={cn(
+                          'relative font-mono font-extrabold whitespace-nowrap text-fg',
+                          lowConfidence ? 'opacity-75' : 'opacity-100',
+                        )}
+                        style={{ fontSize: `${fontRem}rem` }}
                       >
                         {label}
                       </span>
@@ -265,25 +202,13 @@ export const ChordChart: React.FC<ChordChartProps> = ({
 
                     {canEdit && !isEditing && (
                       <button
-                        className="ct-edit"
+                        className="absolute top-1 right-1 flex rounded-md border-0 bg-black/45 p-1 text-slate-200 opacity-0 transition-opacity duration-100 group-focus-within:opacity-100 group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           onStartEdit(cell);
                         }}
                         title={editLabel}
                         aria-label={editLabel}
-                        style={{
-                          position: 'absolute',
-                          top: '3px',
-                          right: '3px',
-                          padding: '3px',
-                          display: 'flex',
-                          background: 'rgba(0, 0, 0, 0.45)',
-                          border: 'none',
-                          borderRadius: '5px',
-                          color: '#e2e8f0',
-                          cursor: 'pointer',
-                        }}
                       >
                         <Edit3 size={11} />
                       </button>
@@ -329,40 +254,26 @@ export const ChordOverview: React.FC<ChordOverviewProps> = ({
         if (rect.width <= 0) return;
         onSeek(start + ((e.clientX - rect.left) / rect.width) * total);
       }}
-      style={{
-        position: 'relative',
-        display: 'flex',
-        height: '18px',
-        borderRadius: '6px',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        background: 'rgba(255, 255, 255, 0.04)',
-      }}
+      className="relative flex h-4.5 cursor-pointer overflow-hidden rounded-md bg-white/4"
     >
       {leadMs > 0 && <div style={{ flex: `${leadMs} 0 0` }} />}
       {cells.map((cell) => (
         <div
           key={cell.start_ms}
+          className={cn(
+            'border-r border-deep/70',
+            cell.end_ms <= currentTimeMs ? 'opacity-35' : 'opacity-80',
+          )}
           style={{
             flex: `${Math.max(1, cell.end_ms - cell.start_ms)} 0 0`,
             background: TONE_COLORS[chordTone(cell.quality)],
-            opacity: cell.end_ms <= currentTimeMs ? 0.35 : 0.8,
-            borderRight: '1px solid rgba(9, 10, 18, 0.7)',
           }}
         />
       ))}
       {tailMs > 0 && <div style={{ flex: `${tailMs} 0 0` }} />}
       <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          left: `${playhead}%`,
-          width: '2px',
-          background: '#ffffff',
-          boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)',
-          pointerEvents: 'none',
-        }}
+        className="pointer-events-none absolute top-0 bottom-0 w-0.5 bg-white shadow-halo-sm shadow-white/80"
+        style={{ left: `${playhead}%` }}
       />
     </div>
   );

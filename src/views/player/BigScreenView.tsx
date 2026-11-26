@@ -14,6 +14,7 @@ import { BigScreenControls } from './bigscreen/BigScreenControls';
 import { BigScreenTapeDeck } from './bigscreen/BigScreenTapeDeck';
 import { BigScreenVinyl } from './bigscreen/BigScreenVinyl';
 import { BigScreenHud } from './bigscreen/BigScreenHud';
+import { cn } from '../../utils/cn';
 
 export interface BigScreenViewProps {
   title: string;
@@ -151,110 +152,54 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
   return (
     <div
       onMouseMove={resetHideTimer}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'radial-gradient(circle at center, #140e26 0%, #06070e 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: 'clamp(14px, 3vh, 36px) clamp(16px, 3vw, 48px)',
-        color: '#fff',
-        userSelect: 'none',
-        overflowX: 'hidden',
-        overflowY: 'auto',
-        cursor: showHud ? 'default' : 'none',
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-      }}
+      className={cn(
+        'fixed inset-0 z-90 flex transform-gpu select-none flex-col justify-between overflow-x-hidden overflow-y-auto px-[clamp(1rem,3vw,3rem)] py-[clamp(0.875rem,3vh,2.25rem)] text-fg will-change-transform',
+        showHud ? 'cursor-default' : 'cursor-none',
+      )}
+      style={{ background: 'radial-gradient(circle at center, #140e26 0%, #06070e 100%)' }}
     >
       {/* Pasek górny HUD */}
       <BigScreenHud {...props} showHud={showHud} t={t} setShowLyrics={setShowLyrics} showLyrics={showLyrics} />
 
       {/* Środek: Okładka i teksty piosenek w układzie panoramicznym */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: showLyrics ? 'minmax(0, 420px) minmax(0, 1fr)' : 'minmax(0, 1fr)',
-          gap: 'clamp(20px, 3vw, 50px)',
-          alignItems: 'center',
-          flex: '1 0 auto',
-          minHeight: 0,
-          margin: 'clamp(8px, 2vh, 20px) 0',
-        }}
+        className={cn(
+          'grid min-h-0 items-center',
+          showLyrics ? 'grid-cols-[minmax(0,420px)_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
+        )}
+        style={{ gap: 'clamp(20px, 3vw, 50px)', flex: '1 0 auto', margin: 'clamp(8px, 2vh, 20px) 0' }}
       >
         {/* Kolumna lewa: Wielka wirująca płyta winylowa / Okładka */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '20px' }}>
+        <div className="flex flex-col items-center gap-5 text-center">
           {/* Przełącznik trybu wizualizacji: Okładka / Winyl / Retro Kaseta */}
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px',
-              borderRadius: '20px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            }}
+            className="flex items-center gap-1 rounded-3xl border border-white/10 bg-white/6 p-1 shadow-lift shadow-black/30"
           >
             <button
               onClick={() => handleSetVisualMode('cover')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '16px',
-                background: visualMode === 'cover' ? 'var(--accent-purple)' : 'transparent',
-                color: visualMode === 'cover' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-2xl border-0 px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                visualMode === 'cover' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
+              )}
             >
               <Image size={13} /> {t.bigScreenModes.cover}
             </button>
             <button
               onClick={() => handleSetVisualMode('vinyl')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '16px',
-                background: visualMode === 'vinyl' ? 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))' : 'transparent',
-                color: visualMode === 'vinyl' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: visualMode === 'vinyl' ? '0 0 10px rgba(244, 63, 94, 0.4)' : 'none',
-              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-2xl border-0 px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                visualMode === 'vinyl' ? 'bg-accent-gradient text-fg shadow-halo-sm shadow-accent-pink/40' : 'bg-transparent text-fg-muted shadow-none',
+              )}
             >
               <Disc3 size={13} /> {t.bigScreenModes.vinyl}
             </button>
             <button
               onClick={() => handleSetVisualMode('cassette')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '16px',
-                background: visualMode === 'cassette' ? 'linear-gradient(135deg, var(--accent-cyan), #0284c7)' : 'transparent',
-                color: visualMode === 'cassette' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: visualMode === 'cassette' ? '0 0 10px rgba(6, 182, 212, 0.4)' : 'none',
-              }}
+              className={cn(
+                'flex items-center gap-1.5 rounded-2xl border-0 px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                visualMode === 'cassette' ? 'text-fg shadow-halo-sm shadow-accent-cyan/40' : 'text-fg-muted shadow-none',
+                visualMode === 'cassette' ? 'bg-linear-135 from-accent-cyan to-sky-600' : 'bg-transparent',
+              )}
             >
               <CassetteTape size={13} /> {t.bigScreenModes.cassette}
             </button>
@@ -263,40 +208,30 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
           {/* TRYB 1: Tradycyjna Okładka Albumu */}
           {visualMode === 'cover' && (
             <div
+              className={cn(
+                'relative flex items-center justify-center overflow-hidden rounded-4xl border-2 border-white/15 transition-shadow duration-300 will-change-transform',
+                isPlaying ? 'shadow-halo-2xl shadow-accent-purple/45' : 'shadow-2xl shadow-black/70',
+              )}
               style={{
                 width: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
                 height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
-                borderRadius: '28px',
-                position: 'relative',
-                overflow: 'hidden',
                 background: coverUrl
                   ? `url("${coverUrl}") center/cover no-repeat`
                   : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
-                border: '2px solid rgba(255, 255, 255, 0.15)',
-                boxShadow: isPlaying ? '0 0 35px rgba(168, 85, 247, 0.45)' : '0 15px 35px rgba(0,0,0,0.7)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'box-shadow 0.4s ease',
-                willChange: 'transform',
                 transform: 'translateZ(0)',
               }}
             >
               {!coverUrl && (
                 <div
+                  className={cn(
+                    'flex h-4/5 w-4/5 items-center justify-center rounded-full border-3 border-white/8',
+                    isPlaying && 'animate-spin',
+                  )}
                   style={{
-                    width: '80%',
-                    height: '80%',
-                    borderRadius: '50%',
                     background: 'radial-gradient(circle, #0b0f19 35%, #182032 50%, #0f172a 75%, #050811 100%)',
-                    border: '3px solid rgba(255, 255, 255, 0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    animation: isPlaying ? 'spin 12s linear infinite' : 'none',
                   }}
                 >
-                  <Disc size={64} color="var(--accent-pink)" />
+                  <Disc size={64} className="text-accent-pink" />
                 </div>
               )}
             </div>
@@ -312,24 +247,11 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
             <BigScreenTapeDeck {...props} showLyrics={showLyrics} t={t} progress={progress} />
           )}
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap gap-2">
             {onFetchCover && (
               <button
                 onClick={onFetchCover}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--accent-cyan)',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-white/8 px-3.5 py-1.5 text-ui font-semibold text-accent-cyan transition-all duration-200"
               >
                 <Download size={13} /> {t.player.fetchCover}
               </button>
@@ -337,20 +259,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
             {onUploadCover && (
               <button
                 onClick={onUploadCover}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(236, 72, 153, 0.15)',
-                  border: '1px solid rgba(236, 72, 153, 0.35)',
-                  color: 'var(--accent-pink)',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
+                className="flex items-center gap-1.5 rounded-lg border border-pink-500/35 bg-pink-500/15 px-3.5 py-1.5 text-ui font-semibold text-accent-pink transition-all duration-200"
               >
                 <Upload size={13} /> {t.covers.uploadCustomCover}
               </button>
@@ -359,28 +268,24 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
           <div>
             <h1
-              style={{
-                fontSize: showLyrics ? '1.8rem' : '2.4rem',
-                fontWeight: 800,
-                margin: '0 0 8px 0',
-                letterSpacing: '-0.02em',
-                textShadow: '0 0 20px rgba(255,255,255,0.2)',
-              }}
+              className={cn(
+                'mx-0 mt-0 mb-2 font-extrabold tracking-tight',
+                showLyrics ? 'text-3xl' : 'text-4xl',
+              )}
+              style={{ textShadow: '0 0 20px rgba(255,255,255,0.2)' }}
             >
               {title || 'Auralune Player'}
             </h1>
             <p
-              style={{
-                fontSize: showLyrics ? '1.1rem' : '1.3rem',
-                fontWeight: 600,
-                color: 'var(--accent-pink)',
-                margin: '0 0 4px 0',
-              }}
+              className={cn(
+                'mx-0 mt-0 mb-1 font-semibold text-accent-pink',
+                showLyrics ? 'text-lg' : 'text-xl',
+              )}
             >
               {artist || t.player.unknownArtist}
             </p>
             {album && (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+              <p className="m-0 text-sm text-fg-muted">
                 {album}
               </p>
             )}
@@ -391,8 +296,9 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         {showLyrics && (
           // The lyrics are absolutely positioned inside this cell so their content
           // height never stretches the grid row (the cell sizes from the cover column).
-          <div style={{ position: 'relative', alignSelf: 'stretch', minWidth: 0, minHeight: 'min(380px, 50vh)' }}>
-            <div style={{ position: 'absolute', inset: 0, minWidth: 0, overflow: 'hidden' }}>
+          <div className="relative min-w-0 self-stretch"
+          style={{ minHeight: 'min(380px, 50vh)' }}>
+            <div className="absolute inset-0 min-w-0 overflow-hidden">
             <LyricsView
               trackTitle={title}
               trackArtist={artist}

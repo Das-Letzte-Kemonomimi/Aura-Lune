@@ -3,6 +3,7 @@ import type { Translations } from '../../../i18n';
 import { Minimize2, Radio, Zap, Mic2, Music, Layers } from 'lucide-react';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
+import { cn } from '../../../utils/cn';
 
 export type BigScreenHudProps = Pick<BigScreenViewProps, 'format' | 'pitchSemitones' | 'tempoRatio' | 'currentChord' | 'onCreateStemProject' | 'onClose'> & {
   showHud: boolean;
@@ -24,66 +25,27 @@ export const BigScreenHud: React.FC<BigScreenHudProps> = ({
   tempoRatio,
 }) => (
     <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        opacity: showHud ? 1 : 0,
-        transition: 'opacity 0.4s ease',
-        pointerEvents: showHud ? 'auto' : 'none',
-      }}
+      className={cn(
+        'flex items-center justify-between transition-opacity duration-300',
+        showHud ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+      )}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="flex items-center gap-3">
         <span
-          style={{
-            padding: '4px 12px',
-            borderRadius: '20px',
-            background: 'rgba(6, 182, 212, 0.15)',
-            border: '1px solid rgba(6, 182, 212, 0.4)',
-            color: 'var(--accent-cyan)',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
+          className="flex items-center gap-1.5 rounded-3xl border border-accent-cyan/40 bg-accent-cyan/15 px-3 py-1 text-ui font-bold text-accent-cyan"
         >
           <Radio size={14} /> PipeWire Hi-Fi • {format || 'FLAC'}
         </span>
         {(Math.abs(pitchSemitones) > 0.05 || Math.abs(tempoRatio - 1.0) > 0.02) && (
           <span
-            style={{
-              padding: '4px 10px',
-              borderRadius: '20px',
-              background: 'rgba(244, 63, 94, 0.2)',
-              border: '1px solid var(--accent-pink)',
-              color: 'var(--accent-pink)',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
+            className="flex items-center gap-1 rounded-3xl border border-accent-pink bg-accent-pink/20 px-2.5 py-1 text-ui font-bold text-accent-pink"
           >
             <Zap size={12} /> DSP: {tempoRatio.toFixed(2)}x
           </span>
         )}
         {currentChord && (
           <span
-            style={{
-              padding: '4px 12px',
-              borderRadius: '20px',
-              background: 'rgba(236, 72, 153, 0.25)',
-              border: '1px solid rgba(236, 72, 153, 0.6)',
-              color: 'var(--accent-pink)',
-              fontSize: '0.85rem',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 0 12px rgba(236, 72, 153, 0.4)',
-            }}
+            className="flex items-center gap-1.5 rounded-3xl border border-pink-500/60 bg-pink-500/25 px-3 py-1 font-mono text-sm font-extrabold text-accent-pink shadow-halo shadow-pink-500/40"
             title={t.player.currentChord}
           >
             <Music size={14} /> {currentChord}
@@ -91,23 +53,11 @@ export const BigScreenHud: React.FC<BigScreenHudProps> = ({
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="flex items-center gap-2.5">
         {onCreateStemProject && (
           <button
             onClick={onCreateStemProject}
-            style={{
-              background: 'rgba(236, 72, 153, 0.2)',
-              border: '1px solid var(--accent-pink)',
-              borderRadius: '10px',
-              color: 'var(--accent-pink)',
-              padding: '8px 14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-            }}
+            className="flex items-center gap-1.5 rounded-xl border border-accent-pink bg-pink-500/20 px-3.5 py-2 text-sm font-semibold text-accent-pink"
             title={t.bigScreen.createStemProject}
           >
             <Layers size={16} />
@@ -117,19 +67,12 @@ export const BigScreenHud: React.FC<BigScreenHudProps> = ({
 
         <button
           onClick={() => setShowLyrics(!showLyrics)}
-          style={{
-            background: showLyrics ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.08)',
-            border: `1px solid ${showLyrics ? 'var(--accent-purple)' : 'var(--border-subtle)'}`,
-            borderRadius: '10px',
-            color: showLyrics ? 'var(--accent-purple)' : 'var(--text-secondary)',
-            padding: '8px 14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-          }}
+          className={cn(
+            'border',
+            'flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold',
+            showLyrics ? 'bg-accent-purple/25 text-accent-purple' : 'bg-white/8 text-fg-secondary',
+            showLyrics ? 'border-accent-purple' : 'border-line',
+          )}
         >
           <Mic2 size={16} />
           {t.nav.lyrics}
@@ -137,19 +80,7 @@ export const BigScreenHud: React.FC<BigScreenHudProps> = ({
 
         <button
           onClick={onClose}
-          style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '10px',
-            color: '#fff',
-            padding: '8px 14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-          }}
+          className="flex items-center gap-1.5 rounded-xl border border-line bg-white/8 px-3.5 py-2 text-sm font-semibold text-fg"
           title={`${t.common.close} (Esc / F11)`}
         >
           <Minimize2 size={16} />

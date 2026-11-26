@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PlayerViewProps } from '../PlayerView';
+import { cn } from '../../../utils/cn';
 
 export type PlayerQuickDspVibesProps = Pick<PlayerViewProps, 'activeDspVibe' | 'handleApplyDspVibe'> & {
   t: PlayerViewProps['loc'];
@@ -11,8 +12,8 @@ export const PlayerQuickDspVibes: React.FC<PlayerQuickDspVibesProps> = React.mem
   handleApplyDspVibe,
   t,
 }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', margin: '2px 0 0 0' }}>
-      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.04em' }}>
+    <div className="mx-0 mt-0.5 mb-0 flex flex-wrap items-center gap-2">
+      <span className="text-xs font-bold tracking-wider text-fg-muted">
         {t.quickVibes.label}
       </span>
       {[
@@ -29,36 +30,15 @@ export const PlayerQuickDspVibes: React.FC<PlayerQuickDspVibesProps> = React.mem
             type="button"
             onClick={() => handleApplyDspVibe(v.id as any)}
             title={v.desc}
-            style={{
-              padding: '5px 12px',
-              borderRadius: '16px',
-              fontSize: '0.74rem',
-              fontWeight: isSelected ? 700 : 600,
-              background: isSelected
-                ? 'linear-gradient(135deg, rgba(244, 63, 94, 0.35), rgba(168, 85, 247, 0.35))'
-                : 'rgba(255, 255, 255, 0.05)',
-              border: isSelected
-                ? '1px solid var(--accent-pink)'
-                : '1px solid var(--border-subtle)',
-              color: isSelected ? '#fff' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: isSelected ? '0 0 14px rgba(244, 63, 94, 0.45)' : undefined,
-            }}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-2xl border px-3 py-1.5 text-xs transition-all duration-200',
+              isSelected ? 'border-accent-pink font-bold text-fg shadow-halo-md shadow-accent-pink/45' : 'border-line font-semibold text-fg-secondary',
+              isSelected ? 'bg-linear-135 from-accent-pink/35 to-accent-purple/35' : 'bg-white/5',
+            )}
           >
             {isSelected && (
               <span
-                style={{
-                  display: 'inline-block',
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  background: 'var(--accent-pink)',
-                  boxShadow: '0 0 6px var(--accent-pink)',
-                }}
+                className="inline-block h-1.5 w-1.5 rounded-full bg-accent-pink shadow-halo-sm shadow-accent-pink"
               />
             )}
             {v.label}

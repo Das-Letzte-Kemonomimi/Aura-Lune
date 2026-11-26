@@ -4,6 +4,7 @@ import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { livePlayback } from '../../state/livePlayback';
 import { GradientCache } from '../../utils/canvasDraw';
 import { foldBands, updateBands, type BandState } from '../../utils/spectrumBands';
+import { cn } from '../../utils/cn';
 import {
   MODE_DRAWERS,
   OSCILLOSCOPE_TIME_PER_SEC,
@@ -105,38 +106,17 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
 
   return (
     <div
-      className={className}
-      style={{
-        position: 'relative',
-        height: '88px',
-        borderRadius: '12px',
-        background: 'rgba(0, 0, 0, 0.45)',
-        border: '1px solid var(--border-subtle)',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-        ...style,
-      }}
+      className={cn(
+        'relative inset-shadow-well h-22 transform-gpu cursor-pointer overflow-hidden rounded-xl border border-line bg-black/45 will-change-transform',
+        className,
+      )}
+      style={style}
       onClick={cycleMode}
       title={loc.dsp.spectrumCycleTooltip}
     >
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+      <canvas ref={canvasRef} className="block h-full w-full" />
       <div
-        style={{
-          position: 'absolute',
-          top: '3px',
-          right: '7px',
-          fontSize: '0.62rem',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 700,
-          color: 'var(--text-muted)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          pointerEvents: 'none',
-          opacity: 0.6,
-        }}
+        className="pointer-events-none absolute top-1 right-2 font-mono text-2xs font-bold tracking-wider text-fg-muted uppercase opacity-60"
       >
         {mode}
       </div>

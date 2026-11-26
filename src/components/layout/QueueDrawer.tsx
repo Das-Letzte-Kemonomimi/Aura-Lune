@@ -45,7 +45,7 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="bg-modal fixed inset-y-0 right-0 z-50 flex w-105 max-w-[90vw] flex-col border-l border-line-accent shadow-drawer">
+    <div className="fixed inset-y-0 right-0 z-50 flex w-105 max-w-[90vw] flex-col border-l border-line-accent bg-modal shadow-drawer">
       {/* Nagłówek szuflady */}
       <div className="flex items-center justify-between border-b border-line p-5">
         <div className="flex items-center gap-2.5">

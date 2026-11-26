@@ -16,6 +16,7 @@ import {
   clamp,
   clampRowHeight,
 } from './pianoRollModel';
+import { cn } from '../../../utils/cn';
 
 export interface PianoRollViewProps {
   currentLang?: Language;
@@ -47,14 +48,8 @@ const parseRowHeight = (raw: string): number | null | undefined => {
   return Number.isFinite(v) ? clampRowHeight(v) : undefined;
 };
 
-const iconButton: React.CSSProperties = {
-  padding: '4px',
-  background: 'none',
-  border: 'none',
-  color: '#94a3b8',
-  cursor: 'pointer',
-  display: 'flex',
-};
+/** Borderless toolbar icon button. */
+const ICON_BUTTON = 'flex border-0 bg-transparent p-1 text-fg-secondary hover:text-fg';
 
 function safeFileStem(title: string): string {
   const stem = title.replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '');
@@ -175,63 +170,36 @@ export const PianoRollView = React.memo(function PianoRollView({
   const canExport = Boolean(trackId) && noteCount > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', width: '100%' }}>
+    <div className="flex h-full w-full flex-col gap-4">
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 px-4.5 py-3"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="flex items-center gap-2.5">
           <div
-            style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '10px',
-              background: 'rgba(192, 132, 252, 0.2)',
-              border: '1px solid rgba(192, 132, 252, 0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#c084fc',
-            }}
+            className="flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-purple-400/35 bg-purple-400/20 text-purple-400"
           >
             <Piano size={18} />
           </div>
           <div>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>{t.analysis.pianoRollTitle}</span>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
+            <span className="text-sm font-extrabold text-fg">{t.analysis.pianoRollTitle}</span>
+            <p className="mx-0 mt-0.5 mb-0 text-xs text-fg-secondary">
               {data ? fmt(t.analysis.detectedNotes, String(noteCount), data.bpm.toFixed(1)) : t.analysis.analyzingNotes}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => setMode((m) => (m === 'follow' ? 'free' : 'follow'))}
             aria-pressed={mode === 'follow'}
             title={t.analysis.followModeTooltip}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              fontSize: '0.74rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: mode === 'follow' ? '#f472b6' : '#94a3b8',
-              background: mode === 'follow' ? 'rgba(236, 72, 153, 0.16)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${mode === 'follow' ? 'rgba(236, 72, 153, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
-            }}
+            className={cn(
+              'border',
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold',
+              mode === 'follow' ? 'bg-pink-500/15 text-pink-400' : 'bg-white/5 text-fg-secondary',
+              mode === 'follow' ? 'border-pink-500/40' : 'border-white/10',
+            )}
           >
             <Crosshair size={14} />
             <span>{t.analysis.followMode}</span>
@@ -242,86 +210,53 @@ export const PianoRollView = React.memo(function PianoRollView({
             onClick={() => setShowLabels((v) => !v)}
             aria-pressed={showLabels}
             title={t.analysis.noteLabelsTooltip}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              fontSize: '0.74rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: showLabels ? '#c084fc' : '#94a3b8',
-              background: showLabels ? 'rgba(192, 132, 252, 0.16)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${showLabels ? 'rgba(192, 132, 252, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
-            }}
+            className={cn(
+              'border',
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold',
+              showLabels ? 'bg-purple-400/15 text-purple-400' : 'bg-white/5 text-fg-secondary',
+              showLabels ? 'border-purple-400/40' : 'border-white/10',
+            )}
           >
             <Type size={14} />
             <span>{t.analysis.noteLabels}</span>
           </button>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '8px',
-              padding: '2px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
-          >
+          <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
             <button
               type="button"
               onClick={() => setPxPerSec((p) => clamp(Math.round(p / ZOOM_STEP), MIN_PX_PER_SEC, MAX_PX_PER_SEC))}
-              style={iconButton}
+              className={ICON_BUTTON}
               title={t.analysis.zoomOut}
             >
               <ZoomOut size={14} />
             </button>
-            <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', padding: '0 6px', color: '#cbd5e1' }}>
+            <span className="px-1.5 py-0 font-mono text-xs text-slate-300">
               {Math.round(pxPerSec)}px/s
             </span>
             <button
               type="button"
               onClick={() => setPxPerSec((p) => clamp(Math.round(p * ZOOM_STEP), MIN_PX_PER_SEC, MAX_PX_PER_SEC))}
-              style={iconButton}
+              className={ICON_BUTTON}
               title={t.analysis.zoomIn}
             >
               <ZoomIn size={14} />
             </button>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: '8px',
-              padding: '2px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
-          >
-            <button type="button" onClick={() => stepRowHeight(-1)} style={iconButton} title={t.analysis.rowHeightLess}>
-              <ChevronsUpDown size={14} style={{ transform: 'scaleY(0.7)' }} />
+          <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
+            <button type="button" onClick={() => stepRowHeight(-1)} className={ICON_BUTTON} title={t.analysis.rowHeightLess}>
+              <ChevronsUpDown size={14} className="scale-y-70" />
             </button>
             <button
               type="button"
               onClick={() => setRowHeight(null)}
               title={t.analysis.rowHeightReset}
-              style={{
-                ...iconButton,
-                fontSize: '0.72rem',
-                fontFamily: 'var(--font-mono)',
-                padding: '0 6px',
-                color: rowHeight === null ? '#94a3b8' : '#cbd5e1',
-                minWidth: '44px',
-                justifyContent: 'center',
-              }}
+              className={cn(ICON_BUTTON, 'min-w-11 justify-center px-1.5 py-0 font-mono text-xs', rowHeight !== null && 'text-slate-300')}
             >
               {rowHeight === null ? t.analysis.rowHeightAuto : `${Math.round(rowHeight)}px`}
             </button>
-            <button type="button" onClick={() => stepRowHeight(1)} style={iconButton} title={t.analysis.rowHeightMore}>
-              <ChevronsUpDown size={14} style={{ transform: 'scaleY(1.3)' }} />
+            <button type="button" onClick={() => stepRowHeight(1)} className={ICON_BUTTON} title={t.analysis.rowHeightMore}>
+              <ChevronsUpDown size={14} className="scale-y-130" />
             </button>
           </div>
 
@@ -329,20 +264,10 @@ export const PianoRollView = React.memo(function PianoRollView({
             type="button"
             onClick={handleExportMidi}
             disabled={!canExport}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              background: 'rgba(236, 72, 153, 0.2)',
-              border: '1px solid rgba(236, 72, 153, 0.4)',
-              color: '#f472b6',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              cursor: canExport ? 'pointer' : 'not-allowed',
-              opacity: canExport ? 1 : 0.5,
-            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-xl border border-pink-500/40 bg-pink-500/20 px-3.5 py-2 text-ui font-semibold text-pink-400',
+              canExport ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-50',
+            )}
             title={t.analysis.exportMidiTooltip}
           >
             <Download size={14} />
@@ -353,14 +278,7 @@ export const PianoRollView = React.memo(function PianoRollView({
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '8px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#94a3b8',
-                cursor: 'pointer',
-              }}
+              className="rounded-lg border border-white/10 bg-white/6 p-2 text-fg-secondary"
             >
               <X size={16} />
             </button>
@@ -369,58 +287,28 @@ export const PianoRollView = React.memo(function PianoRollView({
       </div>
 
       {exportError && !onNotify && (
-        <div role="alert" style={{ color: '#fca5a5', fontSize: '0.8rem' }}>
+        <div role="alert" className="text-ui text-red-300">
           {exportError}
         </div>
       )}
 
-      <div
-        style={{
-          flex: 1,
-          minHeight: '320px',
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          background: '#090a12',
-        }}
-      >
+      <div className="relative min-h-80 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-deep">
         {loading && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              background: 'rgba(9, 10, 18, 0.85)',
-              zIndex: 10,
-            }}
-          >
-            <Sparkles size={28} color="#c084fc" style={{ animation: 'spin 1.5s linear infinite' }} />
-            <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1' }}>{t.analysis.transcribingNotes}</p>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-deep/85">
+            <Sparkles size={28} className="animate-spin text-purple-400" />
+            <p className="m-0 text-sm text-slate-300">{t.analysis.transcribingNotes}</p>
           </div>
         )}
         {error && (
           <div
             role="alert"
-            style={{
-              margin: '20px',
-              padding: '14px 18px',
-              borderRadius: '12px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#fca5a5',
-              fontSize: '0.85rem',
-            }}
+            className="m-5 rounded-xl border border-accent-red/30 bg-accent-red/15 px-4.5 py-3.5 text-sm text-red-300"
           >
             {error}
           </div>
         )}
         {!error && data && noteCount === 0 && (
-          <p style={{ position: 'absolute', inset: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+          <p className="absolute inset-0 m-0 flex items-center justify-center text-sm text-fg-secondary">
             {t.analysis.noNotesDetected}
           </p>
         )}

@@ -200,7 +200,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
           {/* Play / Pause */}
           <button
             onClick={onPlayPause}
-            className="bg-accent-gradient flex size-9.5 items-center justify-center rounded-full text-on-accent shadow-halo-lg shadow-accent-pink/45"
+            className="flex size-9.5 items-center justify-center rounded-full bg-accent-gradient text-on-accent shadow-halo-lg shadow-accent-pink/45"
             title={status.state === 'Playing' ? t.bottomDock.pauseTooltip : t.bottomDock.playTooltip}
           >
             {status.state === 'Playing' ? (
@@ -267,7 +267,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                 onSeekCommit?.(Number(e.currentTarget.value));
               }
             }}
-            className="range-fill h-1 flex-1"
+            className="h-1 flex-1 range-fill"
             style={cssVars({ '--fill': `${seekProgressPercent}%` })}
           />
           <span className="min-w-9 font-mono text-xs text-fg-muted">{formatTime(status.duration_ms || 0)}</span>
@@ -380,7 +380,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             value={status.volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
             title={`${loc.player.volume}: ${Math.round(status.volume * 100)}%`}
-            className="range-fill h-1 w-24"
+            className="h-1 w-24 range-fill"
             style={cssVars({ '--fill': `${volumeProgressPercent}%` })}
           />
         </div>

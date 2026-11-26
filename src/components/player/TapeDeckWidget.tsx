@@ -5,6 +5,7 @@ import { getTranslations, type Language } from '../../i18n';
 import { useInertialSpin } from '../../hooks/useInertialSpin';
 import { playbackSpeed } from '../../utils/playbackSpeed';
 import { tauFromFrameLerp } from '../../utils/smoothing';
+import { cn } from '../../utils/cn';
 
 // Dawna bezwładność szpul: 0.09 (rozpędzanie) / 0.05 (hamowanie) na klatkę 60 Hz => ~0.18 s / ~0.33 s
 const REEL_TAU_UP = tauFromFrameLerp(0.09);
@@ -231,36 +232,24 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
     >
       {/* Header Decka */}
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.68rem',
-          fontWeight: 700,
-          color: '#cbd5e1',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          paddingBottom: '5px',
-        }}
+        className="flex items-center justify-between border-b border-white/8 pb-1.5 text-xxs font-bold text-slate-300"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="flex items-center gap-1.5">
           <CassetteTape size={14} style={{ color: currentTheme.accentColor }} />
-          <span style={{ letterSpacing: '0.08em', color: '#f8fafc' }}>{t.player.tapeDeckTitle}</span>
-          <span style={{ fontSize: '0.60rem', color: currentTheme.accentColor, fontWeight: 800 }}>
+          <span className="tracking-label text-fg">{t.player.tapeDeckTitle}</span>
+          <span className="text-2xs font-extrabold"
+          style={{ color: currentTheme.accentColor }}>
             {currentTheme.name}
           </span>
         </div>
 
         {/* Mechaniczny licznik cyfrowy */}
         <div
+          className="rounded-sm px-1.5 py-px font-mono text-xs tracking-widest"
           style={{
             background: '#09070f',
             border: `1px solid ${currentTheme.accentColor}88`,
-            borderRadius: '4px',
-            padding: '1px 6px',
-            fontFamily: 'var(--font-mono, monospace)',
-            fontSize: '0.74rem',
             color: currentTheme.accentColor,
-            letterSpacing: '0.12em',
             boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.8)',
           }}
           title={t.player.tapeCounter}
@@ -270,10 +259,10 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
       </div>
 
       {/* Widok szpul i głowicy (SVG) */}
-      <div style={{ position: 'relative', width: '100%', height: '145px', display: 'flex', justifyContent: 'center' }}>
+      <div className="relative flex h-36.5 w-full justify-center">
         <svg
           viewBox="0 0 240 155"
-          style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          className="h-full w-full overflow-visible"
         >
           <defs>
             {/* Dynamiczny gradient taśmy magnetycznej (FE-I vs CR-II vs METAL) */}
@@ -365,35 +354,17 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
       </div>
 
       {/* Dolny pasek kontrolny i selektory szpulowca */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.66rem',
-          fontWeight: 700,
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          paddingTop: '6px',
-          zIndex: 20,
-        }}
-      >
+      <div className="z-20 flex items-center justify-between border-t border-white/8 pt-1.5 text-xxs font-bold">
         {/* Wybór prędkości taśmy & Lo-Fi */}
-        <div style={{ display: 'flex', gap: '3px', background: 'rgba(0,0,0,0.5)', padding: '2px', borderRadius: '5px', alignItems: 'center' }}>
+        <div className="flex items-center gap-1 rounded-md bg-black/50 p-0.5">
           <button
             type="button"
             onClick={() => setTapeSpeed('7.5')}
             title={t.player.tapeSpeedStudio}
-            style={{
-              padding: '2px 5px',
-              borderRadius: '3px',
-              border: 'none',
-              background: tapeSpeed === '7.5' ? 'var(--accent-purple, #a855f7)' : 'transparent',
-              color: tapeSpeed === '7.5' ? '#fff' : 'var(--text-muted, #94a3b8)',
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
+              tapeSpeed === '7.5' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
+            )}
           >
             7½ IPS
           </button>
@@ -401,17 +372,10 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             type="button"
             onClick={() => setTapeSpeed('3.75')}
             title={t.player.tapeSpeedStandard}
-            style={{
-              padding: '2px 5px',
-              borderRadius: '3px',
-              border: 'none',
-              background: tapeSpeed === '3.75' ? 'var(--accent-purple, #a855f7)' : 'transparent',
-              color: tapeSpeed === '3.75' ? '#fff' : 'var(--text-muted, #94a3b8)',
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
+              tapeSpeed === '3.75' ? 'bg-accent-purple text-fg' : 'bg-transparent text-fg-muted',
+            )}
           >
             3¾ IPS
           </button>
@@ -424,22 +388,11 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
               handleOpenLoFi();
             }}
             title={t.player.tapeLoFiTooltip}
-            style={{
-              padding: '2px 6px',
-              borderRadius: '3px',
-              border: 'none',
-              background: simConfig.enabled
-                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(236, 72, 153, 0.9))'
-                : 'rgba(255, 255, 255, 0.08)',
-              color: simConfig.enabled ? '#fff' : 'var(--text-muted)',
-              cursor: 'pointer',
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              transition: 'all 0.15s ease',
-            }}
+            className={cn(
+              'flex items-center gap-1 rounded-sm border-0 px-1.5 py-0.5 text-2xs font-bold transition-all duration-150',
+              simConfig.enabled ? 'text-fg' : 'text-fg-muted',
+              simConfig.enabled ? 'bg-linear-135 from-accent-purple/90 to-pink-500/90' : 'bg-white/8',
+            )}
           >
             <Sparkles size={10} style={{ color: simConfig.enabled ? '#ffd1f9' : 'currentColor' }} />
             <span>{simConfig.enabled ? `${Math.round(simConfig.intensity * 100)}%` : 'FX'}</span>
@@ -447,22 +400,15 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         </div>
 
         {/* Selektor typu taśmy (FE-I, CR-II, METAL) */}
-        <div style={{ display: 'flex', gap: '2px', background: 'rgba(0,0,0,0.5)', padding: '2px', borderRadius: '5px' }}>
+        <div className="flex gap-0.5 rounded-md bg-black/50 p-0.5">
           <button
             type="button"
             onClick={() => setTapeType('TYPE_I')}
             title={t.player.tapeTypeFerric}
-            style={{
-              padding: '2px 4px',
-              borderRadius: '3px',
-              border: 'none',
-              background: tapeType === 'TYPE_I' ? '#f59e0b' : 'transparent',
-              color: tapeType === 'TYPE_I' ? '#000' : 'var(--text-muted, #94a3b8)',
-              fontSize: '0.60rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
+              tapeType === 'TYPE_I' ? 'bg-accent-amber text-black' : 'bg-transparent text-fg-muted',
+            )}
           >
             FE-I
           </button>
@@ -470,17 +416,10 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             type="button"
             onClick={() => setTapeType('TYPE_II')}
             title={t.player.tapeTypeChrome}
-            style={{
-              padding: '2px 4px',
-              borderRadius: '3px',
-              border: 'none',
-              background: tapeType === 'TYPE_II' ? '#06b6d4' : 'transparent',
-              color: tapeType === 'TYPE_II' ? '#000' : 'var(--text-muted, #94a3b8)',
-              fontSize: '0.60rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
+              tapeType === 'TYPE_II' ? 'bg-accent-cyan text-black' : 'bg-transparent text-fg-muted',
+            )}
           >
             CR-II
           </button>
@@ -488,35 +427,26 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
             type="button"
             onClick={() => setTapeType('METAL')}
             title={t.player.tapeTypeMetal}
-            style={{
-              padding: '2px 4px',
-              borderRadius: '3px',
-              border: 'none',
-              background: tapeType === 'METAL' ? '#eab308' : 'transparent',
-              color: tapeType === 'METAL' ? '#000' : 'var(--text-muted, #94a3b8)',
-              fontSize: '0.60rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
+            className={cn(
+              'rounded-sm border-0 px-1 py-0.5 text-2xs font-extrabold transition-all duration-150',
+              tapeType === 'METAL' ? 'bg-yellow-500 text-black' : 'bg-transparent text-fg-muted',
+            )}
           >
             METAL
           </button>
         </div>
 
         {/* Dioda Play / Rec State */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="flex items-center gap-1">
           <span
+            className="h-1.5 w-1.5 rounded-full transition-all duration-200"
             style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
               background: isPlaying ? currentTheme.accentColor : '#64748b',
               boxShadow: isPlaying ? `0 0 6px ${currentTheme.accentColor}` : 'none',
-              transition: 'all 0.2s ease',
             }}
           />
-          <span style={{ fontSize: '0.60rem', color: isPlaying ? currentTheme.accentColor : '#64748b', fontWeight: 700 }}>
+          <span className="text-2xs font-bold"
+          style={{ color: isPlaying ? currentTheme.accentColor : '#64748b' }}>
             {isPlaying ? (tapeSpeed === '7.5' ? '7.5 IPS' : '3.75 IPS') : 'STOP'}
           </span>
         </div>

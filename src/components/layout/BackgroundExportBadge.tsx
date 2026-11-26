@@ -33,11 +33,11 @@ export const BackgroundExportBadge: React.FC<BackgroundExportBadgeProps> = ({
   return (
     <div
       className={cn(
-        'bg-modal fixed right-6 z-70 flex max-w-95 min-w-70 items-center gap-3 rounded-2xl border border-accent-pink px-4.5 py-3 shadow-halo-xl shadow-accent-pink/30 backdrop-blur-lg motion-safe:animate-fade-in',
+        'fixed right-6 z-70 flex max-w-95 min-w-70 items-center gap-3 rounded-2xl border border-accent-pink bg-modal px-4.5 py-3 shadow-halo-xl shadow-accent-pink/30 backdrop-blur-lg motion-safe:animate-fade-in',
         activeTab !== 'player' || isPlayerScrolledDown ? 'bottom-22.5' : 'bottom-6',
       )}
     >
-      <div className="bg-accent-gradient flex size-9 shrink-0 items-center justify-center rounded-xl shadow-halo shadow-accent-pink/50">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-gradient shadow-halo shadow-accent-pink/50">
         <Loader2 size={18} className="animate-spin text-on-accent" />
       </div>
       <div className="min-w-0 flex-1">

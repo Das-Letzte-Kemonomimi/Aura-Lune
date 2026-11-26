@@ -4,6 +4,8 @@ import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
+import { cn } from '../../../utils/cn';
+import { cssVars } from '../../../utils/cssVars';
 
 export type PlayerProgressSectionProps = Pick<PlayerViewProps, 'formatTime' | 'dspCombination' | 'loopPointA' | 'loopPointB' | 'setIsLoopEditorOpen' | 'loc' | 'formatTimeMs' | 'setLoopPointA' | 'setLoopPointB' | 'showMessage' | 'handleToggleSeekFade' | 'seekFadeEnabled' | 'trackWaveformPeaks' | 'language' | 'handleSeek' | 'handleSeekPreview' | 'handleSeekCommit' | 'currentBookmark' | 'currentTrackBookmarks'> & {
   status: PlaybackStatus;
@@ -34,65 +36,38 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
   trackWaveformPeaks,
 }) => (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '6px',
-          fontSize: '0.78rem',
-          fontFamily: 'var(--font-mono)',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+      <div className="mb-1.5 flex items-center justify-between font-mono text-ui text-fg-secondary">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-fg">
             {formatTime(status.position_ms)}
           </span>
           {/* Wskaźnik prędkości i transpozycji DSP jeśli tempo, szybkość lub pitch jest modyfikowane */}
           {(dspCombination.hasTempo || dspCombination.hasRate || dspCombination.hasPitch) && (
             <span
-              style={{
-                fontSize: '0.68rem',
-                fontWeight: 700,
-                padding: '1px 6px',
-                borderRadius: '4px',
-                background: 'rgba(168, 85, 247, 0.25)',
-                color: 'var(--accent-purple)',
-                border: '1px solid rgba(168, 85, 247, 0.45)',
-              }}
+              className="rounded-sm border border-accent-purple/45 bg-accent-purple/25 px-1.5 py-px text-xxs font-bold text-accent-purple"
               title={`DSP (${dspCombination.engine}): Σ Speed ${dspCombination.totalSpeedRatio.toFixed(2)}x, Σ Pitch ${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st (Tempo: ${dspCombination.tempoRatio.toFixed(2)}x, Pitch: ${dspCombination.pitchSt.toFixed(2)}st, Rate: ${dspCombination.rateRatio.toFixed(2)}x)`}
             >
               DSP {dspCombination.totalSpeedRatio !== 1.0 ? `${dspCombination.totalSpeedRatio.toFixed(2)}x` : ''}
-              {dspCombination.totalSpeedRatio !== 1.0 && Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? ', ' : ''}
+              {dspCombination.totalSpeedRatio !== 1.0 && Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? ',' : ''}
               {Math.abs(dspCombination.totalPitchSemitones) > 0.005 ? `${dspCombination.totalPitchSemitones > 0 ? `+${dspCombination.totalPitchSemitones.toFixed(2)}` : dspCombination.totalPitchSemitones.toFixed(2)}st` : ''}
             </span>
           )}
           {(loopPointA !== null || loopPointB !== null) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div className="flex items-center gap-1">
               <span
                 onClick={() => setIsLoopEditorOpen(true)}
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  padding: '1px 6px',
-                  borderRadius: '4px',
-                  background: loopPointA !== null && loopPointB !== null ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                  color: loopPointA !== null && loopPointB !== null ? 'var(--accent-cyan)' : '#fbbf24',
-                  border: loopPointA !== null && loopPointB !== null ? '1px solid rgba(6, 182, 212, 0.45)' : '1px solid rgba(251, 191, 36, 0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
+                className={cn(
+                  'flex cursor-pointer items-center gap-1 rounded-sm border px-1.5 py-px text-xxs font-bold',
+                  loopPointA !== null && loopPointB !== null ? 'border-accent-cyan/45 bg-accent-cyan/20 text-accent-cyan' : 'border-amber-400/40 bg-white/8 text-amber-400',
+                )}
                 title={loc.player.editLoopTooltip}
               >
                 <span>🔁 {loc.player.loopAB}:</span>
-                <span style={{ color: 'var(--accent-cyan)' }}>{loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000'}</span>
+                <span className="text-accent-cyan">{loopPointA !== null ? formatTimeMs(loopPointA) : '0:00.000'}</span>
                 <span>→</span>
-                <span style={{ color: 'var(--accent-pink)' }}>{loopPointB !== null ? formatTimeMs(loopPointB) : '—'}</span>
+                <span className="text-accent-pink">{loopPointB !== null ? formatTimeMs(loopPointB) : '—'}</span>
                 {loopPointA !== null && loopPointB !== null && loopPointB > loopPointA && (
-                  <span style={{ opacity: 0.85, fontSize: '0.62rem' }}>
+                  <span className="text-2xs opacity-85">
                     ({((loopPointB - loopPointA) / 1000).toFixed(1)}s)
                   </span>
                 )}
@@ -103,15 +78,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
                   setLoopPointB(null);
                   showMessage(loc.player.clearedLoopMsg);
                 }}
-                style={{
-                  padding: '1px 5px',
-                  fontSize: '0.65rem',
-                  background: 'rgba(244, 63, 94, 0.2)',
-                  border: '1px solid rgba(244, 63, 94, 0.45)',
-                  color: '#ff6b81',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                }}
+                className="rounded-sm border border-accent-pink/45 bg-accent-pink/20 px-1.5 py-px text-xxs text-rose-400"
                 title={loc.player.clearLoop}
               >
                 ✕
@@ -122,17 +89,10 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
           {/* Przełącznik płynnego wyciszenia paska postępu (Fade Seek) */}
           <button
             onClick={handleToggleSeekFade}
-            style={{
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              padding: '1px 8px',
-              borderRadius: '4px',
-              background: seekFadeEnabled ? 'rgba(236, 72, 153, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-              color: seekFadeEnabled ? 'var(--accent-pink)' : 'var(--text-muted)',
-              border: seekFadeEnabled ? '1px solid rgba(236, 72, 153, 0.45)' : '1px solid var(--border-subtle)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
+            className={cn(
+              'rounded-sm border px-2 py-px text-xxs font-bold transition-all duration-150',
+              seekFadeEnabled ? 'border-pink-500/45 bg-pink-500/20 text-accent-pink' : 'border-line bg-white/6 text-fg-muted',
+            )}
             title={loc.player.seekFadeDesc}
           >
             {seekFadeEnabled ? loc.player.seekFadeOn : loc.player.seekFadeOff}
@@ -174,25 +134,17 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
           }
         }}
         title={`${loc.waveform.title} (${loc.waveform.hint})`}
-        style={{ marginBottom: '10px' }}
+        className="mb-2.5"
       />
 
       {/* Kontener suwaka z podświetleniem pętli A-B oraz znacznikiem zakładki */}
-      <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+      <div className="relative flex w-full items-center">
         {loopPointA !== null && loopPointB !== null && status.duration_ms && (
           <div
+            className="pointer-events-none absolute top-1/2 z-1 h-2 -translate-y-1/2 rounded-sm bg-linear-to-r from-accent-cyan/65 to-accent-pink/65 shadow-halo-sm shadow-accent-cyan/60"
             style={{
-              position: 'absolute',
-              top: '50%',
-              transform: 'translateY(-50%)',
               left: `${(loopPointA / status.duration_ms) * 100}%`,
               width: `${Math.max(2, ((loopPointB - loopPointA) / status.duration_ms) * 100)}%`,
-              height: '8px',
-              borderRadius: '4px',
-              background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.65), rgba(244, 63, 94, 0.65))',
-              boxShadow: '0 0 10px rgba(6, 182, 212, 0.6)',
-              pointerEvents: 'none',
-              zIndex: 1,
             }}
           />
         )}
@@ -207,21 +159,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.stopPropagation();
               setIsLoopEditorOpen(true);
             }}
-            style={{
-              position: 'absolute',
-              top: '-16px',
-              left: `${(loopPointA / status.duration_ms) * 100}%`,
-              transform: 'translateX(-50%)',
-              fontSize: '0.62rem',
-              fontWeight: 800,
-              color: 'var(--accent-cyan)',
-              background: '#090d16',
-              border: '1px solid var(--accent-cyan)',
-              borderRadius: '3px',
-              padding: '0 4px',
-              cursor: 'pointer',
-              zIndex: 2,
-            }}
+            className="absolute -top-4 z-2 -translate-x-1/2 cursor-pointer rounded-sm border border-accent-cyan px-1 py-0 text-2xs font-extrabold text-accent-cyan"
+            style={{ left: `${(loopPointA / status.duration_ms) * 100}%`, background: '#090d16' }}
             title={fmt(loc.player.pointATooltip, formatTimeMs(loopPointA), String(loopPointA))}
           >
             A
@@ -238,21 +177,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.stopPropagation();
               setIsLoopEditorOpen(true);
             }}
-            style={{
-              position: 'absolute',
-              top: '-16px',
-              left: `${(loopPointB / status.duration_ms) * 100}%`,
-              transform: 'translateX(-50%)',
-              fontSize: '0.62rem',
-              fontWeight: 800,
-              color: 'var(--accent-pink)',
-              background: '#090d16',
-              border: '1px solid var(--accent-pink)',
-              borderRadius: '3px',
-              padding: '0 4px',
-              cursor: 'pointer',
-              zIndex: 2,
-            }}
+            className="absolute -top-4 z-2 -translate-x-1/2 cursor-pointer rounded-sm border border-accent-pink px-1 py-0 text-2xs font-extrabold text-accent-pink"
+            style={{ left: `${(loopPointB / status.duration_ms) * 100}%`, background: '#090d16' }}
             title={fmt(loc.player.pointBTooltip, formatTimeMs(loopPointB), String(loopPointB))}
           >
             B
@@ -265,25 +191,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.stopPropagation();
               handleSeek(currentBookmark);
             }}
-            style={{
-              position: 'absolute',
-              top: '-18px',
-              left: `${(currentBookmark / status.duration_ms) * 100}%`,
-              transform: 'translateX(-50%)',
-              fontSize: '0.62rem',
-              fontWeight: 800,
-              color: '#fbbf24',
-              background: '#090d16',
-              border: '1px solid #fbbf24',
-              borderRadius: '3px',
-              padding: '0 4px',
-              cursor: 'pointer',
-              zIndex: 3,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '2px',
-              boxShadow: '0 0 8px rgba(251, 191, 36, 0.4)',
-            }}
+            className="absolute -top-4.5 z-3 flex -translate-x-1/2 cursor-pointer items-center gap-0.5 rounded-sm border border-amber-400 px-1 py-0 text-2xs font-extrabold text-amber-400 shadow-halo-sm shadow-amber-400/40"
+            style={{ left: `${(currentBookmark / status.duration_ms) * 100}%`, background: '#090d16' }}
             title={`${fmt(loc.player.bookmarkJump, formatTime(currentBookmark))} (${loc.player.clickToJump})`}
           >
             <Bookmark size={9} fill="#fbbf24" /> {formatTime(currentBookmark)}
@@ -300,20 +209,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
                 handleSeek(bm.position_ms);
                 showMessage(`📌 ${bm.name} (${formatTimeMs(bm.position_ms)})`);
               }}
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: `${leftPct}%`,
-                transform: 'translate(-50%, -50%) rotate(45deg)',
-                width: '8px',
-                height: '8px',
-                backgroundColor: 'var(--accent-cyan, #06b6d4)',
-                border: '1px solid #fff',
-                borderRadius: '2px',
-                zIndex: 4,
-                cursor: 'pointer',
-                boxShadow: '0 0 6px rgba(6, 182, 212, 0.9)',
-              }}
+              className="absolute top-1/2 z-4 h-2 w-2 cursor-pointer rounded-xs border border-white bg-accent-cyan shadow-halo-sm shadow-accent-cyan/90"
+              style={{ left: `${leftPct}%`, transform: 'translate(-50%, -50%) rotate(45deg)' }}
               title={`📌 ${bm.name} - ${formatTimeMs(bm.position_ms)} (${loc.player.clickToJump})`}
             />
           );
@@ -350,12 +247,8 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
               e.currentTarget.blur();
             }
           }}
-          style={{
-            width: '100%',
-            position: 'relative',
-            zIndex: 3,
-            background: `linear-gradient(to right, var(--accent-pink) 0%, var(--accent-purple) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) ${seekProgressPercent}%, rgba(255, 255, 255, 0.12) 100%)`,
-          }}
+          className="relative z-3 w-full range-fill"
+          style={cssVars({ '--fill': `${seekProgressPercent}%` })}
         />
       </div>
     </div>

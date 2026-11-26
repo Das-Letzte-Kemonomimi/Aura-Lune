@@ -251,7 +251,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       radius: 0.8 + Math.random() * 1.8,
       phase: Math.random() * Math.PI * 2,
       pulseSpeed: 0.015 + Math.random() * 0.03,
-      color: Math.random() > 0.4 ? 'rgba(255, 255, 255, 0.9)' : 'rgba(167, 139, 250, 0.85)',
+      color: Math.random() > 0.4 ? 'rgba(255, 255, 0.9)' : 'rgba(167, 139, 250, 0.85)',
     }));
 
     const meteors: Meteor[] = Array.from({ length: 5 }, () => ({
@@ -652,16 +652,8 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 2,
-        opacity,
-        transition: 'opacity 0.5s ease',
-              }}
+      className="pointer-events-none fixed inset-0 z-2 h-full w-full transition-opacity duration-500"
+      style={{ opacity }}
     />
   );
 };

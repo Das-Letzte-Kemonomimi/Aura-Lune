@@ -3,6 +3,7 @@ import { FolderOpen, Radio, X } from 'lucide-react';
 import { invoke } from '../../../api/ipc';
 import type { PlaybackStatus, SampleTrackDto } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
+import { cn } from '../../../utils/cn';
 
 export type PlayerToolbarProps = Pick<PlayerViewProps, 'setIsAudioPathModalOpen' | 'loc' | 'setIsQuickLoadOpen' | 'isQuickLoadOpen' | 'filePath' | 'setFilePath' | 'handleLoadFile'> & {
   status: PlaybackStatus;
@@ -19,51 +20,23 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
   setIsQuickLoadOpen,
   status,
 }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => setIsAudioPathModalOpen(true)}
           title={loc.player.audioPathInspectorTooltip}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 12px',
-            borderRadius: '20px',
-            background: status.engine === 'Bypass' && !status.equalizer_enabled
-              ? 'rgba(16, 185, 129, 0.15)'
-              : 'rgba(6, 182, 212, 0.15)',
-            border: status.engine === 'Bypass' && !status.equalizer_enabled
-              ? '1px solid rgba(16, 185, 129, 0.45)'
-              : '1px solid rgba(6, 182, 212, 0.45)',
-            color: status.engine === 'Bypass' && !status.equalizer_enabled
-              ? '#34d399'
-              : 'var(--accent-cyan)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          }}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-3xl border px-3 py-1 text-xs font-bold shadow-md shadow-black/20 transition-all duration-150',
+            status.engine === 'Bypass' && !status.equalizer_enabled ? 'border-accent-green/45 bg-accent-green/15 text-emerald-400' : 'border-accent-cyan/45 bg-accent-cyan/15 text-accent-cyan',
+          )}
         >
           <Radio size={13} /> PipeWire {status.engine === 'Bypass' && !status.equalizer_enabled ? 'Bit-Perfect' : 'Hi-Fi'} • {status.engine}
         </button>
 
         {status.equalizer_enabled && (
           <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 9px',
-              borderRadius: '20px',
-              background: 'rgba(168, 85, 247, 0.15)',
-              border: '1px solid rgba(168, 85, 247, 0.35)',
-              color: 'var(--accent-purple)',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-            }}
+            className="inline-flex items-center gap-1 rounded-3xl border border-accent-purple/35 bg-accent-purple/15 px-2.5 py-1 text-xs font-bold text-accent-purple"
           >
             10-Band EQ
           </span>
@@ -71,22 +44,13 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
       </div>
 
       {/* Dyskretne otwieranie pliku zamiast wielkiego pola tekstowego */}
-      <div style={{ position: 'relative' }}>
+      <div className="relative">
         <button
           onClick={() => setIsQuickLoadOpen(!isQuickLoadOpen)}
-          className="glass-card"
-          style={{
-            padding: '7px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '7px',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            color: isQuickLoadOpen ? 'var(--accent-pink)' : 'var(--text-secondary)',
-            border: isQuickLoadOpen ? '1px solid var(--accent-pink)' : '1px solid var(--border-subtle)',
-            borderRadius: '8px',
-            cursor: 'pointer',
-          }}
+          className={cn(
+            'glass-card flex items-center gap-2 rounded-lg border px-3.5 py-2 text-ui font-semibold',
+            isQuickLoadOpen ? 'border-accent-pink text-accent-pink' : 'border-line text-fg-secondary',
+          )}
           title={loc.player.quickLoadHint}
         >
           <FolderOpen size={15} />
@@ -96,71 +60,42 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
         {/* Zwijany elegancki dropdown szybkiego ładowania */}
         {isQuickLoadOpen && (
           <div
-            className="glass-panel"
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: '100%',
-              marginTop: '8px',
-              width: '380px',
-              padding: '16px',
-              zIndex: 50,
-              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65)',
-              border: '1px solid var(--border-accent)',
-              borderRadius: '14px',
-              background: 'var(--bg-surface)',
-            }}
+            className="glass-panel absolute top-full right-0 z-20 mt-2 w-95 rounded-2xl border border-line-accent bg-surface p-4 shadow-2xl shadow-black/65"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>{loc.player.quickLoadTitle}</span>
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="text-ui font-bold text-fg">{loc.player.quickLoadTitle}</span>
               <button
                 onClick={() => setIsQuickLoadOpen(false)}
-                style={{ background: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                className="flex bg-transparent text-fg-muted"
               >
                 <X size={15} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <div className="mb-3 flex gap-2">
               <input
                 type="text"
                 value={filePath || ''}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="tests/fixtures/test_sine_440hz.wav"
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'rgba(0,0,0,0.4)',
-                  color: '#fff',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.8rem',
-                }}
+                className="flex-1 rounded-lg border border-line bg-black/40 px-3 py-2 font-mono text-ui text-fg"
               />
               <button
                 onClick={() => {
                   handleLoadFile(filePath || '');
                   setIsQuickLoadOpen(false);
                 }}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
-                  color: '#fff',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                }}
+                className="rounded-lg bg-accent-gradient px-3.5 py-2 text-ui font-bold text-on-accent"
               >
                 {loc.player.load}
               </button>
             </div>
 
             <div>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+              <span className="mb-1.5 block text-xs text-fg-muted">
                 {loc.player.testSamples}
               </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="flex gap-2">
                 <button
                   onClick={async () => {
                     try {
@@ -174,8 +109,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
                     }
                     setIsQuickLoadOpen(false);
                   }}
-                  className="glass-card"
-                  style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-pink)', textAlign: 'center', fontWeight: 600 }}
+                  className="glass-card flex-1 px-2.5 py-1.5 text-center text-xs font-semibold text-accent-pink"
                 >
                   🌸 Skrzydła Białe
                 </button>
@@ -185,8 +119,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
                     handleLoadFile('tests/fixtures/test_sine_440hz.wav');
                     setIsQuickLoadOpen(false);
                   }}
-                  className="glass-card"
-                  style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}
+                  className="glass-card flex-1 px-2.5 py-1.5 text-center text-xs text-fg-secondary"
                 >
                   WAV 440 Hz
                 </button>
@@ -196,8 +129,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
                     handleLoadFile('tests/fixtures/test_sine_440hz.opus');
                     setIsQuickLoadOpen(false);
                   }}
-                  className="glass-card"
-                  style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', color: 'var(--accent-cyan)', textAlign: 'center' }}
+                  className="glass-card flex-1 px-2.5 py-1.5 text-center text-xs text-accent-cyan"
                 >
                   Opus 48 kHz
                 </button>

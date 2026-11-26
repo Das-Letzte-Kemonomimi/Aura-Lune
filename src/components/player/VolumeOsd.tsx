@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Volume2, Volume1, VolumeX } from 'lucide-react';
+import { cn } from '../../utils/cn';
 
 export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'off';
 
@@ -8,6 +9,16 @@ interface VolumeOsdProps {
   position: VolumeOsdPosition;
   unit?: 'percent' | 'db';
 }
+
+/** Screen position of the OSD (`left-1/2 -translate-x-1/2` centres horizontally). */
+const OSD_POSITIONS: Record<string, string> = {
+  center: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+  'top-right': 'top-8 right-8',
+  'top-left': 'top-8 left-8',
+  'bottom-center': 'bottom-30 left-1/2 -translate-x-1/2',
+  'bottom-right': 'bottom-30 right-8',
+  'bottom-left': 'bottom-30 left-8',
+};
 
 export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = 'percent' }) => {
   const [visible, setVisible] = useState(false);
@@ -53,102 +64,27 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
     return null;
   }
 
-  // Obliczenie pozycji w oknie
-  const getPositionStyles = (): React.CSSProperties => {
-    switch (position) {
-      case 'center':
-        return {
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-        };
-      case 'top-right':
-        return {
-          top: '32px',
-          right: '32px',
-        };
-      case 'top-left':
-        return {
-          top: '32px',
-          left: '32px',
-        };
-      case 'bottom-center':
-        return {
-          bottom: '120px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-        };
-      case 'bottom-right':
-        return {
-          bottom: '120px',
-          right: '32px',
-        };
-      case 'bottom-left':
-        return {
-          bottom: '120px',
-          left: '32px',
-        };
-      default:
-        return {
-          bottom: '120px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-        };
-    }
-  };
-
   return (
     <div
-      style={{
-        position: 'fixed',
-        zIndex: 999999,
-        pointerEvents: 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '16px 24px',
-        background: 'rgba(15, 17, 28, 0.85)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(244, 63, 94, 0.35)',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(244, 63, 94, 0.25)',
-        borderRadius: '18px',
-        minWidth: '180px',
-        animation: 'volumeOsdPop 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        transition: 'opacity 0.25s ease',
-        ...getPositionStyles(),
-      }}
+      className={cn(
+        'pointer-events-none fixed z-130 flex min-w-45 flex-col items-center gap-3 rounded-2xl border border-accent-pink/35 bg-ink/85 px-6 py-4 shadow-modal backdrop-blur-xl transition-opacity duration-300 motion-safe:animate-osd-pop',
+        OSD_POSITIONS[position] ?? OSD_POSITIONS['bottom-center'],
+      )}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="flex items-center gap-2.5">
         {percentage === 0 ? (
-          <VolumeX size={26} color="var(--accent-pink, #f43f5e)" />
+          <VolumeX size={26} className="text-accent-pink" />
         ) : percentage < 50 ? (
-          <Volume1 size={26} color="var(--accent-cyan, #06b6d4)" />
+          <Volume1 size={26} className="text-accent-cyan" />
         ) : (
-          <Volume2 size={26} color="var(--accent-pink, #f43f5e)" />
+          <Volume2 size={26} className="text-accent-pink" />
         )}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-          <span
-            style={{
-              fontSize: '1.4rem',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono, monospace)',
-              color: '#fff',
-              letterSpacing: '-0.02em',
-            }}
-          >
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-mono text-2xl font-extrabold tracking-tight text-fg">
             {displayValue}
           </span>
           {isDb && (
-            <span
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                fontFamily: 'var(--font-mono, monospace)',
-                color: 'var(--text-muted, #94a3b8)',
-              }}
-            >
+            <span className="font-mono text-ui font-semibold text-fg-muted">
               ({percentage}%)
             </span>
           )}
@@ -156,25 +92,10 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = '
       </div>
 
       {/* Wskaźnik paska głośności */}
-      <div
-        style={{
-          width: '140px',
-          height: '8px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '4px',
-          overflow: 'hidden',
-          position: 'relative',
-        }}
-      >
+      <div className="relative h-2 w-35 overflow-hidden rounded-sm bg-white/10">
         <div
-          style={{
-            width: `${Math.min(100, percentage)}%`,
-            height: '100%',
-            background: 'linear-gradient(90deg, var(--accent-cyan, #06b6d4), var(--accent-pink, #f43f5e))',
-            borderRadius: '4px',
-            boxShadow: '0 0 10px rgba(244, 63, 94, 0.5)',
-            transition: 'width 0.08s ease-out',
-          }}
+          className="h-full rounded-sm bg-linear-to-r from-accent-cyan to-accent-pink shadow-halo-sm shadow-accent-pink/50 transition-[width] duration-75"
+          style={{ width: `${Math.min(100, percentage)}%` }}
         />
       </div>
     </div>
