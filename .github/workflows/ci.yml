@@ -31,10 +31,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install frontend dependencies
-        run: npm --prefix apps/desktop ci
+        run: npm ci
 
       - name: Validate shell scripts (bash -n)
         run: |
@@ -42,13 +42,13 @@ jobs:
             xargs -0 -n1 bash -n
 
       - name: Lint frontend codebase (oxlint)
-        run: npm --prefix apps/desktop run lint
+        run: npm run lint
 
       - name: Run unit & localization tests (vitest)
-        run: npm --prefix apps/desktop test
+        run: npm test
 
       - name: Typecheck and build frontend (tsc -b && vite build)
-        run: npm --prefix apps/desktop run build
+        run: npm run build
 
   backend-desktop:
     name: Rust Backend & Desktop Quality
@@ -64,7 +64,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -109,8 +109,8 @@ jobs:
 
       - name: Install frontend dependencies & build bundle
         run: |
-          npm --prefix apps/desktop ci
-          npm --prefix apps/desktop run build
+          npm ci
+          npm run build
 
       - name: Check Rust formatting (cargo fmt)
         run: cargo fmt --all --check
@@ -154,10 +154,10 @@ jobs:
 
       - name: Build Tauri AppImage bundle
         env:
-          # Wbudowuje kanał i commit (apps/desktop/src-tauri/build.rs); GITHUB_SHA ustawia GitHub.
+          # Wbudowuje kanał i commit (src-tauri/build.rs); GITHUB_SHA ustawia GitHub.
           AURALUNE_BUILD_CHANNEL: dev
         run: |
-          npm --prefix apps/desktop run tauri build -- --bundles appimage
+          npm run tauri build -- --bundles appimage
 
       - name: Publish rolling dev release to GitHub Releases
         env:

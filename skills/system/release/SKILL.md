@@ -23,7 +23,7 @@ workflow) and `chore(aur): update AppImage sha256 checksum for vX.Y.Z`.
 
 1.  Work from the `dev` checkout with a clean tree: `git status --short` must be
     empty, so the content commit stays reviewable. Note unrelated changes
-    (for example `apps/desktop/skills-lock.json`) and ask the user whether to
+    (for example `skills-lock.json`) and ask the user whether to
     commit or stash them; do not sweep them into the release commit.
 2.  Ask for anything you cannot derive: the **new version** (X.Y.Z; SemVer rules
     are at the top of `CHANGELOG.md`: MAJOR = architecture, MINOR = new
@@ -39,7 +39,7 @@ workflow) and `chore(aur): update AppImage sha256 checksum for vX.Y.Z`.
 
 Do **not** edit version numbers by hand for the release: *Prepare release*
 runs `packaging/bump-version.sh X.Y.Z`, which rewrites `Cargo.toml`,
-`tauri.conf.json`, both `package.json` files and `apps/desktop/package-lock.json`,
+`tauri.conf.json`, both `package.json` files and `package-lock.json`,
 `install.sh`, `PKGBUILD`/`PKGBUILD-bin`, `.SRCINFO`, `docs/FEATURE_MATRIX.md`
 and `DEVELOPMENT.md`, and fails when a file still carries the previous release
 (typically the README badge). To rehearse it, run the script in a scratch
@@ -62,11 +62,11 @@ Update Changelog Entries" before editing.
     release notes from this heading up to the first `---`, and the codename from
     the heading text between `„` and `”`. A missing separator or a
     changed heading format breaks the release notes.
-2.  **`apps/desktop/src/data/changelog.json`**: add the new object at the
+2.  **`src/data/changelog.json`**: add the new object at the
     **start** of the array, set `isLatest: true` on it and remove `isLatest` from
     the previous one. Do not edit `ChangelogView.tsx` for data. Copy the entry
     shape from the newest existing entries and the `ChangelogRelease` type in
-    the frontend (`grep -rn ChangelogRelease apps/desktop/src`), because
+    the frontend (`grep -rn ChangelogRelease src`), because
     `AGENTS.md` and the file have shown different shapes. Provide every
     language the UI ships (currently `pl`, `en`, `de`, `fi`, `la`); the i18n
     parity tests fail on gaps, so also use the `i18n-sync` skill if it applies.

@@ -46,12 +46,12 @@ pkgver() {
 }
 
 prepare() {
-    cd "$srcdir/auralune/apps/desktop"
+    cd "$srcdir/auralune"
     npm ci
 }
 
 build() {
-    cd "$srcdir/auralune/apps/desktop"
+    cd "$srcdir/auralune"
     npx tauri build --no-bundle
 }
 
@@ -65,13 +65,13 @@ package() {
     install -Dm644 "packaging/auralune.desktop" "$pkgdir/usr/share/applications/auralune.desktop"
 
     # Ikony we wszystkich standardowych rozdzielczościach hicolor oraz pixmaps
-    install -Dm644 "apps/desktop/src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/64x64.png" "$pkgdir/usr/share/icons/hicolor/64x64/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/auralune.png"
-    install -Dm644 "apps/desktop/public/auralune_icon.png" "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/128x128.png" "$pkgdir/usr/share/pixmaps/auralune.png"
+    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/64x64.png" "$pkgdir/usr/share/icons/hicolor/64x64/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/auralune.png"
+    install -Dm644 "public/auralune_icon.png" "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/pixmaps/auralune.png"
 
     # Licencja
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"

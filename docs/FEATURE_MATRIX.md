@@ -266,8 +266,8 @@
 - `crates/metadata`: Integracja MusicBrainz REST API, Cover Art Archive, scraping tekstów LRCLIB, Last.fm i ListenBrainz.
 - `crates/downloads`: Asynchroniczna kolejka pobierania legalnych plików ze sprawdzaniem sum kontrolnych.
 - `crates/desktop-integration`: Serwer MPRIS v2 na D-Bus, Discord RPC IPC socket, integracja z pulpitem.
-- `apps/desktop/src-tauri`: Ponad 100 typowanych komend Tauri v2 łączących frontend React z backendem Rust.
-- `apps/desktop`: Frontend React 19 + TypeScript + Vite ze ścisłą typizacją i zoptymalizowanymi widokami.
+- `src-tauri`: Ponad 100 typowanych komend Tauri v2 łączących frontend React z backendem Rust.
+- `src/` + `src-tauri/`: Frontend React 19 + TypeScript + Vite ze ścisłą typizacją i zoptymalizowanymi widokami.
 
 ---
 

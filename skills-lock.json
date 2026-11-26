@@ -624,6 +624,13 @@
       "skillPath": "plugins/patching-bugs/skills/prove-patch/SKILL.md",
       "computedHash": "a63515f358a640e57bbbcefc6a6ef43a47c1796715b3749a732b15991945ba92"
     },
+    "prune-tests": {
+      "source": "caldoai/skills",
+      "commit": "d5b68dace378219890d821adb3685538e2c69b04",
+      "sourceType": "github",
+      "skillPath": "skills/prune-tests/SKILL.md",
+      "computedHash": "d9c413b8b2f2dc24992a580109a731cd766f33661d1495cdf08522f464760fd5"
+    },
     "regression-hunt": {
       "source": "trailofbits/skills",
       "commit": "149d7b21f4067765b82e67029730b42d228ef4b4",
@@ -1281,6 +1288,13 @@
       "sourceType": "github",
       "skillPath": "skills/unsafe-checker/SKILL.md",
       "computedHash": "7a474d999350c2eb6ff0420502e4b78e0ac26b87b5328b4b1ff0824edd89cfcf"
+    },
+    "untangle-codebase": {
+      "source": "caldoai/skills",
+      "commit": "bd73b2ea5eb854ab8f0553fb41f77c8786f28f82",
+      "sourceType": "github",
+      "skillPath": "skills/untangle-codebase/SKILL.md",
+      "computedHash": "73791c30d4da2e001bc095732771966338b764e2e7b57bb30a81439cff85aef4"
     },
     "validate-bug": {
       "source": "trailofbits/skills",

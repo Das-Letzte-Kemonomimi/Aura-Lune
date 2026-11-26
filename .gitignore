@@ -1,21 +1,40 @@
+# Rust
 /target
 /target-fedora
-node_modules
-apps/desktop/dist
-apps/desktop/src-tauri/target
+src-tauri/target
 Cargo.lock
 **/*.rs.bk
+
+# Frontend
+node_modules
+dist
+dist-ssr
+*.local
+logs
+*.log
+npm-debug.log*
+
+# Editors / OS
 *.swp
 *~
 .DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Test fixtures
 tests/fixtures/*.flac
 !tests/fixtures/Skrzydła Białe.flac
+
+# Packaging
 packaging/archlinux/src/
 packaging/archlinux/pkg/
 packaging/archlinux/*.pkg.tar.*
 *.AppImage
+
+# Local agent state
 .plans
-.idea
 .agents
 .claude
 .gemini
+CLAUDE.local.md

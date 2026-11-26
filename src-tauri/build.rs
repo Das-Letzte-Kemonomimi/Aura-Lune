@@ -40,7 +40,7 @@ fn build_channel() -> String {
 
 /// Przebudowa po zmianie commita (HEAD oraz plik gałęzi, na którą wskazuje).
 fn watch_git_head() {
-    let head = Path::new("../../../.git/HEAD");
+    let head = Path::new("../.git/HEAD");
     if !head.is_file() {
         return;
     }
@@ -49,7 +49,7 @@ fn watch_git_head() {
         return;
     };
     if let Some(reference) = content.trim().strip_prefix("ref: ") {
-        let ref_path = Path::new("../../../.git").join(reference);
+        let ref_path = Path::new("../.git").join(reference);
         if ref_path.is_file() {
             println!("cargo:rerun-if-changed={}", ref_path.display());
         }

@@ -45,7 +45,7 @@ Do this once in the GitHub repository settings.
 The 5-language changelog cannot be generated mechanically, so it is written **before** the workflows run (ask the agent: `/release`, or do it by hand):
 
 - add `## [X.Y.Z] — „Codename” - YYYY-MM-DD` to `CHANGELOG.md` (keep the `---` separator after the block, the release notes are cut from there);
-- add the entry to the start of `apps/desktop/src/data/changelog.json` with `isLatest: true` (and remove it from the previous entry) with every language: `pl`, `en`, `de`, `fi`, `la`;
+- add the entry to the start of `src/data/changelog.json` with `isLatest: true` (and remove it from the previous entry) with every language: `pl`, `en`, `de`, `fi`, `la`;
 - update the version badges and `releases/tag/vX.Y.Z` links in `README.md` and `README.pl.md`;
 - reset `CHANGELOG_PENDING.md` to the empty template;
 - run `./tests/run_all_tests.sh --fix`, commit and push `dev`.

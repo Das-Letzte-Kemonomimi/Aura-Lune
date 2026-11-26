@@ -172,6 +172,6 @@ fn test_generated_frontend_command_names_match_registered_commands() {
     let stale: Vec<_> = in_ts.difference(&registered).collect();
     assert!(
         missing.is_empty() && stale.is_empty(),
-        "src/api/commands.generated.ts jest nieaktualny — uruchom `npm run gen:commands` w apps/desktop.\n  brakujące: {missing:?}\n  nadmiarowe: {stale:?}"
+        "src/api/commands.generated.ts jest nieaktualny — uruchom `npm run gen:commands` w katalogu głównym repozytorium.\n  brakujące: {missing:?}\n  nadmiarowe: {stale:?}"
     );
 }

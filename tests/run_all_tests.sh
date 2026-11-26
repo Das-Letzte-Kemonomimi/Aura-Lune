@@ -93,15 +93,15 @@ echo ""
 
 # Stage 2: Frontend Linting (oxlint) & Unit/Localization Tests (Vitest)
 echo -e "${BLUE}[2/7] Running Frontend Linting (oxlint) & Vitest Test Suite...${RESET}"
-if ! npm --prefix "${ROOT_DIR}/apps/desktop" run lint; then
+if ! npm --prefix "${ROOT_DIR}" run lint; then
     echo -e "${RED}❌ FAILED: Frontend linter (oxlint) reported diagnostics!${RESET}"
-    echo -e "${YELLOW}👉 Run: npm --prefix apps/desktop run lint to inspect.${RESET}"
+    echo -e "${YELLOW}👉 Run: npm run lint to inspect.${RESET}"
     exit 1
 fi
 
-if ! npm --prefix "${ROOT_DIR}/apps/desktop" test; then
+if ! npm --prefix "${ROOT_DIR}" test; then
     echo -e "${RED}❌ FAILED: Vitest test suite failed!${RESET}"
-    echo -e "${YELLOW}👉 Run: npm --prefix apps/desktop test to inspect failed tests.${RESET}"
+    echo -e "${YELLOW}👉 Run: npm test to inspect failed tests.${RESET}"
     exit 1
 fi
 echo -e "${GREEN}✓ Frontend lint, unit tests, and i18n parity passed (100% green).${RESET}"
@@ -109,9 +109,9 @@ echo ""
 
 # Stage 3: Frontend TypeScript Type Check & Production Vite Build
 echo -e "${BLUE}[3/7] Running Frontend TypeScript Typecheck & Production Build...${RESET}"
-if ! npm --prefix "${ROOT_DIR}/apps/desktop" run build; then
+if ! npm --prefix "${ROOT_DIR}" run build; then
     echo -e "${RED}❌ FAILED: TypeScript compilation or Vite bundling failed!${RESET}"
-    echo -e "${YELLOW}👉 Run: npm --prefix apps/desktop run build to view compiler diagnostics.${RESET}"
+    echo -e "${YELLOW}👉 Run: npm run build to view compiler diagnostics.${RESET}"
     exit 1
 fi
 echo -e "${GREEN}✓ Frontend build succeeded with 0 diagnostics.${RESET}"
@@ -167,7 +167,7 @@ echo ""
 # Optional Stage: AppImage Bundle Test (matches CI publish-dev-release)
 if [[ "$RUN_BUNDLE" == true ]]; then
     echo -e "${BLUE}[Optional] Testing Tauri AppImage Packaging (tauri build --bundles appimage)...${RESET}"
-    if ! npm --prefix "${ROOT_DIR}/apps/desktop" run tauri build -- --bundles appimage; then
+    if ! npm --prefix "${ROOT_DIR}" run tauri build -- --bundles appimage; then
         echo -e "${RED}❌ FAILED: Tauri AppImage packaging failed!${RESET}"
         echo -e "${YELLOW}👉 Check if libayatana-appindicator3-dev, librsvg2-dev, and libfuse2 are installed.${RESET}"
         exit 1

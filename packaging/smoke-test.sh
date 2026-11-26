@@ -62,8 +62,8 @@ fi
 
 # KROK 4: Weryfikacja ikon aplikacji
 echo -n "[4/6] Weryfikacja kompletności ikon aplikacji... "
-ICON_128="${ROOT_DIR}/apps/desktop/src-tauri/icons/128x128.png"
-ICON_PNG="${ROOT_DIR}/apps/desktop/src-tauri/icons/icon.png"
+ICON_128="${ROOT_DIR}/src-tauri/icons/128x128.png"
+ICON_PNG="${ROOT_DIR}/src-tauri/icons/icon.png"
 if [ -f "$ICON_128" ] && [ -f "$ICON_PNG" ]; then
     echo "OK (Ikony 128x128 i 512x512 obecne)"
 else

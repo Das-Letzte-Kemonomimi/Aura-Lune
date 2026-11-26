@@ -7,10 +7,6 @@ fn test_desktop_backend_smoke() {
     let fixture_wav = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
         .join("tests/fixtures/test_sine_440hz.wav");
 
     assert!(

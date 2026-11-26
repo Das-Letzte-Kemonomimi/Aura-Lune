@@ -1,5 +1,14 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "dist/**",
+    "target/**",
+    "crates/**",
+    "src-tauri/**",
+    ".claude/**",
+    ".agents/**",
+    "packaging/**"
+  ],
   "plugins": [
     "react",
     "typescript",

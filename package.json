@@ -1,16 +1,38 @@
 {
-  "name": "auralune-root",
+  "name": "auralune",
   "private": true,
+  "version": "1.1.6-dev",
   "author": "Das Letzte Kemonomimi",
-  "version": "1.1.5",
   "type": "module",
   "scripts": {
-    "dev": "npm --prefix apps/desktop run dev",
-    "build": "npm --prefix apps/desktop run build",
-    "lint": "npm --prefix apps/desktop run lint",
-    "test": "npm --prefix apps/desktop test",
-    "test:all": "npm test && cargo test --workspace",
-    "tauri": "npm --prefix apps/desktop exec tauri --"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "typecheck": "tsc -b",
+    "gen:commands": "node scripts/generate-command-names.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "lucide-react": "^1.59.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^31.0.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=22.0.0",

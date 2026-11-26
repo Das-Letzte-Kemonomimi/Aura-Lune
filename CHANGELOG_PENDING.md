@@ -6,7 +6,7 @@
 > 3. Podczas przygotowywania nowego wydania (np. bumpu wersji do kolejnego numeru):
 >    - Wszystkie zebrane poniżej punkty są weryfikowane i przenoszone do pliku [`CHANGELOG.md`](./CHANGELOG.md) pod nowym nagłówkiem wersji `## [X.Y.Z] — „Kryptonim” - YYYY-MM-DD`.
 >    - Poniższe sekcje są czyszczone do stanu początkowego na kolejny cykl deweloperski.
->    - Nowa wersja jest również dodawana do pliku danych [`apps/desktop/src/data/changelog.json`](./apps/desktop/src/data/changelog.json) (nie modyfikuj bezpośrednio kodu [`ChangelogView.tsx`](./apps/desktop/src/views/changelog/ChangelogView.tsx)).
+>    - Nowa wersja jest również dodawana do pliku danych [`src/data/changelog.json`](./src/data/changelog.json) (nie modyfikuj bezpośrednio kodu [`ChangelogView.tsx`](./src/views/changelog/ChangelogView.tsx)).
 
 ---
 
@@ -29,7 +29,7 @@
 - **Piano-Roll od nowa**: ostry obraz przy każdym skalowaniu (bufor w rozdzielczości urządzenia zamiast stałego 900×686), płynny ruch głowicy z częstotliwością odświeżania ekranu, rysowanie tylko widocznych nut i pętla, która śpi podczas pauzy. Tryb „Podążaj” (głowica przy 30% szerokości) oraz tryb swobodny: przeciąganie i kółko myszy przesuwają widok, Ctrl+kółko przybliża oś czasu, kółko przewija wiersze w pionie (gdy się nie mieszczą), Shift+kółko przesuwa czas, a pionowy suwak i przeciąganie w pionie pozwalają przewijać bez wychodzenia z trybu „Podążaj”; znaczniki na krawędziach pokazują nuty ukryte powyżej lub poniżej. Wysokość wierszy ustawisz przyciskami lub Alt+kółko (albo zostawisz „Auto”), a szerokość (zoom czasu) i wysokość są zapamiętywane między sesjami. Dodano linijkę czasu, siatkę uderzeń i taktów z tempa, podświetlanie klawiszy brzmiących nut, podpowiedź nuty (wysokość, start, długość, głośność) i minimapę gęstości nut z widocznym oknem (klik = przewinięcie). Podpisy nut (np. D2, C4) włącza i wyłącza przycisk „Podpisy” (ustawienie jest zapamiętywane); przy włączonych podpisach wiersze mają czytelną wysokość, w trybie „Podążaj” widok pionowy sam śledzi nuty przy głowicy, dopóki nie przewiniesz go ręcznie.
 
 #### Interfejs
-- **Historia wydań z paginacją**: dane wydań w pliku [`changelog.json`](./apps/desktop/src/data/changelog.json), wybór 3/5/10 wydań na stronę, skróty do pierwszej/ostatniej strony i wielokropek przy wielu stronach.
+- **Historia wydań z paginacją**: dane wydań w pliku [`changelog.json`](./src/data/changelog.json), wybór 3/5/10 wydań na stronę, skróty do pierwszej/ostatniej strony i wielokropek przy wielu stronach.
 - **Przycisk podsumowania Recap** w nagłówku panelu statystyk.
 - **Komunikat o błędzie przy nieudanym starcie** (baza danych, katalog danych, GStreamer) w oknie systemowym (zenity/kdialog) zamiast cichej awarii.
 - **Kilka komunikatów o błędach naraz** (do 3) — każdy znika po własnym czasie, kliknięcie zamyka komunikat, identyczne komunikaty nie są dublowane.

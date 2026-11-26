@@ -19,7 +19,7 @@ BINARY="${ROOT_DIR}/target/release/auralune-desktop"
 if [ ! -f "$BINARY" ]; then
     echo "Brak skompilowanego pliku binarnego w trybie release. Kompilacja..."
     export PATH="$HOME/.cargo/bin:$PATH"
-    (cd "${ROOT_DIR}/apps/desktop" && npx tauri build --no-bundle)
+    (cd "${ROOT_DIR}" && npx tauri build --no-bundle)
 fi
 
 echo "--> Kopiowanie binarki do AppDir..."
@@ -30,9 +30,9 @@ echo "--> Kopiowanie metadanych pulpitu i ikon..."
 cp "${ROOT_DIR}/packaging/auralune.desktop" "${APPDIR}/usr/share/applications/auralune.desktop"
 cp "${ROOT_DIR}/packaging/auralune.desktop" "${APPDIR}/auralune.desktop"
 
-cp "${ROOT_DIR}/apps/desktop/src-tauri/icons/128x128.png" "${APPDIR}/usr/share/icons/hicolor/128x128/apps/auralune.png"
-cp "${ROOT_DIR}/apps/desktop/src-tauri/icons/icon.png" "${APPDIR}/usr/share/icons/hicolor/512x512/apps/auralune.png"
-cp "${ROOT_DIR}/apps/desktop/src-tauri/icons/128x128.png" "${APPDIR}/auralune.png"
+cp "${ROOT_DIR}/src-tauri/icons/128x128.png" "${APPDIR}/usr/share/icons/hicolor/128x128/apps/auralune.png"
+cp "${ROOT_DIR}/src-tauri/icons/icon.png" "${APPDIR}/usr/share/icons/hicolor/512x512/apps/auralune.png"
+cp "${ROOT_DIR}/src-tauri/icons/128x128.png" "${APPDIR}/auralune.png"
 
 echo "--> Konfiguracja AppRun..."
 cp "${ROOT_DIR}/packaging/appimage/AppRun" "${APPDIR}/AppRun"

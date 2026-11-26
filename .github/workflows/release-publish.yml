@@ -49,7 +49,7 @@ jobs:
             echo "::error::Wersja '$VERSION' na main nie jest stabilna (X.Y.Z). Czy PR z Prepare release został zmergowany?"
             exit 1
           fi
-          if [[ "$(grep -m1 '"version"' apps/desktop/src-tauri/tauri.conf.json | sed -E 's/.*"version": "([^"]+)".*/\1/')" != "$VERSION" ]]; then
+          if [[ "$(grep -m1 '"version"' src-tauri/tauri.conf.json | sed -E 's/.*"version": "([^"]+)".*/\1/')" != "$VERSION" ]]; then
             echo "::error::tauri.conf.json ma inną wersję niż Cargo.toml."
             exit 1
           fi
@@ -88,7 +88,7 @@ jobs:
         env:
           # Kanał i commit są wbudowywane w aplikację (build.rs); GITHUB_SHA ustawia GitHub.
           AURALUNE_BUILD_CHANNEL: stable
-        run: npm --prefix apps/desktop run tauri build -- --bundles appimage
+        run: npm run tauri build -- --bundles appimage
 
       - name: Verify the AppImage name
         run: |

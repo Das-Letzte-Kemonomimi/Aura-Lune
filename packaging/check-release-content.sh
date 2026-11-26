@@ -38,7 +38,7 @@ else
 fi
 
 # changelog.json
-JSON=apps/desktop/src/data/changelog.json
+JSON=src/data/changelog.json
 if ! jq -e --arg v "$VERSION" '.[0].version == $v and .[0].isLatest == true' "$JSON" >/dev/null 2>&1; then
     bad "$JSON: pierwszy wpis nie jest wersją $VERSION z isLatest=true."
 else

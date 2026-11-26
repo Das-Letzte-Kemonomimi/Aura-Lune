@@ -18,7 +18,7 @@ fn test_serializes_to_code_and_message_for_frontend() {
 
 #[test]
 fn test_every_code_uses_snake_case_known_to_frontend() {
-    // Musi odpowiadać unii `IpcErrorCode` w apps/desktop/src/api/ipc.ts.
+    // Musi odpowiadać unii `IpcErrorCode` w src/api/ipc.ts.
     let expected = [
         (ErrorCode::Storage, "storage"),
         (ErrorCode::Engine, "engine"),

@@ -45,7 +45,7 @@ Wykonaj raz w ustawieniach repozytorium GitHub.
 Pięciojęzycznego changeloga nie da się wygenerować mechanicznie, więc powstaje **przed** uruchomieniem workflow (poproś agenta: `/release`, albo zrób to ręcznie):
 
 - dodaj `## [X.Y.Z] — „Kryptonim” - RRRR-MM-DD` do `CHANGELOG.md` (zostaw separator `---` po bloku, stąd wycinane są notatki wydania);
-- dodaj wpis na początku `apps/desktop/src/data/changelog.json` z `isLatest: true` (i zdejmij go z poprzedniego wpisu), z wszystkimi językami: `pl`, `en`, `de`, `fi`, `la`;
+- dodaj wpis na początku `src/data/changelog.json` z `isLatest: true` (i zdejmij go z poprzedniego wpisu), z wszystkimi językami: `pl`, `en`, `de`, `fi`, `la`;
 - zaktualizuj plakietki wersji i linki `releases/tag/vX.Y.Z` w `README.md` i `README.pl.md`;
 - wyczyść `CHANGELOG_PENDING.md` do pustego szablonu;
 - uruchom `./tests/run_all_tests.sh --fix`, zrób commit i wypchnij `dev`.

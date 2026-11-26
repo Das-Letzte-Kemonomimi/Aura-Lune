@@ -12,7 +12,7 @@ members = [
     "crates/desktop-integration",
     "crates/metadata",
     "crates/downloads",
-    "apps/desktop/src-tauri",
+    "src-tauri",
 ]
 
 [workspace.package]

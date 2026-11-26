@@ -13,8 +13,8 @@ GITHUB_API="https://api.github.com/repos/${REPO}/releases"
 
 # Default base version for fallback
 VERSION="1.1.5"
-if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" ]]; then
-    DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/apps/desktop/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/src-tauri/tauri.conf.json" ]]; then
+    DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
     if [[ -n "$DETECTED_VER" ]]; then
         VERSION="$DETECTED_VER"
     fi
@@ -214,7 +214,7 @@ else
             echo -e "${YELLOW}   If you have a local build, install it directly with:${RESET}"
             echo -e "     ${BOLD}./install.sh --dev${RESET}"
             echo -e "${YELLOW}   Or compile locally using Tauri:${RESET}"
-            echo -e "     ${BOLD}npm --prefix apps/desktop run tauri build -- --bundles appimage${RESET}"
+            echo -e "     ${BOLD}npm run tauri build -- --bundles appimage${RESET}"
             echo -e "     ${BOLD}./install.sh --dev${RESET}"
             exit 1
         fi
@@ -320,10 +320,10 @@ chmod +x "$LAUNCHER_DEST"
 # 6. Install hicolor icons (new "lineout" default; the app re-applies the style chosen in Settings on start)
 echo -e "${BLUE}🎨 Installing application icon...${RESET}"
 rm -f "$ICONS_128_DIR/${ICON_NAME}.png"
-if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon_lineout.png" ]]; then
-    cp "$SCRIPT_DIR/apps/desktop/src-tauri/icons/icon_lineout.png" "$ICONS_512_DIR/${ICON_NAME}.png"
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/src-tauri/icons/icon_lineout.png" ]]; then
+    cp "$SCRIPT_DIR/src-tauri/icons/icon_lineout.png" "$ICONS_512_DIR/${ICON_NAME}.png"
 else
-    curl -sSf -o "$ICONS_512_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/apps/desktop/src-tauri/icons/icon_lineout.png" 2>/dev/null || true
+    curl -sSf -o "$ICONS_512_DIR/${ICON_NAME}.png" "https://raw.githubusercontent.com/${REPO}/${GITHUB_BRANCH}/src-tauri/icons/icon_lineout.png" 2>/dev/null || true
 fi
 
 # 7. Configure desktop entry (.desktop)

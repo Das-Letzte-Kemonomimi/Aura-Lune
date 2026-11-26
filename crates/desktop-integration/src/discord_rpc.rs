@@ -791,7 +791,7 @@ pub fn build_activity_payload(
     };
 
     // Do Discord Gateway wolno wysyłać WYŁĄCZNIE publiczne adresy HTTPS/HTTP lub klucze assetów.
-    let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/apps/desktop/src-tauri/icons/128x128.png";
+    let default_logo_url = "https://raw.githubusercontent.com/Das-Letzte-Kemonomimi/Aura-Lune/main/src-tauri/icons/128x128.png";
     let large_image = match &track.art_url {
         Some(url) if url.starts_with("http://") || url.starts_with("https://") => url.clone(),
         _ => default_logo_url.to_string(),

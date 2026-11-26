@@ -45,8 +45,8 @@ Zgodnie ze specyfikacją projektu, docelowa struktura modułowa obejmuje:
 - `library` (`crates/library`): Skaner biblioteki, ekstrakcja tagów, obsługa grafik okładek.
 - `metadata` (`crates/metadata`): Klient MusicBrainz i Cover Art Archive z cache'owaniem i throttlingiem.
 - `storage` (`crates/storage`): Warstwa SQLite, migracje bazy danych, repozytoria.
-- `desktop` (`apps/desktop/src-tauri`): Warstwa integracji Tauri 2, komendy IPC, obsługa D-Bus MPRIS.
-- `ui` (`apps/desktop/src`): Interfejs użytkownika React + TypeScript + CSS tokens.
+- `desktop` (`src-tauri`): Warstwa integracji Tauri 2, komendy IPC, obsługa D-Bus MPRIS.
+- `ui` (`src`): Interfejs użytkownika React + TypeScript + CSS tokens.
 
 ---
 

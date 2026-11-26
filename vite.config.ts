@@ -14,7 +14,7 @@ export default defineConfig({
     strictPort: true,
     host: '127.0.0.1',
     watch: {
-      ignored: ['**/src-tauri/**'],
+      ignored: ['**/src-tauri/**', '**/crates/**', '**/target/**', '**/.claude/**', '**/.agents/**'],
     },
   },
   build: {
@@ -55,6 +55,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
   },
 })

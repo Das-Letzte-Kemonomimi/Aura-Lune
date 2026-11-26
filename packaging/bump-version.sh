@@ -34,10 +34,9 @@ echo "🔢 Wersja aplikacji: $OLD_APP -> $NEW (ostatnie wydanie w plikach pakiet
 
 # --- Pliki aplikacji (zawsze) -------------------------------------------------
 sed -i -E '0,/^version = "[^"]*"/s//version = "'"$NEW"'"/' Cargo.toml
-sed -i -E '0,/"version": "[^"]*"/s//"version": "'"$NEW"'"/' apps/desktop/src-tauri/tauri.conf.json
-sed -i -E '0,/"version": "[^"]*"/s//"version": "'"$NEW"'"/' package.json
+sed -i -E '0,/"version": "[^"]*"/s//"version": "'"$NEW"'"/' src-tauri/tauri.conf.json
 # package.json + package-lock.json (obie linie "version" w lockfile) jednym poleceniem.
-npm --prefix apps/desktop version "$NEW" --no-git-tag-version --allow-same-version >/dev/null
+npm version "$NEW" --no-git-tag-version --allow-same-version >/dev/null
 
 if [[ "$NEW" == *-dev ]]; then
     echo "✅ Wersja dev: zmieniono tylko pliki aplikacji."

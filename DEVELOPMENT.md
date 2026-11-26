@@ -186,8 +186,8 @@ Clone the repository and install Node workspace dependencies:
 git clone https://github.com/Auralune/Auralune.git
 cd Auralune
 
-# Install root & desktop frontend dependencies
-npm install --prefix apps/desktop
+# Install frontend dependencies (single package.json at the repo root)
+npm install
 ```
 
 Verify that the Rust workspace compiles:
@@ -203,7 +203,7 @@ cargo check --workspace
 You can develop UI components, layout, and theme styles in a regular browser window with hot-module reloading (HMR):
 
 ```bash
-npm --prefix apps/desktop run dev
+npm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 *(Note: Native audio playback, GStreamer, and database features require the Tauri desktop shell).*
@@ -216,12 +216,12 @@ npm run tauri dev
 ```
 *Or equivalently from the root directory:*
 ```bash
-npm --prefix apps/desktop exec tauri dev
+npm exec tauri dev
 ```
 
 During development:
-- Edits in `apps/desktop/src/**` automatically hot-reload in the desktop window.
-- Edits in `apps/desktop/src-tauri/**` or `crates/**` automatically trigger a Rust recompile and app restart.
+- Edits in `src/**` automatically hot-reload in the desktop window.
+- Edits in `src-tauri/**` or `crates/**` automatically trigger a Rust recompile and app restart.
 
 ---
 
@@ -246,10 +246,10 @@ Aura-Lune uses `oxlint` for high-speed JS/TS linting and TypeScript compiler (`t
 
 ```bash
 # Run oxlint on frontend code
-npm --prefix apps/desktop run lint
+npm run lint
 
 # Run strict TypeScript compilation check
-npm --prefix apps/desktop run build
+npm run build
 ```
 
 ---
@@ -274,10 +274,10 @@ To run frontend tests independently:
 
 ```bash
 # Single run
-npm --prefix apps/desktop test
+npm test
 
 # Watch mode for interactive TDD
-npm --prefix apps/desktop run test:watch
+npm run test:watch
 ```
 
 ### Rust Workspace Unit & Integration Tests
@@ -313,13 +313,8 @@ To produce production-ready Linux distribution packages (AppImage and Debian pac
 ```bash
 npm run tauri build
 ```
-*Or from the desktop directory:*
-```bash
-cd apps/desktop
-npm run tauri build
-```
 
-Tauri bundles the application using settings defined in [`apps/desktop/src-tauri/tauri.conf.json`](file:///home/kamu/Projects/Aura-Lune/apps/desktop/src-tauri/tauri.conf.json):
+Tauri bundles the application using settings defined in [`src-tauri/tauri.conf.json`](file:///home/kamu/Projects/Aura-Lune/src-tauri/tauri.conf.json):
 - Executes `beforeBuildCommand` (`npm run build`) to generate the optimized web bundle.
 - Compiles the Rust backend with `--release` optimizations.
 - Packages desktop entries, system icons, and dependencies into `.AppImage` and `.deb`.
@@ -329,7 +324,7 @@ To compile only the optimized binary without building package bundles:
 
 ```bash
 # Build frontend
-npm --prefix apps/desktop run build
+npm run build
 
 # Build release backend
 cargo build --release -p auralune-desktop
@@ -342,7 +337,7 @@ target/release/auralune-desktop
 ### Release Artifact Outputs
 After running `npm run tauri build`, the distribution artifacts are placed in:
 ```
-apps/desktop/src-tauri/target/release/bundle/
+src-tauri/target/release/bundle/
 ├── appimage/
 │   └── Auralune_1.1.5_amd64.AppImage
 └── deb/
@@ -351,8 +346,8 @@ apps/desktop/src-tauri/target/release/bundle/
 
 To test the generated AppImage:
 ```bash
-chmod +x apps/desktop/src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
-./apps/desktop/src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
+chmod +x src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
+./src-tauri/target/release/bundle/appimage/Auralune_*.AppImage
 ```
 
 ### Universal Linux Installer (`install.sh`)
@@ -407,9 +402,9 @@ The installer automatically determines the target channel based on the following
 Aura-Lune installs themed icons into `~/.local/share/icons/hicolor` and triggers `gtk-update-icon-cache` automatically when toggling between `lineout` and `classic` styles in the Settings view.
 
 ### Testing In-App Updates
-The updater (Settings → Updates, `apps/desktop/src-tauri/src/updater/`) decides everything from the build identity and the environment, so it can be exercised without publishing a release:
+The updater (Settings → Updates, `src-tauri/src/updater/`) decides everything from the build identity and the environment, so it can be exercised without publishing a release:
 
-- **Build identity** is embedded by `apps/desktop/src-tauri/build.rs`: `AURALUNE_BUILD_COMMIT` (else `GITHUB_SHA`, else `git rev-parse HEAD`) and `AURALUNE_BUILD_CHANNEL` (`dev`/`stable`, else derived from a `-dev` version suffix). Fake an outdated dev build with `AURALUNE_BUILD_COMMIT=0000000 npm --prefix apps/desktop run tauri build -- --bundles appimage`, then install it with `./install.sh --dev` from the local bundle; the badge appears ~30 s after startup, **Download & install** verifies the checksum and swaps the AppImage, **Restart now** relaunches through `~/.local/bin/auralune-dev`.
+- **Build identity** is embedded by `src-tauri/build.rs`: `AURALUNE_BUILD_COMMIT` (else `GITHUB_SHA`, else `git rev-parse HEAD`) and `AURALUNE_BUILD_CHANNEL` (`dev`/`stable`, else derived from a `-dev` version suffix). Fake an outdated dev build with `AURALUNE_BUILD_COMMIT=0000000 npm run tauri build -- --bundles appimage`, then install it with `./install.sh --dev` from the local bundle; the badge appears ~30 s after startup, **Download & install** verifies the checksum and swaps the AppImage, **Restart now** relaunches through `~/.local/bin/auralune-dev`.
 - **Install kind** comes from `APPIMAGE` (self-update only when it sits directly in `~/.local/share/auralune{,-dev}/` and is writable) and the build profile: unset `APPIMAGE` in a release build → `system` notice; debug builds without `APPIMAGE` → `dev_server` (no background checks). Exporting `APPIMAGE=~/.local/share/auralune-dev/auralune-dev.AppImage` and `AURALUNE_CHANNEL=dev` for `npm run tauri dev` exercises the managed UI path (do not press Install against your real AppImage). On the dev channel a plain `npm run tauri dev` run (no `APPIMAGE`) can also press **Download & install**: it writes `~/.local/share/auralune-dev/auralune-dev.AppImage` — i.e. it installs the dev build next to your source checkout.
 - **Throttling**: the last check time and result live in the `update_last_checked` / `update_last_result` settings; a non-forced check within 6 h returns the cached result. **Check now** always forces a request.
 - **Checksums**: releases must ship `SHA256SUMS` (or an asset `digest` from the API). The installer refuses to proceed without either.
@@ -425,10 +420,10 @@ The pipeline is split into two specialized, concurrent jobs:
 
 1. **`frontend` (Frontend Quality & Tests)**:
    - Sets up Node.js 22 LTS with `npm` caching.
-   - Runs `npm --prefix apps/desktop ci`.
-   - Runs `npm --prefix apps/desktop run lint` (`oxlint` code quality and React linting).
-   - Runs `npm --prefix apps/desktop test` (Vitest unit and localization parity tests).
-   - Runs `npm --prefix apps/desktop run build` (`tsc -b && vite build` TypeScript compilation and asset bundling).
+   - Runs `npm ci`.
+   - Runs `npm run lint` (`oxlint` code quality and React linting).
+   - Runs `npm test` (Vitest unit and localization parity tests).
+   - Runs `npm run build` (`tsc -b && vite build` TypeScript compilation and asset bundling).
 
 2. **`backend-desktop` (Rust Backend & Desktop Quality)**:
    - Sets up Node.js 22 LTS and Rust stable with `rustfmt` and `clippy`.

@@ -79,8 +79,7 @@ pub fn resolve_or_extract_sample_track(data_dir: &Path) -> Option<SampleTrackDto
     }
 
     // 2. Jeśli plik nie istnieje (np. na czystym systemie/AppImage), wyodrębnij osadzony utwór do data_dir/sample/
-    static EMBEDDED_SAMPLE: &[u8] =
-        include_bytes!("../../../../../tests/fixtures/Skrzydła Białe.flac");
+    static EMBEDDED_SAMPLE: &[u8] = include_bytes!("../../../tests/fixtures/Skrzydła Białe.flac");
     let target_path = data_dir.join("sample").join("Skrzydła Białe.flac");
     if let Some(parent) = target_path.parent() {
         let _ = std::fs::create_dir_all(parent);

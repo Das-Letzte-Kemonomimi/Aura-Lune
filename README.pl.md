@@ -2,7 +2,7 @@
   <p>
     <a href="README.md">🇬🇧 English</a> &nbsp;|&nbsp; <strong>🇵🇱 Polski</strong>
   </p>
-  <img src="apps/desktop/src-tauri/icons/128x128.png" alt="Auralune Logo" width="112" height="112" />
+  <img src="src-tauri/icons/128x128.png" alt="Auralune Logo" width="112" height="112" />
   <h1>Auralune (Kitsune Player) 🌸🎧</h1>
   <p><strong>Natywny, wysoce konfigurowalny odtwarzacz muzyki dla Linuksa łączący wygodę Powerampa, elastyczność foobar2000, wymienny silnik DSP w czasie rzeczywistym i estetykę anime.</strong></p>
 
@@ -136,18 +136,14 @@ git clone https://github.com/Das-Letzte-Kemonomimi/Aura-Lune.git
 cd Aura-Lune
 
 # 2. Instalacja zależności frontendu:
-cd apps/desktop
 npm install
-cd ../..
 
 # 3. Uruchomienie w trybie deweloperskim (Tauri 2 hot-reload):
-cd apps/desktop
 npm run tauri dev
 ```
 
 ### Budowanie paczki AppImage:
 ```bash
-cd apps/desktop
 npm run tauri -- build --bundles appimage
 ```
 Wygenerowana paczka znajdzie się w: `target/release/bundle/appimage/`.
@@ -170,7 +166,7 @@ cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 
 # 4. Sprawdzenie typów TypeScript i budowanie frontendu:
-cd apps/desktop && npm run build
+npm run build
 ```
 
 ---

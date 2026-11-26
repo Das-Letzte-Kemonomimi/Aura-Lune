@@ -6,13 +6,13 @@ metadata:
 ---
 # Tauri 2 Architecture & IPC Best Practices
 
-This skill guides agents working on the desktop integration and backend IPC layer of Aura-Lune (`apps/desktop/src-tauri` and crates).
+This skill guides agents working on the desktop integration and backend IPC layer of Aura-Lune (`src-tauri` and crates).
 
 ## Architecture Principles
 
 1. **Modular Command Registration**:
-   - Do NOT place hundreds of raw `#[tauri::command]` functions directly inside `apps/desktop/src-tauri/src/lib.rs`.
-   - Organize commands into submodules under `apps/desktop/src-tauri/src/commands/`:
+   - Do NOT place hundreds of raw `#[tauri::command]` functions directly inside `src-tauri/src/lib.rs`.
+   - Organize commands into submodules under `src-tauri/src/commands/`:
      - `playback.rs`: Play, pause, seek, volume, queue operations.
      - `dsp.rs`: Equalizer bands, pitch, tempo, dynamic presets.
      - `stems.rs`: Stem project creation, isolation models, track mixdown.
