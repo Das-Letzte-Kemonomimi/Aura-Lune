@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Sliders, Square, X } from '../../../components/ui/icons';
+import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, Sliders, SkipBack, SkipForward, Square, X } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs } from '../../../state/livePlayback';
@@ -8,7 +8,7 @@ import { cn } from '../../../utils/cn';
 import { Button, Chip, IconButton } from '../../../components/ui';
 import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
 
-export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleStop' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
+export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleToggleStopAfterCurrent' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
 };
 
@@ -18,7 +18,7 @@ function ToolGroup({ children }: { children: React.ReactNode }) {
   return <div className="flex items-center gap-1 rounded-xl border border-line bg-black/25 p-1">{children}</div>;
 }
 
-/** Round transport button (previous, stop, next). */
+/** Round transport button (previous, next). */
 const transportClass = 'size-9.5 rounded-full border-transparent bg-white/8 text-fg';
 /** Round toggle (shuffle, repeat). */
 const roundToggleClass = 'size-9 rounded-full p-0';
@@ -38,9 +38,9 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   handlePlayPause,
   handlePrevious,
   handleSaveBookmark,
-  handleStop,
   handleToggleMute,
   handleToggleShuffle,
+  handleToggleStopAfterCurrent,
   handleToggleVolumeUnit,
   handleVolumeChange,
   loc,
@@ -81,9 +81,6 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
 
         <IconButton label={loc.player.previous} onClick={handlePrevious} className={transportClass}>
           <SkipBack size={18} />
-        </IconButton>
-        <IconButton label={loc.player.stop} onClick={handleStop} className={transportClass}>
-          <Square size={16} />
         </IconButton>
         <Button
           variant="primary"
@@ -273,6 +270,16 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
 
       {/* Volume */}
       <div className="order-3 flex items-center gap-2 rounded-2xl border border-line bg-black/25 py-1 pr-1.5 pl-1.5 lg:justify-self-end">
+        <Chip
+          tone="amber"
+          pressed={Boolean(status.stop_after_current)}
+          onClick={handleToggleStopAfterCurrent}
+          aria-label={status.stop_after_current ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
+          title={status.stop_after_current ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
+          className="size-8 rounded-xl p-0"
+        >
+          <Square size={14} fill={status.stop_after_current ? 'currentColor' : 'none'} />
+        </Chip>
         <IconButton
           size="sm"
           label={status.volume === 0 ? loc.player.unmute : loc.player.mute}

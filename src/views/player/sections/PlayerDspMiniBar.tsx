@@ -22,7 +22,7 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
   const bypass = status.engine === 'Bypass';
   return (
     <Card variant="inset" padding="none" className="flex items-center justify-between px-4 py-2.5">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2.5">
         <span className="label-caps text-fg-muted">DSP</span>
 
         {/* Quick Bypass / DSP toggle */}
@@ -49,8 +49,8 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
           </Badge>
         )}
 
-        <div className="flex items-center gap-1.5 text-ui">
-          <span className="text-fg-secondary">Pitch:</span>
+        <div className="flex items-center gap-1.5 rounded-lg border border-line bg-black/25 py-0.5 pr-1 pl-2.5 text-ui">
+          <span className="text-fg-muted">Pitch</span>
           <span className="font-mono font-bold text-accent-pink">
             {status.pitch_semitones > 0 ? `+${status.pitch_semitones.toFixed(1)}` : status.pitch_semitones.toFixed(1)} st
           </span>
@@ -61,8 +61,8 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 text-ui">
-          <span className="text-fg-secondary">Tempo:</span>
+        <div className="flex items-center gap-1.5 rounded-lg border border-line bg-black/25 py-0.5 pr-1 pl-2.5 text-ui">
+          <span className="text-fg-muted">Tempo</span>
           <span className="font-mono font-bold text-accent-cyan">{status.tempo_ratio.toFixed(2)}x</span>
           {status.tempo_ratio !== 1 && (
             <IconButton size="sm" label={loc.dsp.resetTempoTooltip} onClick={() => handleTempoChange(1.0)} className="size-6">

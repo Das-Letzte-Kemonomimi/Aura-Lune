@@ -51,6 +51,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
           tone={bitPerfect ? 'green' : 'cyan'}
           size="sm"
           onClick={() => setIsAudioPathModalOpen(true)}
+          className="rounded-full px-3"
           title={loc.player.audioPathInspectorTooltip}
         >
           <Radio size={13} /> PipeWire {bitPerfect ? 'Bit-Perfect' : 'Hi-Fi'} • {status.engine}
@@ -72,7 +73,7 @@ export const PlayerToolbar: React.FC<PlayerToolbarProps> = React.memo(({
             onClick={() => setIsQuickLoadOpen(!isQuickLoadOpen)}
             title={loc.player.quickLoadHint}
             aria-haspopup="dialog"
-            className="px-3.5 py-2 text-ui"
+            className="rounded-full px-3.5 py-1.5 text-xs"
           >
             <FolderOpen size={15} />
             {loc.player.openFile}

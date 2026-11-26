@@ -1,6 +1,5 @@
 import type { AppTab } from '../../types/navigation';
 import React, { useCallback } from "react";
-import { BarChart3, FolderOpen, Heart } from "../../components/ui/icons";
 import { LyricsView } from '../../components/player/LyricsView';
 import type { TapeType } from '../../components/player/TapeDeckWidget';
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
@@ -18,7 +17,8 @@ import { PlayerProgressSection } from './sections/PlayerProgressSection';
 import { PlayerQuickDspVibes } from './sections/PlayerQuickDspVibes';
 import { PlayerVisualColumn } from './sections/PlayerVisualColumn';
 import { PlayerToolbar } from './sections/PlayerToolbar';
-import { Badge, Button, Card, Chip, StatusDot } from '../../components/ui';
+import { PlayerTrackHeader } from './sections/PlayerTrackHeader';
+import { Card } from '../../components/ui';
 
 export interface PlayerViewProps {
   layoutMaxWidth: string;
@@ -144,16 +144,12 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
     tracks,
     albums,
     currentAlbum,
-    cleanLiveTitle,
     effectiveDisplayTitle,
     effectiveDisplayArtist,
     filePath,
-    setStatsModalTrack,
     showLyrics,
     setShowLyrics,
     handleSeek,
-    handleToggleFavorite,
-    handleOpenContainingFolder,
   } = props;
   // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const status = useLiveStatus(statusProp);
@@ -181,89 +177,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
 
                   {/* Right column: title, artist, spectrogram, seeker and buttons */}
                   <div className="flex min-w-0 flex-col gap-3.5">
-                    <div>
-                      <div className="mb-1 flex items-center gap-2">
-                        <StatusDot tone={status.state === 'Playing' ? 'green' : status.state === 'Paused' ? 'amber' : 'neutral'} />
-                        <span className="label-caps text-fg-muted">
-                          {status.state === 'Playing' ? loc.player.statePlaying : status.state === 'Paused' ? loc.player.statePaused : loc.player.stateStopped}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="truncate text-2xl font-extrabold tracking-tight text-fg">
-                            {effectiveDisplayTitle}
-                          </h3>
-                          <p className="mt-1 truncate text-sm font-semibold text-accent-pink">
-                            {effectiveDisplayArtist} {currentAlbum?.title || status.current_track?.album ? `• ${currentAlbum?.title || status.current_track?.album}` : ''}
-                          </p>
-                          {cleanLiveTitle && (
-                            <Badge tone="pink" size="sm" className="mt-1.5 gap-1.5">
-                              <StatusDot tone="red" pulse className="size-1.5" />
-                              LIVE: {cleanLiveTitle}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-2">
-                          <Button
-                            variant="tinted"
-                            tone="amber"
-                            onClick={() => {
-                              if (currentPlayingTrack) {
-                                setStatsModalTrack(currentPlayingTrack);
-                              } else if (status.current_track) {
-                                setStatsModalTrack({
-                                  id: status.current_track.track_id || 0,
-                                  title: status.current_track.title || (filePath ? filePath.split('/').pop() || 'Auralune Audio Player' : 'Auralune Audio Player'),
-                                  artist: status.current_track.artist || loc.player.unknownArtist,
-                                  album_artist: status.current_track.artist || null, album_id: null, disc_no: null, track_no: null, bit_depth: null, file_size: 0, modified_time: 0,
-                                  path: status.current_track.uri || filePath || '',
-                                  duration_ms: status.duration_ms || 0,
-                                  format: 'AUDIO',
-                                  sample_rate: 44100,
-                                  channels: 2,
-                                  play_count: 0,
-                                  last_played_at: null,
-                                });
-                              }
-                            }}
-                            title={loc.player.trackStats}
-                          >
-                            <BarChart3 size={16} />
-                            {currentPlayingTrack?.play_count || 0} {loc.player.plays}
-                          </Button>
-
-                          {currentPlayingTrack && (
-                            <Chip
-                              pressed={Boolean(currentPlayingTrack.is_favorite)}
-                              onClick={(e) => handleToggleFavorite(currentPlayingTrack.id, e)}
-                              className="px-3.5 py-2 text-ui"
-                            >
-                              <Heart fill={currentPlayingTrack.is_favorite ? 'currentColor' : 'none'} size={16} />
-                              {currentPlayingTrack.is_favorite ? loc.player.favoriteRemove : loc.player.favoriteAdd}
-                            </Chip>
-                          )}
-
-                          {(currentPlayingTrack?.path || status.current_track?.uri || filePath) && (
-                            <Button
-                              variant="tinted"
-                              tone="cyan"
-                              onClick={(e) =>
-                                handleOpenContainingFolder(
-                                  currentPlayingTrack?.path || status.current_track?.uri || filePath || '',
-                                  e
-                                )
-                              }
-                              title={loc.queue.openContainingFolder}
-                            >
-                              <FolderOpen size={15} />
-                              Dolphin
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <PlayerTrackHeader {...props} status={statusProp} />
 
                     {/* Live animated canvas spectrum visualizer */}
                     <SpectrumVisualizer
