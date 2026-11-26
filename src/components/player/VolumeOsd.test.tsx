@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { VolumeOsd, VOLUME_OSD_HIDE_MS, type VolumeOsdPosition } from './VolumeOsd';
+import { VolumeOsd, VOLUME_OSD_HIDE_MS, DEFAULT_VOLUME_OSD_POSITION, type VolumeOsdPosition } from './VolumeOsd';
 
 /** Lets the `queueMicrotask` show/hide run. */
 async function flush() {
@@ -9,7 +9,7 @@ async function flush() {
   });
 }
 
-function renderOsd(volume: number, position: VolumeOsdPosition = 'bottom-right', unit: 'percent' | 'db' = 'percent') {
+function renderOsd(volume: number, position: VolumeOsdPosition = DEFAULT_VOLUME_OSD_POSITION, unit: 'percent' | 'db' = 'percent') {
   return render(<VolumeOsd volume={volume} position={position} unit={unit} />);
 }
 
@@ -71,8 +71,15 @@ describe('VolumeOsd', () => {
     expect(text).toContain('(50%)');
   });
 
-  it('sits in the bottom-right corner, clear of the dock', async () => {
+  it('is centred above the dock by default', async () => {
     const { rerender } = renderOsd(1);
+    rerender(<VolumeOsd volume={0.5} position={DEFAULT_VOLUME_OSD_POSITION} />);
+    await flush();
+    expect(screen.getByRole('status').className).toContain('bottom-36.5 left-1/2 -translate-x-1/2');
+  });
+
+  it('can sit in the bottom-right corner', async () => {
+    const { rerender } = renderOsd(1, 'bottom-right');
     rerender(<VolumeOsd volume={0.5} position="bottom-right" />);
     await flush();
     expect(screen.getByRole('status').className).toContain('bottom-36.5 right-8');

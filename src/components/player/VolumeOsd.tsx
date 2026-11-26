@@ -6,8 +6,8 @@ import { VolumeIcon } from './VolumeSlider';
 
 export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'off';
 
-/** Default spot: the corner beside the dock's volume controls, clear of the centred DSP/tempo bar. */
-export const DEFAULT_VOLUME_OSD_POSITION: VolumeOsdPosition = 'bottom-right';
+/** Default spot: horizontally centred, just above the dock (`bottom-36.5`) so it clears the tempo controls. */
+export const DEFAULT_VOLUME_OSD_POSITION: VolumeOsdPosition = 'bottom-center';
 
 /** How long the OSD stays after the last volume change. */
 export const VOLUME_OSD_HIDE_MS = 1200;
