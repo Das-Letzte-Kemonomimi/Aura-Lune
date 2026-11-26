@@ -1,6 +1,7 @@
 import type { AppTab } from '../../types/navigation';
 import React from 'react';
 import { cn } from '../../utils/cn';
+import type { Language } from '../../i18n';
 import {
   PlayerView,
   type PlayerViewProps,
@@ -18,12 +19,13 @@ import {
 } from '../../views';
 
 export interface StemProjectsRouterProps {
+  currentLang: Language;
   onOpenProject: (pid: number) => void;
   onOpenCreateProject: () => void;
 }
 
 export interface RadioRouterProps {
-  currentLang: any;
+  currentLang: Language;
   currentStation: RadioStation | null;
   isPlaying: boolean;
   liveStreamTitle?: string | null;
@@ -82,6 +84,7 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
       {activeTab === 'stem-projects' && (
         <div className="mx-auto px-4 py-6" style={{ maxWidth: layoutMaxWidth }}>
           <StemProjectsLibraryView
+            currentLang={stemProjectsProps.currentLang}
             onOpenProject={stemProjectsProps.onOpenProject}
             onOpenCreateProject={stemProjectsProps.onOpenCreateProject}
           />

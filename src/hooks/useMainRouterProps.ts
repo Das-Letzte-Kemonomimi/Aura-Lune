@@ -393,6 +393,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
   };
 
   const stemProjectsProps: StemProjectsRouterProps = {
+    currentLang: p.language,
     onOpenProject: (pid: number) => {
       p.setActiveStemProjectId(pid);
       p.setIsStemStudioOpen(true);

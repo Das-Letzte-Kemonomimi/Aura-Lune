@@ -15,6 +15,7 @@ import {
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { Badge, Button, Card, EmptyState, IconButton, PageHeader, SectionHeader } from '../../components/ui';
 
 export interface RadioStation {
   id: string;
@@ -25,7 +26,7 @@ export interface RadioStation {
   homepage?: string;
 }
 
-export const FEATURED_RADIO_STATIONS: RadioStation[] = [
+const FEATURED_RADIO_STATIONS: RadioStation[] = [
   {
     id: 'listen-moe-jpop',
     name: 'LISTEN.moe J-Pop',
@@ -76,10 +77,8 @@ export const FEATURED_RADIO_STATIONS: RadioStation[] = [
   },
 ];
 
-
-
 interface RadioViewProps {
-  currentLang?: Language;
+  currentLang: Language;
   currentStation: RadioStation | null;
   isPlaying: boolean;
   liveStreamTitle?: string | null;
@@ -90,8 +89,89 @@ interface RadioViewProps {
   onDeleteCustomStation: (id: string) => void;
 }
 
+type Loc = ReturnType<typeof getTranslations>;
+
+const STATION_DESC_KEYS: Record<string, keyof Loc['radio']> = {
+  'listen-moe-jpop': 'stationDescListenMoeJpop',
+  'gensokyo-radio': 'stationDescGensokyo',
+  'listen-moe-kpop': 'stationDescListenMoeKpop',
+  'nightwave-plaza': 'stationDescNightwavePlaza',
+  'animenfo-radio': 'stationDescAnimenfo',
+  'lofi-girl': 'stationDescLofiGirl',
+};
+
+/** Translated description of a featured station, or its built-in English text. */
+function stationDescription(loc: Loc, station: RadioStation): string {
+  const key = STATION_DESC_KEYS[station.id];
+  return (key && loc.radio[key]) || station.description || '';
+}
+
+/** Four bouncing bars shown while a stream plays. */
+function LiveBars() {
+  return (
+    <div className="flex h-4.5 items-end gap-1" aria-hidden="true">
+      <span className="h-full w-1 origin-bottom rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.8s]" />
+      <span className="h-3/5 w-1 origin-bottom rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.6s] [animation-delay:0.2s]" />
+      <span className="h-4/5 w-1 origin-bottom rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.7s] [animation-delay:0.4s]" />
+      <span className="h-2/5 w-1 origin-bottom rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.9s] [animation-delay:0.1s]" />
+    </div>
+  );
+}
+
+/** Play button of a stopped station, Stop button of the playing one. */
+function PlayStopButton({ playing, onPlay, onStop, loc, size }: {
+  playing: boolean;
+  onPlay: () => void;
+  onStop: () => void;
+  loc: Loc;
+  size?: 'md' | 'lg';
+}) {
+  return playing ? (
+    <Button variant="danger" size={size} onClick={onStop}>
+      <Square size={14} /> {loc.player.stop}
+    </Button>
+  ) : (
+    <Button variant="primary" size={size} onClick={onPlay}>
+      <Play size={14} /> {loc.player.play}
+    </Button>
+  );
+}
+
+interface StationCardProps {
+  station: RadioStation;
+  playing: boolean;
+  /** Accent of the card while its station plays, and of its genre badge. */
+  tone: 'pink' | 'cyan';
+  title: React.ReactNode;
+  body: React.ReactNode;
+  /** Left side of the card's footer (website link, delete button). */
+  footerStart: React.ReactNode;
+  onPlay: () => void;
+  onStop: () => void;
+  loc: Loc;
+}
+
+/** One featured or custom station. */
+function StationCard({ station, playing, tone, title, body, footerStart, onPlay, onStop, loc }: StationCardProps) {
+  return (
+    <Card highlight={playing && tone} padding="none" className="flex flex-col justify-between gap-3 rounded-2xl px-5 py-4.5">
+      <div>
+        <div className="mb-1.5 flex items-start justify-between gap-2">
+          {title}
+          <Badge tone={tone === 'pink' ? 'purple' : 'cyan'}>{station.genre}</Badge>
+        </div>
+        {body}
+      </div>
+      <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
+        {footerStart}
+        <PlayStopButton playing={playing} onPlay={onPlay} onStop={onStop} loc={loc} />
+      </div>
+    </Card>
+  );
+}
+
 export const RadioView: React.FC<RadioViewProps> = ({
-  currentLang = 'pl',
+  currentLang,
   currentStation,
   isPlaying,
   liveStreamTitle,
@@ -102,98 +182,57 @@ export const RadioView: React.FC<RadioViewProps> = ({
   onDeleteCustomStation,
 }) => {
   const loc = getTranslations(currentLang);
-
-  const getStationDesc = (id: string, defaultDesc?: string): string => {
-    switch (id) {
-      case 'listen-moe-jpop': return loc.radio.stationDescListenMoeJpop || defaultDesc || '';
-      case 'gensokyo-radio': return loc.radio.stationDescGensokyo || defaultDesc || '';
-      case 'listen-moe-kpop': return loc.radio.stationDescListenMoeKpop || defaultDesc || '';
-      case 'nightwave-plaza': return loc.radio.stationDescNightwavePlaza || defaultDesc || '';
-      case 'animenfo-radio': return loc.radio.stationDescAnimenfo || defaultDesc || '';
-      case 'lofi-girl': return loc.radio.stationDescLofiGirl || defaultDesc || '';
-      default: return defaultDesc || '';
-    }
-  };
+  const isStationPlaying = (station: RadioStation) => currentStation?.url === station.url && isPlaying;
+  const addButton = (
+    <Button variant="primary" onClick={onOpenAddModal}>
+      <Plus size={16} /> {loc.radio.addCustomStation}
+    </Button>
+  );
 
   return (
     <div className="flex flex-col gap-6 px-0 pt-2 pb-10 motion-safe:animate-fade-in">
       {/* Radio tab header */}
-      <div
-        className="glass-card flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line-accent bg-modal p-6"
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-accent-gradient shadow-xl shadow-pink-500/35"
-          >
-            <Radio size={28} className="text-fg" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h2 className="m-0 text-2xl font-extrabold tracking-tight text-fg">
-                {loc.radio.title}
-              </h2>
-              <span
-                className="flex items-center gap-1 rounded-3xl border border-pink-500/30 bg-pink-500/20 px-2 py-0.5 text-xs font-semibold text-accent-pink"
-              >
+      <Card variant="panel" padding="lg">
+        <PageHeader
+          icon={<Radio size={20} />}
+          title={
+            <span className="flex flex-wrap items-center gap-2.5">
+              {loc.radio.title}
+              <Badge tone="pink">
                 <Wifi size={12} /> Live ICY / PipeWire
-              </span>
-            </div>
-            <p className="mx-0 mt-1 mb-0 text-sm text-fg-muted">
-              {loc.radio.subtitle}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={onOpenAddModal}
-          className="glass-card flex items-center gap-2 rounded-xl border-0 bg-linear-135 from-accent-purple to-accent-pink px-4.5 py-2.5 text-sm font-semibold text-on-accent shadow-lift shadow-accent-purple/30 transition-all duration-200"
-        >
-          <Plus size={18} />
-          {loc.radio.addCustomStation}
-        </button>
-      </div>
+              </Badge>
+            </span>
+          }
+          description={loc.radio.subtitle}
+          actions={addButton}
+        />
+      </Card>
 
       {/* Currently playing stream (live status hero card) */}
       {currentStation && (
-        <div
-          className="glass-card flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-pink-500/40 bg-linear-135 from-pink-500/10 to-accent-purple/15 px-6 py-5 shadow-2xl shadow-pink-500/20"
-        >
+        <Card highlight="pink" padding="none" className="flex flex-wrap items-center justify-between gap-4 rounded-2xl px-6 py-5">
           <div className="flex items-center gap-4">
             <div
               className={cn(
-                'flex h-11.5 w-11.5 items-center justify-center rounded-xl border border-accent-pink',
-                isPlaying ? 'bg-pink-500/25' : 'bg-white/8',
+                'flex size-11.5 items-center justify-center rounded-xl border border-accent-pink',
+                isPlaying ? 'bg-accent-pink/25' : 'bg-white/8',
               )}
             >
-              {isPlaying ? (
-                <div className="flex h-4.5 items-end gap-1">
-                  <span className="h-full w-1 rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.8s] origin-bottom" />
-                  <span className="h-3/5 w-1 rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.6s] [animation-delay:0.2s] origin-bottom" />
-                  <span className="h-4/5 w-1 rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.7s] [animation-delay:0.4s] origin-bottom" />
-                  <span className="h-2/5 w-1 rounded-xs bg-accent-pink motion-safe:animate-eq-bar [animation-duration:0.9s] [animation-delay:0.1s] origin-bottom" />
-                </div>
-              ) : (
-                <Radio size={22} className="text-fg-muted" />
-              )}
+              {isPlaying ? <LiveBars /> : <Radio size={22} className="text-fg-muted" />}
             </div>
 
             <div>
               <div className="flex items-center gap-2.5">
-                <span className="text-xs font-bold tracking-wider text-accent-pink uppercase">
+                <span className="label-caps text-accent-pink">
                   {isPlaying ? loc.radio.liveBroadcast : loc.radio.stopped}
                 </span>
-                <span className="rounded-sm bg-white/8 px-1.5 py-px text-xs text-fg-secondary">
-                  {currentStation.genre}
-                </span>
+                <Badge>{currentStation.genre}</Badge>
               </div>
-              <h3 className="mx-0 mt-1 mb-0 text-xl font-bold text-fg">
-                {currentStation.name}
-              </h3>
+              <h3 className="mt-1 text-xl font-bold text-fg">{currentStation.name}</h3>
               <p
                 className={cn(
-                  'mx-0 mt-1 mb-0 flex items-center gap-1.5 text-sm',
-                  liveStreamTitle ? 'text-accent-cyan' : 'text-fg-muted',
-                  liveStreamTitle ? 'font-semibold' : 'font-normal',
+                  'mt-1 flex items-center gap-1.5 text-sm',
+                  liveStreamTitle ? 'font-semibold text-accent-cyan' : 'text-fg-muted',
                 )}
               >
                 <Music2 size={14} />
@@ -203,228 +242,119 @@ export const RadioView: React.FC<RadioViewProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <div
-              className="flex items-center gap-1.5 rounded-lg border border-accent-cyan/25 bg-accent-cyan/10 px-3 py-1.5 text-ui text-accent-cyan"
-              title="PipeWire DSP Real-Time"
-            >
-              <Sliders size={14} />
-              <span>DSP Real-Time</span>
-            </div>
-
-            {isPlaying ? (
-              <button
-                onClick={onStop}
-                className="glass-card flex items-center gap-1.5 rounded-xl border border-accent-red/40 bg-accent-red/20 px-4 py-2.5 text-sm font-semibold text-rose-400 transition-all duration-200"
-              >
-                <Square size={16} />
-                {loc.player.stop}
-              </button>
-            ) : (
-              <button
-                onClick={() => onPlayStation(currentStation)}
-                className="glass-card flex items-center gap-1.5 rounded-xl border-0 bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-on-accent transition-all duration-200"
-              >
-                <Play size={16} />
-                {loc.player.play}
-              </button>
-            )}
+            <Badge tone="cyan" size="sm" title="PipeWire DSP Real-Time">
+              <Sliders size={14} /> DSP Real-Time
+            </Badge>
+            <PlayStopButton
+              size="lg"
+              playing={isPlaying}
+              onPlay={() => onPlayStation(currentStation)}
+              onStop={onStop}
+              loc={loc}
+            />
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Section: recommended stations */}
-      <div>
-        <div className="mb-3.5 flex items-center gap-2">
-          <Sparkles size={18} className="text-accent-pink" />
-          <h3 className="m-0 text-lg font-bold text-fg">
-            {loc.radio.featuredStations}
-          </h3>
-          <span className="text-xs text-fg-muted">
-            ({FEATURED_RADIO_STATIONS.length})
-          </span>
-        </div>
-
+      <section>
+        <SectionHeader
+          className="mb-3.5"
+          icon={<Sparkles size={16} />}
+          title={`${loc.radio.featuredStations} (${FEATURED_RADIO_STATIONS.length})`}
+        />
         <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-4">
           {FEATURED_RADIO_STATIONS.map((station) => {
-            const isThisPlaying = currentStation?.url === station.url && isPlaying;
+            const playing = isStationPlaying(station);
             return (
-              <div
+              <StationCard
                 key={station.id}
-                className={cn(
-                  'glass-card flex flex-col justify-between gap-3 rounded-2xl border px-5 py-4.5 transition-all duration-200',
-                  isThisPlaying ? 'border-accent-pink' : 'border-line',
-                  isThisPlaying && 'shadow-xl shadow-pink-500/25',
-                )}
-                style={{
-                  background: isThisPlaying
-                    ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(20, 15, 30, 0.8) 100%)'
-                    : 'rgba(20, 15, 30, 0.65)',
-                }}
-              >
-                <div>
-                  <div className="mb-1.5 flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Headphones className={cn(isThisPlaying ? 'text-accent-pink' : 'text-accent-purple')} size={18} />
-                      <h4 className="m-0 text-base font-bold text-fg">
-                        {station.name}
-                      </h4>
-                    </div>
-                    <span
-                      className="rounded-xl bg-accent-purple/20 px-2 py-0.5 text-xs font-semibold text-accent-purple"
-                    >
-                      {station.genre}
-                    </span>
+                station={station}
+                playing={playing}
+                tone="pink"
+                loc={loc}
+                onPlay={() => onPlayStation(station)}
+                onStop={onStop}
+                title={
+                  <div className="flex items-center gap-2">
+                    <Headphones size={18} className={playing ? 'text-accent-pink' : 'text-accent-purple'} />
+                    <h4 className="text-base font-bold text-fg">{station.name}</h4>
                   </div>
-
-                  <p className="mx-0 mt-1.5 mb-0 text-ui leading-snug text-fg-secondary">
-                    {getStationDesc(station.id, station.description)}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
-                  {station.homepage ? (
+                }
+                body={<p className="mt-1.5 text-ui leading-snug text-fg-secondary">{stationDescription(loc, station)}</p>}
+                footerStart={
+                  station.homepage ? (
                     <a
                       href={station.homepage}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-1 text-xs text-fg-muted no-underline transition-colors duration-200 hover:text-accent-cyan"
+                      className="flex items-center gap-1 text-xs text-fg-muted no-underline hover:text-accent-cyan"
                     >
                       <ExternalLink size={12} />
                       {loc.radio.website}
                     </a>
-                  ) : <div />}
-
-                  <button
-                    onClick={() => isThisPlaying ? onStop() : onPlayStation(station)}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-ui font-semibold transition-all duration-200',
-                      isThisPlaying ? 'bg-accent-red/20' : 'bg-accent-gradient',
-                      isThisPlaying ? 'text-rose-400' : 'text-fg',
-                      isThisPlaying ? 'border border-accent-red/40' : 'border-0',
-                    )}
-                  >
-                    {isThisPlaying ? (
-                      <>
-                        <Square size={14} />
-                        {loc.player.stop}
-                      </>
-                    ) : (
-                      <>
-                        <Play size={14} />
-                        {loc.player.play}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+                  ) : <div />
+                }
+              />
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Section: custom stations */}
-      <div className="mt-2.5">
-        <div className="mb-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio size={18} className="text-accent-cyan" />
-            <h3 className="m-0 text-lg font-bold text-fg">
-              {loc.radio.customStations}
-            </h3>
-            <span className="text-xs text-fg-muted">
-              ({customStations.length})
-            </span>
-          </div>
-        </div>
+      <section className="mt-2.5">
+        <SectionHeader
+          className="mb-3.5"
+          icon={<Radio size={16} />}
+          tone="cyan"
+          title={`${loc.radio.customStations} (${customStations.length})`}
+        />
 
         {customStations.length === 0 ? (
-          <div className="glass-card rounded-2xl border border-dashed border-line p-9 text-center text-fg-muted">
-            <Radio size={36} className="mb-2.5 opacity-35" />
-            <p className="m-0 text-md">
-              {loc.radio.noCustomStations}
-            </p>
-            <p className="mx-0 mt-1 mb-4 text-ui text-fg-muted">
-              {loc.radio.supportedStreamsHint}
-            </p>
-            <button
-              onClick={onOpenAddModal}
-              className="glass-card inline-flex items-center gap-1.5 rounded-lg border border-accent-cyan/30 bg-accent-cyan/15 px-4 py-2 text-ui font-semibold text-accent-cyan"
-            >
-              <Plus size={16} />
-              {loc.radio.addCustomStation}
-            </button>
-          </div>
+          <Card className="border-dashed">
+            <EmptyState
+              icon={<Radio size={22} />}
+              title={loc.radio.noCustomStations}
+              description={loc.radio.supportedStreamsHint}
+              action={
+                <Button variant="tinted" tone="cyan" onClick={onOpenAddModal}>
+                  <Plus size={16} /> {loc.radio.addCustomStation}
+                </Button>
+              }
+            />
+          </Card>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-4">
-            {customStations.map((station) => {
-              const isThisPlaying = currentStation?.url === station.url && isPlaying;
-              return (
-                <div
-                  key={station.id}
-                  className={cn(
-                    'glass-card flex flex-col justify-between gap-3 rounded-2xl border px-5 py-4.5 transition-all duration-200',
-                    isThisPlaying ? 'border-accent-cyan' : 'border-line',
-                  )}
-                  style={{
-                    background: isThisPlaying
-                      ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(20, 15, 30, 0.8) 100%)'
-                      : 'rgba(20, 15, 30, 0.65)',
-                  }}
-                >
-                  <div>
-                    <div className="mb-1.5 flex items-start justify-between">
-                      <h4 className="m-0 text-base font-bold text-fg">
-                        {station.name}
-                      </h4>
-                      <span className="rounded-xl bg-accent-cyan/20 px-2 py-0.5 text-xs font-semibold text-accent-cyan">
-                        {station.genre}
-                      </span>
-                    </div>
-
-                    <p
-                      className="mx-0 mt-1 mb-0 truncate font-mono text-xs text-fg-muted"
-                      title={station.url}
-                    >
-                      {station.url}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-white/5 pt-2.5">
-                    <button
-                      onClick={() => onDeleteCustomStation(station.id)}
-                      title={loc.radio.deleteStation}
-                      className="flex items-center border-0 bg-transparent p-1 text-fg-muted transition-colors duration-200 hover:text-rose-400"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-
-                    <button
-                      onClick={() => isThisPlaying ? onStop() : onPlayStation(station)}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-ui font-semibold transition-all duration-200',
-                        isThisPlaying ? 'bg-accent-red/20' : 'bg-linear-135 from-accent-cyan to-accent-purple',
-                        isThisPlaying ? 'text-rose-400' : 'text-fg',
-                        isThisPlaying ? 'border border-accent-red/40' : 'border-0',
-                      )}
-                    >
-                      {isThisPlaying ? (
-                        <>
-                          <Square size={14} />
-                          {loc.player.stop}
-                        </>
-                      ) : (
-                        <>
-                          <Play size={14} />
-                          {loc.player.play}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {customStations.map((station) => (
+              <StationCard
+                key={station.id}
+                station={station}
+                playing={isStationPlaying(station)}
+                tone="cyan"
+                loc={loc}
+                onPlay={() => onPlayStation(station)}
+                onStop={onStop}
+                title={<h4 className="text-base font-bold text-fg">{station.name}</h4>}
+                body={
+                  <p className="mt-1 truncate font-mono text-xs text-fg-muted" title={station.url}>
+                    {station.url}
+                  </p>
+                }
+                footerStart={
+                  <IconButton
+                    size="sm"
+                    label={loc.radio.deleteStation}
+                    onClick={() => onDeleteCustomStation(station.id)}
+                    className="hover:text-accent-red"
+                  >
+                    <Trash2 size={16} />
+                  </IconButton>
+                }
+              />
+            ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };
