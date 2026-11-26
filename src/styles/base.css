@@ -164,9 +164,9 @@
       0 0 10px var(--border-accent);
   }
 
-  select:focus {
+  select:focus-visible {
     border-color: var(--accent-pink);
-    box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.25);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-pink) 25%, transparent);
   }
 
   select option {
@@ -183,6 +183,24 @@
   textarea {
     appearance: none;
     color: #f8fafc;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /*
+   * One focus ring for every text field. It is a box-shadow rather than an outline, so a
+   * stray `outline-none` or a border utility on the field cannot hide it.
+   */
+  input[type='text']:focus-visible,
+  input[type='search']:focus-visible,
+  input[type='number']:focus-visible,
+  input[type='password']:focus-visible,
+  input[type='url']:focus-visible,
+  input[type='email']:focus-visible,
+  textarea:focus-visible {
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-pink) 25%, transparent);
   }
 
   input::placeholder,

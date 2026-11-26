@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { ModalShell } from './Modal';
+import { ModalBody, ModalFooter, ModalHeader, ModalShell } from './Modal';
 
 function renderModal(onClose = vi.fn(), closeOnBackdrop?: boolean) {
   render(
@@ -60,5 +60,33 @@ describe('ModalShell', () => {
     unmount();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('ModalHeader, ModalBody and ModalFooter', () => {
+  afterEach(cleanup);
+
+  it('names the dialog through the header title and closes from its button', () => {
+    const onClose = vi.fn();
+    render(
+      <ModalShell onClose={onClose} labelledBy="hdr" size="full">
+        <ModalHeader titleId="hdr" title="Tag Editor" subtitle="3 tracks" onClose={onClose} closeLabel="Close" />
+        <ModalBody>body</ModalBody>
+        <ModalFooter>
+          <button type="button">Save</button>
+        </ModalFooter>
+      </ModalShell>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Tag Editor' });
+    expect(dialog.className).toContain('max-w-[96vw]');
+    expect(screen.getByText('3 tracks')).toBeTruthy();
+    expect(screen.getByText('body').className).toContain('overflow-y-auto');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no close button without onClose', () => {
+    render(<ModalHeader title="Info" />);
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

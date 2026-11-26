@@ -2,6 +2,9 @@ import type React from 'react';
 import { useEffect } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils/cn';
+import { IconButton } from './Button';
+import { X } from './icons';
+import { iconTileTones, type Tone } from './tones';
 
 /*
  * Stacking scale (bare z-index numbers, see the tailwind-v4 skill):
@@ -43,6 +46,8 @@ const panelVariants = cva(
         lg: 'max-w-170',
         xl: 'max-w-205',
         '2xl': 'max-w-240',
+        /** Workspaces that use the whole window (studios, editors). */
+        full: 'h-[90vh] max-w-[96vw]',
       },
     },
     defaultVariants: { size: 'md' },
@@ -103,5 +108,72 @@ export function ModalShell({
         {children}
       </div>
     </div>
+  );
+}
+
+export interface ModalHeaderProps {
+  title: React.ReactNode;
+  /** Id of the title heading; pass the same value to `ModalShell`'s `labelledBy`. */
+  titleId?: string;
+  subtitle?: React.ReactNode;
+  /** Icon shown in a tinted tile before the title. */
+  icon?: React.ReactNode;
+  tone?: Tone;
+  /** Renders a close button when set. */
+  onClose?: () => void;
+  /** Accessible name of the close button (usually `loc.common.close`). */
+  closeLabel?: string;
+  /** Extra controls placed before the close button. */
+  actions?: React.ReactNode;
+  className?: string;
+}
+
+/** Title bar of a dialog: icon tile, title, subtitle, actions and the close button. */
+export function ModalHeader({
+  title,
+  titleId,
+  subtitle,
+  icon,
+  tone = 'pink',
+  onClose,
+  closeLabel = 'Close',
+  actions,
+  className,
+}: ModalHeaderProps) {
+  return (
+    <div className={cn('flex shrink-0 items-center gap-3 border-b border-line px-6 py-4', className)}>
+      {icon && (
+        <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', iconTileTones[tone])}>
+          {icon}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <h2 id={titleId} className="truncate text-lg font-bold text-fg">
+          {title}
+        </h2>
+        {subtitle && <p className="mt-0.5 text-xs text-fg-muted">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {onClose && (
+        <IconButton label={closeLabel} onClick={onClose}>
+          <X size={18} />
+        </IconButton>
+      )}
+    </div>
+  );
+}
+
+/** Scrolling content area of a dialog. */
+export function ModalBody({ className, ...props }: React.ComponentProps<'div'>) {
+  return <div className={cn('min-h-0 flex-1 overflow-y-auto px-6 py-4', className)} {...props} />;
+}
+
+/** Action row at the bottom of a dialog; buttons align to the right. */
+export function ModalFooter({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn('flex shrink-0 items-center justify-end gap-2 border-t border-line px-6 py-4', className)}
+      {...props}
+    />
   );
 }
