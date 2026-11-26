@@ -98,7 +98,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             {tab.icon}
             <span className="max-nav:hidden">{tab.label}</span>
             {tab.count !== undefined && (
-              <span className="rounded-full bg-black/35 px-1.5 py-px font-mono text-2xs tabular-nums text-fg-muted">{tab.count}</span>
+              <span className="rounded-full bg-black/60 px-1.5 py-px font-mono text-xs font-bold tabular-nums text-fg ring-1 ring-white/15">{tab.count}</span>
             )}
           </button>
         );
