@@ -14,13 +14,15 @@ import {
   Minimize2,
   ListMusic,
   Settings,
+  ZoomIn,
 } from '../ui/icons';
 import { type Language, type Translations } from '../../i18n';
 import { AppNavbar, type MainTabType } from './AppNavbar';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
 import { cn } from '../../utils/cn';
-import { Button, Chip, type Tone } from '../ui';
+import { Badge, Button, Chip, type Tone } from '../ui';
+import { textTones } from '../ui/tones';
 import { fmt } from '../../utils/fmt';
 
 export interface AppHeaderProps {
@@ -67,17 +69,43 @@ export interface AppHeaderProps {
 }
 
 interface HeaderButtonProps extends Omit<React.ComponentProps<'button'>, 'aria-pressed'> {
-  /** Tinted action, or with `pressed` the colour of the pressed state. */
+  /** Colour of the icon, and of the pressed state when `pressed` is set. */
   tone?: Tone;
   /** Makes the button a toggle: idle until pressed. */
   pressed?: boolean;
+  icon: React.ReactNode;
 }
 
-/** Toolbar button: a toggle chip, a tinted action or a plain action, all at one size. */
-function HeaderButton({ tone, pressed, className, ...props }: HeaderButtonProps) {
-  const cls = cn('shrink-0 px-2.5 py-2 text-ui', className);
-  if (pressed !== undefined) return <Chip pressed={pressed} tone={tone} className={cls} {...props} />;
-  return <Button variant={tone ? 'tinted' : 'secondary'} tone={tone} className={cls} {...props} />;
+/** Toolbar button: coloured icon with a quiet label; a toggle lights up in its tone when on. */
+function HeaderButton({ tone, pressed, icon, className, children, ...props }: HeaderButtonProps) {
+  const cls = cn('h-8 shrink-0 gap-1.5 rounded-xl px-2.5 text-xs font-semibold', className);
+  const content = (
+    <>
+      <span className={cn('inline-flex', tone && textTones[tone])}>{icon}</span>
+      {children}
+    </>
+  );
+  if (pressed !== undefined) {
+    return (
+      <Chip pressed={pressed} tone={tone} className={cn('border-transparent bg-transparent', cls)} {...props}>
+        {content}
+      </Chip>
+    );
+  }
+  return (
+    <Button variant="ghost" className={cn('text-fg-secondary hover:bg-white/8 hover:text-fg', cls)} {...props}>
+      {content}
+    </Button>
+  );
+}
+
+/** Rounded rail that groups related header buttons. */
+function ToolGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div role="group" aria-label={label} className="flex shrink-0 items-center gap-0.5 rounded-2xl border border-line bg-black/25 p-1">
+      {children}
+    </div>
+  );
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -122,116 +150,97 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   return (
-    <header className="relative z-30 mb-3.5 flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2">
-      {/* App logo and name */}
-      <div className="flex min-w-0 shrink-0 items-center gap-3">
-        <div className="flex shrink-0 flex-col items-center gap-0.5">
-          <span className="rounded-sm border border-accent-purple/40 bg-accent-purple/25 px-1.5 py-0.5 text-2xs leading-none font-bold tracking-wide text-accent-purple">
-            v{appVersion}
-          </span>
-          <img
-            src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
-            alt="Auralune Logo"
-            className={cn(
-              'size-9.5 shrink-0 rounded-xl border border-line-accent bg-black/25 object-contain shadow-halo-lg',
-              appIconStyle === 'classic' ? 'shadow-accent-purple/45' : 'p-0.5 shadow-accent-pink/45',
+    <header className="relative z-30 mb-4 flex min-w-0 shrink-0 flex-col gap-2.5">
+      {/* Row 1: brand on the left, the main tabs on the right */}
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        {/* App logo and name */}
+        <div className="flex min-w-0 shrink-0 items-center gap-3">
+          <div className="flex shrink-0 flex-col items-center gap-0.5">
+            <span className="rounded-sm border border-accent-purple/40 bg-accent-purple/25 px-1.5 py-0.5 text-2xs leading-none font-bold tracking-wide text-accent-purple">
+              v{appVersion}
+            </span>
+            <img
+              src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
+              alt="Auralune Logo"
+              className={cn(
+                'size-9.5 shrink-0 rounded-xl border border-line-accent bg-black/25 object-contain shadow-halo-lg',
+                appIconStyle === 'classic' ? 'shadow-accent-purple/45' : 'p-0.5 shadow-accent-pink/45',
+              )}
+            />
+          </div>
+          {/* With the update pill: the pill is level with the version badge (top), the title level with the logo (bottom). */}
+          <div className={cn('flex min-w-0 flex-col items-start', updateAvailable && 'self-stretch justify-between')}>
+            {updateAvailable && (
+              <button
+                type="button"
+                onClick={onOpenUpdates}
+                title={updateTitle}
+                aria-label={updateTitle}
+                className="inline-flex items-center gap-1 rounded-md border border-accent-green/35 bg-accent-green/15 px-1.5 py-0.5 text-2xs leading-none font-bold text-accent-green"
+              >
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-green motion-safe:animate-update-dot" />
+                {loc.updates.badge}
+              </button>
             )}
-          />
+            <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight whitespace-nowrap">
+              <span>Auralune</span>
+              <span className="text-lg font-semibold text-accent-pink">狐</span>
+            </h1>
+          </div>
         </div>
-        {/* With the update pill: the pill is level with the version badge (top), the title level with the logo (bottom). */}
-        <div className={cn('flex min-w-0 flex-col items-start', updateAvailable && 'self-stretch justify-between')}>
-          {updateAvailable && (
-            <button
-              type="button"
-              onClick={onOpenUpdates}
-              title={updateTitle}
-              aria-label={updateTitle}
-              className="inline-flex items-center gap-1 rounded-md border border-accent-green/35 bg-accent-green/15 px-1.5 py-0.5 text-2xs leading-none font-bold text-accent-green"
-            >
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-green motion-safe:animate-update-dot" />
-              {loc.updates.badge}
-            </button>
-          )}
-          <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight whitespace-nowrap">
-            <span>Auralune</span>
-            <span className="text-lg font-semibold text-accent-pink">狐</span>
-          </h1>
-        </div>
+
+          <AppNavbar
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+          trackCount={trackCount}
+          playlistCount={playlistCount}
+          language={language}
+          loc={loc}
+        />
       </div>
 
-      {/* Navigation tabs */}
-      <AppNavbar
-        activeTab={activeTab}
-        onSelectTab={onSelectTab}
-        trackCount={trackCount}
-        playlistCount={playlistCount}
-        language={language}
-        loc={loc}
-      />
-
-      {/* Tools and Settings on the right */}
-      <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-        {/* Recap */}
-        <HeaderButton
+      {/* Row 2: tools in groups, settings and language at the end */}
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Button
           onClick={onOpenRecap}
-          className="border-accent-pink/45 bg-linear-135 from-accent-pink/25 to-accent-purple/25 font-bold text-fg shadow-halo-sm shadow-accent-pink/20"
           title={loc.nav.recapTitle}
+          className="h-10 shrink-0 gap-1.5 rounded-2xl border-accent-pink/45 bg-linear-135 from-accent-pink/25 to-accent-purple/25 px-3.5 text-xs font-bold text-fg shadow-halo-sm shadow-accent-pink/20"
         >
-          <Flame size={14} className="text-accent-pink" />
-          <span className="max-actions:hidden">{loc.nav.recap}</span>
-        </HeaderButton>
+          <Flame size={15} className="text-accent-pink" />
+          <span className="max-nav:hidden">{loc.nav.recap}</span>
+        </Button>
 
-        {/* Key & BPM */}
-        <HeaderButton onClick={onOpenKeyBpm} tone="cyan" className="font-bold" title={loc.nav.keyBpmTitle}>
-          <Activity size={14} />
-          <span className="max-actions:hidden">Key & BPM</span>
-        </HeaderButton>
+        <ToolGroup label={loc.nav.analysisBtn}>
+          <HeaderButton icon={<Activity size={15} />} tone="cyan" onClick={onOpenKeyBpm} title={loc.nav.keyBpmTitle}>
+            <span className="max-nav:hidden">Key & BPM</span>
+          </HeaderButton>
+          <HeaderButton icon={<BarChart2 size={15} />} tone="pink" onClick={onOpenAnalysis} title={loc.nav.analysisTitle}>
+            <span className="max-nav:hidden">{loc.nav.analysisBtn}</span>
+          </HeaderButton>
+          <HeaderButton icon={<Disc3 size={15} />} tone="pink" onClick={onOpenHarmonicSuggester} title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}>
+            <span className="max-nav:hidden">{loc.nav.harmonicDj}</span>
+          </HeaderButton>
+        </ToolGroup>
 
-        {/* Music Analysis */}
-        <HeaderButton onClick={onOpenAnalysis} tone="pink" className="font-bold" title={loc.nav.analysisTitle}>
-          <BarChart2 size={14} />
-          <span className="max-actions:hidden">{loc.nav.analysisBtn}</span>
-        </HeaderButton>
+        <ToolGroup label={loc.nav.lyrics}>
+          <HeaderButton icon={<Mic2 size={15} />} tone="cyan" pressed={showLyrics} onClick={onToggleLyrics} title={loc.shortcuts.lyrics}>
+            <span className="max-nav:hidden">{loc.nav.lyrics}</span>
+          </HeaderButton>
+          <HeaderButton
+            icon={<Tv size={15} />}
+            tone="purple"
+            pressed={showDesktopLyrics}
+            onClick={onToggleDesktopLyrics}
+            title={loc.lyricsView?.desktopLyricsToggle || 'Pulpit HUD / Tekst (Desktop Lyrics)'}
+          >
+            <span className="max-nav:hidden">{loc.nav.desktopLrc}</span>
+          </HeaderButton>
+        </ToolGroup>
 
-        {/* Sleep Timer */}
-        <HeaderButton
-          onClick={onOpenSleepTimer}
-          pressed={sleepActive}
-          className="font-bold aria-pressed:border-accent-cyan aria-pressed:bg-linear-135 aria-pressed:from-accent-pink/40 aria-pressed:to-accent-cyan/40 aria-pressed:text-on-accent aria-pressed:shadow-halo-md aria-pressed:shadow-accent-cyan/50"
-          title={loc.player.sleepTimer}
-        >
-          <Moon size={14} className={cn(sleepTimerRemainingSec !== null && 'text-accent-cyan')} />
-          <span className="max-actions:hidden">
-            {sleepTimerRemainingSec !== null
-              ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
-              : sleepTimerTargetMode === 'end_of_track'
-                ? loc.player.timerEnd
-                : 'Timer'}
-          </span>
-        </HeaderButton>
-
-        {/* Lyrics */}
-        <HeaderButton onClick={onToggleLyrics} pressed={showLyrics} tone="cyan" title={loc.shortcuts.lyrics}>
-          <Mic2 size={14} />
-          <span className="max-actions:hidden">{loc.nav.lyrics}</span>
-        </HeaderButton>
-
-        {/* Desktop Lyrics Overlay */}
-        <HeaderButton
-          onClick={onToggleDesktopLyrics}
-          pressed={showDesktopLyrics}
-          tone="purple"
-          title={loc.lyricsView?.desktopLyricsToggle || 'Pulpit HUD / Tekst (Desktop Lyrics)'}
-        >
-          <Tv size={14} />
-          <span className="max-actions:hidden">{loc.nav.desktopLrc}</span>
-        </HeaderButton>
-
-        {/* Ambience cycle */}
-        <HeaderButton onClick={onCycleAmbience} pressed={ambienceMode !== 'off'} tone="pink" title={`Ambience: ${ambienceMode}`}>
-          <Sparkles size={14} />
-          <span className="max-actions:hidden">
-            {ambienceMode === 'sakura'
+        <ToolGroup label={loc.nav.effects}>
+          <HeaderButton icon={<Sparkles size={15} />} tone="pink" pressed={ambienceMode !== 'off'} onClick={onCycleAmbience} title={`Ambience: ${ambienceMode}`}>
+            <span className="max-nav:hidden">
+              {ambienceMode === 'sakura'
               ? 'Sakura 🌸'
               : ambienceMode === 'neon_rain'
                 ? 'Neon 🌧️'
@@ -248,75 +257,78 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                           : ambienceMode === 'embers'
                             ? loc.player.ambienceEmbers
                             : loc.nav.effects}
-          </span>
-        </HeaderButton>
+            </span>
+          </HeaderButton>
+          <HeaderButton
+            icon={<Waves size={15} />}
+            tone="green"
+            pressed={isSoundscapeActive}
+            onClick={onOpenSoundscape}
+            title={loc.nav.soundscape + ' (Lofi Ambience)'}
+          >
+            <span className="max-nav:hidden">{loc.nav.soundscape}</span>
+          </HeaderButton>
+          <HeaderButton
+            icon={<Moon size={15} className={cn(sleepTimerRemainingSec !== null && 'text-accent-cyan')} />}
+            tone="purple"
+            pressed={sleepActive}
+            onClick={onOpenSleepTimer}
+            title={loc.player.sleepTimer}
+          >
+            <span className="max-nav:hidden">
+              {sleepTimerRemainingSec !== null
+                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
+                : sleepTimerTargetMode === 'end_of_track'
+                  ? loc.player.timerEnd
+                  : 'Timer'}
+            </span>
+          </HeaderButton>
+        </ToolGroup>
 
-        {/* Soundscape */}
-        <HeaderButton
-          onClick={onOpenSoundscape}
-          pressed={isSoundscapeActive}
-          tone="green"
-          title={loc.nav.soundscape + ' (Lofi Ambience)'}
-        >
-          <Waves size={14} />
-          <span className="max-actions:hidden">{loc.nav.soundscape}</span>
-        </HeaderButton>
+        {/* Pushes the view and app controls to the right edge */}
+        <div className="min-w-0 flex-1" />
 
-        {/* Harmonic Suggester */}
-        <HeaderButton onClick={onOpenHarmonicSuggester} tone="pink" title={loc.nav.harmonicSuggester + ' (Camelot & BPM)'}>
-          <Disc3 size={14} />
-          <span className="max-actions:hidden">{loc.nav.harmonicDj}</span>
-        </HeaderButton>
+        <ToolGroup label={loc.nav.fullscreen}>
+          <HeaderButton icon={<Search size={15} />} tone="purple" onClick={onOpenCommandPalette} title="Command Palette / Search (Ctrl + K)">
+            <kbd className="rounded-sm border border-line bg-white/5 px-1 font-mono text-2xs">Ctrl K</kbd>
+          </HeaderButton>
+          <HeaderButton icon={<Maximize2 size={15} />} onClick={onOpenBigScreen} title={loc.shortcuts.fullscreen}>
+            <span className="max-nav:hidden">{loc.nav.fullscreen}</span>
+          </HeaderButton>
+          <HeaderButton icon={<Minimize2 size={15} />} onClick={onToggleMiniPlayer} title={loc.shortcuts.miniPlayer}>
+            <span className="max-nav:hidden">{loc.nav.miniPlayer}</span>
+          </HeaderButton>
+          {/* UI scale: click to enlarge, right-click to shrink */}
+          <HeaderButton
+            icon={<ZoomIn size={15} />}
+            tone="cyan"
+            pressed={uiScale > 1.0}
+            onClick={onIncreaseScale}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onDecreaseScale();
+            }}
+            title={fmt(loc.nav.uiScaleTooltip, String(Math.round(uiScale * 100)))}
+          >
+            <span className="font-mono tabular-nums">{Math.round(uiScale * 100)}%</span>
+          </HeaderButton>
+        </ToolGroup>
 
-        {/* Command Palette */}
-        <HeaderButton onClick={onOpenCommandPalette} tone="purple" title="Command Palette / Search (Ctrl + K)">
-          <Search size={14} />
-          <span className="font-mono text-xs opacity-85">Ctrl+K</span>
-        </HeaderButton>
+        <ToolGroup label={loc.nav.queue}>
+          <HeaderButton icon={<ListMusic size={15} />} tone="pink" pressed={isQueueOpen} onClick={onToggleQueue} title={`${loc.nav.queue} (${queueCount})`}>
+            <span className="max-nav:hidden">{loc.nav.queue}</span>
+            <Badge tone="neutral" size="xs" mono>
+              {queueCount}
+            </Badge>
+          </HeaderButton>
+          <HeaderButton icon={<Settings size={15} />} tone="purple" pressed={isSettingsOpen} onClick={onOpenSettings} title={loc.settings.title}>
+            <span className="max-nav:hidden">{loc.settings.title}</span>
+          </HeaderButton>
+        </ToolGroup>
 
-        {/* Fullscreen */}
-        <HeaderButton onClick={onOpenBigScreen} title={loc.shortcuts.fullscreen}>
-          <Maximize2 size={14} />
-          <span className="max-actions:hidden">{loc.nav.fullscreen}</span>
-        </HeaderButton>
-
-        {/* UI Scale Switcher */}
-        <HeaderButton
-          onClick={onIncreaseScale}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            onDecreaseScale();
-          }}
-          pressed={uiScale > 1.0}
-          tone="cyan"
-          title={fmt(loc.nav.uiScaleTooltip, String(Math.round(uiScale * 100)))}
-        >
-          <Maximize2 size={13} />
-          <span className="max-actions:hidden">{Math.round(uiScale * 100)}%</span>
-        </HeaderButton>
-
-        {/* Mini Player */}
-        <HeaderButton onClick={onToggleMiniPlayer} title={loc.shortcuts.miniPlayer}>
-          <Minimize2 size={14} />
-          <span className="max-actions:hidden">{loc.nav.miniPlayer}</span>
-        </HeaderButton>
-
-        {/* Queue */}
-        <HeaderButton onClick={onToggleQueue} pressed={isQueueOpen} tone="pink" title={`${loc.nav.queue} (${queueCount})`}>
-          <ListMusic size={14} />
-          <span className="max-actions:hidden">{loc.nav.queue}</span> ({queueCount})
-        </HeaderButton>
-
-        {/* Settings */}
-        <HeaderButton onClick={onOpenSettings} pressed={isSettingsOpen} tone="purple" title={loc.settings.title}>
-          <Settings size={14} />
-          <span className="max-actions:hidden">{loc.settings.title}</span>
-        </HeaderButton>
-
-        {/* Language Selector */}
-        <div className="shrink-0">
-          <LanguageSelector currentLang={language} onLanguageChange={onLanguageChange} />
-        </div>
+        <ToolGroup label={loc.settings.language}>
+          <LanguageSelector variant="toolbar" currentLang={language} onLanguageChange={onLanguageChange} />
+        </ToolGroup>
       </div>
     </header>
   );

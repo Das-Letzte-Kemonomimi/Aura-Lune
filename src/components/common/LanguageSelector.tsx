@@ -8,6 +8,8 @@ interface LanguageSelectorProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   className?: string;
+  /** `toolbar`: quiet button that sits inside a header tool group. */
+  variant?: 'default' | 'toolbar';
 }
 
 /** Flag button that opens a menu of the supported UI languages. */
@@ -15,6 +17,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   currentLang,
   onLanguageChange,
   className,
+  variant = 'default',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const loc = getTranslations(currentLang);
@@ -39,7 +42,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             aria-haspopup="menu"
             aria-label={title}
             title={title}
-            className="px-2.5 py-1.5"
+            variant={variant === 'toolbar' ? 'ghost' : 'secondary'}
+            className={variant === 'toolbar' ? 'h-8 gap-1.5 rounded-xl px-2.5 text-fg-secondary hover:bg-white/8 hover:text-fg' : 'px-2.5 py-1.5'}
           >
             <Globe size={14} className="text-accent-cyan" />
             <span className="text-base leading-none">{activeOption.flag}</span>

@@ -35,6 +35,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
     label: string;
     icon: React.ReactNode;
     title: string;
+    count?: number;
   }> = [
     {
       id: 'player',
@@ -44,13 +45,15 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
     },
     {
       id: 'library',
-      label: `${loc.nav.library} (${trackCount})`,
+      label: loc.nav.library,
+      count: trackCount,
       icon: <Music size={14} />,
       title: loc.nav.library,
     },
     {
       id: 'playlists',
-      label: `${loc.nav.playlists} (${playlistCount})`,
+      label: loc.nav.playlists,
+      count: playlistCount,
       icon: <ListPlus size={14} />,
       title: loc.nav.playlists,
     },
@@ -81,7 +84,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   ];
 
   return (
-    <nav className="flex shrink-0 gap-1 rounded-xl border border-line bg-black/30 p-1">
+    <nav aria-label="Main" className="flex shrink-0 gap-1 rounded-2xl border border-line bg-black/30 p-1">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
@@ -89,11 +92,14 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             key={tab.id}
             onClick={() => onSelectTab(tab.id)}
             aria-current={isActive ? 'page' : undefined}
-            className="flex items-center gap-1.5 px-3 py-2 text-ui font-semibold text-fg aria-[current=page]:bg-accent-purple"
+            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-ui font-semibold text-fg-secondary hover:text-fg aria-[current=page]:bg-accent-purple aria-[current=page]:text-fg aria-[current=page]:shadow-halo-sm aria-[current=page]:shadow-accent-purple/40"
             title={tab.title}
           >
             {tab.icon}
             <span className="max-nav:hidden">{tab.label}</span>
+            {tab.count !== undefined && (
+              <span className="rounded-full bg-black/35 px-1.5 py-px font-mono text-2xs tabular-nums text-fg-muted">{tab.count}</span>
+            )}
           </button>
         );
       })}
