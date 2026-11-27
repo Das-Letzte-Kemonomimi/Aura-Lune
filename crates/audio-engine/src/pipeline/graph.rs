@@ -113,7 +113,7 @@ impl AudioEngine {
 
         let spectrum = gst::ElementFactory::make("spectrum")
             .name("spectrum_analyzer")
-            .property("bands", 64u32)
+            .property("bands", crate::spectrum::ANALYSER_BANDS)
             .property("threshold", -75i32)
             .property("interval", 100_000_000u64)
             .property("message-magnitude", true)
@@ -214,6 +214,7 @@ impl AudioEngine {
             &audioresample,
             &capsfilter_dsp,
             dsp.upcast_ref(),
+            &queue_sink,
         ])?;
 
         if let Some(ref fv) = freeverb {
@@ -289,7 +290,6 @@ impl AudioEngine {
             &rglimiter,
             &spectrum,
             &volume,
-            &queue_sink,
             &audioconvert_sink,
             &audioresample_sink,
             &sink,
@@ -310,10 +310,24 @@ impl AudioEngine {
         ])
         .map_err(|_| AudioEngineError::ElementLink("Failed to link the DSP input".into()))?;
 
-        // DSP -> equalizer directly on startup (freeverb is linked on demand via IDLE pad probe).
+        // DSP -> queue_sink -> equalizer on startup (freeverb is linked on demand between
+        // queue_sink and equalizer via an IDLE pad probe, see `dsp::relink_reverb`).
+        //
+        // The output queue sits right after `auralune_dsp`: its slack (600 ms by default,
+        // raised from 80 ms in v1.0.4 against stuttering) absorbs the bursty Rubber Band /
+        // SoundTouch output and decoder jitter. Everything after it runs in the queue's
+        // streaming thread, which the sink paces, so changes to the steady effects below
+        // (EQ, PEQ, dynamics, widener, crossfeed, ReplayGain, limiter, reverb) and the
+        // spectrum analyser lead the listener only by the sink ring buffer, not by queue +
+        // ring buffer. Pitch / tempo / rate stay before the queue: they are what it protects.
         dsp.upcast_ref::<gst::Element>()
-            .link(&equalizer)
-            .map_err(|_| AudioEngineError::ElementLink("Failed to link DSP to equalizer".into()))?;
+            .link(&queue_sink)
+            .map_err(|_| {
+                AudioEngineError::ElementLink("Failed to link DSP to queue_sink".into())
+            })?;
+        queue_sink.link(&equalizer).map_err(|_| {
+            AudioEngineError::ElementLink("Failed to link queue_sink to equalizer".into())
+        })?;
         if let Some(ref fv) = freeverb {
             fv.set_locked_state(true);
             let _ = fv.set_state(gst::State::Null);
@@ -355,22 +369,21 @@ impl AudioEngine {
             })?;
         }
 
-        // rgvolume -> rglimiter -> spectrum -> audioconvert_sink -> audioresample_sink -> queue_sink -> volume -> sink
-        // Placing volume right before the sink (after queue_sink) means a volume slider change
-        // takes effect immediately, without waiting for the queue buffer.
+        // rgvolume -> rglimiter -> spectrum -> audioconvert_sink -> audioresample_sink -> volume -> sink
+        // Placing volume right before the sink means a volume slider change takes effect
+        // without waiting for the queue buffer.
         gst::Element::link_many([
             &rgvolume,
             &rglimiter,
             &spectrum,
             &audioconvert_sink,
             &audioresample_sink,
-            &queue_sink,
             &volume,
             &sink,
         ])
         .map_err(|_| {
             AudioEngineError::ElementLink(
-                "Failed to link the audio output chain to spectrum, queue, volume and sink".into(),
+                "Failed to link the audio output chain to spectrum, volume and sink".into(),
             )
         })?;
 
@@ -461,6 +474,7 @@ impl AudioEngine {
             reverb_switch_lock: Arc::new(Mutex::new(())),
             reverb_target: Arc::new(AtomicBool::new(false)),
             reverb_probe_pending: Arc::new(AtomicBool::new(false)),
+            spectrum_sync: Arc::new(Mutex::new(crate::spectrum_sync::SpectrumSync::new())),
         })
     }
 }

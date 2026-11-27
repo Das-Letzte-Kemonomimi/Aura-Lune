@@ -8,27 +8,61 @@ impl AudioEngine {
     pub fn poll_events(&self) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
         let pipeline = self.inner.lock_safe().pipeline.clone();
-        let mut last_spectrum_msg: Option<gst::Message> = None;
+        let mut spectrum_msgs: Vec<gst::Message> = Vec::new();
 
         if let Some(bus) = pipeline.bus() {
             while let Some(msg) = bus.pop() {
                 if self.is_spectrum_message(&msg) {
-                    last_spectrum_msg = Some(msg);
+                    spectrum_msgs.push(msg);
                     continue;
                 }
                 self.handle_bus_message(&pipeline, &msg, &mut events);
             }
         }
 
-        if let Some(spec_msg) = last_spectrum_msg {
-            if let Some(spectrum) = spec_msg.structure().and_then(spectrum_from_structure) {
-                events.push(PlayerEvent::Spectrum(spectrum));
-            }
+        if let Some(spectrum) = self.release_heard_spectrum(spectrum_msgs) {
+            events.push(PlayerEvent::Spectrum(spectrum));
         }
 
         let (pos, dur) = self.pre_eos_probe_pos_dur();
         self.apply_pre_eos_fade(pos, dur);
         events
+    }
+
+    /// Queues the new analyser messages by stream time and returns the bands of the one
+    /// the sink is playing now. The analyser sits upstream of the sink's ring buffer, so
+    /// its messages arrive before their audio is heard (measured: 0.7-0.8 s when it sat
+    /// before the 600 ms queue, still 0.1-1.7 s after it depending on the sink buffer);
+    /// emitting them on arrival made the bars run ahead.
+    fn release_heard_spectrum(&self, msgs: Vec<gst::Message>) -> Option<Vec<f32>> {
+        if msgs.is_empty() && self.spectrum_sync.lock_safe().is_empty() {
+            return None; // visualiser off: skip the position query
+        }
+        let (heard, sample_rate) = {
+            let inner = self.inner.lock_safe();
+            (
+                Self::query_raw_sink_position(&inner),
+                analyser_sample_rate(&inner.spectrum),
+            )
+        };
+        let mut sync = self.spectrum_sync.lock_safe();
+        let mut untimed = None;
+        for msg in msgs {
+            match msg.structure().and_then(spectrum_frame_time) {
+                Some(at) => sync.push(at, msg),
+                // No timestamps: fall back to showing it on arrival.
+                None => untimed = Some(msg),
+            }
+        }
+        let msg = heard.and_then(|pos| sync.release(pos)).or(untimed)?;
+        drop(sync);
+        msg.structure()
+            .and_then(|s| spectrum_from_structure(s, sample_rate))
+    }
+
+    /// Drops pending spectrum frames (playback stopped).
+    pub(super) fn clear_spectrum_sync(&self) {
+        self.spectrum_sync.lock_safe().clear();
     }
 
     fn is_spectrum_message(&self, msg: &gst::Message) -> bool {
@@ -247,8 +281,36 @@ impl AudioEngine {
     }
 }
 
+/// Mid-point of a spectrum message's analysis interval in stream time
+/// (`stream-time + duration / 2`), the same timeline the sink position query reports.
+fn spectrum_frame_time(structure: &gst::StructureRef) -> Option<Duration> {
+    let stream_time = structure.get::<u64>("stream-time").ok()?;
+    if stream_time == u64::MAX {
+        return None; // GST_CLOCK_TIME_NONE
+    }
+    let duration = structure
+        .get::<u64>("duration")
+        .ok()
+        .filter(|&d| d != u64::MAX)
+        .unwrap_or(0);
+    Some(Duration::from_nanos(
+        stream_time.saturating_add(duration / 2),
+    ))
+}
+
+/// Sample rate negotiated on the analyser's input (needed to map FFT bins to Hz).
+fn analyser_sample_rate(spectrum: &gst::Element) -> u32 {
+    spectrum
+        .static_pad("sink")
+        .and_then(|pad| pad.current_caps())
+        .and_then(|caps| caps.structure(0).and_then(|s| s.get::<i32>("rate").ok()))
+        .and_then(|rate| u32::try_from(rate).ok())
+        .filter(|&rate| rate > 0)
+        .unwrap_or(crate::spectrum::DEFAULT_SAMPLE_RATE)
+}
+
 /// Extracts the stereo spectrum from a `spectrum` element message (the `magnitude` field).
-fn spectrum_from_structure(structure: &gst::StructureRef) -> Option<Vec<f32>> {
+fn spectrum_from_structure(structure: &gst::StructureRef, sample_rate: u32) -> Option<Vec<f32>> {
     if structure.name() != "spectrum" {
         return None;
     }
@@ -260,7 +322,7 @@ fn spectrum_from_structure(structure: &gst::StructureRef) -> Option<Vec<f32>> {
     };
 
     let mut channel_mags: Vec<Vec<f32>> = Vec::with_capacity(2);
-    let mut flat_db: Vec<f32> = Vec::with_capacity(64);
+    let mut flat_db: Vec<f32> = Vec::new();
     if let Ok(list) = val.get::<gst::ListRef>() {
         let items = list.as_slice();
         for item in items {
@@ -278,7 +340,7 @@ fn spectrum_from_structure(structure: &gst::StructureRef) -> Option<Vec<f32>> {
         flat_db.reserve(items.len());
         flat_db.extend(items.iter().filter_map(as_f32));
     }
-    crate::spectrum::stereo_display_spectrum(&channel_mags, &flat_db)
+    crate::spectrum::stereo_display_spectrum(&channel_mags, &flat_db, sample_rate)
 }
 
 /// "Artist - Title" text from the stream tags (e.g. internet radio).

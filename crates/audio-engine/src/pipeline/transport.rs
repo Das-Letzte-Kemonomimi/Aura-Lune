@@ -253,7 +253,7 @@ impl AudioEngine {
                 inner
                     .freeverb
                     .as_ref()
-                    .filter(|fv| !Self::is_fv_linked(inner.dsp.upcast_ref(), fv))
+                    .filter(|fv| !Self::is_fv_linked(inner.reverb_upstream(), fv))
                     .cloned()
             } else {
                 None
@@ -265,6 +265,7 @@ impl AudioEngine {
             fv.set_locked_state(true);
             let _ = fv.set_state(gst::State::Null);
         }
+        self.clear_spectrum_sync();
         debug!("Pipeline state changed to Stopped (Null)");
         Ok(())
     }

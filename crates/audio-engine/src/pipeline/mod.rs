@@ -128,6 +128,12 @@ struct StemMixerHandles {
 }
 
 impl PipelineInner {
+    /// The element `freeverb` is linked after: the output queue, so reverb (like the other
+    /// steady effects downstream) is applied in the sink-paced thread and heard sooner.
+    fn reverb_upstream(&self) -> &gst::Element {
+        &self.queue_sink
+    }
+
     fn update_preamp_volume(&self) {
         let total_db = domain::equalizer::combined_preamp_db(
             self.user_preamp_db,
@@ -181,6 +187,9 @@ pub struct AudioEngine {
     reverb_target: Arc<AtomicBool>,
     /// Prevents stacking multiple deferred `IDLE` probes if `reverb` toggles while paused.
     reverb_probe_pending: Arc<AtomicBool>,
+    /// Spectrum frames held until the sink plays their audio (`bus::release_heard_spectrum`).
+    /// Touched only by the playback ticker and `stop`, never by a streaming thread.
+    spectrum_sync: Arc<Mutex<crate::spectrum_sync::SpectrumSync<gst::Message>>>,
 }
 
 /// Releases the GStreamer resources safely when the pipeline controller is dropped.

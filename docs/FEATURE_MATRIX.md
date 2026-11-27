@@ -12,7 +12,7 @@
 
 ## 1. 🔊 Silnik Audio, Wyjście & Sterowniki (PipeWire & GStreamer)
 - [x] **Architektura Hard Real-Time**: Całkowita izolacja wątku audio od webview, SQLite, operacji I/O i sieci (komunikacja przez atomiki i kanały zdarzeń).
-- [x] **GStreamer Pipeline**: `uridecodebin -> queue_in -> audioconvert -> audioresample -> capsfilter(F32LE) -> auralune_dsp -> freeverb -> equalizer-10bands -> peq_preamp -> equalizer-nbands -> audiodynamic -> compressor_makeup -> saturator -> stereo_widener -> bs2b -> rgvolume -> rglimiter -> spectrum -> audioconvert -> audioresample -> queue_sink -> volume (user) -> sink` (pulsesink, then pipewiresink, then autoaudiosink). Full map: `docs/architecture.md` §3.
+- [x] **GStreamer Pipeline**: `uridecodebin -> queue_in -> audioconvert -> audioresample -> capsfilter(F32LE) -> auralune_dsp -> queue_sink -> freeverb -> equalizer-10bands -> peq_preamp -> equalizer-nbands -> audiodynamic -> compressor_makeup -> saturator -> stereo_widener -> bs2b -> rgvolume -> rglimiter -> spectrum -> audioconvert -> audioresample -> volume (user) -> sink` (pulsesink, then pipewiresink, then autoaudiosink). Full map: `docs/architecture.md` §3.
 - [x] **Wyjście PipeWire z autodetekcją**: Wykrywanie obecności serwera PipeWire, bezpieczny fallback do PulseAudio/ALSA.
 - [x] **Pro Audio & Bluetooth Codec Switcher**: Zmiana profilu karty na `Pro Audio`, wybór kodeka Bluetooth wysokiej rozdzielczości (LDAC, aptX HD, AAC, SBC-XQ).
 - [x] **Konfigurowalny bufor audio**: Zmiana rozmiaru bufora `audio_buffer_duration_ms` (10 ms – 1000 ms) w Ustawieniach.

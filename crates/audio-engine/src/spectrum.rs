@@ -6,6 +6,15 @@
 pub const SPECTRUM_FLOOR_DB: f32 = -75.0;
 /// Number of bands per channel emitted to the UI.
 pub const DISPLAY_BANDS: usize = 16;
+/// Linear bands requested from the `spectrum` element (FFT size `2 * bands - 2` = 1022 points).
+/// At 44.1 kHz each bin is ~43 Hz wide, so the lowest display bars get their own bins
+/// (with 64 bands one bin covered 0-344 Hz and swallowed the whole bass range).
+pub const ANALYSER_BANDS: u32 = 512;
+/// Sample rate assumed when the analyser caps are not known yet.
+pub const DEFAULT_SAMPLE_RATE: u32 = 44_100;
+/// Lowest and highest edge (Hz) of the logarithmic display bands.
+pub const DISPLAY_MIN_HZ: f32 = 30.0;
+pub const DISPLAY_MAX_HZ: f32 = 20_000.0;
 
 /// Normalises dBFS levels (`SPECTRUM_FLOOR_DB..=0`) to `0.0..=1.0`.
 pub fn normalize_db(db: &[f32]) -> Vec<f32> {
@@ -14,39 +23,41 @@ pub fn normalize_db(db: &[f32]) -> Vec<f32> {
         .collect()
 }
 
-/// Logarithmic grouping of 64 linear FFT bands into 16 perceptual spectrum bands.
-/// Gives even, responsive dynamics from the sub-bass (30-60 Hz) to the highest treble (16-20 kHz).
-/// Shorter input (< 16 bands) is returned unchanged.
-pub fn log_pool_to_16_bands(raw: &[f32]) -> Vec<f32> {
+/// Half-open bin range `[start, end)` of every display band for `bins` linear bins
+/// covering `0..sample_rate / 2`. Band edges are spaced logarithmically from
+/// [`DISPLAY_MIN_HZ`] to [`DISPLAY_MAX_HZ`] (clamped to Nyquist); every band gets at least one bin.
+pub fn log_band_bin_ranges(bins: usize, sample_rate: u32) -> [(usize, usize); DISPLAY_BANDS] {
+    let mut ranges = [(0usize, 1usize); DISPLAY_BANDS];
+    if bins == 0 {
+        return ranges;
+    }
+    let nyquist = sample_rate.max(2) as f32 / 2.0;
+    let bin_hz = nyquist / bins as f32;
+    let max_hz = DISPLAY_MAX_HZ.min(nyquist);
+    let min_hz = DISPLAY_MIN_HZ.min(max_hz * 0.5);
+    let ratio = (max_hz / min_hz).powf(1.0 / DISPLAY_BANDS as f32);
+    let mut lo = min_hz;
+    for range in &mut ranges {
+        let hi = lo * ratio;
+        let start = ((lo / bin_hz).floor() as usize).min(bins - 1);
+        let end = ((hi / bin_hz).ceil() as usize).clamp(start + 1, bins);
+        *range = (start, end);
+        lo = hi;
+    }
+    ranges
+}
+
+/// Groups linear FFT bins into [`DISPLAY_BANDS`] logarithmic perceptual bands
+/// (30 Hz sub-bass up to 20 kHz air) using the analyser's real bin width.
+/// Input shorter than [`DISPLAY_BANDS`] is returned unchanged.
+pub fn log_pool_bands(raw: &[f32], sample_rate: u32) -> Vec<f32> {
     if raw.len() < DISPLAY_BANDS {
         return raw.to_vec();
     }
-    let bin_ranges: [(usize, usize); DISPLAY_BANDS] = [
-        (0, 1),   // 0: Sub-bass (~0 - 344 Hz)
-        (1, 2),   // 1: Bass (~344 - 688 Hz)
-        (2, 3),   // 2: Low Mids (~688 - 1032 Hz)
-        (3, 4),   // 3: Midrange (~1032 - 1376 Hz)
-        (4, 5),   // 4: Midrange (~1376 - 1720 Hz)
-        (5, 6),   // 5: Upper Mids (~1720 - 2064 Hz)
-        (6, 7),   // 6: Upper Mids (~2064 - 2408 Hz)
-        (7, 8),   // 7: Presence low (~2408 - 2752 Hz)
-        (8, 10),  // 8: Presence (~2752 - 3440 Hz)
-        (10, 12), // 9: Presence high (~3440 - 4128 Hz)
-        (12, 15), // 10: Brilliance low (~4128 - 5160 Hz)
-        (15, 19), // 11: Brilliance mid (~5160 - 6536 Hz)
-        (19, 24), // 12: Brilliance high (~6536 - 8260 Hz)
-        (24, 32), // 13: Treble (~8260 - 11000 Hz)
-        (32, 44), // 14: High Treble (~11000 - 15100 Hz)
-        (44, 64), // 15: Air (~15100 - 22050 Hz)
-    ];
-
-    bin_ranges
+    log_band_bin_ranges(raw.len(), sample_rate)
         .iter()
         .map(|&(start, end)| {
-            // For input shorter than 64 bands the ranges are clipped to its length.
-            let s = start.min(raw.len() - 1);
-            let e = end.min(raw.len()).max(s + 1);
-            let slice = &raw[s..e];
+            let slice = &raw[start..end];
             let max_val = slice.iter().copied().fold(0.0f32, f32::max);
             let avg_val = slice.iter().sum::<f32>() / slice.len() as f32;
             (max_val * 0.7 + avg_val * 0.3).clamp(0.0, 1.0)
@@ -54,12 +65,12 @@ pub fn log_pool_to_16_bands(raw: &[f32]) -> Vec<f32> {
         .collect()
 }
 
-/// One channel's bands ready for display: dB normalisation, and for a full
-/// 64-band FFT, grouping into [`DISPLAY_BANDS`].
-pub fn channel_display_bands(db: &[f32]) -> Vec<f32> {
+/// One channel's bands ready for display: dB normalisation, and for a full linear FFT
+/// (more bins than display bands), logarithmic grouping into [`DISPLAY_BANDS`].
+pub fn channel_display_bands(db: &[f32], sample_rate: u32) -> Vec<f32> {
     let normalized = normalize_db(db);
-    if normalized.len() >= 64 {
-        log_pool_to_16_bands(&normalized)
+    if normalized.len() > DISPLAY_BANDS {
+        log_pool_bands(&normalized, sample_rate)
     } else {
         normalized
     }
@@ -70,17 +81,21 @@ pub fn channel_display_bands(db: &[f32]) -> Vec<f32> {
 /// - two or more channels → true stereo (L + R),
 /// - one channel or a flat list → mono duplicated to both channels,
 /// - no data → `None`.
-pub fn stereo_display_spectrum(channel_mags: &[Vec<f32>], flat_db: &[f32]) -> Option<Vec<f32>> {
+pub fn stereo_display_spectrum(
+    channel_mags: &[Vec<f32>],
+    flat_db: &[f32],
+    sample_rate: u32,
+) -> Option<Vec<f32>> {
     if let [left, right, ..] = channel_mags {
-        let mut spectrum = channel_display_bands(left);
-        spectrum.extend(channel_display_bands(right));
+        let mut spectrum = channel_display_bands(left, sample_rate);
+        spectrum.extend(channel_display_bands(right, sample_rate));
         return Some(spectrum);
     }
     let mono = channel_mags.first().map(Vec::as_slice).unwrap_or(flat_db);
     if mono.is_empty() {
         return None;
     }
-    let bands = channel_display_bands(mono);
+    let bands = channel_display_bands(mono, sample_rate);
     let mut spectrum = bands.clone();
     spectrum.extend(bands);
     Some(spectrum)

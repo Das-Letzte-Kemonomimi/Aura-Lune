@@ -90,3 +90,23 @@ impl AudioEngine {
         }
     }
 }
+
+impl AudioEngine {
+    /// Names of the elements from `queue_in` to the sink, following the linked src pads
+    /// (diagnostics and graph-order tests; runs on the control plane).
+    pub fn element_chain(&self) -> Vec<String> {
+        let mut chain = Vec::new();
+        let mut current = Some(self.inner.lock_safe().queue_in.clone());
+        while let Some(element) = current {
+            chain.push(element.name().to_string());
+            if chain.len() > 64 {
+                break; // defensive: a loop would be a broken graph
+            }
+            current = element
+                .static_pad("src")
+                .and_then(|pad| pad.peer())
+                .and_then(|peer| peer.parent_element());
+        }
+        chain
+    }
+}
