@@ -1,11 +1,14 @@
 import type { SettingsTab } from '../types/navigation';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '../api/ipc';
 import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from '../types/player';
 import { formatTimeMs, parseTimeToMs } from '../utils/timeFormat';
 import type { Language, Translations, getTranslations } from '../i18n';
 import { useTauriEvent } from './useTauriEvent';
+import { parseBoolean, usePersistedState } from './usePersistedState';
 import { fmt } from '../utils/fmt';
+
+export const TRANSCODE_AUTO_ENQUEUE_STORAGE_KEY = 'auralune_transcode_auto_enqueue';
 
 /** Serde shape of `domain::transcode::ExportFormat` (externally tagged enum). */
 type ExportFormat = { Wav: null } | { Opus: { bitrate_kbps: number } } | { Flac: { compression_level: number } };
@@ -67,7 +70,15 @@ export function useTranscodeManager({
   const [transcodeApplyRange, setTranscodeApplyRange] = useState(false);
   const [transcodeRangeA, setTranscodeRangeA] = useState<string>('');
   const [transcodeRangeB, setTranscodeRangeB] = useState<string>('');
-  const [transcodeAutoEnqueue, setTranscodeAutoEnqueue] = useState(true);
+  const [transcodeAutoEnqueue, setTranscodeAutoEnqueue] = usePersistedState(
+    TRANSCODE_AUTO_ENQUEUE_STORAGE_KEY,
+    true,
+    { parse: parseBoolean },
+  );
+  const transcodeAutoEnqueueRef = useRef(transcodeAutoEnqueue);
+  useEffect(() => {
+    transcodeAutoEnqueueRef.current = transcodeAutoEnqueue;
+  }, [transcodeAutoEnqueue]);
   const [isTranscoding, setIsTranscoding] = useState(false);
   const [transcodeProgress, setTranscodeProgress] = useState<{
     percent: number;
@@ -439,7 +450,7 @@ export function useTranscodeManager({
 
       setLastExportedTrack(renderedTrack);
 
-      if (transcodeAutoEnqueue && renderedTrack) {
+      if (transcodeAutoEnqueueRef.current && renderedTrack) {
         await handleAddTrackToQueue(renderedTrack);
       }
 
@@ -476,7 +487,6 @@ export function useTranscodeManager({
     setTracks,
     setAlbums,
     currentPlayingTrack,
-    transcodeAutoEnqueue,
     handleAddTrackToQueue,
     t.notifications.exportStartedBackground,
     t.notifications.transcodeSuccessMsg,

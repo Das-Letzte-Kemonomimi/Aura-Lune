@@ -2,7 +2,7 @@
   {
     "version": "2.0.0-dev",
     "codename": "Development Channel",
-    "date": "2026-11-26",
+    "date": "2026-11-27",
     "author": "Das Letzte Kemonomimi & Kamuri",
     "isDev": true,
     "isLatest": false,
@@ -290,6 +290,13 @@
         "de": "Das Öffnen der Albumansicht friert die App bei großen Bibliotheken nicht mehr ein: Alben erscheinen in schnellen Schüben und Cover laden im Hintergrund.",
         "fi": "Albumit-näkymän avaaminen ei enää jäädytä sovellusta suurissa kirjastoissa: albumit ilmestyvät nopeina erinä ja kansikuvat latautuvat taustalla.",
         "la": "Aperire conspectum albumorum applicationem in magnis bibliothecis non iam congelat: alba celeriter per partes apparent et tegmina in fundo onerantur."
+      },
+      {
+        "en": "The \"Auto-add rendered track to queue on completion\" option in Export & Opus now remembers its state across app restarts.",
+        "pl": "Opcja automatycznego dodawania wyrenderowanego utworu do kolejki w zakładce Eksport i Opus pamięta teraz swój stan po restarcie aplikacji.",
+        "de": "Die Option zum automatischen Hinzufügen gerenderter Titel zur Warteschlange unter Export & Opus merkt sich ihren Zustand nun über Neustarts hinweg.",
+        "fi": "Vie ja Opus -näkymän valinta renderöidyn kappaleen automaattisesta lisäämisestä jonoon muistaa nyt tilansa sovelluksen uudelleenkäynnistyksen jälkeen.",
+        "la": "Optio ad cantum redditum sponte in seriem addendum sub Exportatione et Opus nunc statum suum post renovationem applicationis retinet."
       }
     ]
   },
