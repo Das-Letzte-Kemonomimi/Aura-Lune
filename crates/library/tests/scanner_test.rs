@@ -433,3 +433,123 @@ async fn test_rescan_recovers_missing_album_cover_when_root_cover_added() {
     let _ = std::fs::remove_dir_all(&root);
     let _ = std::fs::remove_dir_all(&cache);
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_scan_with_symlinked_dir_matches_canonical_paths_and_detects_stale() {
+    use std::os::unix::fs::symlink;
+
+    let workspace = temp_dir("symlink_scan");
+    let lib_root = workspace.join("library");
+    let external_dir = workspace.join("external_album");
+    let external_single_dir = workspace.join("external_single");
+    let sub_dir = lib_root.join("regular_sub");
+    let cache = temp_dir("symlink_scan_cache");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+    std::fs::create_dir_all(&external_dir).unwrap();
+    std::fs::create_dir_all(&external_single_dir).unwrap();
+
+    let regular_track = sub_dir.join("01.opus");
+    let linked_target = external_dir.join("02.opus");
+    let single_link_target = external_single_dir.join("03_target.opus");
+    tagged_copy(&regular_track, "Regular", "Sub Album", None);
+    tagged_copy(&linked_target, "LinkedDir", "Linked Album", None);
+    tagged_copy(&single_link_target, "LinkedFile", "File Album", None);
+
+    symlink(&external_dir, lib_root.join("linked_album")).unwrap();
+    symlink(&single_link_target, lib_root.join("03_link.opus")).unwrap();
+
+    let db = Database::new_in_memory().await.unwrap();
+    let scanner = LibraryScanner::new(&cache);
+    let summary = scanner.scan_directory(&lib_root, &db).await.unwrap();
+    assert_eq!(summary.total_files_found, 3);
+    assert_eq!(summary.new_or_updated_tracks, 3);
+    assert_eq!(summary.errors, 0);
+
+    let mut stored_paths: Vec<String> = db
+        .list_tracks()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|t| t.path)
+        .collect();
+    stored_paths.sort();
+
+    let mut expected_paths = vec![
+        regular_track.canonicalize().unwrap().display().to_string(),
+        linked_target.canonicalize().unwrap().display().to_string(),
+        single_link_target
+            .canonicalize()
+            .unwrap()
+            .display()
+            .to_string(),
+    ];
+    expected_paths.sort();
+    assert_eq!(stored_paths, expected_paths);
+
+    // No-change rescan skips all 3 without stale deletion.
+    let rescan = scanner.scan_directory(&lib_root, &db).await.unwrap();
+    assert_eq!(rescan.skipped_unchanged, 3);
+    assert_eq!(rescan.removed_stale, 0);
+
+    // Removing the regular file deletes only that track on rescan.
+    std::fs::remove_file(&regular_track).unwrap();
+    let after_del = scanner.scan_directory(&lib_root, &db).await.unwrap();
+    assert_eq!(after_del.removed_stale, 1);
+
+    let _ = std::fs::remove_dir_all(&workspace);
+    let _ = std::fs::remove_dir_all(&cache);
+}
+
+#[tokio::test]
+async fn test_scan_mixed_album_folder_preserves_embedded_covers() {
+    use lofty::config::WriteOptions;
+    use lofty::file::{AudioFile, TaggedFileExt};
+    use lofty::picture::{MimeType, Picture, PictureType};
+    use lofty::probe::Probe;
+    use lofty::tag::Accessor;
+
+    let dir = temp_dir("mixed_covers");
+    let cache = temp_dir("mixed_covers_cache");
+
+    let write_with_pic = |name: &str, artist: &str, album: &str, pic_bytes: &[u8]| {
+        let p = dir.join(name);
+        std::fs::copy(fixture("test_sine_440hz.opus"), &p).unwrap();
+        let mut tf = Probe::open(&p).unwrap().read().unwrap();
+        let tag = tf.primary_tag_mut().unwrap();
+        tag.set_artist(artist.to_string());
+        tag.set_album(album.to_string());
+        tag.set_title(name.to_string());
+        tag.push_picture(
+            Picture::unchecked(pic_bytes.to_vec())
+                .pic_type(PictureType::CoverFront)
+                .mime_type(MimeType::Jpeg)
+                .build(),
+        );
+        tf.save_to_path(&p, WriteOptions::default()).unwrap();
+    };
+
+    write_with_pic("01_alpha.opus", "Artist 1", "Alpha", b"fake-jpeg-alpha-111");
+    write_with_pic("02_beta.opus", "Artist 2", "Beta", b"fake-jpeg-beta-222");
+
+    let db = Database::new_in_memory().await.unwrap();
+    let scanner = LibraryScanner::new(&cache);
+    let summary = scanner.scan_directory(&dir, &db).await.unwrap();
+    assert_eq!(summary.new_or_updated_tracks, 2);
+
+    let albums = db.list_albums().await.unwrap();
+    let alpha = albums.iter().find(|a| a.title == "Alpha").unwrap();
+    let beta = albums.iter().find(|a| a.title == "Beta").unwrap();
+    assert!(
+        alpha.cover_path.is_some(),
+        "Alpha must retain its embedded cover"
+    );
+    assert!(
+        beta.cover_path.is_some(),
+        "Beta must retain its embedded cover"
+    );
+    assert_ne!(alpha.cover_path, beta.cover_path);
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&cache);
+}
