@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { Save, Download, Upload, Check, Copy } from '../../components/ui/icons';
-import { Button, Card, FieldLabel, SectionHeader, TextArea } from '../../components/ui';
+import { Button, SettingRow, SettingsGroup, TextArea } from '../../components/ui';
 import type { Translations } from '../../i18n';
 import { SettingsPage } from './SettingsPage';
 
@@ -39,14 +39,8 @@ export const DataSettingsView: React.FC<DataSettingsViewProps> = ({
   return (
     <SettingsPage title={loc.settings.nav.data} icon={<Save size={22} />} tone="purple">
       {/* Profile backup */}
-      <Card>
-        <SectionHeader
-          icon={<Save size={20} />}
-          tone="purple"
-          title={loc.settings.backupTitle}
-          description={loc.settings.backupDesc}
-        />
-        <div className="mt-4 flex flex-wrap gap-3">
+      <SettingsGroup label={loc.settings.backupTitle} description={loc.settings.backupDesc}>
+        <div className="flex flex-wrap gap-3 px-4 py-3">
           <Button variant="primary" onClick={onExportBackup}>
             <Download size={16} /> {loc.settings.exportBackupBtn}
           </Button>
@@ -54,23 +48,21 @@ export const DataSettingsView: React.FC<DataSettingsViewProps> = ({
             <Upload size={16} className="text-accent-cyan" /> {loc.settings.importBackupBtn}
           </Button>
         </div>
-      </Card>
+      </SettingsGroup>
 
-      {/* Safe JSON import and export */}
-      <Card>
-        <SectionHeader icon={<Download size={20} />} tone="pink" title={loc.settings.themePortability} />
-
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(68),1fr))] gap-5">
-          {/* Export */}
+      {/* Safe JSON import and export of themes */}
+      <SettingsGroup label={loc.settings.themePortability}>
+        <SettingRow
+          compact
+          title={loc.settings.exportTheme}
+          htmlFor={`${id}-export`}
+          control={
+            <Button variant="tinted" tone="purple" size="sm" onClick={onExportTheme}>
+              {loc.settings.generateJson}
+            </Button>
+          }
+        >
           <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor={`${id}-export`} className="mb-0">
-                {loc.settings.exportTheme}
-              </FieldLabel>
-              <Button variant="tinted" tone="purple" size="sm" onClick={onExportTheme}>
-                {loc.settings.generateJson}
-              </Button>
-            </div>
             <TextArea
               id={`${id}-export`}
               readOnly
@@ -82,18 +74,15 @@ export const DataSettingsView: React.FC<DataSettingsViewProps> = ({
               className="resize-none text-accent-cyan"
             />
             {jsonExportContent && (
-              <Button onClick={handleCopyJson}>
+              <Button onClick={handleCopyJson} className="self-start">
                 {copiedJson ? <Check size={16} className="text-accent-green" /> : <Copy size={16} />}
                 {copiedJson ? loc.settings.copiedJson : loc.settings.copyJson}
               </Button>
             )}
           </div>
-
-          {/* Import */}
+        </SettingRow>
+        <SettingRow compact title={loc.settings.importTheme} htmlFor={`${id}-import`}>
           <div className="flex flex-col gap-2.5">
-            <FieldLabel htmlFor={`${id}-import`} className="mb-0 py-1">
-              {loc.settings.importTheme}
-            </FieldLabel>
             <TextArea
               id={`${id}-import`}
               mono
@@ -104,13 +93,13 @@ export const DataSettingsView: React.FC<DataSettingsViewProps> = ({
               rows={6}
               className="resize-none"
             />
-            <Button variant="primary" onClick={onImportTheme}>
+            <Button variant="tinted" tone="purple" onClick={onImportTheme} className="self-start">
               <Upload size={16} />
               {loc.settings.verifyImport}
             </Button>
           </div>
-        </div>
-      </Card>
+        </SettingRow>
+      </SettingsGroup>
     </SettingsPage>
   );
 };

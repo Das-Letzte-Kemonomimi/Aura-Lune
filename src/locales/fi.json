@@ -701,9 +701,9 @@
     "aboutLicenseDesc": "GPL-3.0-or-later • Vapaa ja avoimen lähdekoodin ohjelmisto Linuxille.",
     "disclaimerTitle": "Vastuuvapauslauseke / Ei takuuta",
     "disclaimerBody": "Auralune toimitetaan \"sellaisenaan\" ilman minkäänlaista takuuta. Tekijä ei vastaa tietojen menetyksestä, tiedostojen vahingoittumisesta, vahingossa tapahtuvasta poistamisesta tai muista vahingoista, jotka aiheutuvat ohjelman käytöstä. Käytät sovellusta täysin omalla vastuullasi. Tee aina varmuuskopio musiikkikirjastostasi. Sovellus ei muokkaa tai poista alkuperäisiä äänitiedostoja, ellei käyttäjä nimenomaisesti niin pydä.",
-    "proAudioReady": "PRO AUDIO VALMIS",
-    "proAudioOff": "✕ Pro Audio POIS (Stereo)",
-    "proAudioOn": "✓ Pro Audio PÄÄLLÄ (Pro-profiili)",
+    "proAudioReady": "Pro Audio valmis",
+    "proAudioOff": "Pro Audio pois (stereo)",
+    "proAudioOn": "Pro Audio päällä (bittitarkka suora ALSA)",
     "hardwareProfiles": "Käytettävissä olevat laiteprofiilit (napsauta vaihtaaksesi):",
     "bluetoothCodecSelect": "Bluetooth-koodekin valinta (A2DP):",
     "backupTitle": "Profiilin varmuuskopiointi ja siirrettävyys",
@@ -868,7 +868,29 @@
       "audio": "Ääni",
       "libraryServices": "Kirjasto ja palvelut",
       "system": "Järjestelmä"
-    }
+    },
+    "group": {
+      "startup": "Käynnistys ja ikkuna",
+      "behaviour": "Ilmoitukset ja toiminta",
+      "interface": "Käyttöliittymä",
+      "background": "Tausta ja tunnelma",
+      "transitions": "Siirtymät",
+      "soundCards": "Äänikortit",
+      "engine": "Moottori",
+      "coverArt": "Kansikuvat",
+      "links": "Linkit",
+      "builtWith": "Rakennettu",
+      "advanced": "Lisäasetukset",
+      "buildInfo": "Versio"
+    },
+    "lastfmTest": "Testaa",
+    "lastfmOnline": "Online",
+    "openSourceBadge": "Avoin lähdekoodi",
+    "aboutSortaTitle": "Sorta • AuDHD & ADHD Focus",
+    "languageDesc": "English • Polski • Deutsch • Suomi • Latina",
+    "audioBufferPreset80": "80 ms (erittäin matala)",
+    "crossfadeOffPreset": "Pois",
+    "themeCurrent": "Nykyinen"
   },
   "shortcuts": {
     "title": "Pikanäppäimet",

@@ -1,6 +1,6 @@
 import type React from 'react';
 import { RotateCcw } from '../../../components/ui/icons';
-import { Badge, Button, Card, Chip, SectionHeader, type Tone } from '../../../components/ui';
+import { Badge, Button, Chip, SettingRow, type Tone } from '../../../components/ui';
 import { textTones } from '../../../components/ui/tones';
 import { cn } from '../../../utils/cn';
 
@@ -10,7 +10,6 @@ export interface ValuePreset {
 }
 
 export interface PresetOptionCardProps {
-  icon: React.ReactNode;
   /** Accent of the readout and of the pressed non-default presets. */
   tone: Tone;
   title: string;
@@ -26,7 +25,7 @@ export interface PresetOptionCardProps {
   resetTitle: string;
   presets: readonly ValuePreset[];
   onChange: (value: number) => void;
-  /** Extra controls between the header and the presets (a slider) or after them (a number field). */
+  /** Extra controls between the title and the presets (a slider). */
   children?: React.ReactNode;
   /** Content placed at the end of the preset row (a custom-value field). */
   presetsEnd?: React.ReactNode;
@@ -34,10 +33,9 @@ export interface PresetOptionCardProps {
 
 /**
  * A numeric engine setting with quick presets and a reset to its default (output buffer, DSP
- * block size). The default preset is green, the others use `tone`.
+ * block size), as one row of a `SettingsGroup`. The default preset is green, the others use `tone`.
  */
 export function PresetOptionCard({
-  icon,
   tone,
   title,
   description,
@@ -54,40 +52,37 @@ export function PresetOptionCard({
 }: PresetOptionCardProps) {
   const isDefault = value === defaultValue;
   return (
-    <Card>
-      <SectionHeader
-        icon={icon}
-        tone={tone}
-        title={
-          <span className="flex flex-wrap items-center gap-2">
-            {title}
-            {isDefault && <Badge tone="green">{defaultBadge}</Badge>}
+    <SettingRow
+      compact
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          {title}
+          {isDefault && <Badge tone="green">{defaultBadge}</Badge>}
+        </span>
+      }
+      description={description}
+      control={
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              'rounded-lg border border-line bg-black/30 px-2.5 py-0.5 font-mono text-ui font-bold tabular-nums',
+              isDefault ? textTones.green : textTones[tone],
+            )}
+          >
+            {readout}
           </span>
-        }
-        description={description}
-        actions={
-          <>
-            <span className={cn('font-mono text-base font-bold', isDefault ? textTones.green : textTones[tone])}>
-              {readout}
-            </span>
-            <Button
-              variant="tinted"
-              tone="green"
-              size="sm"
-              onClick={() => onChange(defaultValue)}
-              disabled={isDefault}
-              title={resetTitle}
-            >
-              <RotateCcw size={14} /> {resetLabel}
-            </Button>
-          </>
-        }
-      />
-      {children && <div className="mt-4">{children}</div>}
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <Button variant="ghost" size="sm" onClick={() => onChange(defaultValue)} disabled={isDefault} title={resetTitle}>
+            <RotateCcw size={14} /> {resetLabel}
+          </Button>
+        </div>
+      }
+    >
+      {children && <div className="mb-3">{children}</div>}
+      <div className="flex flex-wrap items-center gap-1.5">
         {presets.map((preset) => (
           <Chip
             key={preset.value}
+            size="xs"
             pressed={value === preset.value}
             tone={preset.value === defaultValue ? 'green' : tone}
             onClick={() => onChange(preset.value)}
@@ -97,6 +92,6 @@ export function PresetOptionCard({
         ))}
         {presetsEnd && <div className="ml-auto flex items-center gap-1.5">{presetsEnd}</div>}
       </div>
-    </Card>
+    </SettingRow>
   );
 }

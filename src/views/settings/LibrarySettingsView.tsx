@@ -1,9 +1,10 @@
 import React from 'react';
 import { Image as ImageIcon, Loader2, Music } from '../../components/ui/icons';
-import { Badge, Button, ToggleCard } from '../../components/ui';
+import { Badge, Button, SettingsGroup } from '../../components/ui';
 import type { Translations } from '../../i18n';
 import type { CoverSyncProgress } from '../../types/library';
 import { SettingsPage } from './SettingsPage';
+import { ToggleRow } from './ToggleRow';
 
 export interface LibrarySettingsViewProps {
   loc: Translations;
@@ -22,10 +23,9 @@ export const LibrarySettingsView: React.FC<LibrarySettingsViewProps> = ({
   coverSyncProgress,
 }) => (
   <SettingsPage title={loc.settings.nav.library} icon={<Music size={22} />} tone="cyan">
+    <SettingsGroup label={loc.settings.group.coverArt}>
       {/* Automatic background high-confidence cover art fetching */}
-      <ToggleCard
-        icon={<ImageIcon size={20} />}
-        tone="pink"
+      <ToggleRow
         title={loc.settings.autoFetchCoversTitle}
         description={loc.settings.autoFetchCoversDesc}
         checked={autoFetchCoversBg}
@@ -35,7 +35,7 @@ export const LibrarySettingsView: React.FC<LibrarySettingsViewProps> = ({
           <div className="flex justify-end">
             <Button
               variant="tinted"
-              tone="pink"
+              tone="cyan"
               size="sm"
               disabled={coverSyncProgress?.running}
               aria-busy={coverSyncProgress?.running}
@@ -46,7 +46,7 @@ export const LibrarySettingsView: React.FC<LibrarySettingsViewProps> = ({
                   <Loader2 size={14} className="animate-spin" />
                   {loc.library.syncingMissingCovers}
                   {coverSyncProgress.total > 0 && (
-                    <Badge tone="pink" size="xs" mono>
+                    <Badge tone="cyan" size="xs" mono>
                       {coverSyncProgress.processed}/{coverSyncProgress.total}
                     </Badge>
                   )}
@@ -60,6 +60,7 @@ export const LibrarySettingsView: React.FC<LibrarySettingsViewProps> = ({
             </Button>
           </div>
         )}
-      </ToggleCard>
+      </ToggleRow>
+    </SettingsGroup>
   </SettingsPage>
 );

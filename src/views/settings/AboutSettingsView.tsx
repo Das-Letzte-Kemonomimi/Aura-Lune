@@ -1,7 +1,7 @@
 import React from 'react';
 import { openExternalUrl } from '../../api/ipc';
-import { Activity, AlertTriangle, History, Music, HeartHandshake, ExternalLink, Keyboard } from '../../components/ui/icons';
-import { Badge, Button, Callout, Card, Kbd, SectionHeader, type ToneOrNeutral } from '../../components/ui';
+import { Activity, AlertTriangle, History, Music, HeartHandshake, ExternalLink } from '../../components/ui/icons';
+import { Badge, Button, Callout, Kbd, SettingRow, SettingsGroup, type ToneOrNeutral } from '../../components/ui';
 import { textTones } from '../../components/ui/tones';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo } from '../../types/updates';
@@ -67,114 +67,113 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
 
   return (
     <SettingsPage>
-      <Card padding="lg" className="flex items-center gap-5">
+      {/* Compact hero */}
+      <div className="flex flex-wrap items-center gap-4">
         <img
           src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
           alt="Auralune Logo"
-          className={cn(
-            'size-16 rounded-2xl border border-white/20 bg-black/30 object-contain shadow-halo-xl',
-            appIconStyle === 'classic' ? 'p-0 shadow-accent-purple/55' : 'p-1 shadow-accent-pink/55',
-          )}
+          className="size-16 rounded-2xl border border-line bg-black/30 object-contain p-1"
         />
-        <div>
-          <h3 className="flex items-center gap-2 text-2xl font-extrabold">
+        <div className="min-w-0 flex-1">
+          <h3 className="flex flex-wrap items-center gap-2 text-2xl font-extrabold">
             <span>Auralune</span>
-            <span className="text-lg text-accent-pink">狐 Kitsune</span>
-            <Badge className="bg-accent-gradient text-on-accent">v{appVersion}</Badge>
+            <Badge mono>v{appVersion}</Badge>
           </h3>
-          <p className="mt-1 text-sm font-bold text-accent-pink">
+          <p className="mt-0.5 text-ui text-fg-secondary">
             {loc.settings.version} {appVersion}
             {buildInfo ? ` (${buildInfo.channel} • ${buildInfo.commit_short})` : ''} • {loc.settings.author}:{' '}
             {resolveAuthor(appVersion)}
           </p>
-          <p className="mt-1.5 text-ui leading-normal text-fg-secondary">
+          <p className="mt-1 text-xs leading-normal text-fg-muted">
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics &
             real-time pitch/tempo modulation.
           </p>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <Button variant="tinted" tone="green" size="sm" onClick={onOpenHealthCheck}>
-              <Activity size={14} />
-              {loc.healthCheck.title}
-            </Button>
-            <Button variant="primary" size="sm" onClick={onOpenChangelog}>
-              <History size={14} />
-              {loc.settings.changelog}
-            </Button>
-          </div>
         </div>
-      </Card>
-
-      {/* Creator section: Bandcamp & the Sorta app for AuDHD / ADHD */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(68),1fr))] gap-3.5">
-        <Card highlight="purple" className="flex flex-col justify-between gap-3.5">
-          <SectionHeader
-            icon={<Music size={20} />}
-            tone="purple"
-            title={
-              <span className="flex flex-wrap items-center gap-2">
-                {loc.settings.aboutBandcampTitle}
-                <Badge tone="purple">Bandcamp</Badge>
-              </span>
-            }
-            description={loc.settings.aboutBandcampDesc}
-          />
-          <Button
-            variant="primary"
-            onClick={() => handleOpenExternalUrl('https://dasletztekemonomimi.bandcamp.com/track/skrzyd-a-bia-e')}
-          >
-            <ExternalLink size={16} />
-            {loc.settings.aboutBandcampBtn}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={onOpenHealthCheck}>
+            <Activity size={14} />
+            {loc.healthCheck.title}
           </Button>
-        </Card>
-
-        <Card highlight="cyan" className="flex flex-col justify-between gap-3.5">
-          <SectionHeader
-            icon={<HeartHandshake size={20} />}
-            tone="cyan"
-            title={
-              <span className="flex flex-wrap items-center gap-2">
-                Sorta • AuDHD & ADHD Focus
-                <Badge tone="cyan">AuDHD</Badge>
-              </span>
-            }
-            description={loc.settings.aboutSortaDesc}
-          />
-          <Button variant="primary" onClick={() => handleOpenExternalUrl('https://sortaofficial.lovable.app/')}>
-            <ExternalLink size={16} />
-            {loc.settings.aboutSortaBtn}
+          <Button size="sm" onClick={onOpenChangelog}>
+            <History size={14} />
+            {loc.settings.changelog}
           </Button>
-        </Card>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+      {/* Creator links: Bandcamp & the Sorta app for AuDHD / ADHD */}
+      <SettingsGroup label={loc.settings.group.links}>
+        <SettingRow
+          compact
+          icon={<Music size={18} />}
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              {loc.settings.aboutBandcampTitle}
+              <Badge tone="purple">Bandcamp</Badge>
+            </span>
+          }
+          description={loc.settings.aboutBandcampDesc}
+          control={
+            <Button
+              size="sm"
+              onClick={() => handleOpenExternalUrl('https://dasletztekemonomimi.bandcamp.com/track/skrzyd-a-bia-e')}
+            >
+              <ExternalLink size={14} />
+              {loc.settings.aboutBandcampBtn}
+            </Button>
+          }
+        />
+        <SettingRow
+          compact
+          icon={<HeartHandshake size={18} />}
+          title={
+            <span className="flex flex-wrap items-center gap-2">
+              {loc.settings.aboutSortaTitle}
+              <Badge tone="cyan">AuDHD</Badge>
+            </span>
+          }
+          description={loc.settings.aboutSortaDesc}
+          control={
+            <Button size="sm" onClick={() => handleOpenExternalUrl('https://sortaofficial.lovable.app/')}>
+              <ExternalLink size={14} />
+              {loc.settings.aboutSortaBtn}
+            </Button>
+          }
+        />
+      </SettingsGroup>
+
+      <SettingsGroup label={loc.settings.group.builtWith}>
         {techCards.map((card) => (
-          <Card key={card.label} padding="sm">
-            <span className="label-caps">{card.label}</span>
-            <p className={cn('mt-1.5 text-sm font-semibold', card.tone === 'neutral' ? 'text-fg' : textTones[card.tone])}>
-              {card.value}
-            </p>
-            <p className="mt-1 text-xs text-fg-secondary">{card.desc}</p>
-          </Card>
+          <SettingRow
+            key={card.label}
+            compact
+            title={card.label}
+            description={card.desc}
+            control={
+              <span className={cn('font-mono text-xs font-semibold', card.tone === 'neutral' ? 'text-fg' : textTones[card.tone])}>
+                {card.value}
+              </span>
+            }
+          />
         ))}
-      </div>
+      </SettingsGroup>
 
       {/* Keyboard shortcuts */}
-      <Card>
-        <SectionHeader icon={<Keyboard size={20} />} tone="pink" title={loc.shortcuts.title} />
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))] gap-2.5 text-ui">
-          {shortcuts.map((item) => (
-            <Card
-              key={item.key}
-              variant="inset"
-              padding="none"
-              className="flex items-center justify-between px-2.5 py-1.5"
-            >
-              <span className="text-fg-secondary">{item.desc}</span>
-              <Kbd>{item.key}</Kbd>
-            </Card>
-          ))}
+      <SettingsGroup label={loc.shortcuts.title}>
+        <div className="@container">
+          <ul className="grid grid-cols-1 @xl:grid-cols-2">
+            {shortcuts.map((item) => (
+              <li
+                key={item.key}
+                className="flex items-center justify-between gap-3 border-t border-line px-4 py-2 text-ui first:border-t-0 @xl:nth-[2]:border-t-0"
+              >
+                <span className="text-fg-secondary">{item.desc}</span>
+                <Kbd>{item.key}</Kbd>
+              </li>
+            ))}
+          </ul>
         </div>
-      </Card>
+      </SettingsGroup>
 
       {/* Disclaimer / no warranty */}
       <Callout tone="amber" icon={<AlertTriangle size={18} />}>

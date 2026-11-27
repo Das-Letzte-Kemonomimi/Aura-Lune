@@ -1,5 +1,4 @@
 import React from 'react';
-import { Activity } from '../../../components/ui/icons';
 import { TextField } from '../../../components/ui';
 import type { AudioSettingsProps } from './audioSettingsProps';
 import { PresetOptionCard } from './PresetOptionCard';
@@ -10,7 +9,6 @@ const DEFAULT_BLOCK_SIZE = 2048;
 
 export const DspBlockSizeOption: React.FC<DspBlockSizeOptionProps> = ({ dspBlockSize, loc, onSetDspBlockSize }) => (
   <PresetOptionCard
-    icon={<Activity size={20} />}
     tone="cyan"
     title={loc.settings.dspBlockSizeTitle}
     description={loc.settings.dspBlockSizeDesc}

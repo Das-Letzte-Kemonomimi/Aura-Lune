@@ -1,6 +1,6 @@
 import React from 'react';
-import { Zap, Headphones, Check, X } from '../../../components/ui/icons';
-import { Badge, Button, Card, Chip, SectionHeader } from '../../../components/ui';
+import { Check, X } from '../../../components/ui/icons';
+import { Badge, Button, Chip, SettingRow, SettingsGroup } from '../../../components/ui';
 import type { AudioSettingsProps } from './audioSettingsProps';
 
 export type SoundCardListProps = Pick<
@@ -23,44 +23,45 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
   onSetBluetoothCodec,
   onSetCardProfile,
 }) => (
-  <div className="flex flex-col gap-3.5">
+  <>
     {cards.map((card) => {
       const proAudioReady = card.profiles?.some((p) => p.is_pro_audio) ?? false;
       const hardwareProfiles = card.profiles?.filter((p) => p.available && !p.bluetooth_codec) ?? [];
       const codecProfiles = card.profiles?.filter((p) => p.bluetooth_codec) ?? [];
+      const proAudioOn = card.active_profile === 'pro-audio';
       return (
-        <Card key={card.name} padding="sm" className="flex flex-col gap-3">
-          <SectionHeader
-            icon={card.is_bluetooth ? <Headphones size={20} /> : <Zap size={20} />}
-            tone={card.is_bluetooth ? 'cyan' : 'amber'}
-            title={card.description}
-            description={
-              <span className="font-mono">
-                ID: {card.name} | {loc.settings.active}: {card.active_profile || 'default'}
-              </span>
-            }
-            actions={proAudioReady && <Badge tone="green">PRO AUDIO READY</Badge>}
-          />
-
+        <SettingsGroup
+          key={card.name}
+          label={card.description}
+          description={
+            <span className="font-mono">
+              ID: {card.name} | {loc.settings.active}: {card.active_profile || 'default'}
+            </span>
+          }
+          actions={proAudioReady && <Badge tone="green">{loc.settings.proAudioReady}</Badge>}
+        >
           {/* Pro Audio actions */}
           {proAudioReady && (
-            <div>
-              {card.active_profile === 'pro-audio' ? (
-                <Button variant="tinted" tone="pink" onClick={() => onDisableProAudio(card.name)}>
-                  <X size={16} /> Pro Audio OFF (Stereo)
-                </Button>
-              ) : (
-                <Button size="sm" onClick={() => onEnableProAudio(card.name)}>
-                  <Check size={14} /> Pro Audio ON (Bit-Perfect Direct ALSA)
-                </Button>
-              )}
-            </div>
+            <SettingRow
+              compact
+              title="Pro Audio"
+              control={
+                proAudioOn ? (
+                  <Button variant="tinted" tone="pink" size="sm" onClick={() => onDisableProAudio(card.name)}>
+                    <X size={14} /> {loc.settings.proAudioOff}
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => onEnableProAudio(card.name)}>
+                    <Check size={14} /> {loc.settings.proAudioOn}
+                  </Button>
+                )
+              }
+            />
           )}
 
           {/* All available hardware profiles of the card */}
           {hardwareProfiles.length > 0 && (
-            <div>
-              <span className="mb-1.5 block text-xs text-fg-secondary">{loc.settings.hardwareProfiles}</span>
+            <SettingRow compact title={loc.settings.hardwareProfiles}>
               <div className="flex flex-wrap gap-1.5">
                 {hardwareProfiles.map((p) => {
                   const isCurrent = card.active_profile === p.name;
@@ -79,17 +80,17 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
                   );
                 })}
               </div>
-            </div>
+            </SettingRow>
           )}
 
           {/* Bluetooth codecs */}
           {card.is_bluetooth && codecProfiles.length > 0 && (
-            <div>
-              <span className="mb-1.5 block text-xs text-fg-secondary">{loc.settings.bluetoothCodecSelect}</span>
+            <SettingRow compact title={loc.settings.bluetoothCodecSelect}>
               <div className="flex flex-wrap gap-1.5">
                 {codecProfiles.map((p) => (
                   <Chip
                     key={p.name}
+                    size="xs"
                     tone="cyan"
                     pressed={card.active_profile === p.name}
                     onClick={() => onSetBluetoothCodec(card.name, p.bluetooth_codec ?? '')}
@@ -98,10 +99,10 @@ export const SoundCardList: React.FC<SoundCardListProps> = ({
                   </Chip>
                 ))}
               </div>
-            </div>
+            </SettingRow>
           )}
-        </Card>
+        </SettingsGroup>
       );
     })}
-  </div>
+  </>
 );

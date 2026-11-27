@@ -137,7 +137,7 @@ export const TranscodeSettingsView: React.FC<TranscodeSettingsViewProps> = (prop
   const formatLabels = { Opus: 'Ogg Opus', Flac: loc.settings.losslessFlac, Wav: loc.settings.wavPcm } as const;
 
   return (
-    <SettingsPage title={loc.settings.exportOpus} icon={<FileAudio size={22} />} tone="pink">
+    <SettingsPage title={loc.settings.exportOpus} icon={<FileAudio size={22} />} tone="cyan">
       {/* Safety banner */}
       <Callout tone="green" icon={<ShieldCheck size={20} />}>
         <strong className="text-sm text-accent-green">{loc.settings.transcodeIntegrity}</strong>

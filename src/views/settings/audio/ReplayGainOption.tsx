@@ -1,7 +1,7 @@
 import React from 'react';
-import { Activity, Sliders, Zap, ShieldCheck } from '../../../components/ui/icons';
-import { Badge, Button, Card, SectionHeader, SegmentedControl, SettingRow, SliderRow, Spinner } from '../../../components/ui';
-import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
+import { Activity, Zap, ShieldCheck } from '../../../components/ui/icons';
+import { Badge, Button, SegmentedControl, SettingRow, SettingsGroup, SliderRow, Spinner } from '../../../components/ui';
+import { ToggleRow } from '../ToggleRow';
 import type { AudioSettingsProps } from './audioSettingsProps';
 import { formatSignedDb } from '../../../utils/preamp';
 
@@ -56,74 +56,68 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
   ) => onSetReplayGain(mode, preAmp, fallback, preventClipping);
 
   return (
-    <Card highlight={active && 'purple'}>
-      <SectionHeader
-        icon={<Sliders size={20} />}
-        tone="purple"
+    <SettingsGroup
+      label={loc.settings.replaygainTitle}
+      description={loc.settings.replaygainDesc}
+      actions={
+        active && (
+          <Badge tone="purple">
+            <Zap size={12} /> {modeLabels[replaygainMode]}
+          </Badge>
+        )
+      }
+    >
+      {/* Normalisation modes: Off / Track / Album / Auto */}
+      <SettingRow
+        compact
         title={loc.settings.replaygainTitle}
-        description={loc.settings.replaygainDesc}
-        actions={
-          active && (
-            <Badge tone="purple">
-              <Zap size={12} /> {modeLabels[replaygainMode]}
-            </Badge>
-          )
+        control={
+          <SegmentedControl
+            size="sm"
+            items={(['Off', 'Track', 'Album', 'Auto'] as const).map((m) => ({ value: m, label: modeLabels[m] }))}
+            value={replaygainMode}
+            onChange={(m) => set(m)}
+            label={loc.settings.replaygainTitle}
+            tone="purple"
+          />
         }
       />
 
-      {/* Normalisation modes: Off / Track / Album / Auto */}
-      <SegmentedControl
-        items={(['Off', 'Track', 'Album', 'Auto'] as const).map((m) => ({ value: m, label: modeLabels[m] }))}
-        value={replaygainMode}
-        onChange={(m) => set(m)}
-        label={loc.settings.replaygainTitle}
-        tone="purple"
-        fullWidth
-        className="mt-4 *:whitespace-normal *:leading-tight"
-      />
-
-      {/* ReplayGain sliders and options */}
-      <div className="mt-4 flex flex-col gap-3">
-        <SliderRow
-          label={loc.settings.replaygainPreampTagged}
-          tone="purple"
-          min={TAGGED_PREAMP_MIN_DB}
-          max={TAGGED_PREAMP_MAX_DB}
-          step={0.5}
-          value={replaygainPreAmp}
-          format={formatSignedDb}
-          disabled={!active}
-          onChange={(v) => set(replaygainMode, v)}
-        />
-        <SliderRow
-          label={loc.settings.replaygainPreampUntagged}
-          tone="purple"
-          min={UNTAGGED_PREAMP_MIN_DB}
-          max={UNTAGGED_PREAMP_MAX_DB}
-          step={0.5}
-          value={replaygainFallbackGain}
-          format={formatSignedDb}
-          disabled={!active}
-          onChange={(v) => set(replaygainMode, replaygainPreAmp, v)}
-        />
-        <SettingRow
+      {/* Pre-amps, clipping guard and live status: only while normalisation is on */}
+      {active && (
+        <div className="flex flex-col gap-3 px-4 py-3">
+          <SliderRow
+            label={loc.settings.replaygainPreampTagged}
+            tone="purple"
+            min={TAGGED_PREAMP_MIN_DB}
+            max={TAGGED_PREAMP_MAX_DB}
+            step={0.5}
+            value={replaygainPreAmp}
+            format={formatSignedDb}
+            onChange={(v) => set(replaygainMode, v)}
+          />
+          <SliderRow
+            label={loc.settings.replaygainPreampUntagged}
+            tone="purple"
+            min={UNTAGGED_PREAMP_MIN_DB}
+            max={UNTAGGED_PREAMP_MAX_DB}
+            step={0.5}
+            value={replaygainFallbackGain}
+            format={formatSignedDb}
+            onChange={(v) => set(replaygainMode, replaygainPreAmp, v)}
+          />
+        </div>
+      )}
+      {active && (
+        <ToggleRow
           icon={<ShieldCheck size={16} className="text-accent-green" />}
           title={loc.settings.replaygainPreventClipping}
-          control={
-            <ToggleSwitch
-              checked={replaygainPreventClipping}
-              disabled={!active}
-              onChange={(on) => set(replaygainMode, replaygainPreAmp, replaygainFallbackGain, on)}
-              label={loc.settings.replaygainPreventClipping}
-            />
-          }
-          className="py-0"
+          checked={replaygainPreventClipping}
+          onChange={(on) => set(replaygainMode, replaygainPreAmp, replaygainFallbackGain, on)}
         />
-      </div>
-
-      {/* Real-time adjustment and limiter status */}
+      )}
       {active && (
-        <Card variant="inset" padding="none" className="mt-3 flex items-center justify-between px-3 py-2 text-xs">
+        <div className="flex items-center justify-between px-4 py-2.5 text-xs">
           <div className="flex items-center gap-1.5 text-fg-muted">
             <span>{loc.settings.replaygainTargetAdjustment}:</span>
             <strong className="font-mono text-fg">{formatSignedDb(replaygainStatus[0])}</strong>
@@ -135,24 +129,25 @@ export const ReplayGainOption: React.FC<ReplayGainOptionProps> = ({
           ) : (
             <div className="flex items-center gap-1 text-fg-muted">{loc.settings.replaygainLimiterOff}</div>
           )}
-        </Card>
+        </div>
       )}
 
       {/* EBU R128 loudness scanner */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-line pt-3.5">
-        <div className="flex items-center gap-2.5 text-ui text-fg-secondary">
-          <ToggleSwitch
-            checked={replaygainScanWriteTags}
-            onChange={onToggleReplaygainScanWriteTags}
-            label={loc.settings.scanReplayGainWriteTags}
-          />
-          <span aria-hidden="true">{loc.settings.scanReplayGainWriteTags}</span>
-        </div>
-        <Button variant="tinted" tone="purple" onClick={onScanLibraryReplayGain} disabled={isReplaygainScanning}>
-          {isReplaygainScanning ? <Spinner size="sm" tone="purple" /> : <Activity size={16} />}
-          {isReplaygainScanning ? loc.settings.scanReplayGainScanning : loc.settings.scanReplayGainLibrary}
-        </Button>
-      </div>
-    </Card>
+      <ToggleRow
+        title={loc.settings.scanReplayGainWriteTags}
+        checked={replaygainScanWriteTags}
+        onChange={onToggleReplaygainScanWriteTags}
+      />
+      <SettingRow
+        compact
+        title={loc.settings.scanReplayGainLibrary}
+        control={
+          <Button variant="tinted" tone="purple" onClick={onScanLibraryReplayGain} disabled={isReplaygainScanning}>
+            {isReplaygainScanning ? <Spinner size="sm" tone="purple" /> : <Activity size={16} />}
+            {isReplaygainScanning ? loc.settings.scanReplayGainScanning : loc.settings.scanReplayGainLibrary}
+          </Button>
+        }
+      />
+    </SettingsGroup>
   );
 };

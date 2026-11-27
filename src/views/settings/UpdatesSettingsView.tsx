@@ -9,7 +9,7 @@ import {
   RefreshCw,
   RotateCw,
 } from '../../components/ui/icons';
-import { Badge, Button, Callout, Card, ProgressBar, SectionHeader, SettingRow, StatusDot } from '../../components/ui';
+import { Badge, Button, Callout, Card, ProgressBar, SettingRow, SettingsGroup, StatusDot } from '../../components/ui';
 import { errorMessage, openExternalUrl } from '../../api/ipc';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo, InstallKind, UpdateInfo, UpdateProgress } from '../../types/updates';
@@ -107,44 +107,41 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
     }
   };
 
+  const buildFacts = [
+    { label: t.currentVersion, value: `v${buildInfo?.version ?? '…'}`, mono: false },
+    { label: t.channel, value: channelLabel, mono: false },
+    { label: t.commit, value: buildInfo?.commit_short ?? '…', mono: true },
+    { label: t.installKind, value: kindLabel(loc, installKind), mono: false },
+  ];
+
   return (
-    <SettingsPage>
-      <Card className="flex flex-col gap-3">
-        <SectionHeader icon={<RefreshCw size={20} />} tone="cyan" title={t.title} />
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(45),1fr))] gap-3">
-          <div>
-            <div className="label-caps">{t.currentVersion}</div>
-            <div className="font-bold">v{buildInfo?.version ?? '…'}</div>
-          </div>
-          <div>
-            <div className="label-caps">{t.channel}</div>
-            <div className="font-bold">{channelLabel}</div>
-          </div>
-          <div>
-            <div className="label-caps">{t.commit}</div>
-            <div className="font-mono font-bold">{buildInfo?.commit_short ?? '…'}</div>
-          </div>
-          <div>
-            <div className="label-caps">{t.installKind}</div>
-            <div className="text-ui font-semibold">{kindLabel(loc, installKind)}</div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onCheckNow} disabled={checking || installing}>
-            <RefreshCw size={16} className={cn(checking && 'motion-safe:animate-spin')} />
-            {checking ? t.checking : t.checkNow}
-          </Button>
-          <span className="text-ui text-fg-muted">
-            {t.lastChecked}: {lastChecked}
-          </span>
-        </div>
+    <SettingsPage
+      title={t.title}
+      icon={<RefreshCw size={22} />}
+      tone="cyan"
+      actions={
+        <Button onClick={onCheckNow} disabled={checking || installing}>
+          <RefreshCw size={16} className={cn(checking && 'motion-safe:animate-spin')} />
+          {checking ? t.checking : t.checkNow}
+        </Button>
+      }
+    >
+      <SettingsGroup label={loc.settings.group.buildInfo}>
+        <dl className="grid grid-cols-2 gap-px bg-line">
+          {buildFacts.map((fact) => (
+            <div key={fact.label} className="bg-black/30 px-4 py-3">
+              <dt className="label-caps text-fg-muted">{fact.label}</dt>
+              <dd className={cn('mt-0.5 text-ui font-semibold text-fg', fact.mono && 'font-mono')}>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
         <SettingRow
+          compact
           title={t.autoCheck}
-          description={t.autoCheckDesc}
+          description={`${t.autoCheckDesc} (${t.lastChecked}: ${lastChecked})`}
           control={<ToggleSwitch label={t.autoCheck} checked={autoCheckEnabled} onChange={onToggleAutoCheck} />}
-          className="border-t border-line pb-0"
         />
-      </Card>
+      </SettingsGroup>
 
       {info && !available && !installed && (
         <Callout tone="green" icon={<CheckCircle size={18} />} className="font-semibold text-accent-green">
@@ -218,8 +215,12 @@ export const UpdatesSettingsView: React.FC<UpdatesSettingsViewProps> = ({
         </Callout>
       )}
 
-      <h3 className="mt-2 text-lg font-bold text-fg">{loc.settings.changelog}</h3>
-      <ChangelogView currentLang={language} channel={buildInfo?.channel} />
+      <section aria-labelledby="settings-changelog" className="flex flex-col gap-2">
+        <h3 id="settings-changelog" className="label-caps px-1 text-fg-muted">
+          {loc.settings.changelog}
+        </h3>
+        <ChangelogView currentLang={language} channel={buildInfo?.channel} />
+      </section>
     </SettingsPage>
   );
 };

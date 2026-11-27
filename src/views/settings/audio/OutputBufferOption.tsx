@@ -1,5 +1,4 @@
 import React from 'react';
-import { Layers } from '../../../components/ui/icons';
 import { TextField } from '../../../components/ui';
 import type { AudioSettingsProps } from './audioSettingsProps';
 import { cssVars } from '../../../utils/cssVars';
@@ -15,7 +14,6 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({ audioBuf
   const fill = ((Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, audioBufferMs)) - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
   return (
     <PresetOptionCard
-      icon={<Layers size={20} />}
       tone="pink"
       title={loc.settings.audioBufferTitle}
       description={loc.settings.audioBufferDesc}
@@ -26,7 +24,7 @@ export const OutputBufferOption: React.FC<OutputBufferOptionProps> = ({ audioBuf
       resetLabel={loc.settings.audioBufferDefaultLabel}
       resetTitle={loc.settings.audioBufferReset}
       presets={[
-        { label: '80 ms (Ultra-low)', value: 80 },
+        { label: loc.settings.audioBufferPreset80, value: 80 },
         { label: loc.settings.audioBufferPreset250, value: 250 },
         { label: loc.settings.audioBufferPreset600, value: 600 },
         { label: loc.settings.audioBufferPreset1000, value: 1000 },
