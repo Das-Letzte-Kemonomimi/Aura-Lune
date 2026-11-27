@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { renderHook, cleanup } from '@testing-library/react';
 import { useMainRouterProps } from './useMainRouterProps';
 import { getTranslations } from '../i18n';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
 
 describe('useMainRouterProps', () => {
+  afterEach(() => {
+    cleanup();
+  });
   it('bundles playerProps, libraryProps, dspProps, playlistsProps, stemProjectsProps, and radioProps correctly', () => {
     const loc = getTranslations('en');
     const mockParams: any = {
@@ -277,14 +282,27 @@ describe('useMainRouterProps', () => {
       handleDeleteCustomStation: vi.fn(),
     };
 
-    const result = useMainRouterProps(mockParams);
+    const { result, rerender } = renderHook((params: any) => useMainRouterProps(params), {
+      initialProps: mockParams,
+    });
 
-    expect(result.playerProps.layoutMaxWidth).toBe('1200px');
-    expect(result.libraryProps.language).toBe('en');
-    expect(result.dspProps.uiScale).toBe(1);
-    expect(result.playlistsProps.playlists).toEqual([]);
-    expect(typeof result.stemProjectsProps.onOpenProject).toBe('function');
-    expect(typeof result.radioProps.onPlayStation).toBe('function');
+    const firstResult = result.current;
+    expect(firstResult.playerProps.layoutMaxWidth).toBe('1200px');
+    expect(firstResult.libraryProps.language).toBe('en');
+    expect(firstResult.dspProps.uiScale).toBe(1);
+    expect(firstResult.playlistsProps.playlists).toEqual([]);
+    expect(typeof firstResult.stemProjectsProps.onOpenProject).toBe('function');
+    expect(typeof firstResult.radioProps.onPlayStation).toBe('function');
+
+    rerender({ ...mockParams });
+    expect(result.current.playerProps).toBe(firstResult.playerProps);
+    expect(result.current.libraryProps).toBe(firstResult.libraryProps);
+    expect(result.current.dspProps).toBe(firstResult.dspProps);
+    expect(result.current.playlistsProps).toBe(firstResult.playlistsProps);
+    expect(result.current.stemProjectsProps).toBe(firstResult.stemProjectsProps);
+    expect(result.current.radioProps).toBe(firstResult.radioProps);
+    expect(result.current.statsProps).toBe(firstResult.statsProps);
+    expect(result.current).toBe(firstResult);
   });
 
   it('unpacks bundled managers into their respective subprops', () => {
@@ -314,24 +332,26 @@ describe('useMainRouterProps', () => {
       handleCreatePlaylist: vi.fn(),
     };
 
-    const result = useMainRouterProps({
-      language: 'en',
-      loc,
-      library: mockLibrary,
-      modals: mockModals,
-      playback: mockPlayback,
-      dsp: mockDsp,
-      queueManager: mockQueue,
-      playlistsManager: mockPlaylists,
-    } as any);
+    const { result } = renderHook(() =>
+      useMainRouterProps({
+        language: 'en',
+        loc,
+        library: mockLibrary,
+        modals: mockModals,
+        playback: mockPlayback,
+        dsp: mockDsp,
+        queueManager: mockQueue,
+        playlistsManager: mockPlaylists,
+      } as any),
+    );
 
-    expect(result.libraryProps.filteredTracks).toEqual(mockLibrary.filteredTracks);
-    expect(result.playerProps.isQuickLoadOpen).toBe(true);
-    expect(result.playerProps.currentBookmark).toBe(42);
-    expect(result.dspProps.dspBlockSize).toBe(512);
-    expect(result.playlistsProps.playlists).toHaveLength(1);
-    expect(result.statsProps).toBeDefined();
-    expect(result.statsProps.currentLang).toBe('en');
+    expect(result.current.libraryProps.filteredTracks).toEqual(mockLibrary.filteredTracks);
+    expect(result.current.playerProps.isQuickLoadOpen).toBe(true);
+    expect(result.current.playerProps.currentBookmark).toBe(42);
+    expect(result.current.dspProps.dspBlockSize).toBe(512);
+    expect(result.current.playlistsProps.playlists).toHaveLength(1);
+    expect(result.current.statsProps).toBeDefined();
+    expect(result.current.statsProps.currentLang).toBe('en');
   });
 });
 

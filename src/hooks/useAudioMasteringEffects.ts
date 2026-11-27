@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { invoke } from '../api/ipc';
 import { setSetting } from '../api/settings';
+import { useStableCallback } from './useStableCallback';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
@@ -25,7 +26,7 @@ export function useAudioMasteringEffects({
   const [stereoWidenerAmount, setStereoWidenerAmount] = useState<number>(0.15);
   const [limiterEnabled, setLimiterEnabled] = useState<boolean>(true);
 
-  const handleCrossfadeDurationChange = async (ms: number) => {
+  const handleCrossfadeDurationChange = useStableCallback(async (ms: number) => {
     const clamped = Math.max(0, Math.min(8000, ms));
     setCrossfadeDuration(clamped);
     try {
@@ -34,9 +35,9 @@ export function useAudioMasteringEffects({
     } catch (e) {
       console.warn('Failed to save crossfade_duration:', e);
     }
-  };
+  });
 
-  const handleToggleLimiter = async (enabled: boolean) => {
+  const handleToggleLimiter = useStableCallback(async (enabled: boolean) => {
     setLimiterEnabled(enabled);
     try {
       await invoke('set_limiter_enabled', { enabled });
@@ -49,9 +50,9 @@ export function useAudioMasteringEffects({
     } catch (e) {
       console.warn('Failed to toggle the limiter:', e);
     }
-  };
+  });
 
-  const handleBassBoostChange = async (boostDb: number) => {
+  const handleBassBoostChange = useStableCallback(async (boostDb: number) => {
     const clamped = Math.max(0, Math.min(12, boostDb));
     setBassBoost(clamped);
     if (clamped > 0) {
@@ -76,9 +77,9 @@ export function useAudioMasteringEffects({
     } catch (e) {
       console.warn('Failed to set Bass Boost:', e);
     }
-  };
+  });
 
-  const handleToggleStereoWidener = async (active: boolean) => {
+  const handleToggleStereoWidener = useStableCallback(async (active: boolean) => {
     setStereoWidenerActive(active);
     try {
       await invoke('set_stereo_widener', { active, amount: stereoWidenerAmount });
@@ -91,9 +92,9 @@ export function useAudioMasteringEffects({
     } catch (e) {
       console.warn('Failed to toggle the stereo widener:', e);
     }
-  };
+  });
 
-  const handleStereoWidenerAmountChange = async (amt: number) => {
+  const handleStereoWidenerAmountChange = useStableCallback(async (amt: number) => {
     const clamped = Math.max(0, Math.min(1, amt));
     setStereoWidenerAmount(clamped);
     setStereoWidenerActive(true);
@@ -104,7 +105,7 @@ export function useAudioMasteringEffects({
     } catch (e) {
       console.warn('Failed to set the stereo widener:', e);
     }
-  };
+  });
 
   return {
     crossfadeDuration,

@@ -1,3 +1,4 @@
+import { useShallowMemo } from '../../hooks/useShallowMemo';
 import type { AppModalsContainerProps } from './AppModalsContainer';
 import type { useModalManager } from '../../hooks/useModalManager';
 import type { useLibraryManager } from '../../hooks/useLibraryManager';
@@ -19,7 +20,7 @@ export type UseAppModalsPropsOptions = Partial<AppModalsContainerProps> & {
 
 export function useAppModalsProps(options: UseAppModalsPropsOptions): AppModalsContainerProps {
   const { modals, library, libraryActions, playback, dsp, queueManager, playlistsManager, ...rest } = options;
-  return {
+  return useShallowMemo({
     ...(library || {}),
     ...(libraryActions || {}),
     ...(playback || {}),
@@ -31,5 +32,5 @@ export function useAppModalsProps(options: UseAppModalsPropsOptions): AppModalsC
     ...(queueManager?.confirmSaveQueueAsPlaylist ? { handleConfirmSaveQueueAsPlaylist: queueManager.confirmSaveQueueAsPlaylist } : {}),
     ...(queueManager?.addTrackToQueue ? { handleAddTrackToQueue: queueManager.addTrackToQueue } : {}),
     ...rest,
-  } as AppModalsContainerProps;
+  } as AppModalsContainerProps);
 }

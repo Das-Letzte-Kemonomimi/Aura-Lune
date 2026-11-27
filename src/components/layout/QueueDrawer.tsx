@@ -50,7 +50,7 @@ function useQueueMetas(queue: PlaybackQueue, tracks: TrackRecord[], albums: Albu
   }, [enabled, queue.items, tracks, albums]);
 }
 
-export const QueueDrawer: React.FC<QueueDrawerProps> = ({
+export const QueueDrawer: React.FC<QueueDrawerProps> = React.memo(({
   isOpen,
   onClose,
   queue,
@@ -185,4 +185,4 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = ({
       </div>
     </div>
   );
-};
+});

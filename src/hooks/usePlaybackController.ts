@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import { setSetting } from '../api/settings';
 import { livePlayback } from '../state/livePlayback';
@@ -106,7 +106,7 @@ export function usePlaybackController({
   const lastRecordedTrackRef = useRef<{ id: number; recorded: boolean }>({ id: -1, recorded: false });
   const lastTrackPositionMsRef = useRef<number>(0);
   const statusRef = useRef(status);
-  useEffect(() => {
+  useLayoutEffect(() => {
     statusRef.current = status;
   }, [status]);
 
@@ -508,17 +508,18 @@ export function usePlaybackController({
   // 4. Transport Actions
   const handlePlayPause = useCallback(async () => {
     try {
-      if (status.state === 'Playing') {
+      const currentStatus = statusRef.current;
+      if (currentStatus.state === 'Playing') {
         await invoke('pause');
       } else {
-        const currentUri = status.current_track?.uri || filePath;
+        const currentUri = currentStatus.current_track?.uri || filePath;
         const targetResumePos = initialStartupPositionRef.current;
         // Only load if the engine has no loaded track duration yet (e.g. UI-only session restore).
         // Reloading unconditionally when `targetResumePos` is set would wipe the backend's position.
         const needsLoad =
           Boolean(currentUri) &&
-          !status.current_track?.duration_ms &&
-          (!status.duration_ms || status.duration_ms === 0);
+          !currentStatus.current_track?.duration_ms &&
+          (!currentStatus.duration_ms || currentStatus.duration_ms === 0);
         if (needsLoad && currentUri) {
           try {
             await invoke('load_file', { path: currentUri });
@@ -539,7 +540,7 @@ export function usePlaybackController({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  }, [status, filePath, initialStartupPositionRef, showMessage, loc]);
+  }, [filePath, initialStartupPositionRef, showMessage, loc]);
 
   const handleStop = useCallback(async () => {
     try {

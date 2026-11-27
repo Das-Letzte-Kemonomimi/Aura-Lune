@@ -140,7 +140,29 @@ describe('usePlaybackController', () => {
   });
 
   it('handlePlayPause plays when Stopped and pauses when Playing', async () => {
-    const { result } = setupHook();
+    const { result, rerender } = renderHook(
+      (props: Partial<Parameters<typeof usePlaybackController>[0]>) =>
+        usePlaybackController({
+          status: mockStatus,
+          setStatus: setStatus as any,
+          filePath: '/music/song.flac',
+          setFilePath: setFilePath as any,
+          activeTrackId: 10,
+          setActiveTrackId: setActiveTrackId as any,
+          queue: mockQueue,
+          refreshQueue: refreshQueue as any,
+          seekFadeEnabled: true,
+          initialStartupPositionRef,
+          tracks: [],
+          setTracks: setTracks as any,
+          albums: [],
+          setReplaygainStatus: setReplaygainStatus as any,
+          showMessage: showMessage as any,
+          loc,
+          ...props,
+        }),
+      { initialProps: { status: mockStatus } }
+    );
 
     // 1. Play from stopped
     await act(async () => {
@@ -148,8 +170,8 @@ describe('usePlaybackController', () => {
     });
     expect(mockInvoke).toHaveBeenCalledWith('play');
 
-    // 2. Pause when playing
-    mockStatus.state = 'Playing';
+    // 2. Pause when playing (committed via status prop)
+    rerender({ status: { ...mockStatus, state: 'Playing' } });
     await act(async () => {
       await result.current.handlePlayPause();
     });

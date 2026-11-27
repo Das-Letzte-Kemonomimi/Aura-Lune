@@ -223,7 +223,7 @@ export interface AppModalsContainerProps {
   showMessage: (msg: string, isError?: boolean) => void;
 }
 
-export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
+export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(({
   language,
   loc,
   status,
@@ -399,26 +399,30 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
   return (
     <React.Suspense fallback={null}>
       {/* Add a track to a playlist modal */}
-      <PlaylistSelectModal
-        isOpen={showPlaylistModal}
-        onClose={() => {
-          setShowPlaylistModal(false);
-          setTrackToAddToPlaylist(null);
-        }}
-        track={trackToAddToPlaylist}
-        playlists={playlists}
-        onSelectPlaylist={(playlistId, trackId) => {
-          handleAddTrackToPlaylist(playlistId, trackId);
-        }}
-        loc={loc}
-      />
+      {showPlaylistModal && (
+        <PlaylistSelectModal
+          isOpen={showPlaylistModal}
+          onClose={() => {
+            setShowPlaylistModal(false);
+            setTrackToAddToPlaylist(null);
+          }}
+          track={trackToAddToPlaylist}
+          playlists={playlists}
+          onSelectPlaylist={(playlistId, trackId) => {
+            handleAddTrackToPlaylist(playlistId, trackId);
+          }}
+          loc={loc}
+        />
+      )}
 
       {/* Keyboard shortcuts modal */}
-      <KeyboardShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-        currentLang={language}
-      />
+      {isShortcutsModalOpen && (
+        <KeyboardShortcutsModal
+          isOpen={isShortcutsModalOpen}
+          onClose={() => setIsShortcutsModalOpen(false)}
+          currentLang={language}
+        />
+      )}
 
       {/* Online Cover Art Picker Modal */}
       {coverPickerState && (
@@ -446,231 +450,251 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       )}
 
       {/* Floating desktop lyrics widget (Desktop Lyrics Overlay) */}
-      <DesktopLyricsOverlay
-        isOpen={showDesktopLyrics}
-        onClose={() => setShowDesktopLyrics(false)}
-        trackTitle={effectiveDisplayTitle}
-        trackArtist={effectiveDisplayArtist}
-        trackAlbum={currentAlbum?.title || status.current_track?.album || null}
-        trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
-        coverUrl={currentCover}
-        durationMs={status.duration_ms}
-        positionMs={status.position_ms}
-        isPlaying={status.state === 'Playing'}
-        currentLang={language}
-        onPlayPause={handlePlayPause}
-        onPrev={handlePrevious}
-        onNext={handleNext}
-        onSeek={handleSeek}
-      />
+      {showDesktopLyrics && (
+        <DesktopLyricsOverlay
+          isOpen={showDesktopLyrics}
+          onClose={() => setShowDesktopLyrics(false)}
+          trackTitle={effectiveDisplayTitle}
+          trackArtist={effectiveDisplayArtist}
+          trackAlbum={currentAlbum?.title || status.current_track?.album || null}
+          trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
+          coverUrl={currentCover}
+          durationMs={status.duration_ms}
+          positionMs={status.position_ms}
+          isPlaying={status.state === 'Playing'}
+          currentLang={language}
+          onPlayPause={handlePlayPause}
+          onPrev={handlePrevious}
+          onNext={handleNext}
+          onSeek={handleSeek}
+        />
+      )}
 
       {/* Sleep timer modal (with a gentle fade-out) */}
-      <SleepTimerModal
-        isOpen={isSleepTimerOpen}
-        onClose={() => setIsSleepTimerOpen(false)}
-        currentLang={language}
-        remainingSec={sleepTimerRemainingSec}
-        targetMode={sleepTimerTargetMode}
-        fadeOut={sleepTimerFadeOut}
-        onSetTimer={handleSetSleepTimer}
-        onCancelTimer={handleCancelSleepTimer}
-      />
+      {isSleepTimerOpen && (
+        <SleepTimerModal
+          isOpen={isSleepTimerOpen}
+          onClose={() => setIsSleepTimerOpen(false)}
+          currentLang={language}
+          remainingSec={sleepTimerRemainingSec}
+          targetMode={sleepTimerTargetMode}
+          fadeOut={sleepTimerFadeOut}
+          onSetTimer={handleSetSleepTimer}
+          onCancelTimer={handleCancelSleepTimer}
+        />
+      )}
 
       {/* Audio path & Bit-Perfect inspector modal (Audio Path Inspector) */}
-      <AudioPathInspectorModal
-        isOpen={isAudioPathModalOpen}
-        onClose={() => setIsAudioPathModalOpen(false)}
-        status={status}
-        currentTrack={currentPlayingTrack}
-        currentLang={language}
-        onResetBitPerfect={handleResetBitPerfect}
-      />
+      {isAudioPathModalOpen && (
+        <AudioPathInspectorModal
+          isOpen={isAudioPathModalOpen}
+          onClose={() => setIsAudioPathModalOpen(false)}
+          status={status}
+          currentTrack={currentPlayingTrack}
+          currentLang={language}
+          onResetBitPerfect={handleResetBitPerfect}
+        />
+      )}
 
       {/* Analog Lo-Fi FX studio modal (vinyl & tape) */}
-      <AnalogLoFiModal
-        isOpen={isLoFiModalOpen}
-        onClose={() => setIsLoFiModalOpen(false)}
-        isPlaying={status.state === 'Playing'}
-        currentLang={language}
-      />
+      {isLoFiModalOpen && (
+        <AnalogLoFiModal
+          isOpen={isLoFiModalOpen}
+          onClose={() => setIsLoFiModalOpen(false)}
+          isPlaying={status.state === 'Playing'}
+          currentLang={language}
+        />
+      )}
 
       {/* Audio environment test modal (Health Check 1.0) */}
-      <AudioHealthCheckModal
-        isOpen={isHealthCheckModalOpen}
-        onClose={() => setIsHealthCheckModalOpen(false)}
-        currentLang={language}
-      />
+      {isHealthCheckModalOpen && (
+        <AudioHealthCheckModal
+          isOpen={isHealthCheckModalOpen}
+          onClose={() => setIsHealthCheckModalOpen(false)}
+          currentLang={language}
+        />
+      )}
 
       {/* Background sound generator modal (Soundscape / lofi ambience) */}
-      <SoundscapeModal
-        isOpen={isSoundscapeOpen}
-        onClose={() => setIsSoundscapeOpen(false)}
-        currentLang={language}
-      />
+      {isSoundscapeOpen && (
+        <SoundscapeModal
+          isOpen={isSoundscapeOpen}
+          onClose={() => setIsSoundscapeOpen(false)}
+          currentLang={language}
+        />
+      )}
 
       {/* Harmonic mixing & DJ crossfade modal */}
-      <HarmonicSuggesterModal
-        isOpen={isHarmonicSuggesterOpen}
-        onClose={() => setIsHarmonicSuggesterOpen(false)}
-        currentTrack={
-          currentPlayingTrack
-            ? {
-              id: currentPlayingTrack.id,
-              uri: currentPlayingTrack.path,
-              title: currentPlayingTrack.title,
-              artist: currentPlayingTrack.artist,
-              album: currentPlayingTrack.album_id
-                ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title || null
-                : null,
-              duration_ms: currentPlayingTrack.duration_ms,
-              bpm: currentPlayingTrack.bpm,
-              initial_key: currentPlayingTrack.initial_key,
-            }
-            : status.current_track
+      {isHarmonicSuggesterOpen && (
+        <HarmonicSuggesterModal
+          isOpen={isHarmonicSuggesterOpen}
+          onClose={() => setIsHarmonicSuggesterOpen(false)}
+          currentTrack={
+            currentPlayingTrack
               ? {
-                id: status.current_track.track_id || 0,
-                uri: status.current_track.uri,
-                title: status.current_track.title,
-                artist: status.current_track.artist,
-                album: status.current_track.album,
-                duration_ms: status.current_track.duration_ms,
-                bpm:
-                  tracks.find(
-                    (t) =>
-                      (status.current_track?.track_id && t.id === status.current_track.track_id) ||
-                      t.path === status.current_track?.uri
-                  )?.bpm || null,
-                initial_key:
-                  tracks.find(
-                    (t) =>
-                      (status.current_track?.track_id && t.id === status.current_track.track_id) ||
-                      t.path === status.current_track?.uri
-                  )?.initial_key || null,
+                id: currentPlayingTrack.id,
+                uri: currentPlayingTrack.path,
+                title: currentPlayingTrack.title,
+                artist: currentPlayingTrack.artist,
+                album: currentPlayingTrack.album_id
+                  ? albums.find((a) => a.id === currentPlayingTrack.album_id)?.title || null
+                  : null,
+                duration_ms: currentPlayingTrack.duration_ms,
+                bpm: currentPlayingTrack.bpm,
+                initial_key: currentPlayingTrack.initial_key,
               }
-              : null
-        }
-        libraryTracks={tracks.map((t) => ({
-          id: t.id,
-          uri: t.path,
-          title: t.title,
-          artist: t.artist,
-          album: t.album_id ? albums.find((a) => a.id === t.album_id)?.title || null : null,
-          duration_ms: t.duration_ms,
-          bpm: t.bpm,
-          initial_key: t.initial_key,
-        }))}
-        onPlayTrack={async (ht) => {
-          const fullTrack = tracks.find((t) => t.id === ht.id);
-          if (fullTrack) {
-            setIsHarmonicSuggesterOpen(false);
-            if (status.state === 'Playing') {
-              const curBpm =
-                currentPlayingTrack?.bpm || tracks.find((t) => t.path === status.current_track?.uri)?.bpm;
-              const targetBpm = fullTrack.bpm;
-              if (curBpm && curBpm > 0 && targetBpm && targetBpm > 0) {
-                const ratio = Math.min(1.25, Math.max(0.8, Math.round((targetBpm / curBpm) * 100) / 100));
-                if (Math.abs(ratio - 1.0) > 0.01) {
-                  await handleTempoChange(ratio);
+              : status.current_track
+                ? {
+                  id: status.current_track.track_id || 0,
+                  uri: status.current_track.uri,
+                  title: status.current_track.title,
+                  artist: status.current_track.artist,
+                  album: status.current_track.album,
+                  duration_ms: status.current_track.duration_ms,
+                  bpm:
+                    tracks.find(
+                      (t) =>
+                        (status.current_track?.track_id && t.id === status.current_track.track_id) ||
+                        t.path === status.current_track?.uri
+                    )?.bpm || null,
+                  initial_key:
+                    tracks.find(
+                      (t) =>
+                        (status.current_track?.track_id && t.id === status.current_track.track_id) ||
+                        t.path === status.current_track?.uri
+                    )?.initial_key || null,
                 }
+                : null
+          }
+          libraryTracks={tracks.map((t) => ({
+            id: t.id,
+            uri: t.path,
+            title: t.title,
+            artist: t.artist,
+            album: t.album_id ? albums.find((a) => a.id === t.album_id)?.title || null : null,
+            duration_ms: t.duration_ms,
+            bpm: t.bpm,
+            initial_key: t.initial_key,
+          }))}
+          onPlayTrack={async (ht) => {
+            const fullTrack = tracks.find((t) => t.id === ht.id);
+            if (fullTrack) {
+              setIsHarmonicSuggesterOpen(false);
+              if (status.state === 'Playing') {
+                const curBpm =
+                  currentPlayingTrack?.bpm || tracks.find((t) => t.path === status.current_track?.uri)?.bpm;
+                const targetBpm = fullTrack.bpm;
+                if (curBpm && curBpm > 0 && targetBpm && targetBpm > 0) {
+                  const ratio = Math.min(1.25, Math.max(0.8, Math.round((targetBpm / curBpm) * 100) / 100));
+                  if (Math.abs(ratio - 1.0) > 0.01) {
+                    await handleTempoChange(ratio);
+                  }
+                }
+
+                const matchingAlbum = albums.find((a) => a.id === fullTrack.album_id);
+                const queueItem: QueueItem = {
+                  id: `mix-${fullTrack.id}-${Date.now()}`,
+                  track_id: fullTrack.id,
+                  uri: fullTrack.path,
+                  title: fullTrack.title,
+                  artist: fullTrack.artist,
+                  album: matchingAlbum?.title || null,
+                  duration_ms: fullTrack.duration_ms || 0,
+                };
+
+                await invoke('add_next_to_queue', { item: queueItem });
+                await handleNext();
+                showMessage(
+                  fmt(loc.notifications.djMixTransition, fullTrack.title, (crossfadeDuration / 1000).toFixed(1))
+                );
+              } else {
+                handlePlayLibraryTrack(fullTrack);
               }
-
-              const matchingAlbum = albums.find((a) => a.id === fullTrack.album_id);
-              const queueItem: QueueItem = {
-                id: `mix-${fullTrack.id}-${Date.now()}`,
-                track_id: fullTrack.id,
-                uri: fullTrack.path,
-                title: fullTrack.title,
-                artist: fullTrack.artist,
-                album: matchingAlbum?.title || null,
-                duration_ms: fullTrack.duration_ms || 0,
-              };
-
-              await invoke('add_next_to_queue', { item: queueItem });
-              await handleNext();
+            }
+          }}
+          onEnqueueTrack={(ht, playNext) => {
+            const fullTrack = tracks.find((t) => t.id === ht.id);
+            if (fullTrack) {
+              if (playNext) {
+                handleAddTrackNextToQueue(fullTrack);
+              } else {
+                handleAddTrackToQueue(fullTrack);
+              }
+            }
+          }}
+          onSyncTempo={(targetBpm) => {
+            const curBpm = currentPlayingTrack?.bpm;
+            if (curBpm && curBpm > 0) {
+              const ratio = Math.min(3.0, Math.max(0.25, Math.round((targetBpm / curBpm) * 100) / 100));
+              handleTempoChange(ratio);
               showMessage(
-                fmt(loc.notifications.djMixTransition, fullTrack.title, (crossfadeDuration / 1000).toFixed(1))
+                fmt(loc.notifications.tempoMatched, String(ratio), curBpm.toFixed(1), targetBpm.toFixed(1))
               );
             } else {
-              handlePlayLibraryTrack(fullTrack);
+              showMessage(loc.notifications.noBpmDetected, true);
             }
-          }
-        }}
-        onEnqueueTrack={(ht, playNext) => {
-          const fullTrack = tracks.find((t) => t.id === ht.id);
-          if (fullTrack) {
-            if (playNext) {
-              handleAddTrackNextToQueue(fullTrack);
-            } else {
-              handleAddTrackToQueue(fullTrack);
-            }
-          }
-        }}
-        onSyncTempo={(targetBpm) => {
-          const curBpm = currentPlayingTrack?.bpm;
-          if (curBpm && curBpm > 0) {
-            const ratio = Math.min(3.0, Math.max(0.25, Math.round((targetBpm / curBpm) * 100) / 100));
-            handleTempoChange(ratio);
-            showMessage(
-              fmt(loc.notifications.tempoMatched, String(ratio), curBpm.toFixed(1), targetBpm.toFixed(1))
-            );
-          } else {
-            showMessage(loc.notifications.noBpmDetected, true);
-          }
-        }}
-        crossfadeDurationMs={crossfadeDuration}
-        onSetCrossfadeDuration={handleCrossfadeDurationChange}
-        onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
-        currentLang={language}
-      />
+          }}
+          crossfadeDurationMs={crossfadeDuration}
+          onSetCrossfadeDuration={handleCrossfadeDurationChange}
+          onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
+          currentLang={language}
+        />
+      )}
 
       {/* AutoEQ headphone profile database modal */}
-      <AutoEqModal
-        isOpen={isAutoEqOpen}
-        onClose={() => setIsAutoEqOpen(false)}
-        currentBands={status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        onApplyProfile={async (bands, preampDb, profileName) => {
-          try {
-            await invoke('apply_auto_eq_profile', {
-              profileName,
-              bands,
-              preampDb: preampDb || 0,
-            });
-            // No locale key matches this id, so the menu shows the name as given.
-            const autoEqId = `autoeq:${profileName}`;
-            const autoEqLabel = `🎧 ${profileName} (AutoEQ)`;
-            setEqPresets((prev) => {
-              if (prev.some((p) => p.id === autoEqId)) return prev;
-              return [...prev, { id: autoEqId, name: autoEqLabel, bands }];
-            });
-            setSelectedEqPreset(autoEqId);
-            setStatus((prev: PlaybackStatus) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
-            showMessage(
-              preampDb !== 0
-                ? fmt(loc.notifications.autoEqAppliedWithPreamp, profileName, preampDb.toFixed(1))
-                : fmt(loc.notifications.autoEqApplied, profileName)
-            );
-            setIsAutoEqOpen(false);
-          } catch (e: unknown) {
-            showMessage(`${loc.common.errorPrefix} ${e}`, true);
-          }
-        }}
-        onResetFlat={handleResetEq}
-        currentLang={language}
-      />
+      {isAutoEqOpen && (
+        <AutoEqModal
+          isOpen={isAutoEqOpen}
+          onClose={() => setIsAutoEqOpen(false)}
+          currentBands={status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+          onApplyProfile={async (bands, preampDb, profileName) => {
+            try {
+              await invoke('apply_auto_eq_profile', {
+                profileName,
+                bands,
+                preampDb: preampDb || 0,
+              });
+              // No locale key matches this id, so the menu shows the name as given.
+              const autoEqId = `autoeq:${profileName}`;
+              const autoEqLabel = `🎧 ${profileName} (AutoEQ)`;
+              setEqPresets((prev) => {
+                if (prev.some((p) => p.id === autoEqId)) return prev;
+                return [...prev, { id: autoEqId, name: autoEqLabel, bands }];
+              });
+              setSelectedEqPreset(autoEqId);
+              setStatus((prev: PlaybackStatus) => ({ ...prev, equalizer_bands: bands, equalizer_enabled: true }));
+              showMessage(
+                preampDb !== 0
+                  ? fmt(loc.notifications.autoEqAppliedWithPreamp, profileName, preampDb.toFixed(1))
+                  : fmt(loc.notifications.autoEqApplied, profileName)
+              );
+              setIsAutoEqOpen(false);
+            } catch (e: unknown) {
+              showMessage(`${loc.common.errorPrefix} ${e}`, true);
+            }
+          }}
+          onResetFlat={handleResetEq}
+          currentLang={language}
+        />
+      )}
 
       {/* Multi-band parametric equalizer modal (PEQ Studio) */}
-      <ParametricEqModal
-        isOpen={isParametricEqOpen}
-        onClose={() => setIsParametricEqOpen(false)}
-        currentLang={language}
-      />
+      {isParametricEqOpen && (
+        <ParametricEqModal
+          isOpen={isParametricEqOpen}
+          onClose={() => setIsParametricEqOpen(false)}
+          currentLang={language}
+        />
+      )}
 
       {/* Dynamics & analog saturation studio modal (compressor, tube, tape, limiter) */}
-      <DynamicsStudioModal
-        isOpen={isDynamicsStudioOpen}
-        onClose={() => setIsDynamicsStudioOpen(false)}
-        currentLang={language}
-      />
+      {isDynamicsStudioOpen && (
+        <DynamicsStudioModal
+          isOpen={isDynamicsStudioOpen}
+          onClose={() => setIsDynamicsStudioOpen(false)}
+          currentLang={language}
+        />
+      )}
 
       {/* Detailed track statistics modal */}
       {statsModalTrack && (
@@ -683,111 +707,119 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       )}
 
       {/* Precise A-B loop editing modal (to the millisecond) */}
-      <LoopEditorModal
-        isOpen={isLoopEditorOpen}
-        onClose={() => setIsLoopEditorOpen(false)}
-        loopPointA={loopPointA}
-        loopPointB={loopPointB}
-        currentPositionMs={status.position_ms}
-        durationMs={status.duration_ms}
-        onApplyLoop={(a, b) => {
-          setLoopPointA(a);
-          setLoopPointB(b);
-          if (a !== null && b !== null) {
-            showMessage(
-              fmt(loc.notifications.loopSetRange, formatTimeMs(a), formatTimeMs(b), String(b - a))
-            );
-          } else {
-            showMessage(loc.shortcuts.loopClear);
-          }
-        }}
-        onSeek={handleSeek}
-        onExportLoop={handleExportLoopFromModal}
-        onSaveAsTrackBookmarks={handleSaveLoopAsBookmarks}
-        loc={loc}
-      />
+      {isLoopEditorOpen && (
+        <LoopEditorModal
+          isOpen={isLoopEditorOpen}
+          onClose={() => setIsLoopEditorOpen(false)}
+          loopPointA={loopPointA}
+          loopPointB={loopPointB}
+          currentPositionMs={status.position_ms}
+          durationMs={status.duration_ms}
+          onApplyLoop={(a, b) => {
+            setLoopPointA(a);
+            setLoopPointB(b);
+            if (a !== null && b !== null) {
+              showMessage(
+                fmt(loc.notifications.loopSetRange, formatTimeMs(a), formatTimeMs(b), String(b - a))
+              );
+            } else {
+              showMessage(loc.shortcuts.loopClear);
+            }
+          }}
+          onSeek={handleSeek}
+          onExportLoop={handleExportLoopFromModal}
+          onSaveAsTrackBookmarks={handleSaveLoopAsBookmarks}
+          loc={loc}
+        />
+      )}
 
       {/* First-run wizard and introduction (onboarding & disclaimer) */}
-      <OnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
-        currentLang={language}
-        onLanguageChange={setLanguage}
-        recapOptIn={recapOptIn}
-        onRecapOptInChange={(opt) => {
-          setRecapOptIn(opt);
-          try {
-            localStorage.setItem('auralune_recap_opt_in', String(opt));
-          } catch { }
-        }}
-        instantVolume={instantVolume}
-        onInstantVolumeChange={(inst) => {
-          setInstantVolume(inst);
-          try {
-            localStorage.setItem('auralune_instant_volume', String(inst));
-          } catch { }
-        }}
-        volumeOsdPosition={volumeOsdPosition}
-        onVolumeOsdPositionChange={(pos) => {
-          setVolumeOsdPosition(pos as VolumeOsdPosition);
-          try {
-            localStorage.setItem('auralune_volume_osd_position', pos);
-          } catch { }
-        }}
-      />
+      {isOnboardingOpen && (
+        <OnboardingModal
+          isOpen={isOnboardingOpen}
+          onClose={() => setIsOnboardingOpen(false)}
+          currentLang={language}
+          onLanguageChange={setLanguage}
+          recapOptIn={recapOptIn}
+          onRecapOptInChange={(opt) => {
+            setRecapOptIn(opt);
+            try {
+              localStorage.setItem('auralune_recap_opt_in', String(opt));
+            } catch { }
+          }}
+          instantVolume={instantVolume}
+          onInstantVolumeChange={(inst) => {
+            setInstantVolume(inst);
+            try {
+              localStorage.setItem('auralune_instant_volume', String(inst));
+            } catch { }
+          }}
+          volumeOsdPosition={volumeOsdPosition}
+          onVolumeOsdPositionChange={(pos) => {
+            setVolumeOsdPosition(pos as VolumeOsdPosition);
+            try {
+              localStorage.setItem('auralune_volume_osd_position', pos);
+            } catch { }
+          }}
+        />
+      )}
 
       {/* Key and tempo menu / modal (Key & BPM A/B DSP) */}
-      <KeyBpmModal
-        isOpen={isKeyBpmModalOpen}
-        onClose={() => setIsKeyBpmModalOpen(false)}
-        currentTrackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
-        currentTrackId={activeTrackId || status.current_track?.track_id || undefined}
-        currentTrackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
-        pitchSemitones={status.pitch_semitones ?? 0}
-        tempoRatio={status.tempo_ratio ?? 1}
-        rateRatio={status.rate_ratio ?? 1}
-        onPitchChange={handlePitchChange}
-        onTempoChange={handleTempoChange}
-        onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
-        currentLang={language}
-      />
+      {isKeyBpmModalOpen && (
+        <KeyBpmModal
+          isOpen={isKeyBpmModalOpen}
+          onClose={() => setIsKeyBpmModalOpen(false)}
+          currentTrackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
+          currentTrackId={activeTrackId || status.current_track?.track_id || undefined}
+          currentTrackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
+          pitchSemitones={status.pitch_semitones ?? 0}
+          tempoRatio={status.tempo_ratio ?? 1}
+          rateRatio={status.rate_ratio ?? 1}
+          onPitchChange={handlePitchChange}
+          onTempoChange={handleTempoChange}
+          onTrackKeyBpmUpdated={handleTrackKeyBpmUpdated}
+          currentLang={language}
+        />
+      )}
 
       {/* Music analysis studio (chords, piano roll, stems, AI models) */}
-      <MusicAnalysisModal
-        isOpen={isAnalysisModalOpen}
-        onClose={() => setIsAnalysisModalOpen(false)}
-        trackId={activeTrackId || status.current_track?.track_id || undefined}
-        trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
-        trackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
-        trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || undefined}
-        currentTimeMs={status.position_ms}
-        durationMs={status.duration_ms ?? undefined}
-        isPlaying={status.state === 'Playing'}
-        playbackSpeed={playbackSpeed({
-          engine: status.engine,
-          tempo: status.tempo_ratio,
-          rate: status.rate_ratio,
-        })}
-        onNotify={showMessage}
-        pitchSemitones={status.pitch_semitones ?? 0}
-        onSeek={handleSeek}
-        onSetLoop={(start, end) => {
-          setLoopPointA(start);
-          setLoopPointB(end);
-        }}
-        initialTab={analysisInitialTab}
-        onOpenStemProject={(pid) => {
-          setIsAnalysisModalOpen(false);
-          setActiveStemProjectId(pid);
-          setIsStemStudioOpen(true);
-        }}
-        onOpenCreateProject={() => {
-          setIsAnalysisModalOpen(false);
-          setCreateStemProjectTrack(currentPlayingTrack || null);
-          setIsCreateStemProjectOpen(true);
-        }}
-        currentLang={language}
-      />
+      {isAnalysisModalOpen && (
+        <MusicAnalysisModal
+          isOpen={isAnalysisModalOpen}
+          onClose={() => setIsAnalysisModalOpen(false)}
+          trackId={activeTrackId || status.current_track?.track_id || undefined}
+          trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
+          trackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
+          trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || undefined}
+          currentTimeMs={status.position_ms}
+          durationMs={status.duration_ms ?? undefined}
+          isPlaying={status.state === 'Playing'}
+          playbackSpeed={playbackSpeed({
+            engine: status.engine,
+            tempo: status.tempo_ratio,
+            rate: status.rate_ratio,
+          })}
+          onNotify={showMessage}
+          pitchSemitones={status.pitch_semitones ?? 0}
+          onSeek={handleSeek}
+          onSetLoop={(start, end) => {
+            setLoopPointA(start);
+            setLoopPointB(end);
+          }}
+          initialTab={analysisInitialTab}
+          onOpenStemProject={(pid) => {
+            setIsAnalysisModalOpen(false);
+            setActiveStemProjectId(pid);
+            setIsStemStudioOpen(true);
+          }}
+          onOpenCreateProject={() => {
+            setIsAnalysisModalOpen(false);
+            setCreateStemProjectTrack(currentPlayingTrack || null);
+            setIsCreateStemProjectOpen(true);
+          }}
+          currentLang={language}
+        />
+      )}
 
       {/* Moises-Style Stem Project Studio Modal */}
       {isStemStudioOpen && activeStemProjectId && (
@@ -805,27 +837,31 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       )}
 
       {/* Create a new stem project */}
-      <CreateStemProjectModal
-        isOpen={isCreateStemProjectOpen}
-        onClose={() => setIsCreateStemProjectOpen(false)}
-        track={createStemProjectTrack}
-        onProjectCreated={(newProjectId) => {
-          setActiveStemProjectId(newProjectId);
-          setIsStemStudioOpen(true);
-        }}
-        currentLang={language}
-      />
+      {isCreateStemProjectOpen && (
+        <CreateStemProjectModal
+          isOpen={isCreateStemProjectOpen}
+          onClose={() => setIsCreateStemProjectOpen(false)}
+          track={createStemProjectTrack}
+          onProjectCreated={(newProjectId) => {
+            setActiveStemProjectId(newProjectId);
+            setIsStemStudioOpen(true);
+          }}
+          currentLang={language}
+        />
+      )}
 
       {/* Weekly, monthly and yearly summary (Auralune Recap / Wrapped) */}
-      <AuraluneRecapModal
-        isOpen={isRecapModalOpen}
-        onClose={() => setIsRecapModalOpen(false)}
-        currentLang={language}
-        onPlayTrackId={(id) => {
-          const tr = tracks.find((t) => t.id === id);
-          if (tr) handlePlayLibraryTrack(tr);
-        }}
-      />
+      {isRecapModalOpen && (
+        <AuraluneRecapModal
+          isOpen={isRecapModalOpen}
+          onClose={() => setIsRecapModalOpen(false)}
+          currentLang={language}
+          onPlayTrackId={(id) => {
+            const tr = tracks.find((t) => t.id === id);
+            if (tr) handlePlayLibraryTrack(tr);
+          }}
+        />
+      )}
 
       {/* Tag editor modal (foobar2000-style Properties) */}
       {tagEditorTrack && (
@@ -882,21 +918,23 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       )}
 
       {/* Built-in URL audio importer modal (yt-dlp) */}
-      <UrlAudioImportModal
-        isOpen={isUrlImportModalOpen}
-        currentLang={language}
-        onClose={() => setIsUrlImportModalOpen(false)}
-        onPlayTrack={(t) => handlePlayLibraryTrack(t)}
-        onAddToQueue={(t) => handleAddTrackToQueue(t)}
-        onLibraryUpdated={async () => {
-          try {
-            const updatedTracks = await invoke<TrackRecord[]>('get_library_tracks');
-            const updatedAlbums = await invoke<AlbumRecord[]>('get_library_albums');
-            setTracks(updatedTracks);
-            setAlbums(updatedAlbums);
-          } catch { }
-        }}
-      />
+      {isUrlImportModalOpen && (
+        <UrlAudioImportModal
+          isOpen={isUrlImportModalOpen}
+          currentLang={language}
+          onClose={() => setIsUrlImportModalOpen(false)}
+          onPlayTrack={(t) => handlePlayLibraryTrack(t)}
+          onAddToQueue={(t) => handleAddTrackToQueue(t)}
+          onLibraryUpdated={async () => {
+            try {
+              const updatedTracks = await invoke<TrackRecord[]>('get_library_tracks');
+              const updatedAlbums = await invoke<AlbumRecord[]>('get_library_albums');
+              setTracks(updatedTracks);
+              setAlbums(updatedAlbums);
+            } catch { }
+          }}
+        />
+      )}
 
       {/* CUE sheet modal (.cue sheet) */}
       {isCueModalOpen && (
@@ -943,17 +981,19 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       )}
 
       {/* MODAL 10: LEGAL DOWNLOAD HUB (ETAP 7) */}
-      <DownloadHubModal
-        isOpen={showDownloadHub}
-        onClose={() => setShowDownloadHub(false)}
-        onRefreshLibrary={loadLibrary}
-        onPlayPath={(path) => {
-          handleLoadFile(path).then(async () => {
-            await invoke('play');
-          });
-        }}
-        currentLang={language}
-      />
+      {showDownloadHub && (
+        <DownloadHubModal
+          isOpen={showDownloadHub}
+          onClose={() => setShowDownloadHub(false)}
+          onRefreshLibrary={loadLibrary}
+          onPlayPath={(path) => {
+            handleLoadFile(path).then(async () => {
+              await invoke('play');
+            });
+          }}
+          currentLang={language}
+        />
+      )}
 
       {/* Multi-point bookmarks modal (cue points) */}
       {isBookmarksModalOpen && activeTrackId && (
@@ -1016,21 +1056,25 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = ({
       )}
 
       {/* Save the queue as a playlist modal */}
-      <SaveQueueModal
-        isOpen={isSaveQueueModalOpen}
-        currentLang={language}
-        queueLength={queue.items.length}
-        onClose={() => setIsSaveQueueModalOpen(false)}
-        onSave={handleConfirmSaveQueueAsPlaylist}
-      />
+      {isSaveQueueModalOpen && (
+        <SaveQueueModal
+          isOpen={isSaveQueueModalOpen}
+          currentLang={language}
+          queueLength={queue.items.length}
+          onClose={() => setIsSaveQueueModalOpen(false)}
+          onSave={handleConfirmSaveQueueAsPlaylist}
+        />
+      )}
 
       {/* Add a custom radio station modal */}
-      <AddRadioStationModal
-        isOpen={isAddStationModalOpen}
-        currentLang={language}
-        onClose={() => setIsAddStationModalOpen(false)}
-        onSave={handleSaveCustomStation}
-      />
+      {isAddStationModalOpen && (
+        <AddRadioStationModal
+          isOpen={isAddStationModalOpen}
+          currentLang={language}
+          onClose={() => setIsAddStationModalOpen(false)}
+          onSave={handleSaveCustomStation}
+        />
+      )}
     </React.Suspense>
   );
-};
+});
