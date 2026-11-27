@@ -141,14 +141,11 @@ export const AppearanceSettingsView: React.FC<AppearanceSettingsViewProps> = ({
                     <span className="min-w-0 truncate text-sm font-bold text-fg">{th.name}</span>
                     {isActive && <Badge tone="pink">{loc.settings.themeCurrent}</Badge>}
                   </span>
-                  <span
-                    title={th.attribution || 'Auralune Theme'}
-                    className="w-full truncate text-xs text-fg-muted"
-                  >
+                  <span className="w-full text-xs leading-snug text-fg-muted">
                     {th.attribution || 'Auralune Theme'}
                   </span>
                   {/* Token colour swatches (runtime theme colours) */}
-                  <span className="flex items-center gap-1.5">
+                  <span className="mt-auto flex items-center gap-1.5 pt-1">
                     {swatches.map((sw) => (
                       <span
                         key={sw.label}
