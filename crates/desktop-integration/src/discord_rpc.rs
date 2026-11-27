@@ -440,11 +440,17 @@ impl DiscordRpcWorker {
         self.nonce_counter.to_string()
     }
 
+    /// Publishes the worker-owned fields (`connected`, `current_activity`). `enabled` and `client_id`
+    /// belong to the controller, which writes them before sending the command: the worker's copies
+    /// lag behind (e.g. during an 800 ms handshake) and must never overwrite a newer setting.
     fn update_shared_status(&self) {
         if let Ok(mut st) = self.status.write() {
-            st.enabled = self.enabled;
+            if !st.enabled {
+                st.connected = false;
+                st.current_activity = None;
+                return;
+            }
             st.connected = self.writer.is_some();
-            st.client_id = self.client_id.clone();
             st.current_activity = self.current_track.as_ref().map(|t| {
                 if !t.artist.is_empty() {
                     format!("{} - {}", t.artist, t.title)
