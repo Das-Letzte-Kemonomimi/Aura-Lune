@@ -25,7 +25,7 @@ const groups: SettingsNavGroup<Id>[] = [
   },
 ];
 
-const setup = (value: Id = 'general', onChange = vi.fn(), orientation?: 'vertical' | 'horizontal') => {
+const setup = (value: Id = 'general', onChange = vi.fn(), orientation?: 'vertical' | 'horizontal' | 'responsive') => {
   render(<SettingsNav groups={groups} value={value} onChange={onChange} label="Settings" orientation={orientation} />);
   return onChange;
 };
