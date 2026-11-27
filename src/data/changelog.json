@@ -218,6 +218,13 @@
         "de": "Geringere CPU- und Speichernutzung bei der Wiedergabe, indem der Halleffekt im ausgeschalteten Zustand komplett umgangen und nur die aktive Tempo-/Tonhöhen-Engine geladen wird.",
         "fi": "Vähennetty suorittimen ja muistin käyttöä toiston aikana ohittamalla pois kytketty kaikutehoste kokonaan ja lataamalla vain aktiivinen nopeus- ja sävelkorkeusmoottori.",
         "la": "Consumptio CPU memoriaeque inter sonum imminuta est, effectu echo omisso cum absit et solo motore activo onerato."
+      },
+      {
+        "en": "Made music library scanning much faster on large collections, cut duplicate work during rescans and playback history saving, and cached fetched song lyrics locally.",
+        "pl": "Znacznie przyspieszono skanowanie dużych bibliotek muzycznych, ograniczono zbędne zapisy przy ponownych skanach i w historii odsłuchu oraz dodano lokalną pamięć podręczną pobranych tekstów piosenek.",
+        "de": "Das Einlesen großer Musikbibliotheken wurde deutlich beschleunigt, unnötige Schreibvorgänge beim erneuten Scannen und im Hörverlauf wurden reduziert und abgerufene Songtexte werden nun lokal zwischengespeichert.",
+        "fi": "Suurten musiikkikirjastojen skannausta nopeutettiin huomattavasti, uudelleenskannauksen ja kuunteluhistorian turhia tallennuksia vähennettiin sekä haetut sanoitukset tallennetaan nyt välimuistiin.",
+        "la": "Bibliothecarum musicarum magnarum inspectio multo celerior facta est, scripturae supervacuae in recensione et historia auscultandi imminutae sunt, atque verba carminum quaesita nunc in memoria temporaria servantur."
       }
     ],
     "fixed": [

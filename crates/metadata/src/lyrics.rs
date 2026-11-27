@@ -6,9 +6,121 @@
 //! - parsing [mm:ss.xx] timestamps into milliseconds.
 
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tracing::{debug, info};
+
+const LYRICS_CACHE_CAPACITY: usize = 256;
+const LYRICS_NEGATIVE_TTL: Duration = Duration::from_secs(3600);
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+struct LyricsCacheKey {
+    artist: String,
+    title: String,
+    album: Option<String>,
+    duration_sec: Option<u64>,
+}
+
+impl LyricsCacheKey {
+    fn new(artist: &str, title: &str, album: Option<&str>, duration_sec: Option<f64>) -> Self {
+        Self {
+            artist: artist.trim().to_ascii_lowercase(),
+            title: title.trim().to_ascii_lowercase(),
+            album: album
+                .map(|a| a.trim().to_ascii_lowercase())
+                .filter(|a| !a.is_empty()),
+            duration_sec: duration_sec
+                .filter(|d| *d > 0.0 && d.is_finite())
+                .map(|d| d.round() as u64),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum CachedLyrics {
+    Hit(LyricsDto),
+    NegativeMiss { cached_at: Instant },
+}
+
+#[derive(Default)]
+struct LyricsLruCache {
+    entries: HashMap<LyricsCacheKey, CachedLyrics>,
+    order: VecDeque<LyricsCacheKey>,
+}
+
+impl LyricsLruCache {
+    fn touch(&mut self, key: &LyricsCacheKey) {
+        if let Some(pos) = self.order.iter().position(|k| k == key) {
+            self.order.remove(pos);
+        }
+        self.order.push_back(key.clone());
+    }
+
+    fn get(&mut self, key: &LyricsCacheKey, now: Instant) -> Option<Option<LyricsDto>> {
+        enum Lookup {
+            Hit(LyricsDto),
+            MissValid,
+            Expired,
+            Absent,
+        }
+
+        let state = match self.entries.get(key) {
+            Some(CachedLyrics::Hit(dto)) => Lookup::Hit(dto.clone()),
+            Some(CachedLyrics::NegativeMiss { cached_at }) => {
+                if now.saturating_duration_since(*cached_at) < LYRICS_NEGATIVE_TTL {
+                    Lookup::MissValid
+                } else {
+                    Lookup::Expired
+                }
+            }
+            None => Lookup::Absent,
+        };
+
+        match state {
+            Lookup::Hit(dto) => {
+                self.touch(key);
+                Some(Some(dto))
+            }
+            Lookup::MissValid => {
+                self.touch(key);
+                Some(None)
+            }
+            Lookup::Expired => {
+                self.entries.remove(key);
+                if let Some(pos) = self.order.iter().position(|k| k == key) {
+                    self.order.remove(pos);
+                }
+                None
+            }
+            Lookup::Absent => None,
+        }
+    }
+
+    fn insert(&mut self, key: LyricsCacheKey, val: CachedLyrics) {
+        if self.entries.contains_key(&key) {
+            self.entries.insert(key.clone(), val);
+            self.touch(&key);
+            return;
+        }
+        while self.entries.len() >= LYRICS_CACHE_CAPACITY {
+            if let Some(oldest) = self.order.pop_front() {
+                self.entries.remove(&oldest);
+            } else {
+                break;
+            }
+        }
+        self.order.push_back(key.clone());
+        self.entries.insert(key, val);
+    }
+}
+
+fn lyrics_cache() -> &'static Mutex<LyricsLruCache> {
+    static CACHE: OnceLock<Mutex<LyricsLruCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(LyricsLruCache::default()))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LyricLineDto {
@@ -141,11 +253,18 @@ pub async fn fetch_lyrics_online_or_local(
         }
     }
 
-    // 2. Fetch from the free and open LRCLIB API
+    // 2. Check the bounded online LRU cache before hitting LRCLIB
+    let cache_key = LyricsCacheKey::new(artist, title, album, duration_sec);
+    if let Ok(mut guard) = lyrics_cache().lock() {
+        if let Some(cached) = guard.get(&cache_key, Instant::now()) {
+            return cached;
+        }
+    }
+
+    // 3. Fetch from the free and open LRCLIB API
     // One client for the whole process (connection pool) instead of a new one per track.
-    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
-    let client =
-        CLIENT.get_or_init(|| crate::http::build_client(std::time::Duration::from_secs(4)));
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    let client = CLIENT.get_or_init(|| crate::http::build_client(Duration::from_secs(4)));
 
     let mut query = vec![
         ("track_name", title.to_string()),
@@ -166,7 +285,7 @@ pub async fn fetch_lyrics_online_or_local(
         }
     }
 
-    debug!("Zapytanie o teksty LRCLIB: {:?}", query);
+    debug!("Querying LRCLIB lyrics: {:?}", query);
 
     let res = client
         .get("https://lrclib.net/api/get")
@@ -174,41 +293,70 @@ pub async fn fetch_lyrics_online_or_local(
         .send()
         .await
         .ok()?;
-    if !res.status().is_success() {
+    let status = res.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        if let Ok(mut guard) = lyrics_cache().lock() {
+            guard.insert(
+                cache_key,
+                CachedLyrics::NegativeMiss {
+                    cached_at: Instant::now(),
+                },
+            );
+        }
+        return None;
+    }
+    if !status.is_success() {
         return None;
     }
 
     let lrclib: LrclibResponse = res.json().await.ok()?;
 
-    if lrclib.instrumental == Some(true) {
-        return Some(LyricsDto {
+    let fetched = if lrclib.instrumental == Some(true) {
+        Some(LyricsDto {
             is_synced: false,
             lines: Vec::new(),
             plain_lyrics: Some("♪ Instrumental (no lyrics) ♪".to_string()),
             source: "lrclib".to_string(),
-        });
-    }
-
-    if let Some(synced) = lrclib.synced_lyrics {
+        })
+    } else if let Some(synced) = lrclib.synced_lyrics {
         let parsed_lines = parse_lrc_content(&synced);
         if !parsed_lines.is_empty() {
-            return Some(LyricsDto {
+            Some(LyricsDto {
                 is_synced: true,
                 lines: parsed_lines,
                 plain_lyrics: lrclib.plain_lyrics,
                 source: "lrclib".to_string(),
-            });
+            })
+        } else {
+            lrclib.plain_lyrics.map(|plain| LyricsDto {
+                is_synced: false,
+                lines: Vec::new(),
+                plain_lyrics: Some(plain),
+                source: "lrclib".to_string(),
+            })
         }
-    }
-
-    if let Some(plain) = lrclib.plain_lyrics {
-        return Some(LyricsDto {
+    } else {
+        lrclib.plain_lyrics.map(|plain| LyricsDto {
             is_synced: false,
             lines: Vec::new(),
             plain_lyrics: Some(plain),
             source: "lrclib".to_string(),
-        });
+        })
+    };
+
+    if let Ok(mut guard) = lyrics_cache().lock() {
+        let entry = match &fetched {
+            Some(dto) => CachedLyrics::Hit(dto.clone()),
+            None => CachedLyrics::NegativeMiss {
+                cached_at: Instant::now(),
+            },
+        };
+        guard.insert(cache_key, entry);
     }
 
-    None
+    fetched
 }
+
+#[cfg(test)]
+#[path = "lyrics_test.rs"]
+mod tests;

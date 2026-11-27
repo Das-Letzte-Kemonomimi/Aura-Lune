@@ -401,6 +401,20 @@ pub fn install_identity(channel_env: Option<&str>, appimage: Option<&str>) -> In
     }
 }
 
+pub(crate) fn write_file_if_changed(path: &Path, expected: &[u8]) -> std::io::Result<bool> {
+    if let Ok(meta) = std::fs::metadata(path) {
+        if meta.len() == expected.len() as u64 {
+            if let Ok(existing) = std::fs::read(path) {
+                if existing == expected {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    std::fs::write(path, expected)?;
+    Ok(true)
+}
+
 pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), CommandError> {
     let clean_style = if style == "classic" {
         "classic"
@@ -409,15 +423,15 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
     };
 
     // App icons embedded in the binary, with no dependency on local developer paths
-    let icon_bytes: Vec<u8> = if clean_style == "classic" {
-        include_bytes!("../../icons/icon_classic.png").to_vec()
+    let icon_bytes: &[u8] = if clean_style == "classic" {
+        include_bytes!("../../icons/icon_classic.png")
     } else {
-        include_bytes!("../../icons/icon_lineout.png").to_vec()
+        include_bytes!("../../icons/icon_lineout.png")
     };
 
     // 1. Update the Tauri window icon on the fly
     if let Some(window) = app.get_webview_window("main") {
-        if let Ok(tauri_icon) = tauri::image::Image::from_bytes(&icon_bytes) {
+        if let Ok(tauri_icon) = tauri::image::Image::from_bytes(icon_bytes) {
             let _ = window.set_icon(tauri_icon);
         }
     }
@@ -431,15 +445,26 @@ pub fn update_system_icons(app: &tauri::AppHandle, style: &str) -> Result<(), Co
     if let Some(home) = std::env::var_os("HOME") {
         let base_icons = std::path::PathBuf::from(home.clone()).join(".local/share/icons/hicolor");
         let sizes = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
+        let mut icons_changed = false;
         for s in sizes {
             let dir = base_icons.join(format!("{}x{}/apps", s, s));
             let _ = std::fs::create_dir_all(&dir);
 
             // The icon comes only from resources embedded in the app (never from /tmp,
             // where any user could plant a file).
-            let _ = std::fs::write(dir.join(format!("{}.png", identity.app_id)), &icon_bytes);
-            if !identity.is_dev {
-                let _ = std::fs::write(dir.join("auralune-desktop.png"), &icon_bytes);
+            if matches!(
+                write_file_if_changed(&dir.join(format!("{}.png", identity.app_id)), icon_bytes),
+                Ok(true)
+            ) {
+                icons_changed = true;
+            }
+            if !identity.is_dev
+                && matches!(
+                    write_file_if_changed(&dir.join("auralune-desktop.png"), icon_bytes),
+                    Ok(true)
+                )
+            {
+                icons_changed = true;
             }
         }
 
@@ -465,16 +490,20 @@ StartupNotify=true
 StartupWMClass=auralune
 Keywords=audio;music;player;dsp;soundtouch;rubberband;mpris;pipewire;
 "#;
-            let _ = std::fs::write(apps_dir.join("auralune.desktop"), desktop_content);
-            let _ = std::fs::write(apps_dir.join("auralune-desktop.desktop"), desktop_content);
+            let desktop_bytes = desktop_content.as_bytes();
+            let _ = write_file_if_changed(&apps_dir.join("auralune.desktop"), desktop_bytes);
+            let _ =
+                write_file_if_changed(&apps_dir.join("auralune-desktop.desktop"), desktop_bytes);
         }
 
-        // 4. Refresh the icon cache
-        let _ = std::process::Command::new("gtk-update-icon-cache")
-            .arg("-f")
-            .arg("-t")
-            .arg(base_icons)
-            .output();
+        // 4. Refresh the icon cache only when at least one icon changed on disk.
+        if icons_changed {
+            let _ = std::process::Command::new("gtk-update-icon-cache")
+                .arg("-f")
+                .arg("-t")
+                .arg(base_icons)
+                .output();
+        }
     }
 
     Ok(())
@@ -507,3 +536,7 @@ pub async fn get_app_icon_style(state: State<'_, AppState>) -> Result<String, Co
         .unwrap_or_else(|| "lineout".to_string());
     Ok(style)
 }
+
+#[cfg(test)]
+#[path = "themes_test.rs"]
+mod tests;
