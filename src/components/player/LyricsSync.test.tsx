@@ -4,6 +4,7 @@ import { getTranslations } from '../../i18n';
 import { invokeMock } from '../../test/ipcMock';
 import { DesktopLyricsOverlay } from './DesktopLyricsOverlay';
 import { LyricsView, type LyricsDto } from './LyricsView';
+import { resetLyricsStoreForTests } from './lyricsStore';
 import { OVERLAY_POSITION_STORAGE_KEY, ROMAJI_MODE_STORAGE_KEY } from './lyricsModel';
 
 const LYRICS: LyricsDto = {
@@ -42,6 +43,7 @@ beforeEach(() => {
   // jsdom has no layout, so no scrollTo: the panels call it to follow the active line
   HTMLElement.prototype.scrollTo = vi.fn() as unknown as typeof HTMLElement.prototype.scrollTo;
   localStorage.clear();
+  resetLyricsStoreForTests();
   invokeMock.mockResolvedValue(LYRICS);
 });
 
@@ -92,6 +94,36 @@ describe('lyrics preferences shared between views', () => {
 
     expect(localStorage.getItem('auralune_lyrics_autoscroll')).toBe('false');
     expect(await within(second.container).findByTitle(t.autoScrollOff)).toBeTruthy();
+  });
+
+  it('shares auto-distributed timestamps between player and BigScreen and allows reverting', async () => {
+    const t = getTranslations('en').lyricsView;
+    const plainLyrics: LyricsDto = {
+      is_synced: false,
+      lines: [],
+      plain_lyrics: 'Line one\nLine two\nLine three',
+      source: 'lrclib',
+    };
+    invokeMock.mockResolvedValueOnce(plainLyrics);
+
+    const playerPanel = renderPanel();
+    // Plain LRCLIB lyrics show the plain badge, not "LRCLIB Synced"
+    expect(await within(playerPanel.container).findByText(t.lrcLibPlainBadge)).toBeTruthy();
+
+    // Auto-distribute in Now Playing
+    const autoButtons = within(playerPanel.container).getAllByText(t.autoDistribute);
+    fireEvent.click(autoButtons[0]);
+    expect(within(playerPanel.container).getByText(t.autoSyncBadge)).toBeTruthy();
+
+    // Opening BigScreen for the same track sees the auto-distributed lyrics immediately
+    const bigScreenPanel = renderPanel();
+    expect(await within(bigScreenPanel.container).findByText(t.autoSyncBadge)).toBeTruthy();
+    expect(within(bigScreenPanel.container).getByText('Line one')).toBeTruthy();
+
+    // Reverting in BigScreen restores plain lyrics in both views
+    fireEvent.click(within(bigScreenPanel.container).getByText(t.undoAutoDistribute));
+    expect(within(bigScreenPanel.container).getByText(t.lrcLibPlainBadge)).toBeTruthy();
+    expect(within(playerPanel.container).getByText(t.lrcLibPlainBadge)).toBeTruthy();
   });
 });
 

@@ -261,12 +261,15 @@ impl DspNodeState {
         }
     }
 
-    /// On an engine change reset both processors and clear the FIFO so samples from the old
-    /// engine don't mix with the new one. `current_pts` is kept, so timestamps don't jump.
+    /// On an engine change reset both processors, clear the FIFO so samples from the old
+    /// engine don't mix with the new one, and drop any stale PTS anchor (e.g. from Bypass
+    /// passthrough) so `take_block` re-anchors to the next incoming buffer's PTS.
     fn on_engine_changed(&mut self, old_engine: DspEngine, engine: DspEngine) {
         let _ = self.processors.rubberband.reset();
         let _ = self.processors.soundtouch.reset();
         self.fifo.clear();
+        self.current_pts = None;
+        self.current_offset = 0;
         debug!(
             "AuraluneDsp: engine changed {:?} -> {:?}, resetting buffers",
             old_engine, engine
@@ -449,6 +452,7 @@ impl AuraluneDspImpl {
                 let mut state = shared.state.lock_safe();
                 state.fifo.clear();
                 state.current_pts = None;
+                state.current_offset = 0;
             }
             return shared.srcpad.push(buffer);
         }

@@ -15,6 +15,7 @@ import {
   Check,
   Wand2,
   Languages,
+  RotateCcw,
 } from '../ui/icons';
 import type { Language } from '../../i18n';
 import { getTranslations } from '../../i18n';
@@ -32,18 +33,20 @@ import { useStableCallback } from '../../hooks/useStableCallback';
 import { LyricLineRow } from './LyricLineRow';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { Badge, Button, Chip, IconButton, Spinner } from '../ui';
+import {
+  autoDistributeTrackLyrics,
+  buildLyricsTrackKey,
+  clearTrackPreviousLyrics,
+  loadTrackLyrics,
+  revertAutoDistributeTrackLyrics,
+  setTrackLyrics,
+  setTrackOffsetMs,
+  useTrackLyrics,
+  type LyricLineDto,
+  type LyricsDto,
+} from './lyricsStore';
 
-export interface LyricLineDto {
-  time_ms: number;
-  text: string;
-}
-
-export interface LyricsDto {
-  is_synced: boolean;
-  lines: LyricLineDto[];
-  plain_lyrics: string | null;
-  source: string; // "local_lrc" | "lrclib"
-}
+export type { LyricLineDto, LyricsDto };
 
 interface LyricsViewProps {
   trackTitle: string;
@@ -71,9 +74,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   // Live position/spectrum (livePlayback): this lyrics view renders, not PlayerView.
   const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = getTranslations(currentLang);
-  const [lyrics, setLyrics] = useState<LyricsDto | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const trackKey = useMemo(
+    () => buildLyricsTrackKey({ trackPath, trackTitle, trackArtist, trackAlbum }),
+    [trackPath, trackTitle, trackArtist, trackAlbum],
+  );
+  const { lyrics, previousLyrics, offsetMs, loading, error } = useTrackLyrics(trackKey);
   // Both are shared with every other lyrics view on screen (player, BigScreen, desktop overlay).
   const [romajiMode, setRomajiMode] = usePersistedState<RomajiMode>(ROMAJI_MODE_STORAGE_KEY, DEFAULT_ROMAJI_MODE, {
     parse: parseRomajiMode,
@@ -81,59 +86,52 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   const [autoScroll, setAutoScroll] = usePersistedState('auralune_lyrics_autoscroll', true, { parse: parseBoolean });
 
   const handleToggleAutoScroll = () => setAutoScroll(!autoScroll);
-  const [offsetMs, setOffsetMs] = useState<number>(0);
   const [isSyncMode, setIsSyncMode] = useState<boolean>(false);
   const [syncTargetIndex, setSyncTargetIndex] = useState<number>(0);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
 
-  // Fetch the song lyrics
-  const loadLyrics = useCallback(async () => {
-    if (!trackTitle && !trackPath) {
-      setLyrics(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSaveSuccessMsg(null);
-    setOffsetMs(0);
-
-    try {
-      const data = await invoke<LyricsDto | null>('get_lyrics', {
+  const fetchLyrics = useCallback(
+    () =>
+      invoke<LyricsDto | null>('get_lyrics', {
         trackPath: trackPath || null,
         title: trackTitle || 'Unknown',
         artist: trackArtist || 'Unknown',
         album: trackAlbum || null,
         durationSec: durationSec || null,
-      });
+      }),
+    [trackTitle, trackArtist, trackAlbum, trackPath, durationSec],
+  );
 
-      setLyrics(data);
-      if (data && data.lines.length > 0) {
-        setSyncTargetIndex(0);
+  // Fetch the song lyrics (skips network/disk if already cached in the shared store for this track)
+  const loadLyrics = useCallback(
+    async (force = false) => {
+      if (!trackKey) return;
+      if (force) {
+        setSaveSuccessMsg(null);
       }
-    } catch (err) {
-      console.error('Failed to fetch the lyrics:', err);
-      setError(String(err));
-      setLyrics(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [trackTitle, trackArtist, trackAlbum, trackPath, durationSec]);
+      await loadTrackLyrics(trackKey, fetchLyrics, force);
+    },
+    [trackKey, fetchLyrics],
+  );
 
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (active) {
-        void loadLyrics();
+        void loadLyrics(false);
       }
     });
     return () => {
       active = false;
     };
   }, [loadLyrics]);
+
+  useEffect(() => {
+    setSyncTargetIndex(0);
+    setSaveSuccessMsg(null);
+  }, [trackKey]);
 
   // Effective lines with the offset applied (offsetMs)
   const effectiveLines = useMemo(() => {
@@ -180,11 +178,15 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     if (!lyrics) return;
     const newLines = [...lyrics.lines];
     newLines[index] = { ...newLines[index], time_ms: Math.max(0, timeMs - offsetMs) };
-    setLyrics({
-      ...lyrics,
-      lines: newLines,
-      is_synced: true,
-    });
+    setTrackLyrics(trackKey, (prev) =>
+      prev
+        ? {
+            ...prev,
+            lines: newLines,
+            is_synced: true,
+          }
+        : prev,
+    );
     setSyncTargetIndex(Math.min(newLines.length - 1, index + 1));
   };
 
@@ -209,36 +211,15 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
   // Automatic line layout (Auto-Sync) along the track duration
   const handleAutoDistribute = () => {
-    if (!lyrics) return;
-    const linesToProcess = lyrics.lines.length > 0
-      ? lyrics.lines
-      : (lyrics.plain_lyrics || '')
-          .split('\n')
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0)
-          .map((text) => ({ time_ms: 0, text }));
-
-    if (linesToProcess.length === 0) return;
-
-    const totalDurMs = durationSec && durationSec > 10 ? durationSec * 1000 : 180000;
-    const startDelayMs = 6000; // 6s intro
-    const availableMs = Math.max(10000, totalDurMs - startDelayMs - 12000); // 12s outro
-    const stepMs = availableMs / linesToProcess.length;
-
-    const distributed = linesToProcess.map((line, idx) => ({
-      time_ms: Math.round(startDelayMs + idx * stepMs),
-      text: line.text,
-    }));
-
-    setLyrics({
-      is_synced: true,
-      lines: distributed,
-      plain_lyrics: lyrics.plain_lyrics,
-      source: 'auto_distributed',
-    });
-    setOffsetMs(0);
+    if (!autoDistributeTrackLyrics(trackKey, durationSec)) return;
     setSaveSuccessMsg(loc.lyricsView.autoDistributedSuccess);
     setTimeout(() => setSaveSuccessMsg(null), 4000);
+  };
+
+  // Revert back to the lyrics state before Auto-Distribute was clicked
+  const handleRevertAutoDistribute = () => {
+    if (!revertAutoDistributeTrackLyrics(trackKey)) return;
+    setSaveSuccessMsg(null);
   };
 
   // Format as standard LRC
@@ -269,12 +250,17 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         lrcContent: fullLrc,
       });
 
-      setLyrics({
-        ...lyrics,
-        lines: lyrics.lines.map((l) => ({ ...l, time_ms: Math.max(0, l.time_ms + offsetMs) })),
-        source: 'local_lrc',
-      });
-      setOffsetMs(0);
+      setTrackLyrics(trackKey, (prev) =>
+        prev
+          ? {
+              ...prev,
+              lines: prev.lines.map((l) => ({ ...l, time_ms: Math.max(0, l.time_ms + offsetMs) })),
+              source: 'local_lrc',
+            }
+          : prev,
+      );
+      clearTrackPreviousLyrics(trackKey);
+      setTrackOffsetMs(trackKey, 0);
       setSaveSuccessMsg(`${loc.lyricsView.lrcSavedSuccess}: ${savedPath}`);
       setTimeout(() => setSaveSuccessMsg(null), 5000);
     } catch (err: unknown) {
@@ -312,7 +298,9 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 ? loc.lyricsView.localLrcBadge
                 : lyrics.source === 'auto_distributed'
                 ? loc.lyricsView.autoSyncBadge
-                : loc.lyricsView.lrcLibBadge}
+                : lyrics.is_synced
+                ? loc.lyricsView.lrcLibBadge
+                : loc.lyricsView.lrcLibPlainBadge}
             </Badge>
           )}
 
@@ -351,7 +339,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
             {romajiMode === 'original' ? 'あ Kana' : romajiMode === 'romaji' ? 'A Romaji' : 'あ/A Dual'}
           </Chip>
 
-          <IconButton variant="secondary" size="sm" label={loc.lyricsView.refreshTooltip} onClick={loadLyrics}>
+          <IconButton variant="secondary" size="sm" label={loc.lyricsView.refreshTooltip} onClick={() => void loadLyrics(true)}>
             <RefreshCw size={14} className={cn(loading && 'motion-safe:animate-spin')} />
           </IconButton>
           <IconButton variant="secondary" size="sm" label={loc.lyricsView.closeTooltip} onClick={onClose}>
@@ -367,23 +355,23 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         {/* Offset correction */}
         <div className="flex items-center gap-1.5">
           <span className="font-semibold text-fg-muted">{loc.lyricsView.compensation}</span>
-          <Button size="sm" onClick={() => setOffsetMs((prev) => prev - 500)} className="font-mono">
+          <Button size="sm" onClick={() => setTrackOffsetMs(trackKey, (prev) => prev - 500)} className="font-mono">
             -500ms
           </Button>
-          <Button size="sm" onClick={() => setOffsetMs((prev) => prev - 100)} className="font-mono">
+          <Button size="sm" onClick={() => setTrackOffsetMs(trackKey, (prev) => prev - 100)} className="font-mono">
             -100ms
           </Button>
           <Badge mono tone={offsetMs !== 0 ? 'cyan' : 'neutral'}>
             {offsetMs > 0 ? `+${offsetMs}ms` : `${offsetMs}ms`}
           </Badge>
-          <Button size="sm" onClick={() => setOffsetMs((prev) => prev + 100)} className="font-mono">
+          <Button size="sm" onClick={() => setTrackOffsetMs(trackKey, (prev) => prev + 100)} className="font-mono">
             +100ms
           </Button>
-          <Button size="sm" onClick={() => setOffsetMs((prev) => prev + 500)} className="font-mono">
+          <Button size="sm" onClick={() => setTrackOffsetMs(trackKey, (prev) => prev + 500)} className="font-mono">
             +500ms
           </Button>
           {offsetMs !== 0 && (
-            <Button variant="tinted" tone="pink" size="sm" onClick={() => setOffsetMs(0)}>
+            <Button variant="tinted" tone="pink" size="sm" onClick={() => setTrackOffsetMs(trackKey, 0)}>
               {loc.lyricsView.resetOffset}
             </Button>
           )}
@@ -391,6 +379,11 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
 
         {/* Auto-Sync and save file actions */}
         <div className="flex items-center gap-2">
+          {previousLyrics && (
+            <Button variant="tinted" tone="pink" size="sm" onClick={handleRevertAutoDistribute}>
+              <RotateCcw size={13} /> {loc.lyricsView.undoAutoDistribute}
+            </Button>
+          )}
           <Button variant="tinted" tone="purple" size="sm" onClick={handleAutoDistribute}>
             <Wand2 size={13} /> {loc.lyricsView.autoDistribute}
           </Button>
@@ -448,7 +441,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <div className="flex h-full flex-col items-center justify-center gap-3 text-fg-muted">
             <AlertCircle size={32} className="text-accent-pink" />
             <span className="text-sm">{loc.lyricsView.errorPrefix}: {error}</span>
-            <Button onClick={loadLyrics} className="mt-2.5">
+            <Button onClick={() => void loadLyrics(true)} className="mt-2.5">
               {loc.lyricsView.retry}
             </Button>
           </div>

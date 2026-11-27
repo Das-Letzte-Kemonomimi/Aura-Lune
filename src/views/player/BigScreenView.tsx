@@ -163,12 +163,12 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       {/* Centre: cover and lyrics in a panoramic layout */}
       <div
         className={cn(
-          'my-[clamp(0.5rem,2vh,1.25rem)] grid min-h-0 items-center gap-[clamp(1.25rem,3vw,3.125rem)] flex-[1_0_auto]',
+          'my-[clamp(0.375rem,1.5vh,1.25rem)] grid min-h-0 flex-1 items-center gap-[clamp(1rem,2.5vw,3.125rem)]',
           showLyrics ? 'grid-cols-1 lg:grid-cols-[minmax(0,--spacing(96))_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
         )}
       >
         {/* Left column: large spinning vinyl record / cover */}
-        <div className="flex flex-col items-center gap-5 text-center">
+        <div className="flex min-h-0 max-h-full flex-col items-center justify-center gap-[clamp(0.5rem,1.5vh,1.25rem)] overflow-y-auto text-center">
           {/* Visual mode toggle: cover / vinyl / retro cassette */}
           <SegmentedControl
             label={t.player.displayModeLabel}
@@ -266,7 +266,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
         {showLyrics && (
           // The lyrics are absolutely positioned inside this cell so their content
           // height never stretches the grid row (the cell sizes from the cover column).
-          <div className="relative min-h-[min(23.75rem,50vh)] min-w-0 self-stretch">
+          <div className="relative h-full min-h-[min(14rem,32vh)] min-w-0 self-stretch">
             <div className="absolute inset-0 min-w-0 overflow-hidden">
             <LyricsView
               trackTitle={title}
