@@ -35,6 +35,44 @@ async fn test_track_waveform_storage() {
     let updated_result: Vec<f32> = serde_json::from_str(&updated_fetched).unwrap();
     assert_eq!(updated_result.len(), 2);
     assert_eq!(updated_result[0], 0.5);
+
+    // 5. Versioned spectral waveform profile with bands and file mtime invalidation
+    let bands_json = "[[0.8,0.4,0.1],[0.2,0.7,0.9]]";
+    db.save_track_waveform_profile(
+        track_id,
+        2,
+        "[0.4,0.95]",
+        bands_json,
+        "fft-v1",
+        1_700_000_123,
+    )
+    .await
+    .unwrap();
+
+    let hit = db
+        .get_track_waveform_profile(track_id, 2, "fft-v1", 1_700_000_123)
+        .await
+        .unwrap()
+        .expect("matching version, count and mtime should hit");
+    assert_eq!(hit.bands_json, bands_json);
+    assert_eq!(hit.analyzer_version, "fft-v1");
+
+    // Stale analyzer version, different sample count, or changed mtime must miss
+    assert!(db
+        .get_track_waveform_profile(track_id, 2, "fft-v2", 1_700_000_123)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(db
+        .get_track_waveform_profile(track_id, 160, "fft-v1", 1_700_000_123)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(db
+        .get_track_waveform_profile(track_id, 2, "fft-v1", 1_700_000_999)
+        .await
+        .unwrap()
+        .is_none());
 }
 
 #[tokio::test]

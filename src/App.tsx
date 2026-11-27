@@ -551,6 +551,8 @@ export default function App() {
     effectiveDisplayTitle,
     effectiveDisplayArtist,
     trackWaveformPeaks,
+    trackWaveformBands,
+    isWaveformLoading,
   } = useCurrentTrackInfo({
     tracks,
     albums,
@@ -982,6 +984,8 @@ export default function App() {
     dspBadgeTitle,
     dspCombination,
     trackWaveformPeaks,
+    trackWaveformBands,
+    isWaveformLoading,
     filteredQueueItems,
     totalQueueDurationMs,
     formatTotalDuration,
@@ -1249,6 +1253,9 @@ export default function App() {
           pitchSemitones={status.pitch_semitones}
           tempoRatio={status.tempo_ratio}
           spectrum={status.spectrum}
+          waveformPeaks={trackWaveformPeaks}
+          waveformBands={trackWaveformBands}
+          isWaveformLoading={isWaveformLoading}
           currentLang={language}
           onPlayPause={handlePlayPause}
           onPrev={handlePrevious}

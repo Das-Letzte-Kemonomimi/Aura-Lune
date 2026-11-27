@@ -20,10 +20,11 @@ pub use analysis::{
     detect_chords_with_grid, detect_notes_from_samples, detect_silence_bounds,
     export_chords_to_chordpro, export_chords_to_json, export_chords_to_text,
     export_transcription_to_json, export_transcription_to_midi, extract_beat_grid,
-    extract_chroma_frame, extract_track_waveform_peaks, generate_chord_templates,
-    midi_pitch_to_name, parse_chord_symbol, transpose_chord, viterbi_smooth_chords,
-    write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult, TrackKeyBpm,
-    WaveformAccumulator, CHORD_ANALYZER_VERSION, TRANSCRIPTION_ANALYZER_VERSION,
+    extract_chroma_frame, extract_track_waveform_peaks, extract_track_waveform_spectrum,
+    generate_chord_templates, midi_pitch_to_name, parse_chord_symbol, transpose_chord,
+    viterbi_smooth_chords, write_replaygain_tags_to_file, ChordDef, ReplayGainAnalysisResult,
+    SpectralWaveformAccumulator, TrackKeyBpm, WaveformAccumulator, CHORD_ANALYZER_VERSION,
+    TRANSCRIPTION_ANALYZER_VERSION, WAVEFORM_ANALYZER_VERSION,
 };
 pub use device::DeviceManager;
 pub use error::{AnalysisError, AudioEngineError, TagError};

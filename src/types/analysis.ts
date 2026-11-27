@@ -201,4 +201,15 @@ export interface StemProjectProgressPayload {
   status: StemProjectStatus;
 }
 
+/** Per-bucket FFT spectral band energies `[low, mid, high]` normalised to `0..1`. */
+export type SpectralBandTriple = [number, number, number];
+
+export interface TrackWaveformData {
+  track_id: number | null;
+  sample_count: number;
+  peaks: number[];
+  bands: SpectralBandTriple[];
+  analyzer_version: string;
+}
+
 

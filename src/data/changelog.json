@@ -297,6 +297,13 @@
         "de": "Die Option zum automatischen Hinzufügen gerenderter Titel zur Warteschlange unter Export & Opus merkt sich ihren Zustand nun über Neustarts hinweg.",
         "fi": "Vie ja Opus -näkymän valinta renderöidyn kappaleen automaattisesta lisäämisestä jonoon muistaa nyt tilansa sovelluksen uudelleenkäynnistyksen jälkeen.",
         "la": "Optio ad cantum redditum sponte in seriem addendum sub Exportatione et Opus nunc statum suum post renovationem applicationis retinet."
+      },
+      {
+        "en": "Seekbar waveform and spectrum are now computed from each track's real audio frequencies (bass, mids, and treble) via FFT analysis and cached locally, replacing the random placeholder wave.",
+        "pl": "Przebieg utworu i spektrum na pasku przewijania są teraz generowane na podstawie prawdziwej analizy częstotliwości utworu (bas, średnica i góra) przez FFT i zapisywane w pamięci podręcznej zamiast losowej fali.",
+        "de": "Die Wellenform und das Spektrum der Suchleiste werden jetzt per FFT-Analyse direkt aus den echten Audiofrequenzen jedes Titels (Bässe, Mitten und Höhen) berechnet und lokal zwischengespeichert, statt einer zufälligen Platzhalterwelle.",
+        "fi": "Kelauspalkin aaltomuoto ja spektri lasketaan nyt kunkin kappaleen oikeista äänitaajuuksista (basso, keskialue ja diskantti) FFT-analyysillä ja tallennetaan välimuistiin satunnaisen malliaallon sijaan.",
+        "la": "Unda et spectrum lineae temporis nunc ex veris frequentiis soni cuiusque carminis (graves, mediae et acutae) per analysim FFT computantur et localiter servantur loco undae fortuitae."
       }
     ]
   },

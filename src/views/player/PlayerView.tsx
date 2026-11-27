@@ -4,6 +4,7 @@ import { LyricsView } from '../../components/player/LyricsView';
 import type { TapeType } from '../../components/player/TapeDeckWidget';
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
 import type { AlbumRecord, DspEngineType, TrackRecord, PlaybackStatus } from '../../types/player';
+import type { SpectralBandTriple } from '../../types/analysis';
 import { type QueueItem, type PlaybackQueue, type QueueColumnConfig } from '../../types/queue';
 import type { TrackBookmarkDto } from '../../types/player';
 import type { DspCombinationInfo } from '../dsp/DspStudioView';
@@ -71,6 +72,8 @@ export interface PlayerViewProps {
   dspCombination: DspCombinationInfo;
   lastActiveDspEngineRef: React.MutableRefObject<'RubberBand' | 'SoundTouch'>;
   trackWaveformPeaks: number[] | null;
+  trackWaveformBands?: SpectralBandTriple[] | null;
+  isWaveformLoading?: boolean;
   loopPointA: number | null;
   setLoopPointA: (v: number | null) => void;
   loopPointB: number | null;

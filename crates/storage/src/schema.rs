@@ -215,6 +215,9 @@ impl Database {
                 track_id INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
                 sample_count INTEGER NOT NULL,
                 peaks_json TEXT NOT NULL,
+                bands_json TEXT NOT NULL DEFAULT '[]',
+                analyzer_version TEXT NOT NULL DEFAULT '',
+                file_modified_time INTEGER NOT NULL DEFAULT 0,
                 created_at INTEGER NOT NULL
             );
 
@@ -275,6 +278,9 @@ impl Database {
         }
         if user_version < 6 {
             self.migrate_v6().await?;
+        }
+        if user_version < 7 {
+            self.migrate_v7().await?;
         }
 
         // Seed the default anime themes (make sure every theme exists)
@@ -501,6 +507,34 @@ impl Database {
         )
         .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Migration v7: adds spectral band data, analyzer version, and file mtime to `track_waveforms`.
+    async fn migrate_v7(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        let existing: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM pragma_table_info('track_waveforms');")
+                .fetch_all(&mut *tx)
+                .await?;
+        let new_columns = [
+            ("bands_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ("analyzer_version", "TEXT NOT NULL DEFAULT ''"),
+            ("file_modified_time", "INTEGER NOT NULL DEFAULT 0"),
+        ];
+        for (column, ddl) in new_columns {
+            if !existing.iter().any(|c| c == column) {
+                sqlx::query(&format!(
+                    "ALTER TABLE track_waveforms ADD COLUMN {column} {ddl};"
+                ))
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        sqlx::query("PRAGMA user_version = 7;")
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(())
     }

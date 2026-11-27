@@ -10,6 +10,7 @@ import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
 import { Badge, Button, IconButton, SegmentedControl } from '../../../components/ui';
+import type { SpectralBandTriple } from '../../../types/analysis';
 
 /** Round transport button (previous, next). */
 const transportClass = 'size-11.5 rounded-full border-transparent bg-white/8 text-fg';
@@ -20,6 +21,8 @@ export type BigScreenControlsProps = Pick<BigScreenViewProps, 'volume' | 'isPlay
   bottomVisualMode: "spectrum" | "vumeter";
   spectrum: number[];
   waveformPeaks: number[];
+  waveformBands?: SpectralBandTriple[];
+  isWaveformLoading?: boolean;
   progress: number;
   positionMs: number;
   t: Translations;
@@ -49,7 +52,9 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
   tempoRatio,
   volume,
   volumeUnit,
+  waveformBands,
   waveformPeaks,
+  isWaveformLoading,
 }) => (
     <div
       className={cn(
@@ -94,6 +99,8 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         {/* Waveform bars */}
         <WaveformCanvas
           peaks={waveformPeaks}
+          spectralBands={waveformBands}
+          isLoading={isWaveformLoading}
           progress={progress}
           durationMs={durationMs || 0}
           positionMs={positionMs || 0}

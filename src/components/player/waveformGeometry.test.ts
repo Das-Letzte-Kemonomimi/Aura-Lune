@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
+import {
+  computeBarLayout,
+  resampleBands,
+  resamplePeaks,
+  sanitizeBands,
+  sanitizePeaks,
+  spectralColor,
+} from './waveformGeometry';
 
 describe('sanitizePeaks', () => {
   it('replaces empty data with a flat fallback wave', () => {
@@ -45,5 +52,38 @@ describe('computeBarLayout', () => {
     const tiny = computeBarLayout(1, 160, 3, 2);
     expect(tiny.count).toBe(1);
     expect(tiny.barWidth).toBe(1);
+  });
+});
+
+describe('spectral band helpers', () => {
+  it('sanitizes band triples to 0..1 and returns empty for missing data', () => {
+    expect(sanitizeBands(null)).toEqual([]);
+    expect(sanitizeBands([])).toEqual([]);
+    expect(sanitizeBands([[-0.2, 0.5, 1.4], [NaN, Infinity, 0.25]])).toEqual([
+      [0, 0.5, 1],
+      [0, 0, 0.25],
+    ]);
+  });
+
+  it('resamples spectral bands while preserving dominant frequencies', () => {
+    const resampled = resampleBands(
+      [
+        [1.0, 0.0, 0.0],
+        [0.6, 0.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 0.8],
+      ],
+      2,
+    );
+    expect(resampled).toHaveLength(2);
+    expect(resampled[0][0]).toBeGreaterThan(resampled[0][2]);
+    expect(resampled[1][2]).toBeGreaterThan(resampled[1][0]);
+  });
+
+  it('maps bass, mid, and treble bands to distinct Aura-Lune spectral colors', () => {
+    expect(spectralColor([1, 0, 0])).toBe('rgb(244, 63, 94)');
+    expect(spectralColor([0, 1, 0])).toBe('rgb(168, 85, 247)');
+    expect(spectralColor([0, 0, 1])).toBe('rgb(6, 182, 212)');
+    expect(spectralColor([0, 0, 1], 0.5)).toBe('rgba(6, 182, 212, 0.5)');
   });
 });

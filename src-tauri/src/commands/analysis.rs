@@ -5,12 +5,16 @@ use crate::AppState;
 use audio_engine::{
     analyze_track_chords_and_grid, analyze_track_transcription, export_chords_to_chordpro,
     export_chords_to_json, export_chords_to_text, export_transcription_to_midi,
-    get_analysis_capabilities as engine_get_analysis_capabilities, parse_chord_symbol, TrackKeyBpm,
-    CHORD_ANALYZER_VERSION, TRANSCRIPTION_ANALYZER_VERSION,
+    extract_track_waveform_spectrum, get_analysis_capabilities as engine_get_analysis_capabilities,
+    parse_chord_symbol, TrackKeyBpm, CHORD_ANALYZER_VERSION, TRANSCRIPTION_ANALYZER_VERSION,
+    WAVEFORM_ANALYZER_VERSION,
 };
 use domain::analysis::{
-    AnalysisCapabilities, ChordSegment, TrackChordsData, TrackTranscriptionData,
+    AnalysisCapabilities, ChordSegment, TrackChordsData, TrackTranscriptionData, TrackWaveformData,
 };
+use std::collections::VecDeque;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use storage::{CachedTrackChords, CachedTrackTranscription, NewTrackChords};
 use tauri::State;
 
@@ -354,4 +358,141 @@ pub async fn export_transcription_midi(
         .await
         .map_err(|e| CommandError::from(e).context("Failed to write the MIDI file"))?;
     Ok(resolved.to_string_lossy().into_owned())
+}
+
+const DEFAULT_WAVEFORM_BUCKETS: usize = 160;
+const MIN_WAVEFORM_BUCKETS: usize = 32;
+const MAX_WAVEFORM_BUCKETS: usize = 512;
+const WAVEFORM_MEMORY_CACHE_CAP: usize = 32;
+
+#[derive(Clone)]
+struct MemoryWaveformEntry {
+    path: PathBuf,
+    mtime: i64,
+    sample_count: usize,
+    data: TrackWaveformData,
+}
+
+fn waveform_memory_cache() -> &'static Mutex<VecDeque<MemoryWaveformEntry>> {
+    static CACHE: OnceLock<Mutex<VecDeque<MemoryWaveformEntry>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(VecDeque::with_capacity(WAVEFORM_MEMORY_CACHE_CAP)))
+}
+
+fn read_memory_waveform(path: &Path, mtime: i64, sample_count: usize) -> Option<TrackWaveformData> {
+    let guard = waveform_memory_cache().lock().ok()?;
+    guard
+        .iter()
+        .find(|e| e.path == path && e.mtime == mtime && e.sample_count == sample_count)
+        .map(|e| e.data.clone())
+}
+
+fn write_memory_waveform(path: PathBuf, mtime: i64, sample_count: usize, data: TrackWaveformData) {
+    let Ok(mut guard) = waveform_memory_cache().lock() else {
+        return;
+    };
+    guard.retain(|e| !(e.path == path && e.sample_count == sample_count));
+    if guard.len() >= WAVEFORM_MEMORY_CACHE_CAP {
+        guard.pop_front();
+    }
+    guard.push_back(MemoryWaveformEntry {
+        path,
+        mtime,
+        sample_count,
+        data,
+    });
+}
+
+/// Computes (or returns from cache) the real FFT spectral waveform profile for an audio track.
+#[tauri::command]
+pub async fn get_track_waveform(
+    path: String,
+    track_id: Option<i64>,
+    sample_count: Option<usize>,
+    force_recompute: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<TrackWaveformData, CommandError> {
+    let resolved = super::paths::ensure_readable(Path::new(&path), super::paths::AUDIO_EXTENSIONS)?;
+    let resolved_str = resolved.to_string_lossy().into_owned();
+    let count = sample_count
+        .unwrap_or(DEFAULT_WAVEFORM_BUCKETS)
+        .clamp(MIN_WAVEFORM_BUCKETS, MAX_WAVEFORM_BUCKETS);
+    let recompute = force_recompute.unwrap_or(false);
+
+    let mtime = tokio::fs::metadata(&resolved)
+        .await
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    let effective_track_id = match track_id {
+        Some(id) => Some(id),
+        None => state
+            .db
+            .find_track_by_path_or_uri(&resolved_str)
+            .await
+            .ok()
+            .flatten()
+            .map(|t| t.id),
+    };
+
+    if !recompute {
+        if let Some(id) = effective_track_id {
+            if let Ok(Some(cached)) = state
+                .db
+                .get_track_waveform_profile(id, count as i64, WAVEFORM_ANALYZER_VERSION, mtime)
+                .await
+            {
+                if let (Ok(peaks), Ok(bands)) = (
+                    serde_json::from_str::<Vec<f32>>(&cached.peaks_json),
+                    serde_json::from_str::<Vec<[f32; 3]>>(&cached.bands_json),
+                ) {
+                    if peaks.len() == count && bands.len() == count {
+                        return Ok(TrackWaveformData {
+                            track_id: Some(id),
+                            sample_count: count,
+                            peaks,
+                            bands,
+                            analyzer_version: cached.analyzer_version,
+                        });
+                    }
+                }
+            }
+        }
+        if let Some(mut mem) = read_memory_waveform(&resolved, mtime, count) {
+            mem.track_id = effective_track_id;
+            return Ok(mem);
+        }
+    }
+
+    let path_for_decode = resolved_str.clone();
+    let data = tokio::task::spawn_blocking(move || {
+        extract_track_waveform_spectrum(&path_for_decode, count, effective_track_id)
+    })
+    .await
+    .map_err(|e| CommandError::from(e).context("Waveform analysis thread error"))?
+    .map_err(|e| CommandError::from(e).context("Waveform analysis error"))?;
+
+    if let Some(id) = effective_track_id {
+        if let (Ok(peaks_json), Ok(bands_json)) = (
+            serde_json::to_string(&data.peaks),
+            serde_json::to_string(&data.bands),
+        ) {
+            let _ = state
+                .db
+                .save_track_waveform_profile(
+                    id,
+                    count as i64,
+                    &peaks_json,
+                    &bands_json,
+                    &data.analyzer_version,
+                    mtime,
+                )
+                .await;
+        }
+    }
+    write_memory_waveform(resolved, mtime, count, data.clone());
+
+    Ok(data)
 }

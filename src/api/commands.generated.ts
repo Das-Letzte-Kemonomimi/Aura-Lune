@@ -78,6 +78,7 @@ export const COMMAND_NAMES = [
   'get_track_cover',
   'get_track_metadata',
   'get_track_stems',
+  'get_track_waveform',
   'identify_track_fingerprint',
   'import_audio_from_url',
   'import_playlist_m3u8',

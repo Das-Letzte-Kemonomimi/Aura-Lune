@@ -57,6 +57,8 @@ describe('useMainRouterProps', () => {
       dspCombination: {},
       lastActiveDspEngineRef: { current: 'RubberBand' },
       trackWaveformPeaks: null,
+      trackWaveformBands: null,
+      isWaveformLoading: false,
       loopPointA: null,
       setLoopPointA: vi.fn(),
       loopPointB: null,

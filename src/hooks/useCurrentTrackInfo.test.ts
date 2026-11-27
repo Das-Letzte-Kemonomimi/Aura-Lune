@@ -214,24 +214,133 @@ describe('useCurrentTrackInfo', () => {
     expect(result.current.effectiveDisplayArtist).toBe('Anime FM');
   });
 
-  it('generates consistent track waveform peaks of length 160 within [16, 100]', () => {
-    const { result } = renderHook(() =>
-      useCurrentTrackInfo({
-        tracks: [mockTrack1],
-        albums: [mockAlbum1],
-        status: baseStatus,
-        filePath: '',
-        activeTrackId: 1,
-        trackDirectCover: null,
-        setTrackDirectCover: vi.fn(),
-        loc,
-      })
+  it('loads real FFT waveform peaks and spectral bands via get_track_waveform and skips radio streams', async () => {
+    invokeMock.mockImplementation(async (cmd) => {
+      if (cmd === 'get_track_waveform') {
+        return {
+          track_id: 1,
+          sample_count: 4,
+          peaks: [0.1, 0.55, 0.9, 0.25],
+          bands: [
+            [0.8, 0.2, 0.1],
+            [0.3, 0.9, 0.4],
+            [0.95, 0.5, 0.2],
+            [0.1, 0.3, 0.85],
+          ],
+          analyzer_version: 'fft-v1',
+        };
+      }
+      return null;
+    });
+
+    const { result, rerender } = renderHook(
+      ({ radio }) =>
+        useCurrentTrackInfo({
+          tracks: [mockTrack1],
+          albums: [mockAlbum1],
+          status: baseStatus,
+          filePath: radio ? 'http://stream.radio.fm/live' : '',
+          activeTrackId: 1,
+          trackDirectCover: null,
+          setTrackDirectCover: vi.fn(),
+          currentRadioStation: radio ? { name: 'Radio', url: 'http://stream.radio.fm/live', genre: 'J-Pop' } : null,
+          loc,
+        }),
+      { initialProps: { radio: false } }
     );
 
-    expect(result.current.trackWaveformPeaks).toHaveLength(160);
-    result.current.trackWaveformPeaks.forEach((val) => {
-      expect(val).toBeGreaterThanOrEqual(16);
-      expect(val).toBeLessThanOrEqual(100);
+    await waitFor(() => {
+      expect(result.current.trackWaveformPeaks).toEqual([10, 55, 90, 25]);
+    });
+    expect(result.current.trackWaveformBands).toEqual([
+      [0.8, 0.2, 0.1],
+      [0.3, 0.9, 0.4],
+      [0.95, 0.5, 0.2],
+      [0.1, 0.3, 0.85],
+    ]);
+    expect(result.current.isWaveformLoading).toBe(false);
+    expect(invokeMock).toHaveBeenCalledWith('get_track_waveform', {
+      path: mockTrack1.path,
+      trackId: 1,
+      sampleCount: 160,
+    });
+
+    invokeMock.mockClear();
+    rerender({ radio: true });
+    await waitFor(() => {
+      expect(result.current.trackWaveformPeaks).toEqual([]);
+    });
+    expect(result.current.trackWaveformBands).toEqual([]);
+    expect(invokeMock).not.toHaveBeenCalledWith('get_track_waveform', expect.anything());
+  });
+
+  it('ignores stale get_track_waveform responses when switching tracks rapidly', async () => {
+    const deferred: { resolve: ((val: unknown) => void) | null } = { resolve: null };
+    invokeMock.mockImplementation((cmd, args) => {
+      if (cmd !== 'get_track_waveform') return Promise.resolve(null);
+      const { path } = args as { path: string };
+      if (path === mockTrack1.path) {
+        return new Promise((res) => {
+          deferred.resolve = res;
+        });
+      }
+      return Promise.resolve({
+        track_id: 2,
+        sample_count: 2,
+        peaks: [0.4, 0.8],
+        bands: [
+          [0.2, 0.6, 0.1],
+          [0.1, 0.2, 0.9],
+        ],
+        analyzer_version: 'fft-v1',
+      });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ track }) =>
+        useCurrentTrackInfo({
+          tracks: [mockTrack1, mockTrack2],
+          albums: [mockAlbum1],
+          status: {
+            ...baseStatus,
+            current_track: {
+              id: `item-${track.id}`,
+              track_id: track.id,
+              uri: track.path,
+              title: track.title,
+              artist: track.artist,
+              album: null,
+              duration_ms: track.duration_ms,
+            },
+          },
+          filePath: track.path,
+          activeTrackId: track.id,
+          trackDirectCover: null,
+          setTrackDirectCover: vi.fn(),
+          loc,
+        }),
+      { initialProps: { track: mockTrack1 } }
+    );
+
+    rerender({ track: mockTrack2 });
+    await waitFor(() => {
+      expect(result.current.trackWaveformPeaks).toEqual([40, 80]);
+    });
+
+    // Now resolve the slow response for track 1 — it must NOT overwrite track 2's spectrum
+    deferred.resolve?.({
+      track_id: 1,
+      sample_count: 2,
+      peaks: [0.9, 0.9],
+      bands: [
+        [1, 0, 0],
+        [1, 0, 0],
+      ],
+      analyzer_version: 'fft-v1',
+    });
+
+    await waitFor(() => {
+      expect(result.current.trackWaveformPeaks).toEqual([40, 80]);
     });
   });
 

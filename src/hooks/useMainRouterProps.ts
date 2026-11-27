@@ -137,6 +137,8 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     dspCombination: p.dspCombination,
     lastActiveDspEngineRef: p.lastActiveDspEngineRef,
     trackWaveformPeaks: p.trackWaveformPeaks,
+    trackWaveformBands: p.trackWaveformBands,
+    isWaveformLoading: p.isWaveformLoading,
     loopPointA: p.loopPointA,
     setLoopPointA: p.setLoopPointA,
     loopPointB: p.loopPointB,

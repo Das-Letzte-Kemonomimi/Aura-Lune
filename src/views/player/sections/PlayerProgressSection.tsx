@@ -7,7 +7,7 @@ import { fmt } from '../../../utils/fmt';
 import { cssVars } from '../../../utils/cssVars';
 import { Badge, Button, Chip } from '../../../components/ui';
 
-export type PlayerProgressSectionProps = Pick<PlayerViewProps, 'formatTime' | 'dspCombination' | 'loopPointA' | 'loopPointB' | 'setIsLoopEditorOpen' | 'loc' | 'formatTimeMs' | 'setLoopPointA' | 'setLoopPointB' | 'showMessage' | 'handleToggleSeekFade' | 'seekFadeEnabled' | 'trackWaveformPeaks' | 'language' | 'handleSeek' | 'handleSeekPreview' | 'handleSeekCommit' | 'currentBookmark' | 'currentTrackBookmarks'> & {
+export type PlayerProgressSectionProps = Pick<PlayerViewProps, 'formatTime' | 'dspCombination' | 'loopPointA' | 'loopPointB' | 'setIsLoopEditorOpen' | 'loc' | 'formatTimeMs' | 'setLoopPointA' | 'setLoopPointB' | 'showMessage' | 'handleToggleSeekFade' | 'seekFadeEnabled' | 'trackWaveformPeaks' | 'trackWaveformBands' | 'isWaveformLoading' | 'language' | 'handleSeek' | 'handleSeekPreview' | 'handleSeekCommit' | 'currentBookmark' | 'currentTrackBookmarks'> & {
   status: PlaybackStatus;
   seekProgressPercent: number;
 };
@@ -22,6 +22,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
   handleSeekCommit,
   handleSeekPreview,
   handleToggleSeekFade,
+  isWaveformLoading,
   language,
   loc,
   loopPointA,
@@ -33,6 +34,7 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
   setLoopPointB,
   showMessage,
   status,
+  trackWaveformBands,
   trackWaveformPeaks,
 }) => (
     <div>
@@ -109,9 +111,11 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
         </div>
       </div>
 
-      {/* Track waveform: an interactive wave synced with DSP */}
+      {/* Track waveform: an interactive FFT spectral wave synced with DSP */}
       <WaveformCanvas
         peaks={trackWaveformPeaks || []}
+        spectralBands={trackWaveformBands || undefined}
+        isLoading={isWaveformLoading}
         progress={status.duration_ms && status.duration_ms > 0 ? (status.position_ms / status.duration_ms) * 100 : 0}
         durationMs={status.duration_ms || 0}
         positionMs={status.position_ms || 0}

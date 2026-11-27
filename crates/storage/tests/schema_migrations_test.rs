@@ -43,7 +43,7 @@ async fn test_fresh_database_reaches_latest_schema_version() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 6);
+    assert_eq!(version, 7);
 }
 
 /// A version 1 database (bookmarks without CASCADE, `album_artist` holding the album title)
@@ -92,7 +92,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 6);
+    assert_eq!(version, 7);
 
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
@@ -261,7 +261,7 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 6);
+    assert_eq!(version, 7);
 
     let indexes: Vec<String> =
         sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
@@ -387,7 +387,7 @@ async fn test_upgrade_from_broken_v4_repairs_added_at_and_prunes_empty_albums() 
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 6);
+    assert_eq!(version, 7);
 
     let added_at: i64 = sqlx::query_scalar("SELECT added_at FROM tracks WHERE path = ?1;")
         .bind("/music/keep.flac")
@@ -399,6 +399,57 @@ async fn test_upgrade_from_broken_v4_repairs_added_at_and_prunes_empty_albums() 
     let albums = db.list_albums().await.unwrap();
     assert_eq!(albums.len(), 1);
     assert_eq!(albums[0].title, "With Track");
+
+    drop(db);
+    remove_db(&path);
+}
+
+#[tokio::test]
+async fn test_upgrade_from_v6_migrates_track_waveforms_to_v7() {
+    let path = temp_db_path("v6_waveform_upgrade");
+    let track_id = {
+        let db = Database::open(&path).await.unwrap();
+        let tid = db
+            .upsert_track(&make_dummy_track("/music/v6_wave.flac", "Wave", "Artist"))
+            .await
+            .unwrap();
+        sqlx::query(
+            "DROP TABLE track_waveforms;
+             CREATE TABLE track_waveforms (
+                 track_id INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+                 sample_count INTEGER NOT NULL,
+                 peaks_json TEXT NOT NULL,
+                 created_at INTEGER NOT NULL
+             );
+             INSERT INTO track_waveforms (track_id, sample_count, peaks_json, created_at)
+             VALUES (?1, 3, '[0.2,0.5,0.9]', 1700000000);
+             PRAGMA user_version = 6;",
+        )
+        .bind(tid)
+        .execute(db.pool())
+        .await
+        .unwrap();
+        tid
+    };
+
+    let db = Database::open(&path).await.unwrap();
+    let version: i32 = sqlx::query_scalar("PRAGMA user_version;")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(version, 7);
+
+    // Legacy row has empty analyzer_version so versioned FFT lookup treats it as a miss.
+    assert!(db
+        .get_track_waveform_profile(track_id, 3, "fft-v1", 1_700_000_000)
+        .await
+        .unwrap()
+        .is_none());
+    // Legacy getter still reads the old row.
+    assert_eq!(
+        db.get_track_waveform(track_id).await.unwrap().as_deref(),
+        Some("[0.2,0.5,0.9]")
+    );
 
     drop(db);
     remove_db(&path);

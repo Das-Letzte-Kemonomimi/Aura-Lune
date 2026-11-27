@@ -310,6 +310,55 @@ describe('WaveformCanvas Component', () => {
         canvasMock.restore();
       }
     });
+
+    it('renders mirror and bars styles with spectralBands and a neutral baseline while loading', () => {
+      const canvasMock = installCanvasMock({ width: 400, height: 66 });
+      const raf = installFakeRaf();
+      try {
+        const spectralBands: [number, number, number][] = [
+          [0.9, 0.2, 0.1],
+          [0.2, 0.8, 0.3],
+          [0.1, 0.3, 0.95],
+          [0.6, 0.6, 0.2],
+          [0.8, 0.1, 0.1],
+          [0.1, 0.9, 0.2],
+          [0.2, 0.2, 0.9],
+          [0.5, 0.5, 0.5],
+        ];
+        const { rerender } = render(
+          <WaveformCanvas
+            peaks={[]}
+            isLoading={true}
+            progress={30}
+            durationMs={120000}
+            positionMs={36000}
+            currentLang="en"
+            initialStyle="mirror"
+          />
+        );
+        raf.step();
+        expect(canvasMock.calls).toContain('fill');
+
+        canvasMock.calls.length = 0;
+        rerender(
+          <WaveformCanvas
+            peaks={dummyPeaks}
+            spectralBands={spectralBands}
+            isLoading={false}
+            progress={50}
+            durationMs={120000}
+            positionMs={60000}
+            currentLang="en"
+            initialStyle="mirror"
+          />
+        );
+        raf.step();
+        expect(canvasMock.calls).toContain('fill');
+      } finally {
+        raf.restore();
+        canvasMock.restore();
+      }
+    });
   });
 });
 

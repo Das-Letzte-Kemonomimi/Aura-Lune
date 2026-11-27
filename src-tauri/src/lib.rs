@@ -302,6 +302,7 @@ pub fn run() {
             detect_track_transcription,
             get_cached_transcription,
             export_transcription_midi,
+            get_track_waveform,
             start_stem_separation,
             get_track_stems,
             load_track_stems,

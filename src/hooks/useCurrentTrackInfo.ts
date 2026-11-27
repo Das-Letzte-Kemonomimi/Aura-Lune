@@ -1,6 +1,7 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { invoke } from '../api/ipc';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
+import type { SpectralBandTriple, TrackWaveformData } from '../types/analysis';
 import type { Translations } from '../i18n';
 import { getTransposedKey } from '../utils/harmonicMixing';
 
@@ -306,31 +307,75 @@ export function useCurrentTrackInfo({
     return isPlayingRadio ? 'Anime Radio' : loc.player.unknownArtist;
   }, [currentRadioStation, cleanLiveTitle, currentPlayingTrack?.artist, status.current_track?.artist, status.current_track?.title, tracks.length, isPlayingRadio, loc.player.unknownArtist]);
 
-  // 10. Waveform Peaks Profile
-  const trackWaveformPeaks = useMemo(() => {
-    const title = currentPlayingTrack?.title || status.current_track?.title || filePath.split('/').pop() || 'Auralune';
-    const artist = currentPlayingTrack?.artist || status.current_track?.artist || 'Unknown';
-    const duration = currentPlayingTrack?.duration_ms || status.duration_ms || 0;
-    const seedStr = `${title}-${artist}-${duration}`;
-    let h = 0x811c9dc5;
-    for (let i = 0; i < seedStr.length; i++) {
-      h ^= seedStr.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
+  // 10. Real FFT Spectral Waveform Profile (extracted via Rust/GStreamer + SQLite cache)
+  const WAVEFORM_BUCKETS = 160;
+  const WAVEFORM_SESSION_CACHE_CAP = 64;
+  const waveformCacheRef = useRef<Map<string, { peaks: number[]; bands: SpectralBandTriple[] }>>(new Map());
+  const [waveformState, setWaveformState] = useState<{
+    key: string | null;
+    peaks: number[];
+    bands: SpectralBandTriple[];
+    isLoading: boolean;
+  }>({ key: null, peaks: [], bands: [], isLoading: false });
+
+  const waveformSourcePath = currentPlayingTrack?.path || status.current_track?.uri || filePath || '';
+  const waveformTrackId = currentPlayingTrack?.id ?? status.current_track?.track_id ?? null;
+
+  useEffect(() => {
+    const isHttp =
+      waveformSourcePath.startsWith('http://') ||
+      waveformSourcePath.startsWith('https://');
+    if (isPlayingRadio || !waveformSourcePath || isHttp) {
+      setWaveformState({ key: null, peaks: [], bands: [], isLoading: false });
+      return;
     }
-    const peaks: number[] = [];
-    const count = 160;
-    for (let i = 0; i < count; i++) {
-      h ^= h << 13;
-      h ^= h >>> 17;
-      h ^= h << 5;
-      const rnd = ((h >>> 0) % 1000) / 1000;
-      const envelope = Math.sin((i / count) * Math.PI) * 0.4 + 0.6;
-      const harmonic = Math.sin((i / count) * Math.PI * 4) * 0.15;
-      const heightPct = Math.round((0.15 + (rnd * 0.7 + harmonic) * envelope) * 100);
-      peaks.push(Math.max(16, Math.min(100, heightPct)));
+
+    const cacheKey = `${waveformSourcePath}|${waveformTrackId ?? ''}`;
+    const cached = waveformCacheRef.current.get(cacheKey);
+    if (cached) {
+      setWaveformState({ key: cacheKey, peaks: cached.peaks, bands: cached.bands, isLoading: false });
+      return;
     }
-    return peaks;
-  }, [currentPlayingTrack?.title, currentPlayingTrack?.artist, currentPlayingTrack?.duration_ms, status.current_track?.title, status.current_track?.artist, status.duration_ms, filePath]);
+
+    let isCancelled = false;
+    setWaveformState({ key: cacheKey, peaks: [], bands: [], isLoading: true });
+
+    invoke<TrackWaveformData>('get_track_waveform', {
+      path: waveformSourcePath,
+      trackId: waveformTrackId,
+      sampleCount: WAVEFORM_BUCKETS,
+    })
+      .then((data) => {
+        if (isCancelled) return;
+        if (!data || !Array.isArray(data.peaks)) {
+          setWaveformState({ key: cacheKey, peaks: [], bands: [], isLoading: false });
+          return;
+        }
+        const scaledPeaks = data.peaks.map((p) =>
+          Math.max(5, Math.min(100, Math.round(p * 1000) / 10))
+        );
+        const bands = Array.isArray(data.bands) ? data.bands : [];
+        if (waveformCacheRef.current.size >= WAVEFORM_SESSION_CACHE_CAP) {
+          const oldest = waveformCacheRef.current.keys().next().value;
+          if (oldest !== undefined) waveformCacheRef.current.delete(oldest);
+        }
+        waveformCacheRef.current.set(cacheKey, { peaks: scaledPeaks, bands });
+        setWaveformState({ key: cacheKey, peaks: scaledPeaks, bands, isLoading: false });
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setWaveformState({ key: cacheKey, peaks: [], bands: [], isLoading: false });
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isPlayingRadio, waveformSourcePath, waveformTrackId]);
+
+  const trackWaveformPeaks = waveformState.peaks;
+  const trackWaveformBands = waveformState.bands;
+  const isWaveformLoading = waveformState.isLoading;
 
   return {
     currentPlayingTrack,
@@ -344,6 +389,8 @@ export function useCurrentTrackInfo({
     effectiveDisplayTitle,
     effectiveDisplayArtist,
     trackWaveformPeaks,
+    trackWaveformBands,
+    isWaveformLoading,
     isPlayingRadio,
   };
 }

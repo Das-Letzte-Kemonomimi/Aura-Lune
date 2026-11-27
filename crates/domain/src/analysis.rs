@@ -59,6 +59,18 @@ pub struct TrackTranscriptionData {
     pub analyzer_version: String,
 }
 
+/// Spectral waveform profile for a track (amplitude envelope + 3-band FFT energy per bucket).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrackWaveformData {
+    pub track_id: Option<i64>,
+    pub sample_count: usize,
+    /// Normalised amplitude/energy envelope per bucket (`0.05..=1.0`).
+    pub peaks: Vec<f32>,
+    /// Normalised `[low, mid, high]` FFT band energies per bucket (`0.0..=1.0`).
+    pub bands: Vec<[f32; 3]>,
+    pub analyzer_version: String,
+}
+
 /// Metadata of a track's separated audio stems.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StemSeparationData {

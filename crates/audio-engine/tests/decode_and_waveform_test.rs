@@ -2,7 +2,8 @@
 
 use audio_engine::{
     decode_snippet_for_analysis, decode_stereo_for_stems, extract_track_waveform_peaks,
-    write_wav_file, WaveformAccumulator,
+    extract_track_waveform_spectrum, write_wav_file, WaveformAccumulator,
+    WAVEFORM_ANALYZER_VERSION,
 };
 use std::time::{Duration, Instant};
 
@@ -117,4 +118,52 @@ fn test_accumulator_with_more_buckets_than_blocks_pads_with_floor() {
     assert_eq!(peaks.len(), 10);
     assert!(peaks.iter().all(|&p| (0.05..=1.0).contains(&p)));
     assert!(peaks.contains(&1.0));
+}
+
+#[test]
+fn test_spectral_waveform_distinguishes_bass_from_treble_and_silence() {
+    let sr = 44_100u32;
+    let seg_len = (sr as f32 * 0.8) as usize;
+    let mut mono = vec![0.0f32; seg_len]; // 0..0.8s silence
+    for i in 0..seg_len {
+        let t = i as f32 / sr as f32;
+        mono.push(0.7 * (t * 100.0 * std::f32::consts::TAU).sin()); // 0.8..1.6s 100 Hz bass
+    }
+    for i in 0..seg_len {
+        let t = i as f32 / sr as f32;
+        mono.push(0.7 * (t * 6000.0 * std::f32::consts::TAU).sin()); // 1.6..2.4s 6 kHz treble
+    }
+    let path = temp_path("spectral_bands", "wav");
+    write_wav_file(&path, &mono, sr, 1).expect("writing spectral WAV");
+
+    let data = extract_track_waveform_spectrum(path.to_str().unwrap(), 24, Some(7))
+        .expect("spectral waveform extraction should succeed");
+    let _ = std::fs::remove_file(&path);
+
+    assert_eq!(data.track_id, Some(7));
+    assert_eq!(data.sample_count, 24);
+    assert_eq!(data.analyzer_version, WAVEFORM_ANALYZER_VERSION);
+    assert_eq!(data.peaks.len(), 24);
+    assert_eq!(data.bands.len(), 24);
+
+    // Silence section (buckets 1..6)
+    assert!(
+        data.peaks[1..6].iter().all(|&p| p <= 0.06),
+        "{:?}",
+        data.peaks
+    );
+    // Bass section (buckets 10..14): low band dominates mid & high
+    for &[low, mid, high] in &data.bands[10..14] {
+        assert!(
+            low > mid + 0.4 && low > high + 0.4,
+            "expected bass dominance: low={low}, mid={mid}, high={high}"
+        );
+    }
+    // Treble section (buckets 18..22): high band dominates low & mid
+    for &[low, mid, high] in &data.bands[18..22] {
+        assert!(
+            high > low + 0.4 && high > mid + 0.4,
+            "expected treble dominance: low={low}, mid={mid}, high={high}"
+        );
+    }
 }

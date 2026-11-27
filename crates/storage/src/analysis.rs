@@ -1,6 +1,9 @@
 use sqlx::Row;
 
-use crate::{CachedTrackChords, CachedTrackTranscription, Database, NewTrackChords, StorageError};
+use crate::{
+    CachedTrackChords, CachedTrackTranscription, CachedTrackWaveform, Database, NewTrackChords,
+    StorageError,
+};
 
 impl Database {
     // =========================================================================
@@ -144,27 +147,8 @@ impl Database {
         sample_count: i64,
         peaks_json: &str,
     ) -> Result<(), StorageError> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
-        sqlx::query(
-            r#"
-            INSERT INTO track_waveforms (track_id, sample_count, peaks_json, created_at)
-            VALUES (?1, ?2, ?3, ?4)
-            ON CONFLICT(track_id) DO UPDATE SET
-                sample_count = excluded.sample_count,
-                peaks_json = excluded.peaks_json,
-                created_at = excluded.created_at;
-            "#,
-        )
-        .bind(track_id)
-        .bind(sample_count)
-        .bind(peaks_json)
-        .bind(now)
-        .execute(&self.pool)
-        .await?;
-        Ok(())
+        self.save_track_waveform_profile(track_id, sample_count, peaks_json, "[]", "", 0)
+            .await
     }
 
     /// Returns the stored waveform peaks of a track.
@@ -175,6 +159,76 @@ impl Database {
                 .fetch_optional(&self.pool)
                 .await?;
         Ok(row.map(|r| r.get(0)))
+    }
+
+    /// Stores the FFT spectral waveform profile of a track with analyzer version and file mtime.
+    pub async fn save_track_waveform_profile(
+        &self,
+        track_id: i64,
+        sample_count: i64,
+        peaks_json: &str,
+        bands_json: &str,
+        analyzer_version: &str,
+        file_modified_time: i64,
+    ) -> Result<(), StorageError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        sqlx::query(
+            r#"
+            INSERT INTO track_waveforms (
+                track_id, sample_count, peaks_json, bands_json, analyzer_version, file_modified_time, created_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ON CONFLICT(track_id) DO UPDATE SET
+                sample_count = excluded.sample_count,
+                peaks_json = excluded.peaks_json,
+                bands_json = excluded.bands_json,
+                analyzer_version = excluded.analyzer_version,
+                file_modified_time = excluded.file_modified_time,
+                created_at = excluded.created_at;
+            "#,
+        )
+        .bind(track_id)
+        .bind(sample_count)
+        .bind(peaks_json)
+        .bind(bands_json)
+        .bind(analyzer_version)
+        .bind(file_modified_time)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Returns the cached spectral waveform profile if `analyzer_version`, `sample_count`, and
+    /// `file_modified_time` all match; stale or legacy rows return `None`.
+    pub async fn get_track_waveform_profile(
+        &self,
+        track_id: i64,
+        sample_count: i64,
+        analyzer_version: &str,
+        file_modified_time: i64,
+    ) -> Result<Option<CachedTrackWaveform>, StorageError> {
+        let row = sqlx::query_as::<_, CachedTrackWaveform>(
+            r#"
+            SELECT sample_count, peaks_json, bands_json, analyzer_version, file_modified_time
+            FROM track_waveforms
+            WHERE track_id = ?1
+              AND sample_count = ?2
+              AND analyzer_version = ?3
+              AND file_modified_time = ?4
+            LIMIT 1;
+            "#,
+        )
+        .bind(track_id)
+        .bind(sample_count)
+        .bind(analyzer_version)
+        .bind(file_modified_time)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
     }
 
     /// Registers an installed AI model in the model manager.

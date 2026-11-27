@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { BarChart2, Waves, Activity, Sliders } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
-import { computeBarLayout, resamplePeaks, sanitizePeaks } from './waveformGeometry';
+import {
+  computeBarLayout,
+  resampleBands,
+  resamplePeaks,
+  sanitizeBands,
+  sanitizePeaks,
+  spectralColor,
+} from './waveformGeometry';
+import type { SpectralBandTriple } from '../../types/analysis';
 import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { roundRectPath } from '../../utils/canvasDraw';
@@ -12,6 +20,8 @@ export type WaveformStyle = 'bars' | 'smooth' | 'scrolling' | 'mirror';
 
 export interface WaveformCanvasProps {
   peaks: number[];
+  spectralBands?: SpectralBandTriple[];
+  isLoading?: boolean;
   progress: number; // 0..100
   durationMs?: number;
   positionMs?: number;
@@ -65,6 +75,8 @@ function formatTimeSec(seconds: number): string {
 
 export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   peaks,
+  spectralBands,
+  isLoading = false,
   progress,
   durationMs = 0,
   positionMs = 0,
@@ -115,8 +127,10 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     if (onStyleChange) onStyleChange(newStyle);
   };
 
-  // Interpolate / smooth the peak data
+  // Interpolate / smooth the peak data and spectral bands
   const normalizedPeaks = useMemo(() => sanitizePeaks(peaks), [peaks]);
+  const normalizedBands = useMemo(() => sanitizeBands(spectralBands), [spectralBands]);
+  const hasRealPeaks = peaks.length > 0;
 
   const isScrolling = activeStyle === 'scrolling';
 
@@ -185,11 +199,28 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
 
       const effectiveProgress = isDraggingRef.current && dragProgressRef.current !== null ? dragProgressRef.current : progress;
       const currentX = (effectiveProgress / 100) * width;
+      const hasSpectralData = normalizedBands.length > 0 && normalizedBands.length === normalizedPeaks.length;
 
+      // Subtle neutral baseline while the track's FFT spectrum is decoding
+      if (isLoading && !hasRealPeaks) {
+        const midY = canvasHeight / 2;
+        ctx.save();
+        ctx.fillStyle = unplayedColor;
+        ctx.beginPath();
+        roundRectPath(ctx, 0, midY - 2, width, 4, 2);
+        ctx.fill();
+        if (currentX > 0) {
+          ctx.fillStyle = playedGrad;
+          ctx.beginPath();
+          roundRectPath(ctx, 0, midY - 2, Math.min(width, currentX), 4, 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
       // ==========================================
       // STYLE 1: SMOOTH CONTINUOUS WAVE (SMOOTH ANALOG WAVE)
       // ==========================================
-      if (activeStyle === 'smooth') {
+      else if (activeStyle === 'smooth') {
         // The curve needs at least 2 points (otherwise division by zero → NaN).
         const smoothPeaks = normalizedPeaks.length >= 2 ? normalizedPeaks : [normalizedPeaks[0], normalizedPeaks[0]];
         const count = smoothPeaks.length;
@@ -262,7 +293,18 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           ctx.clip();
 
           drawSpline(ctx);
-          ctx.fillStyle = verticalPlayedGrad;
+          if (hasSpectralData) {
+            const spectralGrad = ctx.createLinearGradient(0, 0, width, 0);
+            const stopCount = Math.min(24, normalizedBands.length);
+            for (let s = 0; s < stopCount; s++) {
+              const t = stopCount > 1 ? s / (stopCount - 1) : 0;
+              const idx = Math.min(normalizedBands.length - 1, Math.round(t * (normalizedBands.length - 1)));
+              spectralGrad.addColorStop(t, spectralColor(normalizedBands[idx], 0.92));
+            }
+            ctx.fillStyle = spectralGrad;
+          } else {
+            ctx.fillStyle = verticalPlayedGrad;
+          }
           ctx.fill();
 
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
@@ -304,33 +346,50 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         // The layout fills exactly the whole width, so the bars match the playhead position.
         const layout = computeBarLayout(width, normalizedPeaks.length, 3, 2.5);
         const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
+        const barBands = hasSpectralData ? resampleBands(normalizedBands, layout.count) : [];
         const { barWidth, step } = layout;
 
-        const playedPath: { x: number; y: number; h: number }[] = [];
-        const unplayedPath: { x: number; y: number; h: number }[] = [];
-        for (let i = 0; i < barPeaks.length; i++) {
-          const x = i * step;
-          const barHeight = Math.max(8, (Math.max(14, barPeaks[i]) / 100) * (canvasHeight - 6));
-          const bar = { x, y: (canvasHeight - barHeight) / 2, h: barHeight };
-          (x + barWidth / 2 <= currentX ? playedPath : unplayedPath).push(bar);
-        }
-
-        const fillBars = (bars: { x: number; y: number; h: number }[], radius: number) => {
-          if (bars.length === 0) return;
-          ctx.beginPath();
-          const r = Math.min(barWidth / 2, radius);
-          for (const b of bars) {
-            roundRectPath(ctx, b.x, b.y, barWidth, b.h, r);
+        if (barBands.length === barPeaks.length && barBands.length > 0) {
+          const r = Math.min(barWidth / 2, 4);
+          ctx.save();
+          for (let i = 0; i < barPeaks.length; i++) {
+            const x = i * step;
+            const barHeight = Math.max(8, (Math.max(14, barPeaks[i]) / 100) * (canvasHeight - 6));
+            const y = (canvasHeight - barHeight) / 2;
+            const isPlayed = x + barWidth / 2 <= currentX;
+            ctx.fillStyle = spectralColor(barBands[i], isPlayed ? 0.95 : 0.22);
+            ctx.beginPath();
+            roundRectPath(ctx, x, y, barWidth, barHeight, r);
+            ctx.fill();
           }
-          ctx.fill();
-        };
+          ctx.restore();
+        } else {
+          const playedPath: { x: number; y: number; h: number }[] = [];
+          const unplayedPath: { x: number; y: number; h: number }[] = [];
+          for (let i = 0; i < barPeaks.length; i++) {
+            const x = i * step;
+            const barHeight = Math.max(8, (Math.max(14, barPeaks[i]) / 100) * (canvasHeight - 6));
+            const bar = { x, y: (canvasHeight - barHeight) / 2, h: barHeight };
+            (x + barWidth / 2 <= currentX ? playedPath : unplayedPath).push(bar);
+          }
 
-        ctx.save();
-        ctx.fillStyle = unplayedColor;
-        fillBars(unplayedPath, 4);
-        ctx.fillStyle = verticalPlayedGrad;
-        fillBars(playedPath, 4);
-        ctx.restore();
+          const fillBars = (bars: { x: number; y: number; h: number }[], radius: number) => {
+            if (bars.length === 0) return;
+            ctx.beginPath();
+            const r = Math.min(barWidth / 2, radius);
+            for (const b of bars) {
+              roundRectPath(ctx, b.x, b.y, barWidth, b.h, r);
+            }
+            ctx.fill();
+          };
+
+          ctx.save();
+          ctx.fillStyle = unplayedColor;
+          fillBars(unplayedPath, 4);
+          ctx.fillStyle = verticalPlayedGrad;
+          fillBars(playedPath, 4);
+          ctx.restore();
+        }
 
         // Playhead indicator with a crisp halo dot
         if (currentX > 0 && currentX < width) {
@@ -371,36 +430,51 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
           ctx.stroke();
         }
 
-        // Draw the scrolling bars (batched: one fill per group)
+        // Draw the scrolling bars (batched when monochromatic, per-band when FFT spectrum is available)
         const bWidth = 4.5;
-        const played: { x: number; y: number; h: number }[] = [];
-        const upcoming: { x: number; y: number; h: number }[] = [];
-        for (let i = 0; i < count; i++) {
-          const barX = playheadX - scrollOffset + i * waveUnitWidth;
-
-          // Draw only the elements that fit on the screen
-          if (barX < -20 || barX > width + 20) continue;
-
-          const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
-          const bar = { x: barX, y: midY - barHeight / 2, h: barHeight };
-          (barX <= playheadX ? played : upcoming).push(bar);
-        }
-
-        const fillScrollBars = (bars: { x: number; y: number; h: number }[]) => {
-          if (bars.length === 0) return;
-          ctx.beginPath();
-          for (const b of bars) {
-            roundRectPath(ctx, b.x, b.y, bWidth, b.h, 2.5);
+        if (hasSpectralData) {
+          ctx.save();
+          for (let i = 0; i < count; i++) {
+            const barX = playheadX - scrollOffset + i * waveUnitWidth;
+            if (barX < -20 || barX > width + 20) continue;
+            const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
+            const isPlayed = barX <= playheadX;
+            ctx.fillStyle = spectralColor(normalizedBands[i], isPlayed ? 0.95 : 0.25);
+            ctx.beginPath();
+            roundRectPath(ctx, barX, midY - barHeight / 2, bWidth, barHeight, 2.5);
+            ctx.fill();
           }
-          ctx.fill();
-        };
+          ctx.restore();
+        } else {
+          const played: { x: number; y: number; h: number }[] = [];
+          const upcoming: { x: number; y: number; h: number }[] = [];
+          for (let i = 0; i < count; i++) {
+            const barX = playheadX - scrollOffset + i * waveUnitWidth;
 
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-        fillScrollBars(upcoming);
-        ctx.fillStyle = verticalPlayedGrad;
-        fillScrollBars(played);
-        ctx.restore();
+            // Draw only the elements that fit on the screen
+            if (barX < -20 || barX > width + 20) continue;
+
+            const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
+            const bar = { x: barX, y: midY - barHeight / 2, h: barHeight };
+            (barX <= playheadX ? played : upcoming).push(bar);
+          }
+
+          const fillScrollBars = (bars: { x: number; y: number; h: number }[]) => {
+            if (bars.length === 0) return;
+            ctx.beginPath();
+            for (const b of bars) {
+              roundRectPath(ctx, b.x, b.y, bWidth, b.h, 2.5);
+            }
+            ctx.fill();
+          };
+
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+          fillScrollBars(upcoming);
+          ctx.fillStyle = verticalPlayedGrad;
+          fillScrollBars(played);
+          ctx.restore();
+        }
 
         // Central laser DJ needle with crisp halo (playhead marker)
         ctx.save();
@@ -455,39 +529,64 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       else if (activeStyle === 'mirror') {
         const layout = computeBarLayout(width, normalizedPeaks.length, 2.5, 2);
         const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
+        const barBands = hasSpectralData ? resampleBands(normalizedBands, layout.count) : [];
         const { barWidth, step } = layout;
         const midY = canvasHeight / 2;
 
-        const playedBars: { x: number; h: number }[] = [];
-        const unplayedBars: { x: number; h: number }[] = [];
-        for (let i = 0; i < barPeaks.length; i++) {
-          const x = i * step;
-          const halfHeight = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
-          (x + barWidth / 2 <= currentX ? playedBars : unplayedBars).push({ x, h: halfHeight });
-        }
-
-        // Upper half (main) and lower half (mirror with a lower opacity),
-        // one fill per group without shadowBlur so WebKitGTK compositing stays crisp.
-        const fillGroup = (
-          bars: { x: number; h: number }[],
-          fill: string | CanvasGradient,
-          lowerAlpha: number,
-        ) => {
-          if (bars.length === 0) return;
+        if (barBands.length === barPeaks.length && barBands.length > 0) {
           ctx.save();
-          ctx.fillStyle = fill;
-          ctx.beginPath();
-          for (const b of bars) roundRectPath(ctx, b.x, midY - b.h - 1, barWidth, b.h, [3, 3, 0, 0]);
-          ctx.fill();
+          for (let i = 0; i < barPeaks.length; i++) {
+            const x = i * step;
+            const [low, mid, high] = barBands[i];
+            const isPlayed = x + barWidth / 2 <= currentX;
+            const upperHeight = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
+            // Lower reflection emphasises bass/low-mid weight so kicks punch downward.
+            const bassWeight = 0.55 * low + 0.30 * mid + 0.15 * high;
+            const lowerHeight = Math.max(4, upperHeight * (0.45 + 0.50 * bassWeight));
 
-          ctx.globalAlpha = lowerAlpha;
-          ctx.beginPath();
-          for (const b of bars) roundRectPath(ctx, b.x, midY + 1, barWidth, b.h * 0.75, [0, 0, 3, 3]);
-          ctx.fill();
+            ctx.fillStyle = spectralColor(barBands[i], isPlayed ? 0.95 : 0.22);
+            ctx.beginPath();
+            roundRectPath(ctx, x, midY - upperHeight - 1, barWidth, upperHeight, [3, 3, 0, 0]);
+            ctx.fill();
+
+            ctx.fillStyle = spectralColor([low, mid * 0.7, high * 0.4], isPlayed ? 0.48 : 0.14);
+            ctx.beginPath();
+            roundRectPath(ctx, x, midY + 1, barWidth, lowerHeight, [0, 0, 3, 3]);
+            ctx.fill();
+          }
           ctx.restore();
-        };
-        fillGroup(unplayedBars, unplayedColor, 0.15);
-        fillGroup(playedBars, playedGrad, 0.45);
+        } else {
+          const playedBars: { x: number; h: number }[] = [];
+          const unplayedBars: { x: number; h: number }[] = [];
+          for (let i = 0; i < barPeaks.length; i++) {
+            const x = i * step;
+            const halfHeight = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
+            (x + barWidth / 2 <= currentX ? playedBars : unplayedBars).push({ x, h: halfHeight });
+          }
+
+          // Upper half (main) and lower half (mirror with a lower opacity),
+          // one fill per group without shadowBlur so WebKitGTK compositing stays crisp.
+          const fillGroup = (
+            bars: { x: number; h: number }[],
+            fill: string | CanvasGradient,
+            lowerAlpha: number,
+          ) => {
+            if (bars.length === 0) return;
+            ctx.save();
+            ctx.fillStyle = fill;
+            ctx.beginPath();
+            for (const b of bars) roundRectPath(ctx, b.x, midY - b.h - 1, barWidth, b.h, [3, 3, 0, 0]);
+            ctx.fill();
+
+            ctx.globalAlpha = lowerAlpha;
+            ctx.beginPath();
+            for (const b of bars) roundRectPath(ctx, b.x, midY + 1, barWidth, b.h * 0.75, [0, 0, 3, 3]);
+            ctx.fill();
+            ctx.restore();
+          };
+          fillGroup(unplayedBars, unplayedColor, 0.15);
+          fillGroup(playedBars, playedGrad, 0.45);
+        }
 
         // Central zero line
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -618,6 +717,9 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     invalidate,
     syncTooltip,
     normalizedPeaks,
+    normalizedBands,
+    hasRealPeaks,
+    isLoading,
     progress,
     isDragging,
     activeStyle,

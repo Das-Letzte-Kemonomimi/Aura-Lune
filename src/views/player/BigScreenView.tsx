@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Disc,
   Download,
@@ -17,6 +17,7 @@ import { BigScreenVinyl } from './bigscreen/BigScreenVinyl';
 import { BigScreenHud } from './bigscreen/BigScreenHud';
 import { cn } from '../../utils/cn';
 import { Button, SegmentedControl } from '../../components/ui';
+import type { SpectralBandTriple } from '../../types/analysis';
 
 const BIG_SCREEN_VISUAL_MODES = ['cover', 'vinyl', 'cassette'] as const;
 type BigScreenVisualMode = (typeof BIG_SCREEN_VISUAL_MODES)[number];
@@ -35,6 +36,9 @@ export interface BigScreenViewProps {
   pitchSemitones: number;
   tempoRatio: number;
   spectrum?: number[];
+  waveformPeaks?: number[];
+  waveformBands?: SpectralBandTriple[];
+  isWaveformLoading?: boolean;
   currentLang?: Language;
   volumeUnit?: 'percent' | 'db';
   currentChord?: string;
@@ -67,6 +71,9 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
     positionMs: positionMsProp,
     durationMs,
     spectrum: spectrumProp,
+    waveformPeaks: waveformPeaksProp,
+    waveformBands: waveformBandsProp,
+    isWaveformLoading = false,
     currentLang = 'en',
     onPlayPause,
     onSeek,
@@ -125,29 +132,8 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
   }, [isPlaying, onClose, onPlayPause, resetHideTimer]);
 
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
-
-  // Deterministic waveform profile for the full-screen view
-  const waveformPeaks = useMemo(() => {
-    const seedStr = `${title}-${artist}-${durationMs ?? 0}`;
-    let h = 0x811c9dc5;
-    for (let i = 0; i < seedStr.length; i++) {
-      h ^= seedStr.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
-    }
-    const peaks: number[] = [];
-    const count = 160;
-    for (let i = 0; i < count; i++) {
-      h ^= h << 13;
-      h ^= h >>> 17;
-      h ^= h << 5;
-      const rnd = ((h >>> 0) % 1000) / 1000;
-      const envelope = Math.sin((i / count) * Math.PI) * 0.4 + 0.6;
-      const harmonic = Math.sin((i / count) * Math.PI * 4) * 0.15;
-      const heightPct = Math.round((0.15 + (rnd * 0.7 + harmonic) * envelope) * 100);
-      peaks.push(Math.max(16, Math.min(100, heightPct)));
-    }
-    return peaks;
-  }, [title, artist, durationMs]);
+  const waveformPeaks = waveformPeaksProp ?? [];
+  const waveformBands = waveformBandsProp ?? [];
 
   return (
     <div
@@ -286,7 +272,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       </div>
 
       {/* Bottom control panel and HUD visualizer */}
-      <BigScreenControls {...props} showHud={showHud} setBottomVisualMode={setBottomVisualMode} bottomVisualMode={bottomVisualMode} spectrum={spectrum} waveformPeaks={waveformPeaks} progress={progress} positionMs={positionMs} t={t} />
+      <BigScreenControls {...props} showHud={showHud} setBottomVisualMode={setBottomVisualMode} bottomVisualMode={bottomVisualMode} spectrum={spectrum} waveformPeaks={waveformPeaks} waveformBands={waveformBands} isWaveformLoading={isWaveformLoading} progress={progress} positionMs={positionMs} t={t} />
     </div>
   );
 };

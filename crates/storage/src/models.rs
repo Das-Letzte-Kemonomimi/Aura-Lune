@@ -188,3 +188,13 @@ pub struct CachedTrackTranscription {
     pub notes_json: String,
     pub bpm: Option<f64>,
 }
+
+/// A cached spectral waveform profile (`track_waveforms`).
+#[derive(Debug, Clone, FromRow, PartialEq)]
+pub struct CachedTrackWaveform {
+    pub sample_count: i64,
+    pub peaks_json: String,
+    pub bands_json: String,
+    pub analyzer_version: String,
+    pub file_modified_time: i64,
+}

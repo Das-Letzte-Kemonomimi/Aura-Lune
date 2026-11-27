@@ -728,6 +728,25 @@ fn test_extract_track_waveform_peaks() {
         max_peak > min_peak + 0.1,
         "The waveform should reflect the track's dynamics"
     );
+
+    let spectral = audio_engine::extract_track_waveform_spectrum(
+        fixture_path.to_str().unwrap(),
+        count,
+        Some(99),
+    )
+    .expect("Extracting the FFT spectral waveform should succeed");
+    assert_eq!(spectral.peaks.len(), count);
+    assert_eq!(spectral.bands.len(), count);
+    assert_eq!(spectral.track_id, Some(99));
+    assert!(spectral.peaks.iter().all(|&p| (0.05..=1.0).contains(&p)));
+    assert!(spectral
+        .bands
+        .iter()
+        .all(|b| b.iter().all(|&v| (0.0..=1.0).contains(&v))));
+    let max_low = spectral.bands.iter().map(|b| b[0]).fold(0.0f32, f32::max);
+    let max_mid = spectral.bands.iter().map(|b| b[1]).fold(0.0f32, f32::max);
+    let max_high = spectral.bands.iter().map(|b| b[2]).fold(0.0f32, f32::max);
+    assert!(max_low > 0.2 && max_mid > 0.2 && max_high > 0.1);
 }
 
 /// A triad with a few overtones (bass root an octave lower), detuned by `cents`.
