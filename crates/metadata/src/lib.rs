@@ -577,6 +577,30 @@ pub struct CoverArtArchiveClient {
     deezer_base_url: String,
     itunes_base_url: String,
     search_cache: Arc<Mutex<HashMap<String, SearchCacheEntry>>>,
+    in_flight_searches: Arc<Mutex<HashMap<String, Arc<tokio::sync::Notify>>>>,
+}
+
+struct InFlightSearchGuard {
+    key: String,
+    notify: Arc<tokio::sync::Notify>,
+    map: Arc<Mutex<HashMap<String, Arc<tokio::sync::Notify>>>>,
+}
+
+impl Drop for InFlightSearchGuard {
+    fn drop(&mut self) {
+        if let Ok(mut map) = self.map.try_lock() {
+            map.remove(&self.key);
+        } else {
+            let map = Arc::clone(&self.map);
+            let key = std::mem::take(&mut self.key);
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                handle.spawn(async move {
+                    map.lock().await.remove(&key);
+                });
+            }
+        }
+        self.notify.notify_waiters();
+    }
 }
 
 impl CoverArtArchiveClient {
@@ -601,6 +625,7 @@ impl CoverArtArchiveClient {
             deezer_base_url: deezer_base_url.into().trim_end_matches('/').to_string(),
             itunes_base_url: itunes_base_url.into().trim_end_matches('/').to_string(),
             search_cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            in_flight_searches: Arc::new(Mutex::new(std::collections::HashMap::new())),
         }
     }
 
@@ -878,6 +903,40 @@ impl CoverArtArchiveClient {
             debug!("Cover art search cache hit for: '{album}' / '{artist}'");
             return cached;
         }
+
+        // Single-flight: if another caller is already querying the exact same cache key, wait for
+        // its result to populate `search_cache` instead of repeating identical HTTP requests.
+        let _in_flight_guard = loop {
+            let existing = {
+                let mut map = self.in_flight_searches.lock().await;
+                if let Some(notify) = map.get(&cache_key) {
+                    Err(Arc::clone(notify))
+                } else {
+                    let notify = Arc::new(tokio::sync::Notify::new());
+                    map.insert(cache_key.clone(), Arc::clone(&notify));
+                    Ok(InFlightSearchGuard {
+                        key: cache_key.clone(),
+                        notify,
+                        map: Arc::clone(&self.in_flight_searches),
+                    })
+                }
+            };
+            match existing {
+                Ok(guard) => {
+                    if let Some(cached) = self.read_search_cache(&cache_key).await {
+                        return cached;
+                    }
+                    break guard;
+                }
+                Err(notify) => {
+                    notify.notified().await;
+                    if let Some(cached) = self.read_search_cache(&cache_key).await {
+                        debug!("Cover art search single-flight hit for: '{album}' / '{artist}'");
+                        return cached;
+                    }
+                }
+            }
+        };
 
         let mut candidates: Vec<CoverCandidateDto> = Vec::new();
         let mut seen_urls = HashSet::new();

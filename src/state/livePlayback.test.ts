@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { invokeMock } from '../test/ipcMock';
 import {
   livePlayback,
   useLivePositionMs,
@@ -9,7 +10,13 @@ import {
   useLiveVolume,
   currentPositionMs,
   currentVolume,
+  acquireSpectrumConsumer,
+  hasSpectrumConsumers,
 } from './livePlayback';
+
+beforeEach(() => {
+  livePlayback.reset();
+});
 
 describe('livePlayback store', () => {
   it('returns fallbacks until the first status arrives', () => {
@@ -107,5 +114,30 @@ describe('livePlayback store', () => {
     act(() => livePlayback.publish({ positionMs: 2_050, spectrum: [0.2] }));
     expect(result.current).toBe(2);
     expect(renders).toBe(afterFirst + 1);
+  });
+
+  it('toggles set_spectrum_enabled only on 0 <-> 1 consumer transitions', () => {
+    expect(hasSpectrumConsumers()).toBe(false);
+    const releaseA = acquireSpectrumConsumer();
+    expect(hasSpectrumConsumers()).toBe(true);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).toHaveBeenLastCalledWith('set_spectrum_enabled', { enabled: true });
+
+    const releaseB = acquireSpectrumConsumer();
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    releaseA();
+    expect(hasSpectrumConsumers()).toBe(true);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    // Calling an already-released cleanup is a no-op
+    releaseA();
+    expect(hasSpectrumConsumers()).toBe(true);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    releaseB();
+    expect(hasSpectrumConsumers()).toBe(false);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock).toHaveBeenLastCalledWith('set_spectrum_enabled', { enabled: false });
   });
 });

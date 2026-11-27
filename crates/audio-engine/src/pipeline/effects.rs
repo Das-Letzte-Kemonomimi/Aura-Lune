@@ -208,11 +208,18 @@ impl AudioEngine {
         let clamped = config.clamped();
         let mut inner = self.inner.lock_safe();
         inner.silence_trimming_config = clamped;
+        self.silence_trimming_enabled
+            .store(clamped.enabled, Ordering::Relaxed);
         debug!(
             "Silence trimming updated: enabled={}, threshold={:.1}dB",
             clamped.enabled, clamped.threshold_db
         );
         Ok(())
+    }
+
+    /// Lock-free check of whether silence trimming is enabled (used before building tick keys).
+    pub fn is_silence_trimming_enabled(&self) -> bool {
+        self.silence_trimming_enabled.load(Ordering::Relaxed)
     }
 
     /// Returns the current silence-trimming configuration.

@@ -55,7 +55,7 @@ Commands that write a file the UI names call `paths::ensure_writable`. Commands 
 
 ### Playback & state
 
-- `setup/playback_ticker.rs` is **the only driver of the engine bus**: it calls `tick_status` (drains `poll_events`: EOS → next track, loops, spectrum, Waybar), caches the result in `AppState.last_status`, and emits `auralune://playback-status` / `auralune://playback-error`. Commands that need a status call `snapshot_status` (no bus side effects), **never `tick_status`**. Playback must never depend on the webview.
+- `setup/playback_ticker.rs` is **the only driver of the engine bus**: it calls `tick_status` (drains `poll_events`: EOS → next track, loops, spectrum, Waybar), caches `Arc<PlaybackStatusDto>` in `AppState.last_status`, and emits `auralune://playback-status` only on DTO changes or at the 1 s keepalive (capped at 1 Hz while `AppState.window_hidden` is set) alongside `auralune://playback-error`. Commands that need a status call `snapshot_status` (no bus side effects), **never `tick_status`**. Playback must never depend on the webview.
 - Queue persistence: `persist_queue_state` only signals `AppState.queue_saver` (`QueueSaver`, one debounced writer, 300 ms). Never spawn ad-hoc save tasks.
 - Queue items not from the library get `queue::new_queue_item_id(prefix)` (time + process-wide counter). Never build IDs from a timestamp alone.
 - Tray actions and the single-instance handler call the same `*_internal` functions as the commands (`play_internal`, `play_next_internal`, …). Never duplicate the logic.

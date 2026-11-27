@@ -32,13 +32,16 @@ impl AudioEngine {
 
         if (old_speed - new_speed).abs() > 1e-4 || inner.dsp_params.engine != params.engine {
             let current_media =
-                Self::calculate_media_position(&inner).unwrap_or(inner.base_media_pos);
+                Self::calculate_media_position(&mut inner).unwrap_or(inner.base_media_pos);
             let current_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
             inner.base_media_pos = current_media;
             inner.base_sink_pts = current_sink;
         }
 
         inner.dsp.set_params(params)?;
+        if inner.dsp_params.engine != params.engine {
+            inner.cached_capabilities = params.engine.capabilities();
+        }
         inner.dsp_params = params;
         debug!(
             "DSP updated: engine={:?}, pitch={:.2} st, tempo={:.2}x, rate={:.2}x",
@@ -205,7 +208,7 @@ impl AudioEngine {
         let entering_from_bypass = is_active_playback
             && current.engine == DspEngine::Bypass
             && engine != DspEngine::Bypass;
-        let rebase_media = Self::calculate_media_position(&inner).unwrap_or(current_pos);
+        let rebase_media = Self::calculate_media_position(&mut inner).unwrap_or(current_pos);
         let rebase_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
 
         // When leaving an active DSP engine (RubberBand / SoundTouch), remember its parameters
@@ -245,6 +248,7 @@ impl AudioEngine {
         inner.dsp.set_engine(engine);
         let _ = inner.dsp.set_params(target_params);
         inner.dsp_params = target_params;
+        inner.cached_capabilities = caps.clone();
         if entering_from_bypass {
             inner.base_media_pos = rebase_media;
             inner.base_sink_pts = rebase_sink;
@@ -270,6 +274,14 @@ impl AudioEngine {
 
     /// Returns the properties and limits of the current DSP engine.
     pub fn dsp_capabilities(&self) -> DspCapabilities {
-        self.dsp_params().engine.capabilities()
+        self.inner.lock_safe().cached_capabilities.clone()
+    }
+
+    /// Enables or disables GStreamer `spectrum` bus messages when UI visualizers mount/unmount.
+    pub fn set_spectrum_enabled(&self, enabled: bool) {
+        self.inner
+            .lock_safe()
+            .spectrum
+            .set_property("post-messages", enabled);
     }
 }

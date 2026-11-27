@@ -34,6 +34,6 @@ pub use model_manager::{
     get_model_packs_catalog, get_models_dir, get_stem_projects_cache_dir, get_stems_cache_dir,
     list_available_model_packs, list_available_models, remove_model_file, verify_file_sha256,
 };
-pub use pipeline::{AudioEngine, PlayerEvent};
+pub use pipeline::{AudioEngine, EngineStatusSnapshot, PlayerEvent};
 pub use stem_separator::{write_wav_file, write_wav_file_stereo, StemSeparator};
 pub use transcoder::Transcoder;

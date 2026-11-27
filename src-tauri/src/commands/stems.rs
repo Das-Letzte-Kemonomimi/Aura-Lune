@@ -72,6 +72,9 @@ pub async fn download_ai_model_internal(
     let app_handle_clone = app_handle.clone();
     let m_id_clone = model_id.to_string();
     let cancel_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let started = std::time::Instant::now();
+    let last_emit = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    const PROGRESS_EMIT_INTERVAL_MS: u64 = 200;
 
     let provider = downloads::HttpDownloadProvider::new();
     let _ = provider
@@ -81,6 +84,13 @@ pub async fn download_ai_model_internal(
             Some(&model.sha256),
             cancel_flag,
             Some(Box::new(move |downloaded, total| {
+                let elapsed = started.elapsed().as_millis() as u64;
+                let finished = total.is_some_and(|t| downloaded >= t);
+                let previous = last_emit.load(std::sync::atomic::Ordering::Relaxed);
+                if !finished && elapsed.saturating_sub(previous) < PROGRESS_EMIT_INTERVAL_MS {
+                    return;
+                }
+                last_emit.store(elapsed, std::sync::atomic::Ordering::Relaxed);
                 let progress = if let Some(tot) = total {
                     if tot > 0 {
                         (downloaded as f32 / tot as f32).clamp(0.0, 1.0)
@@ -457,7 +467,7 @@ pub async fn delete_stem_project_internal(
 
     let cache_dir = get_stem_projects_cache_dir().join(project_id.to_string());
     if cache_dir.exists() {
-        let _ = std::fs::remove_dir_all(&cache_dir);
+        let _ = tokio::task::spawn_blocking(move || std::fs::remove_dir_all(&cache_dir)).await;
     }
     Ok(())
 }
@@ -665,8 +675,8 @@ pub fn list_ai_models() -> Result<Vec<AiModelInfo>, CommandError> {
 }
 
 #[tauri::command]
-pub fn delete_ai_model(model_id: String) -> Result<(), CommandError> {
-    delete_ai_model_internal(&model_id)
+pub async fn delete_ai_model(model_id: String) -> Result<(), CommandError> {
+    tokio::task::spawn_blocking(move || delete_ai_model_internal(&model_id)).await?
 }
 
 #[tauri::command]

@@ -307,6 +307,9 @@ pub fn reveal_main_window_internal(app: &tauri::AppHandle, state: &AppState) {
             let _ = window.show();
             let _ = window.set_focus();
         }
+        state
+            .window_hidden
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
 }
 

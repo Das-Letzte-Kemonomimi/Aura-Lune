@@ -4,7 +4,7 @@ import { cn } from '../../utils/cn';
 import { Chip, type Tone } from '../ui';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
-import { livePlayback } from '../../state/livePlayback';
+import { livePlayback, useSpectrumConsumer } from '../../state/livePlayback';
 import { drawVuDynamic, renderVuFaceLayer } from './vuFace';
 import {
   VU_THEMES,
@@ -39,6 +39,7 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
   className,
   theme: initialTheme = 'sakura',
 }) => {
+  useSpectrumConsumer();
   // Shared by the main player and BigScreen; `initialTheme` is only the default when nothing is saved.
   const [theme, handleSelectTheme] = usePersistedState<VuTheme>('auralune_vumeter_theme', initialTheme, {
     parse: parseOneOf(['amber', 'sakura', 'cyber'] as const),

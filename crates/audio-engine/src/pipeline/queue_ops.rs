@@ -3,6 +3,17 @@
 use super::*;
 
 impl AudioEngine {
+    /// Runs `f` on a borrowed reference to the queue without cloning it.
+    pub fn with_queue<R>(&self, f: impl FnOnce(&PlaybackQueue) -> R) -> R {
+        let q = self.queue.lock_safe();
+        f(&q)
+    }
+
+    /// Returns a clone of the current queue item without cloning the full queue.
+    pub fn current_item(&self) -> Option<QueueItem> {
+        self.queue.lock_safe().current_item().cloned()
+    }
+
     /// Returns a copy of the current playback queue state.
     pub fn queue(&self) -> PlaybackQueue {
         self.queue.lock_safe().clone()

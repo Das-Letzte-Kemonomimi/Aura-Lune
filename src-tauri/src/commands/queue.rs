@@ -224,18 +224,19 @@ pub async fn play_queue_index(
             index, expected_id
         );
         let target_index = if let Some(ref target_id) = expected_id {
-            let q = state.engine.queue();
-            if index < q.items.len() && q.items[index].id == *target_id {
-                index
-            } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
-                warn!(
-                    "play_queue_index: correcting index from {} to {} for track {}",
-                    index, found, target_id
-                );
-                found
-            } else {
-                index
-            }
+            state.engine.with_queue(|q| {
+                if index < q.items.len() && q.items[index].id == *target_id {
+                    index
+                } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
+                    warn!(
+                        "play_queue_index: correcting index from {} to {} for track {}",
+                        index, found, target_id
+                    );
+                    found
+                } else {
+                    index
+                }
+            })
         } else {
             index
         };
@@ -353,8 +354,14 @@ pub async fn set_active_track(
             CommandError::not_found(format!("Track with ID {} not found", track_id))
         })?;
     let item = state.db.queue_item_for_track(&track).await;
-    state.engine.set_active_item(item);
-    state.engine.load_uri(&track.path)?;
+    let state_bg = state.inner().clone();
+    let uri = track.path;
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        state_bg.engine.set_active_item(item);
+        state_bg.engine.load_uri(&uri)?;
+        Ok(())
+    })
+    .await??;
     persist_queue_state(&state);
     Ok(())
 }

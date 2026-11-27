@@ -14,8 +14,11 @@ mod fades;
 mod graph;
 mod probes;
 mod queue_ops;
+mod snapshot;
 mod source;
 mod transport;
+
+pub use snapshot::EngineStatusSnapshot;
 
 use crate::error::AudioEngineError;
 use crate::sync::LockExt;
@@ -77,14 +80,16 @@ struct PipelineInner {
     rgvolume: gst::Element,
     rgvolume_child: Option<gst_base::BaseTransform>,
     rglimiter: gst::Element,
-    _spectrum: gst::Element,
+    spectrum: gst::Element,
     volume: gst::Element,
     queue_sink: gst::Element,
     sink: gst::Element,
     audio_buffer_ms: u64,
     dsp_block_size: usize,
     state: PlaybackState,
+    cached_duration: Option<Duration>,
     dsp_params: DspParams,
+    cached_capabilities: DspCapabilities,
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     eq_preamp_db: f64,
@@ -161,6 +166,10 @@ pub struct AudioEngine {
     is_fading_in: Arc<AtomicBool>,
     volume_element: gst::Element,
     atomic_volume: Arc<AtomicU64>,
+    /// Persistent fader worker handle (exits cleanly when the last engine clone drops).
+    volume_fader: Option<fades::VolumeFader>,
+    /// Fast lock-free mirror of `silence_trimming_config.enabled` checked on every ticker frame.
+    silence_trimming_enabled: Arc<AtomicBool>,
     /// Latched by the clip probes (`probes::install_clip_probes`) when a sample exceeds 0 dBFS.
     clip_latched: Arc<AtomicBool>,
 }

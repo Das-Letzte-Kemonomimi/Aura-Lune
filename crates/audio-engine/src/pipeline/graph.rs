@@ -115,7 +115,7 @@ impl AudioEngine {
             .name("spectrum_analyzer")
             .property("bands", 64u32)
             .property("threshold", -75i32)
-            .property("interval", 33_333_333u64)
+            .property("interval", 100_000_000u64)
             .property("message-magnitude", true)
             .property("post-messages", true)
             .build()
@@ -404,14 +404,16 @@ impl AudioEngine {
             rgvolume: rgvolume.clone(),
             rgvolume_child,
             rglimiter,
-            _spectrum: spectrum,
+            spectrum,
             volume,
             queue_sink: queue_sink.clone(),
             sink,
             audio_buffer_ms: 600,
             dsp_block_size: 2048,
             state: PlaybackState::Stopped,
+            cached_duration: None,
             dsp_params: DspParams::default(),
+            cached_capabilities: DspParams::default().engine.capabilities(),
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
             eq_preamp_db: 0.0,
@@ -445,6 +447,11 @@ impl AudioEngine {
         let stop_after_current = Arc::new(AtomicBool::new(false));
         let fade_generation = Arc::new(AtomicU64::new(0));
         let is_fading_in = Arc::new(AtomicBool::new(false));
+        let volume_fader = Some(fades::VolumeFader::spawn(
+            volume_element.clone(),
+            Arc::clone(&fade_generation),
+        ));
+        let silence_trimming_enabled = Arc::new(AtomicBool::new(false));
         Ok(Self {
             inner,
             queue,
@@ -453,6 +460,8 @@ impl AudioEngine {
             is_fading_in,
             volume_element,
             atomic_volume,
+            volume_fader,
+            silence_trimming_enabled,
             clip_latched,
         })
     }

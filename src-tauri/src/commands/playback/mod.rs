@@ -13,11 +13,72 @@ use domain::PlaybackState;
 use dsp_api::{DspCapabilities, DspEngine};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
 use tracing::info;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+const MPRIS_VOLUME_INTERVAL: Duration = Duration::from_millis(100);
+
+/// Coalesces rapid volume changes (slider drags) to at most 10 Hz for MPRIS `PropertiesChanged`.
+#[derive(Default)]
+pub struct MprisVolumeCoalescer {
+    pending_bits: AtomicU64,
+    scheduled: AtomicBool,
+    last_sent: Mutex<Option<Instant>>,
+}
+
+impl MprisVolumeCoalescer {
+    pub fn schedule_update(
+        self: &Arc<Self>,
+        mpris: &Arc<desktop_integration::MprisController>,
+        rt: &tokio::runtime::Runtime,
+        volume: f64,
+    ) {
+        self.pending_bits.store(volume.to_bits(), Ordering::SeqCst);
+        if self
+            .scheduled
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return;
+        }
+        let this = Arc::clone(self);
+        let m = mpris.clone();
+        rt.spawn(async move {
+            loop {
+                let wait = {
+                    let guard = this
+                        .last_sent
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    guard
+                        .map(|t| MPRIS_VOLUME_INTERVAL.saturating_sub(t.elapsed()))
+                        .unwrap_or(Duration::ZERO)
+                };
+                if !wait.is_zero() {
+                    tokio::time::sleep(wait).await;
+                }
+                this.scheduled.store(false, Ordering::SeqCst);
+                let vol = f64::from_bits(this.pending_bits.load(Ordering::SeqCst));
+                {
+                    let mut guard = this
+                        .last_sent
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    *guard = Some(Instant::now());
+                }
+                m.update_volume(vol).await;
+                if !this.scheduled.load(Ordering::SeqCst) {
+                    break;
+                }
+            }
+        });
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlaybackStatusDto {
     pub state: PlaybackState,
     pub position_ms: u64,
@@ -296,21 +357,36 @@ pub async fn enqueue_and_play_files(
     }
 
     if playback_mode == "append" {
-        let mut current_queue = state.engine.queue();
-        let start_index = current_queue.items.len();
-        current_queue.items.extend(new_items);
-        let _ = state
-            .engine
-            .set_queue(current_queue.items, Some(start_index));
+        let state_bg = state.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut items = state_bg.engine.with_queue(|q| q.items.clone());
+            let start_index = items.len();
+            items.extend(new_items);
+            let _ = state_bg.engine.set_queue(items, Some(start_index));
+            let _ = state_bg.engine.play_with_fade(true);
+        })
+        .await
+        .map_err(|e| tracing::warn!("enqueue_and_play_files failed: {}", e))
+        .ok();
     } else {
-        let _ = state.engine.set_queue(new_items.clone(), Some(0));
-        if let Some(first) = new_items.first() {
-            state.engine.set_active_item(first.clone());
-            sync_mpris_from_queue_item(first, state);
+        let first_item = new_items.first().cloned();
+        let state_bg = state.clone();
+        let played = tokio::task::spawn_blocking(move || {
+            let _ = state_bg.engine.set_queue(new_items, Some(0));
+            if let Some(ref first) = first_item {
+                state_bg.engine.set_active_item(first.clone());
+            }
+            let _ = state_bg.engine.play_with_fade(true);
+            first_item
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some(first) = played {
+            sync_mpris_from_queue_item(&first, state);
         }
     }
 
-    let _ = state.engine.play_with_fade(true);
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();
         state.rt.spawn(async move {
@@ -325,8 +401,7 @@ pub async fn enqueue_and_play_files(
 /// Plays audio via the audio engine and updates desktop status.
 pub fn play_internal(state: &AppState) -> Result<(), CommandError> {
     if state.engine.current_uri().is_none() {
-        let q = state.engine.queue();
-        if let Some(item) = q.current_item() {
+        if let Some(item) = state.engine.current_item() {
             let _ = state.engine.load_uri(&item.uri);
         }
     }
@@ -377,7 +452,9 @@ pub fn seek_internal(
 #[tauri::command]
 pub async fn load_file(path: String, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: load_file('{path}')");
-    state.engine.load_uri(&path)?;
+    let state_bg = state.inner().clone();
+    let path_bg = path.clone();
+    tokio::task::spawn_blocking(move || state_bg.engine.load_uri(&path_bg)).await??;
 
     if let Ok(mut t) = state.latest_live_stream_tag.lock() {
         *t = None;
@@ -440,11 +517,15 @@ pub fn set_volume(
         state.engine.set_volume(volume)?;
     }
     if let Some(mpris) = &state.mpris {
-        let m = mpris.clone();
-        state.rt.spawn(async move {
-            m.update_volume(volume).await;
-        });
+        state.mpris_volume.schedule_update(mpris, &state.rt, volume);
     }
+    Ok(())
+}
+
+/// Enables or disables GStreamer spectrum bus messages based on mounted UI consumers.
+#[tauri::command]
+pub fn set_spectrum_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), CommandError> {
+    state.engine.set_spectrum_enabled(enabled);
     Ok(())
 }
 
@@ -453,7 +534,7 @@ pub fn set_volume(
 #[tauri::command]
 pub fn get_status(state: State<'_, AppState>) -> PlaybackStatusDto {
     if let Some(cached) = state.last_status.read().ok().and_then(|s| s.clone()) {
-        return cached;
+        return (*cached).clone();
     }
     snapshot_status(&state)
 }
@@ -475,10 +556,12 @@ pub fn get_default_music_dir() -> Result<String, CommandError> {
 }
 
 #[tauri::command]
-pub fn get_sample_track(app: tauri::AppHandle) -> Result<Option<SampleTrackDto>, CommandError> {
+pub async fn get_sample_track(
+    app: tauri::AppHandle,
+) -> Result<Option<SampleTrackDto>, CommandError> {
     let data_dir = app
         .path()
         .app_data_dir()
         .unwrap_or_else(|_| PathBuf::from("."));
-    Ok(resolve_or_extract_sample_track(&data_dir))
+    Ok(tokio::task::spawn_blocking(move || resolve_or_extract_sample_track(&data_dir)).await?)
 }

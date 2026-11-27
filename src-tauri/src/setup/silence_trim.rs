@@ -37,6 +37,12 @@ pub struct SilenceTrimmer {
 
 impl SilenceTrimmer {
     pub fn on_tick(&mut self, state: &AppState, status: &PlaybackStatusDto) {
+        if !state.engine.is_silence_trimming_enabled() {
+            if self.track_key.is_some() {
+                self.reset_idle();
+            }
+            return;
+        }
         let config = state.engine.silence_trimming_config();
         let Some(item) = status.current_track.as_ref() else {
             return;
@@ -94,6 +100,13 @@ impl SilenceTrimmer {
         if status.position_ms > bounds.start_ms {
             self.leading_done = true;
         }
+    }
+
+    fn reset_idle(&mut self) {
+        if let Some(cancel) = self.cancel.take() {
+            cancel.store(true, Ordering::Relaxed);
+        }
+        *self = Self::default();
     }
 
     fn reset_for(&mut self, key: String) {

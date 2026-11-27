@@ -277,6 +277,7 @@ impl AudioEngine {
     /// pending samples to avoid clicks after a track change.
     fn teardown_source(inner: &mut PipelineInner) -> Result<gst::Pad, AudioEngineError> {
         let _ = inner.pipeline.set_state(gst::State::Null);
+        inner.cached_duration = None;
         inner.base_media_pos = Duration::ZERO;
         inner.base_sink_pts = Duration::ZERO;
         inner.pending_seek = None;

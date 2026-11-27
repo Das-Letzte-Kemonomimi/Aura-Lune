@@ -10,6 +10,7 @@ use std::fs;
 use std::io;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 /// File name of the Waybar status in the runtime directory.
 pub const WAYBAR_STATUS_FILE: &str = "auralune.json";
@@ -18,13 +19,23 @@ pub const CONTROL_FIFO_FILE: &str = "ctl";
 /// Name of the control Unix socket in the runtime directory.
 pub const CONTROL_SOCKET_FILE: &str = "auralune.sock";
 
+static CURRENT_UID_CACHE: OnceLock<Option<u32>> = OnceLock::new();
+static RUNTIME_DIR_CACHE: OnceLock<PathBuf> = OnceLock::new();
+
 /// UID of the current process (the owner of `/proc/self`), without `unsafe` or a libc dependency.
 pub fn current_uid() -> Option<u32> {
-    fs::metadata("/proc/self").ok().map(|m| m.uid())
+    *CURRENT_UID_CACHE.get_or_init(|| fs::metadata("/proc/self").ok().map(|m| m.uid()))
 }
 
 /// Path of the runtime directory (without creating it).
 pub fn runtime_dir_path() -> PathBuf {
+    if let Some(cached) = RUNTIME_DIR_CACHE.get() {
+        return cached.clone();
+    }
+    resolve_runtime_dir_path()
+}
+
+fn resolve_runtime_dir_path() -> PathBuf {
     match std::env::var_os("XDG_RUNTIME_DIR") {
         Some(dir) if !dir.is_empty() && Path::new(&dir).is_absolute() => {
             PathBuf::from(dir).join("auralune")
@@ -36,11 +47,14 @@ pub fn runtime_dir_path() -> PathBuf {
     }
 }
 
-/// Creates (if needed) and verifies the private runtime directory.
+/// Creates (if needed) and verifies the private runtime directory (cached once verified).
 pub fn ensure_runtime_dir() -> io::Result<PathBuf> {
-    let dir = runtime_dir_path();
+    if let Some(dir) = RUNTIME_DIR_CACHE.get() {
+        return Ok(dir.clone());
+    }
+    let dir = resolve_runtime_dir_path();
     ensure_private_dir(&dir)?;
-    Ok(dir)
+    Ok(RUNTIME_DIR_CACHE.get_or_init(|| dir).clone())
 }
 
 /// Creates the `0700` directory and checks that it is a private directory of the current user.

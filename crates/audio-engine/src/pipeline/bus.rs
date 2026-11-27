@@ -8,15 +8,37 @@ impl AudioEngine {
     pub fn poll_events(&self) -> Vec<PlayerEvent> {
         let mut events = Vec::new();
         let pipeline = self.inner.lock_safe().pipeline.clone();
+        let mut last_spectrum_msg: Option<gst::Message> = None;
 
         if let Some(bus) = pipeline.bus() {
             while let Some(msg) = bus.pop() {
+                if self.is_spectrum_message(&msg) {
+                    last_spectrum_msg = Some(msg);
+                    continue;
+                }
                 self.handle_bus_message(&pipeline, &msg, &mut events);
             }
         }
 
-        self.apply_pre_eos_fade();
+        if let Some(spec_msg) = last_spectrum_msg {
+            if let Some(spectrum) = spec_msg.structure().and_then(spectrum_from_structure) {
+                events.push(PlayerEvent::Spectrum(spectrum));
+            }
+        }
+
+        let (pos, dur) = self.pre_eos_probe_pos_dur();
+        self.apply_pre_eos_fade(pos, dur);
         events
+    }
+
+    fn is_spectrum_message(&self, msg: &gst::Message) -> bool {
+        matches!(
+            msg.view(),
+            gst::MessageView::Element(elem_msg)
+                if elem_msg
+                    .structure()
+                    .is_some_and(|s| s.name() == "spectrum")
+        )
     }
 
     fn handle_bus_message(
@@ -31,6 +53,9 @@ impl AudioEngine {
                 info!("Received the EOS message (end of stream)");
                 self.handle_eos(events);
                 events.push(PlayerEvent::Eos);
+            }
+            MessageView::DurationChanged(..) => {
+                self.inner.lock_safe().cached_duration = None;
             }
             MessageView::Error(err) => {
                 let error_msg = format!(
@@ -70,11 +95,6 @@ impl AudioEngine {
                 if old != new {
                     debug!("Pipeline state change: {:?} -> {:?}", old, new);
                     events.push(PlayerEvent::StateChanged { old, new });
-                }
-            }
-            MessageView::Element(elem_msg) => {
-                if let Some(spectrum) = elem_msg.structure().and_then(spectrum_from_structure) {
-                    events.push(PlayerEvent::Spectrum(spectrum));
                 }
             }
             MessageView::Tag(tag_msg) => {
@@ -173,33 +193,46 @@ impl AudioEngine {
         self.inner.lock_safe().state = PlaybackState::Stopped;
     }
 
-    /// As a track nears its end, fade it out on an equal-power curve (first half of the crossfade).
-    fn apply_pre_eos_fade(&self) {
+    fn pre_eos_probe_pos_dur(&self) -> (Option<Duration>, Option<Duration>) {
         if self.is_fading_in.load(Ordering::Relaxed) {
-            return;
+            return (None, None);
+        }
+        let user_vol = self.volume();
+        if user_vol <= 0.001 {
+            return (None, None);
+        }
+        let mut inner = self.inner.lock_safe();
+        if inner.state != PlaybackState::Playing || inner.crossfade_duration_ms == 0 {
+            return (None, None);
         }
         if self.queue.lock_safe().loop_mode == LoopMode::Track {
-            return;
+            return (None, None);
         }
-        let (is_playing, crossfade_ms, user_vol, volume) = {
-            let inner = self.inner.lock_safe();
-            (
-                inner.state == PlaybackState::Playing,
-                inner.crossfade_duration_ms,
-                self.volume(),
-                inner.volume.clone(),
-            )
-        };
-        if !is_playing || crossfade_ms == 0 || user_vol <= 0.001 {
-            return;
-        }
-        let fade_out_ms = crossfade_ms / 2;
-        let (Some(pos), Some(dur)) = (self.position(), self.duration()) else {
+        let dur = Self::duration_locked(&mut inner);
+        let pos = Self::calculate_media_position(&mut inner);
+        (pos, dur)
+    }
+
+    /// As a track nears its end, fade it out on an equal-power curve (first half of the crossfade).
+    fn apply_pre_eos_fade(&self, pos: Option<Duration>, dur: Option<Duration>) {
+        let (Some(pos), Some(dur)) = (pos, dur) else {
             return;
         };
         if dur <= pos {
             return;
         }
+        let (crossfade_ms, user_vol, volume) = {
+            let inner = self.inner.lock_safe();
+            (
+                inner.crossfade_duration_ms,
+                self.volume(),
+                inner.volume.clone(),
+            )
+        };
+        if crossfade_ms == 0 || user_vol <= 0.001 {
+            return;
+        }
+        let fade_out_ms = crossfade_ms / 2;
         let remaining_ms = (dur - pos).as_millis() as u64;
         if remaining_ms <= fade_out_ms {
             let t = remaining_ms as f64 / fade_out_ms as f64;
@@ -226,18 +259,24 @@ fn spectrum_from_structure(structure: &gst::StructureRef) -> Option<Vec<f32>> {
             .or_else(|| v.get::<f64>().ok().map(|d| d as f32))
     };
 
-    let mut channel_mags: Vec<Vec<f32>> = Vec::new();
-    let mut flat_db = Vec::new();
+    let mut channel_mags: Vec<Vec<f32>> = Vec::with_capacity(2);
+    let mut flat_db: Vec<f32> = Vec::with_capacity(64);
     if let Ok(list) = val.get::<gst::ListRef>() {
-        for item in list.as_slice() {
+        let items = list.as_slice();
+        for item in items {
             if let Some(db) = as_f32(item) {
                 flat_db.push(db);
             } else if let Ok(sub_list) = item.get::<gst::ListRef>() {
-                channel_mags.push(sub_list.as_slice().iter().filter_map(as_f32).collect());
+                let sub = sub_list.as_slice();
+                let mut ch = Vec::with_capacity(sub.len());
+                ch.extend(sub.iter().filter_map(as_f32));
+                channel_mags.push(ch);
             }
         }
     } else if let Ok(arr) = val.get::<gst::ArrayRef>() {
-        flat_db = arr.as_slice().iter().filter_map(as_f32).collect();
+        let items = arr.as_slice();
+        flat_db.reserve(items.len());
+        flat_db.extend(items.iter().filter_map(as_f32));
     }
     crate::spectrum::stereo_display_spectrum(&channel_mags, &flat_db)
 }

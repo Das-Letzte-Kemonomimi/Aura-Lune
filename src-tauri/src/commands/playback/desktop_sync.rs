@@ -298,12 +298,11 @@ pub async fn update_mpris_metadata(
         };
         discord.update_playback_status(effective_state, pos, dur);
 
-        let current_track_id = state
-            .engine
-            .queue()
-            .current_item()
-            .filter(|i| i.title.trim() == keys.effective_title.trim())
-            .and_then(|i| i.track_id);
+        let current_track_id = state.engine.with_queue(|q| {
+            q.current_item()
+                .filter(|i| i.title.trim() == keys.effective_title.trim())
+                .and_then(|i| i.track_id)
+        });
 
         if effective_discord_art.is_none()
             && (!keys.effective_artist.trim().is_empty()
@@ -434,7 +433,7 @@ pub(super) fn spawn_discord_cover_search(
     cache_key: String,
     track_id: Option<i64>,
 ) {
-    if cover_recently_missed(&cache_key) {
+    if !discord.get_status().enabled || cover_recently_missed(&cache_key) {
         return;
     }
     let discord = discord.clone();

@@ -57,12 +57,16 @@ pub struct AppState {
     pub control_ipc: Option<Arc<desktop_integration::ControlIpcServer>>,
     pub last_waybar_write: Arc<Mutex<std::time::Instant>>,
     /// The last playback status computed by the ticker (`setup::playback_ticker`).
-    pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
+    pub last_status: Arc<std::sync::RwLock<Option<Arc<commands::playback::PlaybackStatusDto>>>>,
     /// Cache of the `close_to_tray` setting (read when handling window close, without blocking).
     pub close_to_tray: Arc<std::sync::atomic::AtomicBool>,
     /// Whether the main window has already been revealed to the Wayland compositor.
     /// Set to `true` on first `reveal_main_window` call or by the safety timer.
     pub window_revealed: Arc<std::sync::atomic::AtomicBool>,
+    /// Whether the main window is currently hidden (minimised to tray), throttles ticker emits.
+    pub window_hidden: Arc<std::sync::atomic::AtomicBool>,
+    /// Coalesces rapid MPRIS volume updates to <= 10 Hz.
+    pub mpris_volume: Arc<commands::playback::MprisVolumeCoalescer>,
     /// The only writer of the queue state (see `persist_queue_state`).
     pub queue_saver: commands::queue::QueueSaver,
     /// Wakes the background high-confidence cover fetcher after scans or setting toggles.
@@ -125,6 +129,7 @@ pub fn run() {
 
             if let Some(state) = app.try_state::<AppState>() {
                 state.window_revealed.store(true, Ordering::SeqCst);
+                state.window_hidden.store(false, Ordering::SeqCst);
             }
 
             let files = extract_audio_paths_from_args(&argv, Some(&cwd));
@@ -161,6 +166,7 @@ pub fn run() {
             list_dsp_presets,
             load_dsp_preset,
             set_volume,
+            set_spectrum_enabled,
             get_status,
             set_equalizer_band,
             set_equalizer_bands,

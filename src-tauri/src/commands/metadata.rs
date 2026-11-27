@@ -105,9 +105,7 @@ fn push_discord_track_cover(state: &AppState, artist: &str, album: &str, art_url
         .unwrap_or(0);
     let current_title = state
         .engine
-        .queue()
-        .current_item()
-        .map(|i| i.title.clone())
+        .with_queue(|q| q.current_item().map(|i| i.title.clone()))
         .unwrap_or_default();
     discord.update_track(desktop_integration::DiscordTrackInfo {
         title: current_title,

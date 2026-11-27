@@ -190,13 +190,26 @@ impl AudioEngine {
         }
     }
 
+    /// Returns the cached track duration, querying GStreamer once until invalidated on
+    /// `load_uri`/`stop`/`DurationChanged`.
+    pub(super) fn duration_locked(inner: &mut PipelineInner) -> Option<Duration> {
+        if inner.cached_duration.is_some() {
+            return inner.cached_duration;
+        }
+        let queried = Self::query_raw_duration(inner);
+        if queried.is_some() {
+            inner.cached_duration = queried;
+        }
+        queried
+    }
+
     /// Computes the real position in the source file, syncing the timeline with the pipeline and the DSP engine.
-    pub(super) fn calculate_media_position(inner: &PipelineInner) -> Option<Duration> {
+    pub(super) fn calculate_media_position(inner: &mut PipelineInner) -> Option<Duration> {
         let sink_pos = Self::query_raw_sink_position(inner).unwrap_or(inner.base_sink_pts);
 
         // If the sink query returns 0 during preroll/seek and the base position is > 0, keep the base position
         if sink_pos == Duration::ZERO && inner.base_media_pos > Duration::ZERO {
-            return if let Some(dur) = Self::query_raw_duration(inner) {
+            return if let Some(dur) = Self::duration_locked(inner) {
                 Some(inner.base_media_pos.min(dur))
             } else {
                 Some(inner.base_media_pos)
@@ -218,7 +231,7 @@ impl AudioEngine {
         let elapsed_media_nanos = (elapsed_sink.as_nanos() as f64 * speed).round() as u64;
         let pos = inner.base_media_pos + Duration::from_nanos(elapsed_media_nanos);
 
-        if let Some(dur) = Self::query_raw_duration(inner) {
+        if let Some(dur) = Self::duration_locked(inner) {
             Some(pos.min(dur))
         } else {
             Some(pos)
@@ -230,6 +243,7 @@ impl AudioEngine {
         let pipeline = {
             let mut inner = self.inner.lock_safe();
             inner.state = PlaybackState::Stopped;
+            inner.cached_duration = None;
             inner.base_media_pos = Duration::ZERO;
             inner.base_sink_pts = Duration::ZERO;
             inner.pending_seek = None;
@@ -359,14 +373,14 @@ impl AudioEngine {
 
     /// Returns the current playback position on the source file's timeline (accounting for DSP).
     pub fn position(&self) -> Option<Duration> {
-        let inner = self.inner.lock_safe();
-        Self::calculate_media_position(&inner)
+        let mut inner = self.inner.lock_safe();
+        Self::calculate_media_position(&mut inner)
     }
 
     /// Returns the total duration of the loaded track.
     pub fn duration(&self) -> Option<Duration> {
-        let inner = self.inner.lock_safe();
-        Self::query_raw_duration(&inner)
+        let mut inner = self.inner.lock_safe();
+        Self::duration_locked(&mut inner)
     }
 
     /// Returns the current player state.

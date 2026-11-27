@@ -8,7 +8,8 @@
  * - components drawing progress / visualisations subscribe to this store through `useLiveStatus`,
  *   `useLivePositionMs` or `useLiveSpectrum`, and only they render.
  */
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { invoke } from '../api/ipc';
 import type { PlaybackStatus } from '../types/playback';
 
 export interface LivePlaybackSnapshot {
@@ -31,6 +32,52 @@ let snapshot: LivePlaybackSnapshot = {
   volume: 1.0,
 };
 const listeners = new Set<Listener>();
+let spectrumConsumers = 0;
+
+function sendSpectrumEnabled(enabled: boolean) {
+  try {
+    Promise.resolve(invoke('set_spectrum_enabled', { enabled })).catch(() => {});
+  } catch {
+    // Non-Tauri test / browser environments
+  }
+}
+
+export function hasSpectrumConsumers(): boolean {
+  return spectrumConsumers > 0;
+}
+
+/** Syncs the current backend spectrum setting with the frontend consumer count. */
+export function syncSpectrumEnabled(): void {
+  sendSpectrumEnabled(spectrumConsumers > 0);
+}
+
+/**
+ * Registers a mounted spectrum consumer; enables backend FFT messages on `0 -> 1`
+ * and disables them on `1 -> 0`.
+ */
+export function acquireSpectrumConsumer(): () => void {
+  let released = false;
+  spectrumConsumers += 1;
+  if (spectrumConsumers === 1) {
+    sendSpectrumEnabled(true);
+  }
+  return () => {
+    if (released) return;
+    released = true;
+    spectrumConsumers = Math.max(0, spectrumConsumers - 1);
+    if (spectrumConsumers === 0) {
+      sendSpectrumEnabled(false);
+    }
+  };
+}
+
+/** Hook that holds a spectrum consumer lease while mounted and `active`. */
+export function useSpectrumConsumer(active = true): void {
+  useEffect(() => {
+    if (!active) return;
+    return acquireSpectrumConsumer();
+  }, [active]);
+}
 
 function emit() {
   listeners.forEach((l) => l());
@@ -84,6 +131,7 @@ export const livePlayback = {
   /** Tests only: restores the initial state. */
   reset() {
     snapshot = { ready: false, positionMs: 0, spectrum: [], volumeReady: false, volume: 1.0 };
+    spectrumConsumers = 0;
     emit();
   },
 };

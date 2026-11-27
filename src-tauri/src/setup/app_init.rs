@@ -484,6 +484,8 @@ pub fn init_app(
                 .unwrap_or(true),
         )),
         window_revealed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        window_hidden: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        mpris_volume: Arc::new(crate::commands::playback::MprisVolumeCoalescer::default()),
         cover_worker_notify: Arc::new(tokio::sync::Notify::new()),
         cover_worker_force_run: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         cover_worker_active: Arc::new(std::sync::atomic::AtomicBool::new(false)),

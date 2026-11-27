@@ -87,3 +87,41 @@ fn test_audio_engine_spectrum_emission() {
         magnitudes.len()
     );
 }
+
+#[test]
+fn test_fader_thread_supersedes_running_fade() {
+    use std::path::PathBuf;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+
+    let engine = AudioEngine::new().expect("AudioEngine init");
+    let uri = format!("file://{}", fixture_path.canonicalize().unwrap().display());
+    engine.load_uri(&uri).expect("load_uri");
+    engine.set_volume(1.0).expect("set initial volume");
+    engine.play().expect("play");
+
+    // Start a slow fade down to 0.1, then immediately supersede with a ramp up to 0.75.
+    engine
+        .set_volume_smooth(0.1, Duration::from_millis(400))
+        .expect("first smooth fade");
+    sleep(Duration::from_millis(24));
+    engine
+        .set_volume_smooth(0.75, Duration::from_millis(120))
+        .expect("superseding smooth fade");
+
+    sleep(Duration::from_millis(220));
+    let snap = engine.status_snapshot();
+    assert!((snap.volume - 0.75).abs() < 1e-6);
+
+    // Wait beyond the first fade's window to ensure it did NOT overwrite the second fade.
+    sleep(Duration::from_millis(250));
+    assert!((engine.volume() - 0.75).abs() < 1e-6);
+    engine.stop().ok();
+}

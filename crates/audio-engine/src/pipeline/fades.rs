@@ -1,12 +1,167 @@
 //! Volume, smooth (equal-power) transitions and crossfade.
 
 use super::*;
+use std::sync::Condvar;
+
+#[derive(Debug, Clone, Copy)]
+struct FadeTarget {
+    start_vol: f64,
+    target_vol: f64,
+    duration: Duration,
+    gen_id: u64,
+}
+
+#[derive(Default)]
+struct FaderState {
+    target: Option<FadeTarget>,
+    stop: bool,
+}
+
+struct VolumeFaderInner {
+    state: Mutex<FaderState>,
+    cvar: Condvar,
+    thread: Mutex<Option<std::thread::JoinHandle<()>>>,
+}
+
+impl Drop for VolumeFaderInner {
+    fn drop(&mut self) {
+        {
+            let mut guard = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.stop = true;
+            guard.target = None;
+            self.cvar.notify_all();
+        }
+        if let Some(handle) = self
+            .thread
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Persistent single-thread volume fader owned by [`AudioEngine`].
+#[derive(Clone)]
+pub(super) struct VolumeFader(Arc<VolumeFaderInner>);
+
+impl VolumeFader {
+    pub(super) fn spawn(volume_el: gst::Element, fade_gen: Arc<AtomicU64>) -> Self {
+        let inner = Arc::new(VolumeFaderInner {
+            state: Mutex::new(FaderState::default()),
+            cvar: Condvar::new(),
+            thread: Mutex::new(None),
+        });
+        let worker_inner = Arc::clone(&inner);
+        let handle = std::thread::Builder::new()
+            .name("aura-volume-fader".into())
+            .spawn(move || Self::worker_loop(&worker_inner, &volume_el, &fade_gen));
+
+        match handle {
+            Ok(h) => {
+                *inner
+                    .thread
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(h);
+            }
+            Err(e) => {
+                warn!("Failed to start persistent volume fader thread: {}", e);
+            }
+        }
+        Self(inner)
+    }
+
+    fn set_target(&self, target: Option<FadeTarget>) {
+        let mut guard = self
+            .0
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard.target = target;
+        self.0.cvar.notify_one();
+    }
+
+    fn worker_loop(inner: &VolumeFaderInner, volume_el: &gst::Element, fade_gen: &Arc<AtomicU64>) {
+        loop {
+            let target = {
+                let mut guard = inner
+                    .state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                while !guard.stop && guard.target.is_none() {
+                    guard = inner
+                        .cvar
+                        .wait(guard)
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                }
+                if guard.stop {
+                    return;
+                }
+                guard.target.take()
+            };
+
+            let Some(target) = target else {
+                continue;
+            };
+
+            // 10 ms floor: the UI's "instant" mode asks for 15 ms, a click-free ramp that still feels immediate.
+            let total_ms = target.duration.as_millis().clamp(10, 500) as u64;
+            let step_ms = 8u64;
+            let steps = (total_ms / step_ms).clamp(4, 40) as usize;
+            let step_time = Duration::from_millis((total_ms / steps as u64).max(1));
+
+            for i in 1..=steps {
+                if fade_gen.load(Ordering::Relaxed) != target.gen_id {
+                    break;
+                }
+                let t = (i as f64) / (steps as f64);
+                // Smooth (cosine) S-curve: gentle acceleration and deceleration without jumps
+                let factor = (1.0 - (t * std::f64::consts::PI).cos()) * 0.5;
+                let interpolated =
+                    target.start_vol + (target.target_vol - target.start_vol) * factor;
+                volume_el.set_property("volume", interpolated);
+
+                let guard = inner
+                    .state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if guard.stop {
+                    return;
+                }
+                if guard.target.is_some() || fade_gen.load(Ordering::Relaxed) != target.gen_id {
+                    break;
+                }
+                let (after, _) = inner
+                    .cvar
+                    .wait_timeout_while(guard, step_time, |s| !s.stop && s.target.is_none())
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if after.stop {
+                    return;
+                }
+                if after.target.is_some() {
+                    break;
+                }
+            }
+
+            if fade_gen.load(Ordering::Relaxed) == target.gen_id {
+                volume_el.set_property("volume", target.target_vol);
+            }
+        }
+    }
+}
 
 impl AudioEngine {
     /// Sets the volume (range 0.0 to 1.0+) immediately, without blocking on the main pipeline mutex.
     pub fn set_volume(&self, volume: f64) -> Result<(), AudioEngineError> {
         self.fade_generation.fetch_add(1, Ordering::SeqCst);
         self.is_fading_in.store(false, Ordering::SeqCst);
+        if let Some(fader) = &self.volume_fader {
+            fader.set_target(None);
+        }
         let clamped = volume.clamp(0.0, 2.0);
         self.atomic_volume
             .store(clamped.to_bits(), Ordering::Relaxed);
@@ -24,44 +179,29 @@ impl AudioEngine {
         let current_gen = self.fade_generation.fetch_add(1, Ordering::SeqCst) + 1;
         self.is_fading_in.store(false, Ordering::SeqCst);
         let clamped = volume.clamp(0.0, 2.0);
-        let current_vol = self.volume();
+        let start_vol = self.volume_element.property::<f64>("volume");
         self.atomic_volume
             .store(clamped.to_bits(), Ordering::Relaxed);
 
-        if duration.is_zero() || (current_vol - clamped).abs() < 0.005 {
+        if duration.is_zero() || (start_vol - clamped).abs() < 0.005 {
+            if let Some(fader) = &self.volume_fader {
+                fader.set_target(None);
+            }
             self.volume_element.set_property("volume", clamped);
             debug!("Volume set immediately to: {:.2}", clamped);
             return Ok(());
         }
 
-        let volume_el = self.volume_element.clone();
-        let fade_gen = Arc::clone(&self.fade_generation);
-
-        let _ = std::thread::Builder::new()
-            .name("aura-volume-smooth".into())
-            .spawn(move || {
-                // 10 ms floor: the UI's "instant" mode asks for 15 ms, a click-free ramp that still feels immediate.
-                let total_ms = duration.as_millis().clamp(10, 500) as u64;
-                let step_ms = 8u64;
-                let steps = (total_ms / step_ms).clamp(4, 40) as usize;
-                let step_time = Duration::from_millis((total_ms / steps as u64).max(1));
-
-                for i in 1..=steps {
-                    if fade_gen.load(Ordering::Relaxed) != current_gen {
-                        return;
-                    }
-                    let t = (i as f64) / (steps as f64);
-                    // Smooth (cosine) S-curve: gentle acceleration and deceleration without jumps
-                    let factor = (1.0 - (t * std::f64::consts::PI).cos()) * 0.5;
-                    let interpolated = current_vol + (clamped - current_vol) * factor;
-                    volume_el.set_property("volume", interpolated);
-                    std::thread::sleep(step_time);
-                }
-
-                if fade_gen.load(Ordering::Relaxed) == current_gen {
-                    volume_el.set_property("volume", clamped);
-                }
-            });
+        if let Some(fader) = &self.volume_fader {
+            fader.set_target(Some(FadeTarget {
+                start_vol,
+                target_vol: clamped,
+                duration,
+                gen_id: current_gen,
+            }));
+        } else {
+            self.volume_element.set_property("volume", clamped);
+        }
 
         debug!(
             "Started a smooth volume transition to: {:.2} ({} ms)",

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { type Language, getTranslations } from '../../i18n';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
 import { usePersistedState } from '../../hooks/usePersistedState';
-import { livePlayback } from '../../state/livePlayback';
+import { livePlayback, useSpectrumConsumer } from '../../state/livePlayback';
 import { GradientCache } from '../../utils/canvasDraw';
 import { foldBands, updateBands, type BandState } from '../../utils/spectrumBands';
 import { cn } from '../../utils/cn';
@@ -32,6 +32,7 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
   style,
   currentLang = 'en',
 }) => {
+  useSpectrumConsumer();
   const loc = getTranslations(currentLang);
   // Shared by every visualizer on screen (player, BigScreen, DSP studio): a change in one shows in all.
   const [mode, setMode] = usePersistedState<VisualizerMode>('auralune_visualizer_mode', 'bars', {

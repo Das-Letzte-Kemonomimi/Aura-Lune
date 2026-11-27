@@ -157,6 +157,13 @@ impl DiscordRpcController {
     }
 }
 
+/// Exponential backoff between Discord IPC reconnect attempts: 1.5 s doubled up to 60 s.
+pub fn next_reconnect_backoff(failed_attempts: u32) -> Duration {
+    let shift = failed_attempts.min(6);
+    let ms = 1_500u64.saturating_mul(1u64 << shift).min(60_000);
+    Duration::from_millis(ms)
+}
+
 /// Internal worker that handles the Discord Unix IPC socket.
 struct DiscordRpcWorker {
     enabled: bool,
@@ -167,7 +174,8 @@ struct DiscordRpcWorker {
     playback_state: PlaybackState,
     current_position_ms: u64,
     current_duration_ms: u64,
-    last_connect_attempt: Option<SystemTime>,
+    reconnect_attempts: u32,
+    next_connect_at: Option<tokio::time::Instant>,
     nonce_counter: u64,
     dirty: bool,
     last_sent_at: Option<tokio::time::Instant>,
@@ -185,12 +193,18 @@ impl DiscordRpcWorker {
             playback_state: PlaybackState::Stopped,
             current_position_ms: 0,
             current_duration_ms: 0,
-            last_connect_attempt: None,
+            reconnect_attempts: 0,
+            next_connect_at: None,
             nonce_counter: 0,
             dirty: false,
             last_sent_at: None,
             last_start_unix: None,
         }
+    }
+
+    fn reset_reconnect_backoff(&mut self) {
+        self.reconnect_attempts = 0;
+        self.next_connect_at = None;
     }
 
     fn schedule_flush(&self, flush_deadline: &mut Option<tokio::time::Instant>) {
@@ -218,14 +232,44 @@ impl DiscordRpcWorker {
             self.try_connect().await;
         }
 
-        let mut ticker = tokio::time::interval(Duration::from_millis(1500));
-        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-
         let mut flush_deadline: Option<tokio::time::Instant> = None;
 
         loop {
+            let now_instant = tokio::time::Instant::now();
+            let reconnect_due = if self.enabled
+                && self.writer.is_none()
+                && self.current_track.is_some()
+                && self.playback_state != PlaybackState::Stopped
+            {
+                self.next_connect_at
+            } else {
+                None
+            };
+
+            let loop_check_due = if self.enabled
+                && self.playback_state == PlaybackState::Playing
+                && self.current_duration_ms > 0
+            {
+                self.last_start_unix
+                    .map(|_| now_instant + Duration::from_millis(1500))
+            } else {
+                None
+            };
+
+            let maintenance_deadline = match (reconnect_due, loop_check_due) {
+                (Some(a), Some(b)) => Some(std::cmp::min(a, b)),
+                (a, b) => a.or(b),
+            };
+
             let flush_fut = async {
                 match flush_deadline {
+                    Some(dl) => tokio::time::sleep_until(dl).await,
+                    None => std::future::pending::<()>().await,
+                }
+            };
+
+            let maintenance_fut = async {
+                match maintenance_deadline {
                     Some(dl) => tokio::time::sleep_until(dl).await,
                     None => std::future::pending::<()>().await,
                 }
@@ -245,6 +289,7 @@ impl DiscordRpcWorker {
                                 self.playback_state = PlaybackState::Playing;
                             }
                             if track_changed {
+                                self.reset_reconnect_backoff();
                                 self.dirty = true;
                                 self.schedule_flush(&mut flush_deadline);
                             }
@@ -311,10 +356,12 @@ impl DiscordRpcWorker {
                             self.enabled = enabled;
                             self.update_shared_status();
                             if enabled {
+                                self.reset_reconnect_backoff();
                                 self.try_connect().await;
                                 self.dirty = true;
                                 self.schedule_flush(&mut flush_deadline);
                             } else {
+                                self.reset_reconnect_backoff();
                                 self.dirty = false;
                                 flush_deadline = None;
                                 self.clear_discord_activity().await;
@@ -330,6 +377,7 @@ impl DiscordRpcWorker {
                             };
                             if final_id != self.client_id {
                                 self.client_id = final_id;
+                                self.reset_reconnect_backoff();
                                 self.disconnect();
                                 if self.enabled {
                                     self.try_connect().await;
@@ -348,7 +396,7 @@ impl DiscordRpcWorker {
                         self.refresh_activity().await;
                     }
                 }
-                _ = ticker.tick() => {
+                _ = maintenance_fut => {
                     let now_unix = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap_or_default()
@@ -372,7 +420,7 @@ impl DiscordRpcWorker {
                     }
 
                     // If Discord RPC is on but not connected yet (e.g. Vesktop/Discord started later),
-                    // probe the socket in the background and send the activity automatically, with no user interaction
+                    // probe the socket in the background with exponential backoff up to 60 s.
                     if self.enabled
                         && self.writer.is_none()
                         && self.current_track.is_some()
@@ -417,15 +465,11 @@ impl DiscordRpcWorker {
             return true;
         }
 
-        // Avoid reconnect spam more often than every 500ms
-        if let Some(last) = self.last_connect_attempt {
-            if let Ok(elapsed) = last.elapsed() {
-                if elapsed < Duration::from_millis(500) {
-                    return false;
-                }
+        if let Some(deadline) = self.next_connect_at {
+            if tokio::time::Instant::now() < deadline {
+                return false;
             }
         }
-        self.last_connect_attempt = Some(SystemTime::now());
 
         // ~130 `exists()` and `read_dir` checks, so off the Tokio threads.
         let candidates = tokio::task::spawn_blocking(find_discord_socket_candidates)
@@ -468,6 +512,7 @@ impl DiscordRpcWorker {
                                 }
                             });
                             self.writer = Some(write_half);
+                            self.reset_reconnect_backoff();
                             self.update_shared_status();
                             return true;
                         }
@@ -495,6 +540,9 @@ impl DiscordRpcWorker {
             }
         }
 
+        let backoff = next_reconnect_backoff(self.reconnect_attempts);
+        self.reconnect_attempts = self.reconnect_attempts.saturating_add(1);
+        self.next_connect_at = Some(tokio::time::Instant::now() + backoff);
         self.update_shared_status();
         false
     }

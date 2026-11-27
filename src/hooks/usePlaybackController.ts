@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import { setSetting } from '../api/settings';
-import { livePlayback, currentVolume } from '../state/livePlayback';
+import { livePlayback, currentVolume, syncSpectrumEnabled } from '../state/livePlayback';
 import { shouldCommitStatus } from '../state/statusCommit';
 import { useTauriEvent } from './useTauriEvent';
 import type { PlaybackStatus } from '../types/playback';
@@ -411,9 +411,10 @@ export function usePlaybackController({
   });
 
   // Start-up and fallback: the first status is fetched right away; if events stop
-  // arriving (e.g. an environment without the ticker), the status is polled once a second.
+  // arriving (e.g. an environment without the ticker), the status is polled while visible.
   useEffect(() => {
     let cancelled = false;
+    syncSpectrumEnabled();
     const fetchOnce = () => {
       invoke<PlaybackStatus>('get_status')
         .then((res) => {
@@ -425,7 +426,7 @@ export function usePlaybackController({
     };
     fetchOnce();
     const watchdog = setInterval(() => {
-      if (Date.now() - lastStatusEventAtRef.current > 1500) fetchOnce();
+      if (!document.hidden && Date.now() - lastStatusEventAtRef.current > 3000) fetchOnce();
     }, 1000);
     return () => {
       cancelled = true;
