@@ -102,6 +102,9 @@ struct PipelineInner {
     reverb_level: f64,
     base_media_pos: Duration,
     base_sink_pts: Duration,
+    /// Deferred seek target stored while the pipeline was `State::Null` (or unprerolled),
+    /// applied silently in `State::Paused` before transitioning to `Playing`.
+    pending_seek: Option<Duration>,
     seek_seq: u64,
     _stereo_widener: gst::Element,
     stereo_widener_config: Arc<AtomicCell<domain::dynamics::StereoWidenerConfig>>,

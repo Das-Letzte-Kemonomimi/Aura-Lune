@@ -428,6 +428,7 @@ impl AudioEngine {
             reverb_level: 0.0,
             base_media_pos: Duration::ZERO,
             base_sink_pts: Duration::ZERO,
+            pending_seek: None,
             seek_seq: 0,
             _stereo_widener: stereo_widener,
             stereo_widener_config,

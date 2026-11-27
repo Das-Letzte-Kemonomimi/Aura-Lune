@@ -304,6 +304,13 @@
         "de": "Die Wellenform und das Spektrum der Suchleiste werden jetzt per FFT-Analyse direkt aus den echten Audiofrequenzen jedes Titels (Bässe, Mitten und Höhen) berechnet und lokal zwischengespeichert, statt einer zufälligen Platzhalterwelle.",
         "fi": "Kelauspalkin aaltomuoto ja spektri lasketaan nyt kunkin kappaleen oikeista äänitaajuuksista (basso, keskialue ja diskantti) FFT-analyysillä ja tallennetaan välimuistiin satunnaisen malliaallon sijaan.",
         "la": "Unda et spectrum lineae temporis nunc ex veris frequentiis soni cuiusque carminis (graves, mediae et acutae) per analysim FFT computantur et localiter servantur loco undae fortuitae."
+      },
+      {
+        "en": "Fixed a brief jump back to 0:01 on the progress bar when starting playback right after a fresh app launch.",
+        "pl": "Naprawiono krótkie przeskoczenie paska postępu do 0:01 podczas pierwszego uruchomienia odtwarzania po starcie aplikacji.",
+        "de": "Kurzes Zurückspringen der Fortschrittsanzeige auf 0:01 beim ersten Starten der Wiedergabe nach dem Programmstart behoben.",
+        "fi": "Korjattu toiston edistymispalkin lyhyt hyppy kohtaan 0:01 aloitettaessa toisto ensimmäisen kerran sovelluksen käynnistyksen jälkeen.",
+        "la": "Saltus brevis indicis progressus ad 0:01 in primo initio sonitus post aperturam applicationis correctus."
       }
     ]
   },

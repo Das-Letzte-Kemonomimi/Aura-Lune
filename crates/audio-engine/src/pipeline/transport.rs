@@ -3,8 +3,12 @@
 use super::*;
 
 impl AudioEngine {
-    /// Starts or resumes playback.
-    pub fn play(&self) -> Result<(), AudioEngineError> {
+    /// Ensures a URI is loaded (from the active queue item if needed) and applies any deferred
+    /// initial seek silently in `State::Paused` before transitioning the sink to `Playing`.
+    fn prepare_for_playback(
+        &self,
+        initial_volume_zero: bool,
+    ) -> Result<Option<(gst::Pipeline, gst::Element, f64)>, AudioEngineError> {
         let uri_to_load = {
             let inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
@@ -21,15 +25,65 @@ impl AudioEngine {
             self.load_uri(&uri)?;
         }
 
-        let (pipeline, volume, user_vol) = {
+        let (pipeline, pending_seek) = {
             let mut inner = self.inner.lock_safe();
             if inner.current_uri.is_none() {
-                debug!("No file loaded and no active track in the queue; skipping play");
-                return Ok(());
+                return Ok(None);
             }
-            inner.state = PlaybackState::Playing;
-            inner.volume.set_property("volume", self.volume());
-            (inner.pipeline.clone(), inner.volume.clone(), self.volume())
+            (inner.pipeline.clone(), inner.pending_seek.take())
+        };
+
+        if let Some(pos) = pending_seek {
+            // Preroll silently to Paused so GStreamer can seek to `pos` before emitting any audio.
+            pipeline.set_state(gst::State::Paused)?;
+            let (state_res, current, pending) = pipeline.state(gst::ClockTime::from_mseconds(1500));
+            debug!(
+                "Preroll before initial seek {:?}: {:?} (current={:?}, pending={:?})",
+                pos, state_res, current, pending
+            );
+            let position_ns = gst::ClockTime::from_nseconds(pos.as_nanos() as u64);
+            if let Err(err) = pipeline.seek_simple(
+                gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                position_ns,
+            ) {
+                warn!("Initial seek to {:?} failed: {:?}", pos, err);
+                let mut inner = self.inner.lock_safe();
+                inner.base_media_pos = Duration::ZERO;
+                inner.base_sink_pts = Duration::ZERO;
+            } else {
+                let _ = pipeline.state(gst::ClockTime::from_mseconds(1000));
+                let mut inner = self.inner.lock_safe();
+                inner.base_media_pos = pos;
+                inner.base_sink_pts = pos;
+            }
+        }
+
+        let target_vol = self.volume();
+        let mut inner = self.inner.lock_safe();
+        if inner.current_uri.is_none() {
+            return Ok(None);
+        }
+        inner.volume.set_property(
+            "volume",
+            if initial_volume_zero {
+                0.0f64
+            } else {
+                target_vol
+            },
+        );
+        inner.state = PlaybackState::Playing;
+        Ok(Some((
+            inner.pipeline.clone(),
+            inner.volume.clone(),
+            target_vol,
+        )))
+    }
+
+    /// Starts or resumes playback.
+    pub fn play(&self) -> Result<(), AudioEngineError> {
+        let Some((pipeline, volume, user_vol)) = self.prepare_for_playback(false)? else {
+            debug!("No file loaded and no active track in the queue; skipping play");
+            return Ok(());
         };
         pipeline.set_state(gst::State::Playing)?;
         volume.set_property("volume", user_vol);
@@ -46,31 +100,9 @@ impl AudioEngine {
             return self.play();
         }
 
-        let uri_to_load = {
-            let inner = self.inner.lock_safe();
-            if inner.current_uri.is_none() {
-                self.queue
-                    .lock_safe()
-                    .current_item()
-                    .map(|it| it.uri.clone())
-            } else {
-                None
-            }
-        };
-
-        if let Some(uri) = uri_to_load {
-            self.load_uri(&uri)?;
-        }
-
-        let (pipeline, volume, target_vol) = {
-            let mut inner = self.inner.lock_safe();
-            if inner.current_uri.is_none() {
-                debug!("No file loaded and no active track in the queue; skipping play_with_fade");
-                return Ok(());
-            }
-            inner.volume.set_property("volume", 0.0f64);
-            inner.state = PlaybackState::Playing;
-            (inner.pipeline.clone(), inner.volume.clone(), self.volume())
+        let Some((pipeline, volume, target_vol)) = self.prepare_for_playback(true)? else {
+            debug!("No file loaded and no active track in the queue; skipping play_with_fade");
+            return Ok(());
         };
 
         // Change the pipeline state outside the `inner` mutex
@@ -200,6 +232,7 @@ impl AudioEngine {
             inner.state = PlaybackState::Stopped;
             inner.base_media_pos = Duration::ZERO;
             inner.base_sink_pts = Duration::ZERO;
+            inner.pending_seek = None;
             inner.pipeline.clone()
         };
         pipeline.set_state(gst::State::Null)?;
@@ -211,10 +244,15 @@ impl AudioEngine {
     pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
         // If no URI is loaded yet or the pipeline is idle (Null),
-        // just remember the position as the starting point, without a BoolError
+        // remember the position to apply silently during preroll before playing.
         if inner.current_uri.is_none() || inner.pipeline.current_state() == gst::State::Null {
             inner.base_media_pos = position;
             inner.base_sink_pts = position;
+            inner.pending_seek = if position.is_zero() {
+                None
+            } else {
+                Some(position)
+            };
             debug!(
                 "Stored the initial seek position while idle: {:?}",
                 position
@@ -231,6 +269,13 @@ impl AudioEngine {
                 "seek_simple warning (e.g. preroll not ready yet): {:?}",
                 err
             );
+            inner.pending_seek = if position.is_zero() {
+                None
+            } else {
+                Some(position)
+            };
+        } else {
+            inner.pending_seek = None;
         }
         inner.base_media_pos = position;
         inner.base_sink_pts = position;

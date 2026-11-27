@@ -463,6 +463,7 @@ export function usePlaybackController({
 
   const handleSeekCommit = useCallback(
     async (val: number, fade?: boolean) => {
+      initialStartupPositionRef.current = null;
       isSeekingRef.current = true;
       if (seekReleaseTimerRef.current) {
         clearTimeout(seekReleaseTimerRef.current);
@@ -481,7 +482,7 @@ export function usePlaybackController({
         }, 200);
       }
     },
-    [setStatus, showMessage, loc, seekFadeEnabled]
+    [initialStartupPositionRef, setStatus, showMessage, loc, seekFadeEnabled]
   );
 
   const handleSeek = useCallback(
@@ -503,27 +504,28 @@ export function usePlaybackController({
       } else {
         const currentUri = status.current_track?.uri || filePath;
         const targetResumePos = initialStartupPositionRef.current;
-        if (
-          currentUri &&
-          (!status.current_track?.duration_ms || status.duration_ms === 0 || targetResumePos !== null)
-        ) {
+        // Only load if the engine has no loaded track duration yet (e.g. UI-only session restore).
+        // Reloading unconditionally when `targetResumePos` is set would wipe the backend's position.
+        const needsLoad =
+          Boolean(currentUri) &&
+          !status.current_track?.duration_ms &&
+          (!status.duration_ms || status.duration_ms === 0);
+        if (needsLoad && currentUri) {
           try {
             await invoke('load_file', { path: currentUri });
           } catch (loadErr) {
             console.warn('load_file pre-check warning:', loadErr);
           }
         }
-        await invoke('play');
         if (targetResumePos && targetResumePos > 1000) {
-          initialStartupPositionRef.current = null;
-          setTimeout(async () => {
-            try {
-              await invoke('seek', { positionMs: targetResumePos, fade: false });
-            } catch (seekErr) {
-              console.warn('Seek to restored position error:', seekErr);
-            }
-          }, 150);
+          try {
+            await invoke('seek', { positionMs: targetResumePos, fade: false });
+          } catch (seekErr) {
+            console.warn('Seek to restored position error:', seekErr);
+          }
         }
+        initialStartupPositionRef.current = null;
+        await invoke('play');
       }
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);

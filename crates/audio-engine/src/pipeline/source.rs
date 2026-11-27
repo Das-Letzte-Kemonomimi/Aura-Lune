@@ -279,6 +279,7 @@ impl AudioEngine {
         let _ = inner.pipeline.set_state(gst::State::Null);
         inner.base_media_pos = Duration::ZERO;
         inner.base_sink_pts = Duration::ZERO;
+        inner.pending_seek = None;
         inner.dsp.reset();
 
         let queue_sink_pad = inner
@@ -390,6 +391,7 @@ impl AudioEngine {
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) {
+        inner.pending_seek = None;
         if let Some(pos) = seek_pos {
             inner.base_media_pos = pos;
             inner.base_sink_pts = pos;

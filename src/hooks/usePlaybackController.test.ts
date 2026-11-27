@@ -154,6 +154,46 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('pause');
   });
 
+  it('handlePlayPause seeks before play without reloading when resuming startup position', async () => {
+    initialStartupPositionRef.current = 45_000;
+    mockStatus.current_track = {
+      id: 'track-1',
+      uri: '/music/song.flac',
+      track_id: 1,
+      title: 'Song',
+      artist: 'Artist',
+      album: null,
+      duration_ms: 200_000,
+    };
+
+    const { result } = setupHook();
+    mockInvoke.mockClear();
+
+    await act(async () => {
+      await result.current.handlePlayPause();
+      vi.advanceTimersByTime(500);
+    });
+
+    const calls = mockInvoke.mock.calls.map(([cmd, args]) => [cmd, args]);
+    expect(calls).toEqual([
+      ['seek', { positionMs: 45_000, fade: false }],
+      ['play', undefined],
+    ]);
+    expect(initialStartupPositionRef.current).toBeNull();
+  });
+
+  it('handleSeekCommit clears pending startup resume position', async () => {
+    initialStartupPositionRef.current = 45_000;
+    const { result } = setupHook();
+
+    await act(async () => {
+      await result.current.handleSeekCommit(12_000);
+    });
+
+    expect(initialStartupPositionRef.current).toBeNull();
+    expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 12_000, fade: true });
+  });
+
   it('handleStop calls stop command', async () => {
     const { result } = setupHook();
     await act(async () => {
