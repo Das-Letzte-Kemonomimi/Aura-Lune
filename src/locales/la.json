@@ -701,9 +701,9 @@
     "aboutLicenseDesc": "GPL-3.0-or-later • Libera et aperta programmata pro Linux.",
     "disclaimerTitle": "Recusatio / Sine Praesidio",
     "disclaimerBody": "Auralune praebetur \"ut est\" sine ulla praesidio. Auctor non respondet pro damno datorum, corruptione fasciculorum, deletione fortuita, neque alia laesione ex usu huius programmatis orta. Uteris hoc programmate omnino tuo periculo. Semper apographa bibliothecae musicae tua serva. Programmata fasciculos sonoros originales non mutat neque delet nisi usor id expresse iubeat.",
-    "proAudioReady": "PRO AUDIO PARATUM",
-    "proAudioOff": "✕ Pro Audio NON (Stereo)",
-    "proAudioOn": "✓ Pro Audio ITA (Pro-Forma)",
+    "proAudioReady": "Pro Audio paratum",
+    "proAudioOff": "Pro Audio exstinctum (stereo)",
+    "proAudioOn": "Pro Audio accensum (ALSA directum)",
     "hardwareProfiles": "Profilia ferraturae parata (tange ad mutandum):",
     "bluetoothCodecSelect": "Electio codicis Bluetooth (A2DP):",
     "backupTitle": "Profili exemplum ac portabilitas",
@@ -868,7 +868,29 @@
       "audio": "Sonus",
       "libraryServices": "Bibliotheca et servitia",
       "system": "Systema"
-    }
+    },
+    "group": {
+      "startup": "Initium et fenestra",
+      "behaviour": "Admonitiones et mores",
+      "interface": "Interfacies",
+      "background": "Fundum et ambitus",
+      "transitions": "Transitus",
+      "soundCards": "Cartae sonorae",
+      "engine": "Machina",
+      "coverArt": "Tegumenta",
+      "links": "Nexus",
+      "builtWith": "Aedificatum ex",
+      "advanced": "Provectiora",
+      "buildInfo": "Versio"
+    },
+    "lastfmTest": "Proba",
+    "lastfmOnline": "In linea",
+    "openSourceBadge": "Fons apertus",
+    "aboutSortaTitle": "Sorta • AuDHD & ADHD Focus",
+    "languageDesc": "English • Polski • Deutsch • Suomi • Latina",
+    "audioBufferPreset80": "80 ms (minimum)",
+    "crossfadeOffPreset": "Exstinctum",
+    "themeCurrent": "Praesens"
   },
   "shortcuts": {
     "title": "Compendia Claviaturae",

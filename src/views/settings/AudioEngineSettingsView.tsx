@@ -1,6 +1,6 @@
 import React from 'react';
-import { Radio, Activity, RefreshCw, Cpu, Power } from '../../components/ui/icons';
-import { Button, Card, SectionHeader, Select, ToggleCard } from '../../components/ui';
+import { Radio, Activity, RefreshCw } from '../../components/ui/icons';
+import { Button, Select, SettingRow, SettingsGroup } from '../../components/ui';
 import { type DspEngineType } from '../../types/player';
 import { SoundCardList } from './audio/SoundCardList';
 import { CrossfeedOption } from './audio/CrossfeedOption';
@@ -8,6 +8,7 @@ import { DspBlockSizeOption } from './audio/DspBlockSizeOption';
 import { OutputBufferOption } from './audio/OutputBufferOption';
 import type { AudioSettingsProps } from './audio/audioSettingsProps';
 import { SettingsPage } from './SettingsPage';
+import { ToggleRow } from './ToggleRow';
 
 export type AudioEngineSettingsViewProps = Pick<
   AudioSettingsProps,
@@ -53,10 +54,10 @@ export const AudioEngineSettingsView: React.FC<AudioEngineSettingsViewProps> = (
       tone="green"
       actions={
         <>
-          <Button variant="tinted" tone="green" onClick={onOpenHealthCheck}>
+          <Button onClick={onOpenHealthCheck}>
             <Activity size={16} /> {loc.settings.runHealthCheck}
           </Button>
-          <Button onClick={onRefreshDevices}>
+          <Button variant="tinted" tone="green" onClick={onRefreshDevices}>
             <RefreshCw size={16} /> {loc.library.refresh}
           </Button>
         </>
@@ -65,30 +66,27 @@ export const AudioEngineSettingsView: React.FC<AudioEngineSettingsViewProps> = (
       {/* Sound card list */}
       <SoundCardList {...props} />
 
-      {/* Audio output buffer (PipeWire / ALSA) */}
-      <OutputBufferOption {...props} />
+      <SettingsGroup label={loc.settings.group.engine}>
+        {/* Audio output buffer (PipeWire / ALSA) */}
+        <OutputBufferOption {...props} />
 
-      {/* DSP processor block size */}
-      <DspBlockSizeOption {...props} />
+        {/* DSP processor block size */}
+        <DspBlockSizeOption {...props} />
 
-      {/* Remember the DSP settings at app start-up */}
-      <ToggleCard
-        icon={<Power size={20} />}
-        tone="green"
-        title={loc.dsp.dspAutostart}
-        description={loc.dsp.bypassActiveNotice}
-        checked={dspAutoStartup}
-        onChange={onToggleDspAutoStartup}
-      />
+        {/* Remember the DSP settings at app start-up */}
+        <ToggleRow
+          title={loc.dsp.dspAutostart}
+          description={loc.dsp.bypassActiveNotice}
+          checked={dspAutoStartup}
+          onChange={onToggleDspAutoStartup}
+        />
 
-      {/* Default DSP engine at start-up */}
-      <Card>
-        <SectionHeader
-          icon={<Cpu size={20} />}
-          tone="purple"
+        {/* Default DSP engine at start-up */}
+        <SettingRow
+          compact
           title={loc.settings.dspStartupTitle}
           description={loc.settings.dspStartupDesc}
-          actions={
+          control={
             <Select
               aria-label={loc.settings.dspStartupTitle}
               value={dspDefaultEngine}
@@ -101,10 +99,10 @@ export const AudioEngineSettingsView: React.FC<AudioEngineSettingsViewProps> = (
             </Select>
           }
         />
-      </Card>
 
-      {/* Bauer crossfeed filter (bs2b) for headphones */}
-      <CrossfeedOption {...props} />
+        {/* Bauer crossfeed filter (bs2b) for headphones */}
+        <CrossfeedOption {...props} />
+      </SettingsGroup>
     </SettingsPage>
   );
 };

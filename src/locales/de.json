@@ -701,9 +701,9 @@
     "aboutLicenseDesc": "GPL-3.0-or-later • Freie und quelloffene Software für Linux.",
     "disclaimerTitle": "Haftungsausschluss / Keine Gewährleistung",
     "disclaimerBody": "Auralune wird „wie besehen“ bereitgestellt — ohne jegliche Garantie. Die Autorin haftet nicht für Datenverlust, Dateibeschaedigung, versehentliches Löschen oder sonstige Schäden, die durch die Nutzung entstehen. Die Verwendung erfolgt vollständig auf eigenes Risiko. Erstelle stets Sicherungskopien deiner Musikbibliothek. Die Anwendung verändert oder löscht keine Originaldateien, es sei denn, der Benutzer weist sie ausdrücklich dazu an.",
-    "proAudioReady": "PRO AUDIO READY",
-    "proAudioOff": "✕ Pro Audio AUS (Stereo)",
-    "proAudioOn": "✓ Pro Audio AN (Pro-Profil)",
+    "proAudioReady": "Pro Audio bereit",
+    "proAudioOff": "Pro Audio aus (Stereo)",
+    "proAudioOn": "Pro Audio an (bit-perfekt, direktes ALSA)",
     "hardwareProfiles": "Verfügbare Hardwareprofile (Klicken zum Umschalten):",
     "bluetoothCodecSelect": "Bluetooth-Codec-Auswahl (A2DP):",
     "backupTitle": "Profil-Backup & Portabilität",
@@ -868,7 +868,29 @@
       "audio": "Audio",
       "libraryServices": "Bibliothek & Dienste",
       "system": "System"
-    }
+    },
+    "group": {
+      "startup": "Start & Fenster",
+      "behaviour": "Benachrichtigungen & Verhalten",
+      "interface": "Oberfläche",
+      "background": "Hintergrund & Ambiente",
+      "transitions": "Übergänge",
+      "soundCards": "Soundkarten",
+      "engine": "Engine",
+      "coverArt": "Cover",
+      "links": "Links",
+      "builtWith": "Gebaut mit",
+      "advanced": "Erweitert",
+      "buildInfo": "Build"
+    },
+    "lastfmTest": "Testen",
+    "lastfmOnline": "Online",
+    "openSourceBadge": "Open Source",
+    "aboutSortaTitle": "Sorta • AuDHD & ADHD Focus",
+    "languageDesc": "English • Polski • Deutsch • Suomi • Latina",
+    "audioBufferPreset80": "80 ms (ultraniedrig)",
+    "crossfadeOffPreset": "Aus",
+    "themeCurrent": "Aktuell"
   },
   "shortcuts": {
     "title": "Tastaturkürzel",

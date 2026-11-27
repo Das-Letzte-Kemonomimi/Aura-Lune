@@ -701,9 +701,9 @@
     "aboutLicenseDesc": "GPL-3.0-or-later • Community focused and fully open source.",
     "disclaimerTitle": "Disclaimer / No Warranty",
     "disclaimerBody": "Auralune is provided \"as is\", without any warranty, express or implied. The author is not responsible for any data loss, file corruption, accidental deletion, or system damage that may occur while using this software. You use this application entirely at your own risk. Always keep backups of your music library. This software does not modify or delete your original audio files unless explicitly instructed to do so by the user.",
-    "proAudioReady": "PRO AUDIO READY",
-    "proAudioOff": "✕ Pro Audio OFF (Stereo)",
-    "proAudioOn": "✓ Pro Audio ON (Pro Profile)",
+    "proAudioReady": "Pro Audio ready",
+    "proAudioOff": "Pro Audio off (stereo)",
+    "proAudioOn": "Pro Audio on (bit-perfect direct ALSA)",
     "hardwareProfiles": "Available hardware profiles (click to switch):",
     "bluetoothCodecSelect": "Bluetooth codec selection (A2DP):",
     "backupTitle": "Profile Backup & Portability",
@@ -868,7 +868,29 @@
       "audio": "Audio",
       "libraryServices": "Library & services",
       "system": "System"
-    }
+    },
+    "group": {
+      "startup": "Start-up & window",
+      "behaviour": "Notifications & behaviour",
+      "interface": "Interface",
+      "background": "Background & ambience",
+      "transitions": "Transitions",
+      "soundCards": "Sound cards",
+      "engine": "Engine",
+      "coverArt": "Cover art",
+      "links": "Links",
+      "builtWith": "Built with",
+      "advanced": "Advanced",
+      "buildInfo": "Build"
+    },
+    "lastfmTest": "Test",
+    "lastfmOnline": "Online",
+    "openSourceBadge": "Open source",
+    "aboutSortaTitle": "Sorta • AuDHD & ADHD Focus",
+    "languageDesc": "English • Polski • Deutsch • Suomi • Latina",
+    "audioBufferPreset80": "80 ms (Ultra-low)",
+    "crossfadeOffPreset": "Off",
+    "themeCurrent": "Current"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",

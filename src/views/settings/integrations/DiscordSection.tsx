@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
-import { BrandDiscord } from '../../../components/ui/icons';
-import { Badge, Button, Card, FieldLabel, StatusDot, TextField, ToggleCard } from '../../../components/ui';
+import { Badge, Button, FieldLabel, SettingsGroup, StatusDot, TextField } from '../../../components/ui';
 import type { Translations } from '../../../i18n';
+import { ToggleRow } from '../ToggleRow';
 
 const DEFAULT_DISCORD_CLIENT_ID = '1563876157387186226';
 
@@ -33,25 +33,25 @@ export const DiscordSection: React.FC<DiscordSectionProps> = ({
   };
 
   return (
-    <ToggleCard
-      icon={<BrandDiscord size={20} className="text-discord" />}
-      tone="purple"
-      title={loc.settings.discordRpcTitle}
-      badges={
+    <SettingsGroup
+      label="Discord"
+      actions={
         <Badge tone={discordRpcConnected ? 'green' : 'neutral'}>
           <StatusDot tone={discordRpcConnected ? 'green' : 'neutral'} className="size-1.5" />
           {discordRpcConnected ? loc.settings.discordConnected : loc.settings.discordDisconnected}
         </Badge>
       }
-      description={loc.settings.discordRpcDesc}
-      checked={discordRpcEnabled}
-      onChange={onToggleDiscordRpc}
     >
-      {discordRpcEnabled && (
-        <Card variant="inset" padding="none" className="px-3.5 py-2.5 text-ui">
+      <ToggleRow
+        title={loc.settings.discordRpcTitle}
+        description={loc.settings.discordRpcDesc}
+        checked={discordRpcEnabled}
+        onChange={onToggleDiscordRpc}
+      >
+        {discordRpcEnabled && (
           <details>
-            <summary className="cursor-pointer font-medium text-fg-muted select-none">
-              {loc.settings.discordAdvancedClientId}
+            <summary className="cursor-pointer text-xs font-semibold text-fg-muted select-none">
+              {loc.settings.group.advanced}: {loc.settings.discordAdvancedClientId}
             </summary>
             <div className="mt-2.5">
               <div className="mb-2 flex items-center justify-between">
@@ -79,15 +79,15 @@ export const DiscordSection: React.FC<DiscordSectionProps> = ({
                   placeholder={DEFAULT_DISCORD_CLIENT_ID}
                 />
                 {isEditingDiscordClientId && discordClientIdInput !== discordClientId && (
-                  <Button variant="primary" onClick={saveDiscordClientId}>
+                  <Button variant="tinted" tone="purple" onClick={saveDiscordClientId}>
                     {loc.common.save}
                   </Button>
                 )}
               </div>
             </div>
           </details>
-        </Card>
-      )}
-    </ToggleCard>
+        )}
+      </ToggleRow>
+    </SettingsGroup>
   );
 };

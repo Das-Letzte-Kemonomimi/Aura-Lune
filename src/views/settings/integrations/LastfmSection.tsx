@@ -1,8 +1,9 @@
-import React, { useId, useState } from 'react';
-import { CheckCircle, ChevronDown, ChevronRight, ExternalLink, Flame } from '../../../components/ui/icons';
-import { Badge, Button, Card, FieldLabel, StatusDot, TextField, ToggleCard } from '../../../components/ui';
+import React, { useId } from 'react';
+import { CheckCircle, ExternalLink } from '../../../components/ui/icons';
+import { Badge, Button, FieldLabel, SettingRow, SettingsGroup, StatusDot, TextField } from '../../../components/ui';
 import type { Translations } from '../../../i18n';
 import { StatusMessage } from './StatusMessage';
+import { ToggleRow } from '../ToggleRow';
 
 export interface LastfmSectionProps {
   loc: Translations;
@@ -42,36 +43,33 @@ export const LastfmSection: React.FC<LastfmSectionProps> = ({
   onValidateLastfmSession,
   onSaveLastfmCustomKeys,
 }) => {
-  const [lastfmShowAdvanced, setLastfmShowAdvanced] = useState(false);
   const id = useId();
 
   return (
-    <ToggleCard
-      icon={<Flame size={20} className="text-lastfm" />}
-      tone="red"
-      title={loc.settings.lastfmTitle}
-      badges={
-        <>
-          <Badge tone="red">API 2.0</Badge>
-          {lastfmUsername && (
-            <Badge tone="green">
-              <StatusDot tone="green" className="size-1.5" /> ONLINE
-            </Badge>
-          )}
-        </>
+    <SettingsGroup
+      label="Last.fm"
+      actions={
+        lastfmUsername && (
+          <Badge tone="green">
+            <StatusDot tone="green" className="size-1.5" /> {loc.settings.lastfmOnline}
+          </Badge>
+        )
       }
-      description={loc.settings.lastfmDesc}
-      checked={lastfmEnabled}
-      onChange={onToggleLastfm}
     >
-      <Card variant="inset" padding="sm" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-fg">
-            {lastfmUsername ? `${loc.settings.lastfmConnectedAs}: @${lastfmUsername}` : loc.settings.lastfmNotConnected}
-          </span>
-          <div className="flex gap-2">
+      <ToggleRow
+        title={loc.settings.lastfmTitle}
+        description={loc.settings.lastfmDesc}
+        checked={lastfmEnabled}
+        onChange={onToggleLastfm}
+      />
+
+      <SettingRow
+        compact
+        title={lastfmUsername ? `${loc.settings.lastfmConnectedAs}: @${lastfmUsername}` : loc.settings.lastfmNotConnected}
+        control={
+          <div className="flex flex-wrap justify-end gap-2">
             {!lastfmPendingToken ? (
-              <Button variant="tinted" tone="red" disabled={lastfmTesting} onClick={onConnectLastfm}>
+              <Button variant="tinted" tone="cyan" disabled={lastfmTesting} onClick={onConnectLastfm}>
                 <ExternalLink size={16} />
                 {loc.settings.lastfmConnectBtn}
               </Button>
@@ -87,67 +85,60 @@ export const LastfmSection: React.FC<LastfmSectionProps> = ({
               </Button>
             )}
           </div>
+        }
+      >
+        <div className="flex flex-col gap-2.5">
+          <div className="flex gap-2">
+            <TextField
+              type="password"
+              aria-label={loc.settings.lastfmSessionKeyPlaceholder}
+              placeholder={loc.settings.lastfmSessionKeyPlaceholder}
+              value={lastfmSessionKey}
+              onChange={(e) => onManualLastfmSessionKeyChange(e.target.value)}
+            />
+            <Button
+              variant="tinted"
+              tone="cyan"
+              disabled={lastfmTesting || !lastfmSessionKey.trim()}
+              onClick={onValidateLastfmSession}
+            >
+              {lastfmTesting ? loc.settings.lastfmTesting : loc.settings.lastfmTest}
+            </Button>
+          </div>
+          {lastfmStatusMsg && <StatusMessage ok={Boolean(lastfmUsername)}>{lastfmStatusMsg}</StatusMessage>}
         </div>
+      </SettingRow>
 
-        <div className="flex gap-2">
-          <TextField
-            type="password"
-            aria-label={loc.settings.lastfmSessionKeyPlaceholder}
-            placeholder={loc.settings.lastfmSessionKeyPlaceholder}
-            value={lastfmSessionKey}
-            onChange={(e) => onManualLastfmSessionKeyChange(e.target.value)}
-          />
-          <Button
-            variant="tinted"
-            tone="red"
-            disabled={lastfmTesting || !lastfmSessionKey.trim()}
-            onClick={onValidateLastfmSession}
-          >
-            {lastfmTesting ? loc.settings.lastfmTesting : 'Test'}
-          </Button>
-        </div>
-
-        {lastfmStatusMsg && <StatusMessage ok={Boolean(lastfmUsername)}>{lastfmStatusMsg}</StatusMessage>}
-
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-expanded={lastfmShowAdvanced}
-            onClick={() => setLastfmShowAdvanced(!lastfmShowAdvanced)}
-            className="px-0"
-          >
-            {lastfmShowAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}{' '}
+      <SettingRow compact title={loc.settings.group.advanced}>
+        <details>
+          <summary className="cursor-pointer text-xs font-semibold text-fg-muted select-none">
             {loc.settings.lastfmAdvancedKeys}
-          </Button>
-
-          {lastfmShowAdvanced && (
-            <div className="mt-2 flex flex-col gap-2">
-              <div>
-                <FieldLabel htmlFor={`${id}-lf-key`}>{loc.settings.lastfmCustomApiKey}</FieldLabel>
-                <TextField
-                  id={`${id}-lf-key`}
-                  size="sm"
-                  placeholder={loc.settings.apiKeyDefaultPlaceholder}
-                  value={lastfmCustomKey}
-                  onChange={(e) => onSaveLastfmCustomKeys(e.target.value, lastfmCustomSecret)}
-                />
-              </div>
-              <div>
-                <FieldLabel htmlFor={`${id}-lf-secret`}>{loc.settings.lastfmCustomApiSecret}</FieldLabel>
-                <TextField
-                  id={`${id}-lf-secret`}
-                  type="password"
-                  size="sm"
-                  placeholder={loc.settings.apiSecretDefaultPlaceholder}
-                  value={lastfmCustomSecret}
-                  onChange={(e) => onSaveLastfmCustomKeys(lastfmCustomKey, e.target.value)}
-                />
-              </div>
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <div>
+              <FieldLabel htmlFor={`${id}-lf-key`}>{loc.settings.lastfmCustomApiKey}</FieldLabel>
+              <TextField
+                id={`${id}-lf-key`}
+                size="sm"
+                placeholder={loc.settings.apiKeyDefaultPlaceholder}
+                value={lastfmCustomKey}
+                onChange={(e) => onSaveLastfmCustomKeys(e.target.value, lastfmCustomSecret)}
+              />
             </div>
-          )}
-        </div>
-      </Card>
-    </ToggleCard>
+            <div>
+              <FieldLabel htmlFor={`${id}-lf-secret`}>{loc.settings.lastfmCustomApiSecret}</FieldLabel>
+              <TextField
+                id={`${id}-lf-secret`}
+                type="password"
+                size="sm"
+                placeholder={loc.settings.apiSecretDefaultPlaceholder}
+                value={lastfmCustomSecret}
+                onChange={(e) => onSaveLastfmCustomKeys(lastfmCustomKey, e.target.value)}
+              />
+            </div>
+          </div>
+        </details>
+      </SettingRow>
+    </SettingsGroup>
   );
 };

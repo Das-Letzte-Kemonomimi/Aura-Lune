@@ -701,9 +701,9 @@
     "aboutLicenseDesc": "GPL-3.0-or-later • Pełna wolność oprogramowania i otwarty kod źródłowy.",
     "disclaimerTitle": "Zastrzeżenie / Brak Gwarancji",
     "disclaimerBody": "Auralune jest udostępniany „takim, jakim jest” — bez jakiejkolwiek gwarancji. Autorka nie ponosi odpowiedzialności za utratę danych, uszkodzenie plików, przypadkowe usunięcie ani żadne inne szkody powstałe w wyniku korzystania z programu. Używasz tej aplikacji wyłącznie na własne ryzyko. Zawsze rób kopie zapasowe swojej biblioteki muzycznej. Aplikacja nie modyfikuje ani nie usuwa oryginalnych plików audio, chyba że użytkownik wyraźnie o to poprosi.",
-    "proAudioReady": "PRO AUDIO READY",
-    "proAudioOff": "✕ Pro Audio OFF (Stereo)",
-    "proAudioOn": "✓ Pro Audio ON (Profil Pro)",
+    "proAudioReady": "Pro Audio gotowe",
+    "proAudioOff": "Pro Audio wył. (stereo)",
+    "proAudioOn": "Pro Audio wł. (bit-perfect, bezpośrednie ALSA)",
     "hardwareProfiles": "Dostępne profile sprzętowe (kliknij by przełączyć):",
     "bluetoothCodecSelect": "Wybór kodeka Bluetooth (A2DP):",
     "backupTitle": "Kopia zapasowa i przenośność profilu",
@@ -868,7 +868,29 @@
       "audio": "Dźwięk",
       "libraryServices": "Biblioteka i usługi",
       "system": "System"
-    }
+    },
+    "group": {
+      "startup": "Start i okno",
+      "behaviour": "Powiadomienia i zachowanie",
+      "interface": "Interfejs",
+      "background": "Tło i atmosfera",
+      "transitions": "Przejścia",
+      "soundCards": "Karty dźwiękowe",
+      "engine": "Silnik",
+      "coverArt": "Okładki",
+      "links": "Linki",
+      "builtWith": "Zbudowano z",
+      "advanced": "Zaawansowane",
+      "buildInfo": "Wersja"
+    },
+    "lastfmTest": "Testuj",
+    "lastfmOnline": "Online",
+    "openSourceBadge": "Open source",
+    "aboutSortaTitle": "Sorta • AuDHD i ADHD Focus",
+    "languageDesc": "English • Polski • Deutsch • Suomi • Latina",
+    "audioBufferPreset80": "80 ms (ultraniskie)",
+    "crossfadeOffPreset": "Wył.",
+    "themeCurrent": "Bieżący"
   },
   "shortcuts": {
     "title": "Skróty Klawiszowe",
