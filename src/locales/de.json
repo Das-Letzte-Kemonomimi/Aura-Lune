@@ -372,7 +372,11 @@
     "preampAutoTooltip": "Senkt den EQ um die größte Bandanhebung, damit angehobene Bänder nicht übersteuern",
     "preampResetTooltip": "Doppelklick setzt auf 0 dB zurück. Mausrad oder Pfeiltasten: 0,5 dB, Umschalt: 0,1 dB",
     "clipIndicatorClipped": "Übersteuerung erkannt: Das Signal lag über 0 dBFS. Klicken zum Zurücksetzen",
-    "clipIndicatorClear": "Keine Übersteuerung seit dem letzten Zurücksetzen"
+    "clipIndicatorClear": "Keine Übersteuerung seit dem letzten Zurücksetzen",
+    "timePitchTitle": "Tonhöhe, Tempo & Wiedergabegeschwindigkeit",
+    "timePitchDesc": "Echtzeit-Tonhöhenänderung, Time-Stretching und gekoppelte Wiedergabegeschwindigkeit",
+    "spatialMasteringTitle": "Raumakustik & Mastering-Effekte",
+    "spatialMasteringDesc": "Sub-Bass-Exciter, Stereobühne, True-Peak-Limiter, Crossfeed und Freeverb-Raumsimulation"
   },
   "library": {
     "title": "Musikbibliothek",

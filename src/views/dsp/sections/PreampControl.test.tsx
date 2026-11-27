@@ -88,4 +88,31 @@ describe('PreampControl', () => {
     fireEvent.click(screen.getByRole('button', { name: loc.dsp.clipIndicatorClipped }));
     expect(props.onResetClip).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes a vertical orientation and updates dB on vertical pointer interaction', () => {
+    const props = renderControl({ preampDb: 0 });
+    const slider = screen.getByRole('slider', { name: loc.dsp.preamp });
+    expect(slider.getAttribute('aria-orientation')).toBe('vertical');
+
+    const track = slider.firstElementChild as HTMLElement;
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      height: 200,
+      left: 0,
+      right: 64,
+      bottom: 300,
+      width: 64,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(slider, { button: 0, clientY: 100, pointerId: 1 });
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(15);
+
+    fireEvent.pointerMove(slider, { clientY: 250, pointerId: 1 });
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(-7.5);
+
+    fireEvent.pointerUp(slider, { pointerId: 1 });
+  });
 });

@@ -246,6 +246,13 @@
         "de": "Die Einstellungen sehen neu aus: ein Seitenmenü links, und die Optionen stehen dort, wo man sie erwartet — Wiedergabe, Integrationen, Backup & Daten und mehr.",
         "fi": "Asetukset ovat uudistuneet: vasemmalla on sivuvalikko, ja valinnat löytyvät sieltä, mistä niitä odottaa — Toisto, Integraatiot, Varmuuskopio ja data ja muut.",
         "la": "Optiones novam speciem habent: tabula lateralis ad sinistram, et optiones ibi sunt ubi exspectantur — Ludere, Coniunctiones, Tutela et data aliaque."
+      },
+      {
+        "en": "Reorganized Equalizer & DSP with a dedicated Pitch, Tempo & Playback Speed section, Spatial Reverb moved down with mastering effects, and a vertical left-side Preamp fader inspired by Poweramp.",
+        "pl": "Przeorganizowano Korektor & DSP: wydzielono osobną sekcję wysokości tonu, tempa i prędkości odtwarzania, przeniesiono pogłos przestrzenny niżej do efektów masteringu oraz zmieniono przedwzmacniacz w pionowy suwak po lewej stronie w stylu Powerampa.",
+        "de": "Equalizer & DSP neu strukturiert: eigener Bereich für Tonhöhe, Tempo & Geschwindigkeit, Raumhall weiter unten bei den Mastering-Effekten und ein vertikaler Vorverstärker-Fader links im Poweramp-Stil.",
+        "fi": "Taajuuskorjain & DSP jäsennetty uudelleen: oma osio sävelkorkeudelle, tempolle ja toistonopeudelle, tilakaiku alemmas masterointiefektien joukkoon ja pystysuora Poweramp-tyylinen esivahvistinliuku vasemmalle.",
+        "la": "Aequator & DSP ordinata: sectio separata toni, velocitatis et celeritatis, reverberatio spatialis infra cum effectibus posita, et praeamplificator verticalis ad sinistram."
       }
     ],
     "fixed": [

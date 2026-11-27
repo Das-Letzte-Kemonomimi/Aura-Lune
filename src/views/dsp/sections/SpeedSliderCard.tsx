@@ -132,14 +132,14 @@ export function SpeedSliderCard({
         onChange={onChange}
         className="my-4"
       />
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         {presets.map((p) => (
           <Chip
             key={p.value}
             tone={tone}
             pressed={Math.abs(value - p.value) < 0.005}
             onClick={() => onChange(p.value)}
-            className="flex-1 py-2"
+            className="min-w-fit flex-1 py-2"
           >
             {p.label}
           </Chip>

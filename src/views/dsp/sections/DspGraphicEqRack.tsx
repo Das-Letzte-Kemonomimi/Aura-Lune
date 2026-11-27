@@ -172,44 +172,47 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
         </Chip>
       </div>
 
-      <PreampControl
-        loc={loc}
-        preampDb={preampDb}
-        preampAuto={preampAuto}
-        autoPreampValue={autoPreampValue}
-        equalizerEnabled={Boolean(status.equalizer_enabled)}
-        onPreampChange={handlePreampChange}
-        onToggleAuto={handleTogglePreampAuto}
-        clipDetected={Boolean(status.clip_detected)}
-        onResetClip={handleResetClipIndicator}
-      />
+      {/* Preamp vertical rail on the left beside the 10-band EQ grid */}
+      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-stretch">
+        <PreampControl
+          loc={loc}
+          preampDb={preampDb}
+          preampAuto={preampAuto}
+          autoPreampValue={autoPreampValue}
+          equalizerEnabled={Boolean(status.equalizer_enabled)}
+          onPreampChange={handlePreampChange}
+          onToggleAuto={handleTogglePreampAuto}
+          clipDetected={Boolean(status.clip_detected)}
+          onResetClip={handleResetClipIndicator}
+        />
 
-      {/* 10 bands in responsive 1-2 columns */}
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {EQUALIZER_BANDS.map((band, idx) => {
-          const gain = status.equalizer_bands?.[idx] ?? 0;
-          return (
-            <Card key={band.freq} variant="inset" padding="none" className="flex flex-col gap-2 px-3.5 py-2.5">
-              <div className="flex items-center justify-between">
-                <span>
-                  <span className="mr-1.5 text-sm font-bold text-fg">{band.freq}</span>
-                  <span className="text-xxs text-fg-muted">({band.label})</span>
-                </span>
-                <Badge mono tone={gain > 0 ? 'pink' : gain < 0 ? 'cyan' : 'neutral'}>
-                  {formatGain(gain)}
-                </Badge>
-              </div>
-              <RangeSlider
-                aria-label={`${band.freq} (${band.label})`}
-                min={-24}
-                max={12}
-                step={0.5}
-                value={gain}
-                onChange={(v) => handleEqBandChange(idx, v)}
-              />
-            </Card>
-          );
-        })}
+        {/* 10 bands in responsive 1-2 columns */}
+        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+          {EQUALIZER_BANDS.map((band, idx) => {
+            const gain = status.equalizer_bands?.[idx] ?? 0;
+            return (
+              <Card key={band.freq} variant="inset" padding="none" className="flex flex-col gap-2 px-3.5 py-2.5">
+                <div className="flex items-center justify-between">
+                  <span>
+                    <span className="mr-1.5 text-sm font-bold text-fg">{band.freq}</span>
+                    <span className="text-xxs text-fg-muted">({band.label})</span>
+                  </span>
+                  <Badge mono tone={gain > 0 ? 'pink' : gain < 0 ? 'cyan' : 'neutral'}>
+                    {formatGain(gain)}
+                  </Badge>
+                </div>
+                <RangeSlider
+                  aria-label={`${band.freq} (${band.label})`}
+                  min={-24}
+                  max={12}
+                  step={0.5}
+                  value={gain}
+                  onChange={(v) => handleEqBandChange(idx, v)}
+                />
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </Card>
   );

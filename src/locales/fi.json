@@ -372,7 +372,11 @@
     "preampAutoTooltip": "Laskee EQ:ta suurimman kaistakorostuksen verran, jotta korostetut kaistat eivät säröydy",
     "preampResetTooltip": "Kaksoisnapsauta palauttaaksesi 0 dB:iin. Rulla tai nuolinäppäimet: 0,5 dB, Shift: 0,1 dB",
     "clipIndicatorClipped": "Leikkautumista havaittu: signaali ylitti 0 dBFS. Nollaa napsauttamalla",
-    "clipIndicatorClear": "Ei leikkautumista edellisen nollauksen jälkeen"
+    "clipIndicatorClear": "Ei leikkautumista edellisen nollauksen jälkeen",
+    "timePitchTitle": "Sävelkorkeus, tempo ja toistonopeus",
+    "timePitchDesc": "Reaaliaikainen sävelkorkeuden, tempon ja toistonopeuden säätö",
+    "spatialMasteringTitle": "Tila-akustiikka ja masterointiefektit",
+    "spatialMasteringDesc": "Subbasso, stereokuva, true-peak-limitteri, crossfeed ja Freeverb-kaikusimulointi"
   },
   "library": {
     "title": "Musiikkikirjasto",

@@ -372,7 +372,11 @@
     "preampAutoTooltip": "Lowers the EQ by its largest band boost so boosted bands cannot clip",
     "preampResetTooltip": "Double-click to reset to 0 dB. Wheel or arrow keys: 0.5 dB, Shift: 0.1 dB",
     "clipIndicatorClipped": "Clipping detected: the signal went above 0 dBFS. Click to reset",
-    "clipIndicatorClear": "No clipping since the last reset"
+    "clipIndicatorClear": "No clipping since the last reset",
+    "timePitchTitle": "Pitch, Tempo & Playback Speed",
+    "timePitchDesc": "Real-time pitch shifting, time-stretching, and linked playback speed",
+    "spatialMasteringTitle": "Spatial Acoustics & Mastering Effects",
+    "spatialMasteringDesc": "Bass exciter, stereo stage, true-peak limiter, crossfeed, and Freeverb room simulation"
   },
   "library": {
     "title": "Music Library",

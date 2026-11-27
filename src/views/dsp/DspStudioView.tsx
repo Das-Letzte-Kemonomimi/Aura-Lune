@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Power, RotateCcw, Save, Sliders } from '../../components/ui/icons';
+import { Activity, Gauge, Power, RotateCcw, Save, Sliders, Sparkles } from '../../components/ui/icons';
 import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
 import { type EqualizerPreset } from '../../types/equalizer';
 import type { DspPresetRecord, PlaybackStatus } from '../../types/player';
@@ -153,22 +153,38 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
       {/* Engine choice (Bypass / Rubber Band / SoundTouch), block size and the Bypass notice */}
       <DspEngineSelector {...props} status={status} />
 
-      {/* Pitch, tempo, rate & reverb/presets in a balanced 2-column studio grid on wide screens */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <DspPitchSlider {...props} status={status} />
-        <DspTempoSlider {...props} status={status} />
-        <DspRateSlider {...props} status={status} />
-        <DspReverbPanel {...props} />
-      </div>
+      {/* Dedicated pitch, tempo and linked playback speed category */}
+      <Card variant="panel" padding="md">
+        <SectionHeader
+          icon={<Gauge size={18} />}
+          tone="pink"
+          title={loc.dsp.timePitchTitle}
+          description={loc.dsp.timePitchDesc}
+        />
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          <DspPitchSlider {...props} status={status} />
+          <DspTempoSlider {...props} status={status} />
+          <DspRateSlider {...props} status={status} />
+        </div>
+      </Card>
 
       {/* DSP presets (SQLite) and the signature profiles */}
       <DspPresetManager {...props} />
 
-      {/* Bass boost, stereo widener, true-peak limiter and crossfeed */}
-      <DspMasteringRack {...props} />
-
       {/* 10-band graphic equalizer */}
       <DspGraphicEqRack {...props} status={status} />
+
+      {/* Spatial acoustics & mastering effects (Bass boost, widener, limiter, crossfeed & Freeverb) */}
+      <Card variant="panel" padding="md" className="flex flex-col gap-4">
+        <SectionHeader
+          icon={<Sparkles size={18} />}
+          tone="cyan"
+          title={loc.dsp.spatialMasteringTitle}
+          description={loc.dsp.spatialMasteringDesc}
+        />
+        <DspMasteringRack {...props} />
+        <DspReverbPanel {...props} />
+      </Card>
 
       {/* FFT spectrum analyser */}
       <Card>
