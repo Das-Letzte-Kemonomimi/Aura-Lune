@@ -15,6 +15,7 @@ use tauri::Manager;
 use tracing::info;
 
 pub mod commands;
+pub mod media_protocol;
 pub mod setup;
 pub mod updater;
 
@@ -35,6 +36,7 @@ pub use commands::stems::*;
 pub use commands::system::*;
 pub use commands::themes::*;
 pub use commands::updates::*;
+pub use commands::waveform::*;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -56,12 +58,16 @@ pub struct AppState {
     pub control_ipc: Option<Arc<desktop_integration::ControlIpcServer>>,
     pub last_waybar_write: Arc<Mutex<std::time::Instant>>,
     /// The last playback status computed by the ticker (`setup::playback_ticker`).
-    pub last_status: Arc<std::sync::RwLock<Option<commands::playback::PlaybackStatusDto>>>,
+    pub last_status: Arc<std::sync::RwLock<Option<Arc<commands::playback::PlaybackStatusDto>>>>,
     /// Cache of the `close_to_tray` setting (read when handling window close, without blocking).
     pub close_to_tray: Arc<std::sync::atomic::AtomicBool>,
     /// Whether the main window has already been revealed to the Wayland compositor.
     /// Set to `true` on first `reveal_main_window` call or by the safety timer.
     pub window_revealed: Arc<std::sync::atomic::AtomicBool>,
+    /// Whether the main window is currently hidden (minimised to tray), throttles ticker emits.
+    pub window_hidden: Arc<std::sync::atomic::AtomicBool>,
+    /// Coalesces rapid MPRIS volume updates to <= 10 Hz.
+    pub mpris_volume: Arc<commands::playback::MprisVolumeCoalescer>,
     /// The only writer of the queue state (see `persist_queue_state`).
     pub queue_saver: commands::queue::QueueSaver,
     /// Wakes the background high-confidence cover fetcher after scans or setting toggles.
@@ -75,6 +81,7 @@ pub struct AppState {
 }
 
 pub fn run() {
+    let launch_started = std::time::Instant::now();
     setup::init_linux_environment();
 
     tracing_subscriber::fmt()
@@ -84,7 +91,15 @@ pub fn run() {
         )
         .init();
 
-    let rt = Arc::new(tokio::runtime::Runtime::new().expect("Failed to create the tokio runtime"));
+    let rt = Arc::new(
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(4)
+            .thread_name("auralune-rt")
+            .build()
+            .expect("Failed to create the tokio runtime"),
+    );
+    tauri::async_runtime::set(rt.handle().clone());
 
     let engine = match AudioEngine::new() {
         Ok(e) => Arc::new(e),
@@ -97,6 +112,10 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol(
+            media_protocol::MEDIA_SCHEME,
+            media_protocol::handle_request,
+        )
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             info!(
                 "Another Auralune instance was started. Args: {:?}, Cwd: {}",
@@ -111,6 +130,7 @@ pub fn run() {
 
             if let Some(state) = app.try_state::<AppState>() {
                 state.window_revealed.store(true, Ordering::SeqCst);
+                state.window_hidden.store(false, Ordering::SeqCst);
             }
 
             let files = extract_audio_paths_from_args(&argv, Some(&cwd));
@@ -128,7 +148,7 @@ pub fn run() {
         .setup({
             let rt = rt.clone();
             let engine = engine.clone();
-            move |app| setup::init_app(app, rt, engine)
+            move |app| setup::init_app(app, rt, engine, launch_started)
         })
         .invoke_handler(tauri::generate_handler![
             load_file,
@@ -147,6 +167,7 @@ pub fn run() {
             list_dsp_presets,
             load_dsp_preset,
             set_volume,
+            set_spectrum_enabled,
             get_status,
             set_equalizer_band,
             set_equalizer_bands,

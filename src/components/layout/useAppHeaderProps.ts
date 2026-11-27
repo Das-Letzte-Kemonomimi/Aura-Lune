@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useShallowMemo } from '../../hooks/useShallowMemo';
 import type { AppHeaderProps } from './AppHeader';
 import type { useModalManager } from '../../hooks/useModalManager';
 import type { useThemeManager } from '../../hooks/useThemeManager';
@@ -71,7 +72,18 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     setIsQueueOpen,
   } = options;
 
-  return useMemo<AppHeaderProps>(() => ({
+  const {
+    isSettingsOpen,
+    setIsSettingsOpen,
+    setIsRecapModalOpen,
+    setIsKeyBpmModalOpen,
+    setIsAnalysisModalOpen,
+    setIsSoundscapeOpen,
+    setIsHarmonicSuggesterOpen,
+    setIsCommandPaletteOpen,
+  } = modalManager;
+
+  const props = useMemo<AppHeaderProps>(() => ({
     appVersion,
     updateAvailable,
     updateTitle,
@@ -84,9 +96,9 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     queueCount: queue.items.length,
     language,
     loc,
-    onOpenRecap: () => modalManager.setIsRecapModalOpen(true),
-    onOpenKeyBpm: () => modalManager.setIsKeyBpmModalOpen(true),
-    onOpenAnalysis: () => modalManager.setIsAnalysisModalOpen(true),
+    onOpenRecap: () => setIsRecapModalOpen(true),
+    onOpenKeyBpm: () => setIsKeyBpmModalOpen(true),
+    onOpenAnalysis: () => setIsAnalysisModalOpen(true),
     onOpenSleepTimer: () => setIsSleepTimerOpen(true),
     sleepTimerRemainingSec,
     sleepTimerTargetMode,
@@ -97,9 +109,9 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     ambienceMode,
     onCycleAmbience: cycleAmbienceMode,
     isSoundscapeActive: soundscapeEngine.isSoundscapeActive(),
-    onOpenSoundscape: () => modalManager.setIsSoundscapeOpen(true),
-    onOpenHarmonicSuggester: () => modalManager.setIsHarmonicSuggesterOpen(true),
-    onOpenCommandPalette: () => modalManager.setIsCommandPaletteOpen(true),
+    onOpenSoundscape: () => setIsSoundscapeOpen(true),
+    onOpenHarmonicSuggester: () => setIsHarmonicSuggesterOpen(true),
+    onOpenCommandPalette: () => setIsCommandPaletteOpen(true),
     onOpenBigScreen: () => setIsBigScreen(true),
     uiScale: themeManager.uiScale,
     onIncreaseScale: themeManager.handleIncreaseScale,
@@ -107,8 +119,8 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     onToggleMiniPlayer: toggleMiniPlayer,
     isQueueOpen,
     onToggleQueue: () => setIsQueueOpen((prev) => !prev),
-    isSettingsOpen: modalManager.isSettingsOpen,
-    onOpenSettings: () => modalManager.setIsSettingsOpen(true),
+    isSettingsOpen,
+    onOpenSettings: () => setIsSettingsOpen(true),
     onLanguageChange: setLanguage,
   }), [
     appVersion,
@@ -127,7 +139,14 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     language,
     setLanguage,
     loc,
-    modalManager,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    setIsRecapModalOpen,
+    setIsKeyBpmModalOpen,
+    setIsAnalysisModalOpen,
+    setIsSoundscapeOpen,
+    setIsHarmonicSuggesterOpen,
+    setIsCommandPaletteOpen,
     sleepTimerRemainingSec,
     sleepTimerTargetMode,
     setIsSleepTimerOpen,
@@ -142,4 +161,6 @@ export function useAppHeaderProps(options: UseAppHeaderPropsOptions): AppHeaderP
     isQueueOpen,
     setIsQueueOpen,
   ]);
+
+  return useShallowMemo(props);
 }

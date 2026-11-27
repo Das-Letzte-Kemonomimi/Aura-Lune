@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   Disc,
   Download,
@@ -16,6 +16,7 @@ import { BigScreenTapeDeck } from './bigscreen/BigScreenTapeDeck';
 import { BigScreenVinyl } from './bigscreen/BigScreenVinyl';
 import { BigScreenHud } from './bigscreen/BigScreenHud';
 import { cn } from '../../utils/cn';
+import { coverUrlWithSize } from '../../utils/mediaUrl';
 import { Button, SegmentedControl } from '../../components/ui';
 import type { SpectralBandTriple } from '../../types/analysis';
 
@@ -85,6 +86,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
   const positionMs = useLivePositionMs(positionMsProp);
   // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const spectrum = useLiveSpectrum(spectrumProp ?? []);
+  const largeCoverUrl = coverUrlWithSize(coverUrl, 768);
   const t = getTranslations(currentLang);
   const [showHud, setShowHud] = useState(true);
   const [showLyrics, setShowLyrics] = useState(true);
@@ -95,6 +97,15 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
     { parse: parseOneOf(BIG_SCREEN_VISUAL_MODES) },
   );
   const hideTimerRef = useRef<number | null>(null);
+  const isPlayingRef = useRef(isPlaying);
+  const onCloseRef = useRef(onClose);
+  const onPlayPauseRef = useRef(onPlayPause);
+
+  useLayoutEffect(() => {
+    isPlayingRef.current = isPlaying;
+    onCloseRef.current = onClose;
+    onPlayPauseRef.current = onPlayPause;
+  });
 
   const resetHideTimer = useCallback(() => {
     setShowHud(true);
@@ -102,24 +113,27 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       window.clearTimeout(hideTimerRef.current);
     }
     hideTimerRef.current = window.setTimeout(() => {
-      if (isPlaying) {
+      if (isPlayingRef.current) {
         setShowHud(false);
       }
     }, 3500);
-  }, [isPlaying]);
+  }, []);
 
   useEffect(() => {
     resetHideTimer();
+  }, [isPlaying, resetHideTimer]);
+
+  useEffect(() => {
     const handleMouseMove = () => resetHideTimer();
     window.addEventListener('mousemove', handleMouseMove);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'F11') {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
       } else if (e.code === 'Space') {
         e.preventDefault();
-        onPlayPause();
+        onPlayPauseRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -129,7 +143,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       window.removeEventListener('keydown', handleKeyDown);
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
-  }, [isPlaying, onClose, onPlayPause, resetHideTimer]);
+  }, [resetHideTimer]);
 
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const waveformPeaks = waveformPeaksProp ?? [];
@@ -137,7 +151,6 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
   return (
     <div
-      onMouseMove={resetHideTimer}
       className={cn(
         'fixed inset-0 z-90 flex transform-gpu select-none flex-col justify-between overflow-x-hidden overflow-y-auto px-[clamp(1rem,3vw,3rem)] py-[clamp(0.875rem,3vh,2.25rem)] text-fg will-change-transform',
         showHud ? 'cursor-default' : 'cursor-none',
@@ -179,13 +192,13 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
               style={{
                 width: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
                 height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
-                background: coverUrl
-                  ? `url("${coverUrl}") center/cover no-repeat`
+                background: largeCoverUrl
+                  ? `url("${largeCoverUrl}") center/cover no-repeat`
                   : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
                 transform: 'translateZ(0)',
               }}
             >
-              {!coverUrl && (
+              {!largeCoverUrl && (
                 <div
                   className={cn(
                     'flex h-4/5 w-4/5 items-center justify-center rounded-full border-3 border-line',
@@ -203,7 +216,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
           {/* MODE 2: spinning vinyl with grooves, a label and a tonearm */}
           {visualMode === 'vinyl' && (
-            <BigScreenVinyl {...props} showLyrics={showLyrics} progress={progress} />
+            <BigScreenVinyl {...props} coverUrl={largeCoverUrl} showLyrics={showLyrics} progress={progress} />
           )}
 
           {/* MODE 3: 90s retro cassette (spinning reels and tape) */}

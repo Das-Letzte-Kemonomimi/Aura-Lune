@@ -85,7 +85,45 @@ fn is_bypass_u8(value: u8) -> bool {
     value == engine_to_u8(DspEngine::Bypass)
 }
 
-/// A pair of processors prepared for a format (created outside the state lock).
+/// Single prepared engine created outside `DspNodeState` lock and swapped in atomically.
+enum PreparedEngine {
+    RubberBand(RubberBandProcessor),
+    SoundTouch(SoundTouchProcessor),
+}
+
+impl PreparedEngine {
+    /// Creates and prepares only `engine` for `(format, block_size)`.
+    /// Expensive: call without holding the `DspNodeState` lock.
+    fn prepare(
+        engine: DspEngine,
+        format: AudioFormat,
+        block_size: usize,
+        params: DspParams,
+    ) -> Option<Self> {
+        let prep_block = block_size.max(MIN_PREPARE_BLOCK);
+        match engine {
+            DspEngine::Bypass => None,
+            DspEngine::RubberBand => {
+                let mut rb = RubberBandProcessor::new();
+                if let Err(e) = rb.prepare(format, prep_block) {
+                    warn!("RubberBand prepare failed: {:?}", e);
+                }
+                let _ = rb.set_params(params);
+                Some(Self::RubberBand(rb))
+            }
+            DspEngine::SoundTouch => {
+                let mut st = SoundTouchProcessor::new();
+                if let Err(e) = st.prepare(format, prep_block) {
+                    warn!("SoundTouch prepare failed: {:?}", e);
+                }
+                let _ = st.set_params(params);
+                Some(Self::SoundTouch(st))
+            }
+        }
+    }
+}
+
+/// Processors held by `DspNodeState`. Only prepared engines allocate DSP state/buffers.
 struct Processors {
     rubberband: RubberBandProcessor,
     soundtouch: SoundTouchProcessor,
@@ -98,26 +136,13 @@ impl Processors {
             soundtouch: SoundTouchProcessor::new(),
         }
     }
-
-    /// Creates and prepares both processors. Expensive: call without the state lock.
-    fn prepared(format: AudioFormat, block_size: usize, params: DspParams) -> Self {
-        let mut p = Self::unprepared();
-        let prep_block = block_size.max(MIN_PREPARE_BLOCK);
-        if let Err(e) = p.rubberband.prepare(format, prep_block) {
-            warn!("RubberBand prepare failed: {:?}", e);
-        }
-        if let Err(e) = p.soundtouch.prepare(format, prep_block) {
-            warn!("SoundTouch prepare failed: {:?}", e);
-        }
-        let _ = p.rubberband.set_params(params);
-        let _ = p.soundtouch.set_params(params);
-        p
-    }
 }
 
 struct DspNodeState {
     params: DspParams,
     format: Option<AudioFormat>,
+    rubberband_prepared: Option<(AudioFormat, usize)>,
+    soundtouch_prepared: Option<(AudioFormat, usize)>,
     processors: Processors,
     fifo: VecDeque<f32>,
     out_buffer: Vec<f32>,
@@ -133,9 +158,11 @@ impl DspNodeState {
         Self {
             params: DspParams::default(),
             format: None,
+            rubberband_prepared: None,
+            soundtouch_prepared: None,
             processors: Processors::unprepared(),
-            fifo: VecDeque::with_capacity(32768),
-            out_buffer: Vec::with_capacity(16384),
+            fifo: VecDeque::new(),
+            out_buffer: Vec::new(),
             unaligned_input: Vec::new(),
             current_pts: None,
             current_offset: 0,
@@ -143,21 +170,56 @@ impl DspNodeState {
         }
     }
 
-    /// Swaps in processors prepared outside the lock and reserves buffers for the new format.
-    fn install(&mut self, format: AudioFormat, processors: Processors) {
-        let mut processors = processors;
-        // Parameters may have changed while the processors were prepared without the lock.
-        let _ = processors.rubberband.set_params(self.params);
-        let _ = processors.soundtouch.set_params(self.params);
-        self.processors = processors;
-        self.format = Some(format);
+    fn prep_spec(format: AudioFormat, block_size: usize) -> (AudioFormat, usize) {
+        (format, block_size.max(MIN_PREPARE_BLOCK))
+    }
 
+    fn is_prepared_for(&self, engine: DspEngine, format: AudioFormat) -> bool {
+        let spec = Self::prep_spec(format, self.block_size);
+        match engine {
+            DspEngine::Bypass => true,
+            DspEngine::RubberBand => self.rubberband_prepared == Some(spec),
+            DspEngine::SoundTouch => self.soundtouch_prepared == Some(spec),
+        }
+    }
+
+    fn reserve_processing_buffers(&mut self, format: AudioFormat) {
         let channels = format.channels as usize;
         let max_out = TYPICAL_INPUT_FRAMES.max(self.block_size) * channels * MAX_STRETCH_FACTOR;
         let want = max_out.saturating_sub(self.out_buffer.capacity());
         self.out_buffer.reserve(want);
         let fifo_want = (2 * max_out).saturating_sub(self.fifo.capacity());
         self.fifo.reserve(fifo_want);
+    }
+
+    /// Swaps in a single processor prepared outside the lock and reserves buffers for active processing.
+    /// Returns the displaced processor (or the unused input if `format`/`block_size` changed) so
+    /// its destructor runs outside the lock.
+    fn install_prepared(
+        &mut self,
+        format: AudioFormat,
+        block_size: usize,
+        prepared: PreparedEngine,
+    ) -> PreparedEngine {
+        if self.format != Some(format) || self.block_size != block_size {
+            return prepared;
+        }
+        let spec = Self::prep_spec(format, block_size);
+        let old = match prepared {
+            PreparedEngine::RubberBand(mut rb) => {
+                // Parameters may have changed while the processor was prepared outside the lock.
+                let _ = rb.set_params(self.params);
+                self.rubberband_prepared = Some(spec);
+                PreparedEngine::RubberBand(std::mem::replace(&mut self.processors.rubberband, rb))
+            }
+            PreparedEngine::SoundTouch(mut st) => {
+                let _ = st.set_params(self.params);
+                self.soundtouch_prepared = Some(spec);
+                PreparedEngine::SoundTouch(std::mem::replace(&mut self.processors.soundtouch, st))
+            }
+        };
+        self.reserve_processing_buffers(format);
+        old
     }
 
     fn set_params(&mut self, params: DspParams) -> Result<(), DspError> {
@@ -539,21 +601,44 @@ impl AuraluneDspImpl {
         }
     }
 
-    /// Prepares processors for a new format. The expensive `prepare` runs outside the lock.
+    /// Prepares only the active engine for a new format (`Bypass` prepares neither).
+    /// Expensive `prepare` and old processor destructors run outside the state lock.
     fn prepare_for_format(shared: &Shared, format: AudioFormat) {
-        let (block_size, params) = {
-            let state = shared.state.lock_safe();
-            if state.format == Some(format) {
+        let (engine, block_size, params, old_procs) = {
+            let mut state = shared.state.lock_safe();
+            let format_changed = state.format != Some(format);
+            let old_procs = if format_changed {
+                state.format = Some(format);
+                state.rubberband_prepared = None;
+                state.soundtouch_prepared = None;
+                Some(std::mem::replace(
+                    &mut state.processors,
+                    Processors::unprepared(),
+                ))
+            } else {
+                None
+            };
+            let engine = state.params.engine;
+            if state.is_prepared_for(engine, format) {
+                drop(state);
+                drop(old_procs);
                 return;
             }
-            (state.block_size, state.params)
+            (engine, state.block_size, state.params, old_procs)
         };
+        drop(old_procs);
+
         info!(
-            "AuraluneDsp: preparing engines for {} Hz, {} channels (block_size: {})",
-            format.sample_rate, format.channels, block_size
+            "AuraluneDsp: preparing {:?} engine for {} Hz, {} channels (block_size: {})",
+            engine, format.sample_rate, format.channels, block_size
         );
-        let processors = Processors::prepared(format, block_size, params);
-        shared.state.lock_safe().install(format, processors);
+        if let Some(prepared) = PreparedEngine::prepare(engine, format, block_size, params) {
+            let old = shared
+                .state
+                .lock_safe()
+                .install_prepared(format, block_size, prepared);
+            drop(old);
+        }
     }
 }
 
@@ -568,36 +653,99 @@ impl AuraluneDsp {
             .build()
     }
 
-    pub fn set_params(&self, params: DspParams) -> Result<(), DspError> {
+    /// Ensures `target_engine` is prepared for the active stream format outside the state lock
+    /// before committing `apply` under lock and publishing the active engine atomic.
+    fn prepare_and_apply<F>(&self, target_engine: DspEngine, mut apply: F)
+    where
+        F: FnMut(&mut DspNodeState),
+    {
         let imp = self.imp();
-        let result = imp.state.lock_safe().set_params(params);
-        if result.is_ok() {
-            self.publish_engine(params.engine);
+        let mut pre_prepared: Option<(AudioFormat, usize, PreparedEngine)> = None;
+        loop {
+            let mut drop_outside_lock: Option<PreparedEngine> = None;
+            let need_prep = {
+                let mut state = imp.state.lock_safe();
+                if let Some((prep_fmt, prep_blk, prepared)) = pre_prepared.take() {
+                    drop_outside_lock = Some(state.install_prepared(prep_fmt, prep_blk, prepared));
+                }
+                match state.format {
+                    Some(format) if !state.is_prepared_for(target_engine, format) => {
+                        Some((format, state.block_size, state.params))
+                    }
+                    _ => {
+                        apply(&mut state);
+                        None
+                    }
+                }
+            };
+            drop(drop_outside_lock);
+            let Some((format, block_size, mut prep_params)) = need_prep else {
+                break;
+            };
+            prep_params.engine = target_engine;
+            info!(
+                "AuraluneDsp: preparing {:?} engine on switch for {} Hz, {} channels (block_size: {})",
+                target_engine, format.sample_rate, format.channels, block_size
+            );
+            let Some(prepared) =
+                PreparedEngine::prepare(target_engine, format, block_size, prep_params)
+            else {
+                let mut state = imp.state.lock_safe();
+                apply(&mut state);
+                break;
+            };
+            pre_prepared = Some((format, block_size, prepared));
         }
-        result
+        self.publish_engine(target_engine);
+    }
+
+    pub fn set_params(&self, params: DspParams) -> Result<(), DspError> {
+        params.validate()?;
+        let mut res = Ok(());
+        self.prepare_and_apply(params.engine, |state| {
+            res = state.set_params(params);
+        });
+        res
     }
 
     pub fn set_engine(&self, engine: DspEngine) {
-        let imp = self.imp();
-        imp.state.lock_safe().set_engine(engine);
-        self.publish_engine(engine);
+        self.prepare_and_apply(engine, |state| {
+            state.set_engine(engine);
+        });
     }
 
-    /// Changes the block size. Processors are prepared again outside the state lock,
-    /// so the streaming thread never waits for the expensive `prepare`.
+    /// Changes the block size. Only the active engine is re-prepared outside the state lock;
+    /// the inactive engine is invalidated and prepared lazily if ever selected.
     pub fn set_block_size(&self, size: usize) {
         let imp = self.imp();
         let clamped = size.clamp(512, 16384);
         let (format, params) = {
             let mut state = imp.state.lock_safe();
             state.block_size = clamped;
+            state.rubberband_prepared = None;
+            state.soundtouch_prepared = None;
             (state.format, state.params)
         };
         if let Some(format) = format {
-            let processors = Processors::prepared(format, clamped, params);
-            imp.state.lock_safe().install(format, processors);
+            if let Some(prepared) = PreparedEngine::prepare(params.engine, format, clamped, params)
+            {
+                let old = imp
+                    .state
+                    .lock_safe()
+                    .install_prepared(format, clamped, prepared);
+                drop(old);
+            }
         }
         info!("AuraluneDsp: block_size updated to {} frames", clamped);
+    }
+
+    /// Returns `(rubberband_prepared, soundtouch_prepared)` for diagnostics and testing.
+    pub fn prepared_engines(&self) -> (bool, bool) {
+        let state = self.imp().state.lock_safe();
+        (
+            state.rubberband_prepared.is_some(),
+            state.soundtouch_prepared.is_some(),
+        )
     }
 
     pub fn block_size(&self) -> usize {

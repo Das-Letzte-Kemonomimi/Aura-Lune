@@ -52,10 +52,13 @@ describe('VolumeSlider', () => {
     expect(gainToPosition(onGainChange.mock.lastCall![0], 'cubic')).toBeCloseTo(0.55, 9);
   });
 
-  it('resets to 70% on double-click', () => {
+  it('resets to 70% on double-click and commits on pointer release', () => {
     const { slider, onGainChange } = renderSlider(1);
     fireEvent.doubleClick(slider);
-    expect(onGainChange).toHaveBeenCalledWith(positionToGain(0.7, 'cubic'));
+    expect(onGainChange).toHaveBeenCalledWith(positionToGain(0.7, 'cubic'), true);
+
+    fireEvent.pointerUp(slider);
+    expect(onGainChange).toHaveBeenCalledWith(1, true);
   });
 });
 

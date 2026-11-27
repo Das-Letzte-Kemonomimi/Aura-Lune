@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Copy, Disc, LayoutGrid, List, Mic2, Music, Search, X } from '../../../components/ui/icons';
-import type { LibraryViewProps } from '../LibraryView';
+import type { ArtistLibraryItem, LibraryViewProps } from '../LibraryView';
 import { Badge, Card, Chip, IconButton, SegmentedControl, TextField } from '../../../components/ui';
 import { fmt } from '../../../utils/fmt';
 import { SortControls } from './SortControls';
@@ -15,7 +15,6 @@ export type LibraryToolbarProps = Pick<
   | 'filteredTracks'
   | 'handleBackFromAlbumDetail'
   | 'filteredAlbums'
-  | 'filteredArtists'
   | 'librarySearchInputRef'
   | 'librarySearch'
   | 'setLibrarySearch'
@@ -46,6 +45,8 @@ export type LibraryToolbarProps = Pick<
   | 'albumViewMode'
   | 'setAlbumViewMode'
 > & {
+  filteredArtists: ArtistLibraryItem[];
+  totalArtistCount: number;
   artistSortField: ArtistSortField;
   setArtistSortField: (v: ArtistSortField) => void;
   artistSortOrder: 'asc' | 'desc';
@@ -97,6 +98,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
   sortOrder,
   sortedAlbums,
   sortedTracks,
+  totalArtistCount,
   tracks,
 }) => (
   <Card variant="panel" padding="none" className="flex flex-col gap-3 px-4 py-3">
@@ -113,7 +115,11 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         items={[
           { value: 'tracks', icon: <Music size={14} />, label: `${loc.library.tracks} (${filteredTracks.length})` },
           { value: 'albums', icon: <Disc size={14} />, label: `${loc.library.albums} (${filteredAlbums.length})` },
-          { value: 'artists', icon: <Mic2 size={14} />, label: `${loc.library.artists} (${filteredArtists.length})` },
+          {
+            value: 'artists',
+            icon: <Mic2 size={14} />,
+            label: `${loc.library.artists} (${librarySubView === 'artists' ? filteredArtists.length : totalArtistCount})`,
+          },
         ]}
       />
 
@@ -293,7 +299,7 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
     {librarySubView === 'artists' && (
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
         <span className="text-ui font-bold text-fg">
-          {filteredArtists.length !== new Set(tracks.map((track) => track.artist || loc.stats.unknownArtist)).size
+          {filteredArtists.length !== totalArtistCount
             ? fmt(loc.library.resultsArtists, String(filteredArtists.length))
             : fmt(loc.library.totalArtists, String(filteredArtists.length))}
         </span>

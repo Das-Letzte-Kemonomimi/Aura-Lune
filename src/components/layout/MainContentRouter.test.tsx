@@ -4,13 +4,25 @@ import React from 'react';
 import { MainContentRouter, type MainContentRouterProps } from './MainContentRouter';
 
 // Mock child views
-vi.mock('../../views', () => ({
+vi.mock('../../views/player/PlayerView', () => ({
   PlayerView: () => <div data-testid="player-view">Player View</div>,
+}));
+vi.mock('../../views/library/LibraryView', () => ({
   LibraryView: () => <div data-testid="library-view">Library View</div>,
+}));
+vi.mock('../../views/dsp/DspStudioView', () => ({
   DspStudioView: () => <div data-testid="dsp-view">DSP View</div>,
+}));
+vi.mock('../../views/playlists/PlaylistsView', () => ({
   PlaylistsView: () => <div data-testid="playlists-view">Playlists View</div>,
+}));
+vi.mock('../../views/stems/StemProjectsLibraryView', () => ({
   StemProjectsLibraryView: () => <div data-testid="stem-projects-view">Stem Projects View</div>,
+}));
+vi.mock('../../views/playlists/RadioView', () => ({
   RadioView: () => <div data-testid="radio-view">Radio View</div>,
+}));
+vi.mock('../../views/stats/StatsDashboardView', () => ({
   StatsDashboardView: () => <div data-testid="stats-view">Stats View</div>,
 }));
 
@@ -58,35 +70,35 @@ describe('MainContentRouter component', () => {
     expect(screen.queryByTestId('library-view')).toBeNull();
   });
 
-  it('renders LibraryView when activeTab is library', () => {
+  it('renders LibraryView when activeTab is library', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="library" />);
-    expect(screen.getByTestId('library-view')).toBeTruthy();
+    expect(await screen.findByTestId('library-view')).toBeTruthy();
     expect(screen.queryByTestId('player-view')).toBeNull();
   });
 
-  it('renders DspStudioView when activeTab is dsp', () => {
+  it('renders DspStudioView when activeTab is dsp', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="dsp" />);
-    expect(screen.getByTestId('dsp-view')).toBeTruthy();
+    expect(await screen.findByTestId('dsp-view')).toBeTruthy();
   });
 
-  it('renders PlaylistsView when activeTab is playlists', () => {
+  it('renders PlaylistsView when activeTab is playlists', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="playlists" />);
-    expect(screen.getByTestId('playlists-view')).toBeTruthy();
+    expect(await screen.findByTestId('playlists-view')).toBeTruthy();
   });
 
-  it('renders StemProjectsLibraryView when activeTab is stem-projects', () => {
+  it('renders StemProjectsLibraryView when activeTab is stem-projects', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="stem-projects" />);
-    expect(screen.getByTestId('stem-projects-view')).toBeTruthy();
+    expect(await screen.findByTestId('stem-projects-view')).toBeTruthy();
   });
 
-  it('renders RadioView when activeTab is radio', () => {
+  it('renders RadioView when activeTab is radio', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="radio" />);
-    expect(screen.getByTestId('radio-view')).toBeTruthy();
+    expect(await screen.findByTestId('radio-view')).toBeTruthy();
   });
 
-  it('renders StatsDashboardView when activeTab is stats', () => {
+  it('renders StatsDashboardView when activeTab is stats', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="stats" />);
-    expect(screen.getByTestId('stats-view')).toBeTruthy();
+    expect(await screen.findByTestId('stats-view')).toBeTruthy();
   });
 
   it('applies bottom dock clearance padding when dock is visible', () => {

@@ -4,7 +4,7 @@ use super::error::CommandError;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use storage::{AlbumRecord, DuplicateGroup, RecapSummaryDto, TrackRecord};
 use tauri::State;
 use tracing::info;
@@ -17,63 +17,38 @@ pub struct ScanSummaryDto {
     pub errors: usize,
 }
 
-/// Maximum size of a local cover file returned to the UI as a data: URI.
+/// Maximum size of a local cover file served to the UI.
 const MAX_COVER_FILE_BYTES: u64 = 20 * 1024 * 1024;
 
-/// Longest edge, in pixels, of the album covers sent to the album list.
-const COVER_THUMBNAIL_EDGE: u32 = 512;
-
-/// Validated, size-limited local image file behind a cover path; `None` for URLs and bad paths.
-fn local_cover_file(path_str: &str) -> Option<PathBuf> {
-    let path = super::paths::ensure_readable(
-        &audio_engine::uri::local_path(path_str),
-        super::paths::IMAGE_EXTENSIONS,
-    )
-    .ok()?;
-    if fs::metadata(&path).ok()?.len() > MAX_COVER_FILE_BYTES {
+/// Validated, size-limited local image file behind a path; `None` for bad paths or oversized files.
+fn local_cover_file(path: &Path) -> Option<PathBuf> {
+    let resolved = super::paths::ensure_readable(path, super::paths::IMAGE_EXTENSIONS).ok()?;
+    if fs::metadata(&resolved).ok()?.len() > MAX_COVER_FILE_BYTES {
         return None;
     }
-    Some(path)
+    Some(resolved)
 }
 
-fn is_remote(path_str: &str) -> bool {
-    path_str.starts_with("http://") || path_str.starts_with("https://")
-}
-
-/// Resolves a cover path (local file or URL) to a Base64 data: URI.
-///
-/// A local file must (after resolving links) be an image: a `cover.jpg` that links
-/// to another file is not read.
-pub fn resolve_cover_to_data_uri(path_str: &str) -> Option<String> {
-    if path_str.starts_with("data:") || is_remote(path_str) {
-        return Some(path_str.to_string());
+/// Deterministic 64-bit FNV-1a hash used for I/O-free media cache-busting query versions.
+pub fn fnv64(input: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in input.as_bytes() {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x100_0000_01b3);
     }
-
-    let path = local_cover_file(path_str)?;
-    let bytes = fs::read(&path).ok()?;
-    let ext = path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("jpg")
-        .to_lowercase();
-    Some(image_data_uri(&ext, &bytes))
+    hash
 }
-
-type ThumbnailKey = (PathBuf, u64, std::time::SystemTime);
-
-static THUMBNAIL_CACHE: std::sync::OnceLock<
-    std::sync::Mutex<std::collections::HashMap<ThumbnailKey, String>>,
-> = std::sync::OnceLock::new();
 
 static THUMBNAIL_DISK_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
 
-/// Configures the persistent on-disk directory used to cache 512px JPEG thumbnails.
+/// Configures the persistent on-disk directory used to cache resized JPEG thumbnails.
 pub fn init_thumbnail_cache_dir(dir: PathBuf) {
     let _ = THUMBNAIL_DISK_DIR.set(dir);
 }
 
 fn thumbnail_disk_path(
-    path: &std::path::Path,
+    path: &Path,
+    edge: u32,
     size: u64,
     mtime: std::time::SystemTime,
 ) -> Option<PathBuf> {
@@ -89,6 +64,7 @@ fn thumbnail_disk_path(
         .to_string_lossy()
         .as_bytes()
         .iter()
+        .chain(edge.to_le_bytes().iter())
         .chain(size.to_le_bytes().iter())
         .chain(mtime_secs.to_le_bytes().iter())
     {
@@ -99,12 +75,10 @@ fn thumbnail_disk_path(
     Some(dir.join(format!("{h1:016x}{h2:016x}.jpg")))
 }
 
-/// Downscales image bytes into a JPEG payload and `data:image/jpeg;base64,…` URI.
-fn thumbnail_jpeg_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
+/// Downscales image bytes into a JPEG payload fit within `edge x edge`.
+fn thumbnail_jpeg_bytes(bytes: &[u8], edge: u32) -> Option<Vec<u8>> {
     let image = image::load_from_memory(bytes).ok()?;
-    let thumb = image
-        .thumbnail(COVER_THUMBNAIL_EDGE, COVER_THUMBNAIL_EDGE)
-        .to_rgb8();
+    let thumb = image.thumbnail(edge, edge).to_rgb8();
     let mut jpeg = Vec::new();
     image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 85)
         .encode_image(&thumb)
@@ -112,54 +86,101 @@ fn thumbnail_jpeg_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
     Some(jpeg)
 }
 
-/// Like [`resolve_cover_to_data_uri`] but local files are downscaled, so a library of hundreds of
-/// albums does not ship (and the WebView does not decode) hundreds of full-size images. Results
-/// are cached in RAM (L1) and on disk under `cache/thumbs` (L2) keyed by `(path, size, mtime)`.
-pub fn resolve_cover_thumbnail(path_str: &str) -> Option<String> {
-    if path_str.starts_with("data:") || is_remote(path_str) {
-        return Some(path_str.to_string());
+fn write_thumbnail_atomically(disk_path: &Path, jpeg: &[u8]) {
+    if let Some(parent) = disk_path.parent() {
+        let _ = fs::create_dir_all(parent);
     }
+    let tmp = disk_path.with_extension("tmp");
+    if fs::write(&tmp, jpeg).is_ok() {
+        let _ = fs::rename(&tmp, disk_path);
+    }
+}
 
-    let path = local_cover_file(path_str)?;
+/// Returns the on-disk cached JPEG thumbnail for `src` downscaled to `edge` pixels,
+/// generating it on miss. Falls back to the validated original file if image decoding fails.
+pub fn thumbnail_file(src: &Path, edge: u32) -> Option<PathBuf> {
+    let path = local_cover_file(src)?;
     let meta = fs::metadata(&path).ok()?;
     let mtime = meta.modified().ok()?;
-    let key = (path.clone(), meta.len(), mtime);
-    let cache = THUMBNAIL_CACHE.get_or_init(Default::default);
-    if let Some(hit) = cache.lock().ok()?.get(&key) {
-        return Some(hit.clone());
-    }
+    let disk_path = thumbnail_disk_path(&path, edge, meta.len(), mtime);
 
-    let disk_path = thumbnail_disk_path(&path, meta.len(), mtime);
     if let Some(dp) = disk_path.as_ref().filter(|p| p.exists()) {
-        if let Ok(cached_jpeg) = fs::read(dp) {
-            let uri = image_data_uri("jpg", &cached_jpeg);
-            cache.lock().ok()?.insert(key, uri.clone());
-            return Some(uri);
-        }
+        return Some(dp.clone());
     }
 
     let bytes = fs::read(&path).ok()?;
-    let uri = if let Some(jpeg) = thumbnail_jpeg_bytes(&bytes) {
+    if let Some(jpeg) = thumbnail_jpeg_bytes(&bytes, edge) {
         if let Some(dp) = disk_path {
-            if let Some(parent) = dp.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
-            let tmp = dp.with_extension("tmp");
-            if fs::write(&tmp, &jpeg).is_ok() {
-                let _ = fs::rename(&tmp, &dp);
+            write_thumbnail_atomically(&dp, &jpeg);
+            if dp.exists() {
+                return Some(dp);
             }
         }
-        image_data_uri("jpg", &jpeg)
-    } else {
-        // Undecodable images keep working as the original file.
-        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("jpg");
-        image_data_uri(ext, &bytes)
-    };
-    cache.lock().ok()?.insert(key, uri.clone());
-    Some(uri)
+        // Fallback when THUMBNAIL_DISK_DIR is not configured (e.g., isolated unit tests).
+        let temp_dp = std::env::temp_dir().join(format!(
+            "auralune_thumb_{}_{}.jpg",
+            edge,
+            fnv64(&path.to_string_lossy())
+        ));
+        write_thumbnail_atomically(&temp_dp, &jpeg);
+        return temp_dp.exists().then_some(temp_dp);
+    }
+
+    Some(path)
+}
+
+/// Resolves embedded tag art (using `read_cover_art(true)`) or folder cover for an audio track,
+/// returning a downscaled cached JPEG thumbnail path fit within `edge` pixels.
+pub fn thumbnail_for_audio(audio_path: &Path, edge: u32) -> Option<PathBuf> {
+    use lofty::file::TaggedFileExt;
+
+    let resolved =
+        super::paths::ensure_readable(audio_path, super::paths::AUDIO_EXTENSIONS).ok()?;
+    let meta = fs::metadata(&resolved).ok()?;
+    let mtime = meta.modified().ok()?;
+    let disk_path = thumbnail_disk_path(&resolved, edge, meta.len(), mtime);
+
+    if let Some(dp) = disk_path.as_ref().filter(|p| p.exists()) {
+        return Some(dp.clone());
+    }
+
+    let parse_opts = lofty::config::ParseOptions::new()
+        .read_cover_art(true)
+        .read_properties(false);
+    if let Ok(probe) = lofty::probe::Probe::open(&resolved) {
+        if let Ok(tagged_file) = probe.options(parse_opts).read() {
+            if let Some(pic) = tagged_file
+                .primary_tag()
+                .or_else(|| tagged_file.first_tag())
+                .and_then(|tag| tag.pictures().first())
+            {
+                if let Some(jpeg) = thumbnail_jpeg_bytes(pic.data(), edge) {
+                    if let Some(dp) = disk_path {
+                        write_thumbnail_atomically(&dp, &jpeg);
+                        if dp.exists() {
+                            return Some(dp);
+                        }
+                    }
+                    let temp_dp = std::env::temp_dir().join(format!(
+                        "auralune_audio_thumb_{}_{}.jpg",
+                        edge,
+                        fnv64(&resolved.to_string_lossy())
+                    ));
+                    write_thumbnail_atomically(&temp_dp, &jpeg);
+                    return temp_dp.exists().then_some(temp_dp);
+                }
+            }
+        }
+    }
+
+    resolved
+        .parent()
+        .and_then(|parent| library::find_folder_cover(parent, None))
+        .and_then(|cand| thumbnail_file(&cand, edge))
 }
 
 /// Encodes image bytes as `data:<mime>;base64,…` (MIME type from the extension).
+/// Used only by portable theme/profile exports.
 pub fn image_data_uri(extension: &str, bytes: &[u8]) -> String {
     let mime = match extension.to_ascii_lowercase().as_str() {
         "png" => "image/png",
@@ -254,29 +275,20 @@ pub async fn get_library_tracks(
 pub async fn get_library_albums(
     state: State<'_, AppState>,
 ) -> Result<Vec<AlbumRecord>, CommandError> {
-    let albums = state.db.list_albums().await?;
-
-    // Reading, decoding and downscaling all covers is blocking work: off the Tokio threads and
-    // spread over the available cores.
-    tokio::task::spawn_blocking(move || {
-        let mut albums = albums;
-        let workers = std::thread::available_parallelism().map_or(2, |n| n.get());
-        let chunk_size = albums.len().div_ceil(workers).max(1);
-        std::thread::scope(|scope| {
-            for chunk in albums.chunks_mut(chunk_size) {
-                scope.spawn(move || {
-                    for album in chunk {
-                        if let Some(cp) = &album.cover_path {
-                            album.cover_path = resolve_cover_thumbnail(cp);
-                        }
-                    }
-                });
-            }
-        });
-        albums
-    })
-    .await
-    .map_err(CommandError::from)
+    let started = std::time::Instant::now();
+    let mut albums = state.db.list_albums().await?;
+    for album in &mut albums {
+        album.cover_path = album
+            .cover_path
+            .as_deref()
+            .and_then(|cp| crate::media_protocol::album_cover_url_opt(album.id, cp));
+    }
+    info!(
+        "get_library_albums mapped {} albums in {:?}",
+        albums.len(),
+        started.elapsed()
+    );
+    Ok(albums)
 }
 
 #[tauri::command]

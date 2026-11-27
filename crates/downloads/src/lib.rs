@@ -159,7 +159,8 @@ impl DownloadProvider for HttpDownloadProvider {
         }
 
         let total_bytes = res.content_length();
-        let mut file = tokio::fs::File::create(&temp_path).await?;
+        let raw_file = tokio::fs::File::create(&temp_path).await?;
+        let mut file = tokio::io::BufWriter::with_capacity(256 * 1024, raw_file);
         // Removes the temp file on every early exit (network/disk error, cancellation,
         // checksum mismatch). Disarmed only after the atomic move.
         let mut temp_guard = TempFileGuard::new(temp_path.clone());
@@ -200,7 +201,7 @@ impl DownloadProvider for HttpDownloadProvider {
         }
 
         file.flush().await?;
-        file.sync_all().await?;
+        file.get_ref().sync_all().await?;
         drop(file);
 
         // 4. Verify the SHA-256 checksum

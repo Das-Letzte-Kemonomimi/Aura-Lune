@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { invoke } from '../api/ipc';
 import { currentPositionMs } from '../state/livePlayback';
+import { useStableCallback } from './useStableCallback';
 import type { TrackRecord, AlbumRecord, PlaybackStatus } from '../types/player';
 import type { PlaybackQueue, QueueItem } from '../types/queue';
 import type { AlbumPlaybackBehavior } from '../types/playback';
@@ -83,7 +84,7 @@ export function useLibraryPlaybackActions({
   const isPlayingLibraryTrackRef = useRef<boolean>(false);
 
   // Player control: load a file directly
-  const handleLoadFile = async (path: string) => {
+  const handleLoadFile = useStableCallback(async (path: string) => {
     try {
       initialStartupPositionRef.current = null;
       setFilePath(path);
@@ -118,10 +119,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // System audio file picker (kdialog Dolphin / zenity)
-  const handlePickFiles = async () => {
+  const handlePickFiles = useStableCallback(async () => {
     try {
       const selected = await invoke<string[]>('pick_files');
       if (selected && selected.length > 0) {
@@ -160,10 +161,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Dropped files or folders (drag & drop)
-  const handleDropPaths = async (paths: string[]) => {
+  const handleDropPaths = useStableCallback(async (paths: string[]) => {
     if (!paths || paths.length === 0) return;
     const singlePath = paths.length === 1 ? paths[0] : null;
     const isSingleAudio = Boolean(
@@ -191,10 +192,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Play a library track, with bookmarks, the queue context and the global loop
-  const handlePlayLibraryTrack = async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
+  const handlePlayLibraryTrack = useStableCallback(async (track: TrackRecord, contextTracks?: TrackRecord[]) => {
     initialStartupPositionRef.current = null;
     if (isPlayingLibraryTrackRef.current) return;
     isPlayingLibraryTrackRef.current = true;
@@ -334,9 +335,9 @@ export function useLibraryPlaybackActions({
       clearTimeout(safetyTimeout);
       isPlayingLibraryTrackRef.current = false;
     }
-  };
+  });
 
-  const handlePlayAlbum = (albumTracks: TrackRecord[], startIndex = 0) => {
+  const handlePlayAlbum = useStableCallback((albumTracks: TrackRecord[], startIndex: number = 0) => {
     const sorted = [...albumTracks].sort(
       (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
     );
@@ -344,9 +345,9 @@ export function useLibraryPlaybackActions({
       const target = sorted[startIndex] || sorted[0];
       handlePlayLibraryTrack(target, sorted);
     }
-  };
+  });
 
-  const handleAddAlbumToQueue = async (albumTracks: TrackRecord[]) => {
+  const handleAddAlbumToQueue = useStableCallback(async (albumTracks: TrackRecord[]) => {
     const sorted = [...albumTracks].sort(
       (a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)
     );
@@ -359,10 +360,10 @@ export function useLibraryPlaybackActions({
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     }
-  };
+  });
 
   // Shuffle and immediately play the whole library or the track context
-  const handleShuffleAll = async (sourceTracks?: TrackRecord[]) => {
+  const handleShuffleAll = useStableCallback(async (sourceTracks?: TrackRecord[]) => {
     const pool = (sourceTracks && sourceTracks.length > 0)
       ? sourceTracks
       : (filteredTracks.length > 0 ? filteredTracks : tracks);
@@ -403,10 +404,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Auralune signature profiles (mastering sound profiles)
-  const handleApplySignatureProfile = async (profileId: string) => {
+  const handleApplySignatureProfile = useStableCallback(async (profileId: string) => {
     try {
       if (profileId === 'vocal_air') {
         await invoke('set_dsp_params', {
@@ -526,10 +527,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Save a bookmark for the active track
-  const handleSaveBookmark = async () => {
+  const handleSaveBookmark = useStableCallback(async () => {
     if (!activeTrackId) {
       showMessage(loc.notifications.firstSelectTrack, true);
       return;
@@ -545,10 +546,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Delete a bookmark for the active track
-  const handleDeleteBookmark = async (e?: React.MouseEvent) => {
+  const handleDeleteBookmark = useStableCallback(async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!activeTrackId) return;
     try {
@@ -558,16 +559,16 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Jump to a saved bookmark
-  const handleJumpToBookmark = async (pos: number) => {
+  const handleJumpToBookmark = useStableCallback(async (pos: number) => {
     await handleSeek(pos);
     showMessage(fmt(loc.player.bookmarkJump, formatTime(pos)));
-  };
+  });
 
   // Reset the track's play count
-  const handleResetTrackPlays = async (trackId: number) => {
+  const handleResetTrackPlays = useStableCallback(async (trackId: number) => {
     try {
       await invoke('reset_track_plays', { trackId });
       setTracks((prev) =>
@@ -584,10 +585,10 @@ export function useLibraryPlaybackActions({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  };
+  });
 
   // Open the parent folder
-  const handleOpenContainingFolder = async (rawPath: string, e?: React.MouseEvent) => {
+  const handleOpenContainingFolder = useStableCallback(async (rawPath: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!rawPath) return;
     try {
@@ -597,10 +598,10 @@ export function useLibraryPlaybackActions({
       console.error('Failed to open containing folder:', err);
       showMessage(fmt(loc.notifications.openFolderError, String(err)), true);
     }
-  };
+  });
 
   // Set the star rating (0-5)
-  const handleSetTrackRating = async (trackId: number, rating: number) => {
+  const handleSetTrackRating = useStableCallback(async (trackId: number, rating: number) => {
     try {
       await invoke('set_track_rating', { trackId, rating });
       setTracks((prev) =>
@@ -609,10 +610,10 @@ export function useLibraryPlaybackActions({
     } catch (err: unknown) {
       console.error('Failed to save the track rating:', err);
     }
-  };
+  });
 
   // Toggle a favourite (Favorites ❤️)
-  const handleToggleFavorite = async (trackId: number, e?: React.MouseEvent) => {
+  const handleToggleFavorite = useStableCallback(async (trackId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     try {
       const isFav = await invoke<boolean>('toggle_favorite', { trackId });
@@ -623,7 +624,7 @@ export function useLibraryPlaybackActions({
     } catch (err) {
       console.error('Failed to toggle the favourite:', err);
     }
-  };
+  });
 
   return {
     handleLoadFile,

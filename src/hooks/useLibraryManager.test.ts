@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import { useLibraryManager } from './useLibraryManager';
 import { getTranslations } from '../i18n';
@@ -400,6 +400,7 @@ describe('useLibraryManager hook', () => {
   });
 
   it('updates only the matching album when auralune://album-cover-updated fires', async () => {
+    vi.useFakeTimers();
     eventListeners.clear();
 
     const { result } = renderHook(() => useLibraryManager(defaultProps));
@@ -410,23 +411,46 @@ describe('useLibraryManager hook', () => {
       ]);
     });
 
-    await waitFor(() => {
-      expect(eventListeners.has('auralune://album-cover-updated')).toBe(true);
+    await act(async () => {
+      await Promise.resolve();
     });
+    expect(eventListeners.has('auralune://album-cover-updated')).toBe(true);
+
+    const prevFilteredTracks = result.current.filteredTracks;
+    const prevSortedTracks = result.current.sortedTracks;
 
     act(() => {
-      eventListeners.get('auralune://album-cover-updated')!({
+      const cb = eventListeners.get('auralune://album-cover-updated')!;
+      cb({
         payload: {
           album_id: 1,
-          cover_path: 'data:image/jpeg;base64,NEW_COVER',
+          cover_path: 'auralune-media://localhost/cover/album/1?s=256&v=new',
           release_mbid: 'd38b402a-ee1b-427a-b10c-b8127596d59c',
+        },
+      });
+      cb({
+        payload: {
+          album_id: 2,
+          cover_path: 'auralune-media://localhost/cover/album/2?s=256&v=second',
+          release_mbid: null,
         },
       });
     });
 
-    expect(result.current.albums[0].cover_path).toBe('data:image/jpeg;base64,NEW_COVER');
+    // Not flushed before the 500 ms batch window elapses.
+    expect(result.current.albums[0].cover_path).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(result.current.albums[0].cover_path).toBe('auralune-media://localhost/cover/album/1?s=256&v=new');
     expect(result.current.albums[0].release_mbid).toBe('d38b402a-ee1b-427a-b10c-b8127596d59c');
-    expect(result.current.albums[1].cover_path).toBeNull();
+    expect(result.current.albums[1].cover_path).toBe('auralune-media://localhost/cover/album/2?s=256&v=second');
+    // Cover-only updates preserve filteredTracks & sortedTracks identities via albumTextById.
+    expect(result.current.filteredTracks).toBe(prevFilteredTracks);
+    expect(result.current.sortedTracks).toBe(prevSortedTracks);
+    vi.useRealTimers();
   });
 });
 

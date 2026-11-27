@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useSessionManager } from './useSessionManager';
 import { getTranslations } from '../i18n';
 import type { PlaybackStatus } from '../types/playback';
+import { livePlayback } from '../state/livePlayback';
 import { invokeMock as mockInvoke } from '../test/ipcMock';
 
 
@@ -69,9 +70,16 @@ describe('useSessionManager hook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     localStorage.clear();
+    livePlayback.reset();
     mockInvoke.mockResolvedValue(null);
     initialStartupPositionRef.current = null;
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
   });
 
   it('initializes restoreSessionOnStartup to true by default', () => {
@@ -131,5 +139,92 @@ describe('useSessionManager hook', () => {
       tempoRatio: 1.1,
       rateRatio: 1.0,
     });
+  });
+
+  it('saves periodically every 5 s during continuous playback without timer starvation', async () => {
+    const playingStatus: PlaybackStatus = { ...mockStatus, state: 'Playing', position_ms: 1_000 };
+    const { rerender } = renderHook(
+      (props: typeof defaultProps) => useSessionManager(props),
+      { initialProps: { ...defaultProps, status: playingStatus } },
+    );
+
+    const sessionSaves = () =>
+      mockInvoke.mock.calls.filter(
+        ([cmd, args]) => cmd === 'set_app_setting' && (args as { key: string }).key === 'playback_session_state',
+      );
+
+    expect(sessionSaves()).toHaveLength(0);
+
+    // Simulate continuous position ticks every 1 s (formerly starved the 1.5 s debounce forever)
+    for (let sec = 1; sec <= 4; sec++) {
+      act(() => {
+        livePlayback.publish({ positionMs: sec * 1_000 + 500 });
+        vi.advanceTimersByTime(1_000);
+        rerender({ ...defaultProps, status: { ...playingStatus, position_ms: sec * 1_000 } });
+      });
+    }
+    expect(sessionSaves()).toHaveLength(0);
+
+    // Crossing 5,000 ms fires the throttle save with the live position
+    act(() => {
+      livePlayback.publish({ positionMs: 5_432 });
+      vi.advanceTimersByTime(1_000);
+    });
+
+    expect(sessionSaves()).toHaveLength(1);
+    const saved = JSON.parse((sessionSaves()[0][1] as { value: string }).value);
+    expect(saved.position_ms).toBe(5_432);
+    expect(localStorage.getItem('auralune_playback_session')).toBe((sessionSaves()[0][1] as { value: string }).value);
+  });
+
+  it('flushes immediately on track change, pause/stop, pagehide and visibilitychange', () => {
+    const playingStatus: PlaybackStatus = { ...mockStatus, state: 'Playing', position_ms: 10_000 };
+    const { rerender } = renderHook(
+      (props: typeof defaultProps) => useSessionManager(props),
+      { initialProps: { ...defaultProps, status: playingStatus } },
+    );
+
+    const sessionSaves = () =>
+      mockInvoke.mock.calls.filter(
+        ([cmd, args]) => cmd === 'set_app_setting' && (args as { key: string }).key === 'playback_session_state',
+      );
+
+    // 1. Track change flushes immediately
+    act(() => {
+      livePlayback.publish({ positionMs: 12_000 });
+      rerender({
+        ...defaultProps,
+        activeTrackId: 2,
+        filePath: '/music/next.flac',
+        status: {
+          ...playingStatus,
+          current_track: { ...playingStatus.current_track!, track_id: 2, uri: '/music/next.flac' },
+        },
+      });
+    });
+    expect(sessionSaves()).toHaveLength(1);
+
+    // 2. Pause flushes immediately
+    act(() => {
+      livePlayback.publish({ positionMs: 22_000 });
+      rerender({
+        ...defaultProps,
+        activeTrackId: 2,
+        filePath: '/music/next.flac',
+        status: {
+          ...playingStatus,
+          state: 'Paused',
+          current_track: { ...playingStatus.current_track!, track_id: 2, uri: '/music/next.flac' },
+        },
+      });
+    });
+    expect(sessionSaves()).toHaveLength(2);
+
+    // 3. pagehide flushes immediately when live position moves
+    act(() => {
+      livePlayback.publish({ positionMs: 33_000 });
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(sessionSaves()).toHaveLength(3);
   });
 });

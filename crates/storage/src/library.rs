@@ -1,28 +1,36 @@
 //! Music library operations: artists, albums, tracks, duplicates and path updates.
 
 use crate::{
-    AlbumCoverLookupContext, AlbumRecord, ArtistRecord, Database, DuplicateGroup, StorageError,
-    TrackRecord,
+    AlbumCoverLookupContext, AlbumRecord, ArtistRecord, Database, DuplicateGroup, ScannedTrack,
+    StorageError, TrackRecord, TrackScanEntry,
 };
 use sqlx::{FromRow, Row};
+use std::collections::{HashMap, HashSet};
+
+const SQLITE_IN_CHUNK: usize = 500;
 
 impl Database {
+    async fn ensure_artist_conn(
+        conn: &mut sqlx::SqliteConnection,
+        name: &str,
+    ) -> Result<(), StorageError> {
+        sqlx::query("INSERT INTO artists (name) VALUES (?1) ON CONFLICT(name) DO NOTHING;")
+            .bind(name)
+            .execute(conn)
+            .await?;
+        Ok(())
+    }
+
     async fn upsert_artist_conn(
         conn: &mut sqlx::SqliteConnection,
         name: &str,
     ) -> Result<i64, StorageError> {
-        let rec = sqlx::query(
-            r#"
-            INSERT INTO artists (name) VALUES (?1)
-            ON CONFLICT(name) DO UPDATE SET name=excluded.name
-            RETURNING id;
-            "#,
-        )
-        .bind(name)
-        .fetch_one(conn)
-        .await?;
-
-        Ok(rec.get::<i64, _>("id"))
+        Self::ensure_artist_conn(conn, name).await?;
+        let id: i64 = sqlx::query_scalar("SELECT id FROM artists WHERE name = ?1 LIMIT 1;")
+            .bind(name)
+            .fetch_one(conn)
+            .await?;
+        Ok(id)
     }
 
     async fn upsert_album_conn(
@@ -169,7 +177,7 @@ impl Database {
         release_mbid: Option<&str>,
     ) -> Result<i64, StorageError> {
         let mut tx = self.pool.begin().await?;
-        Self::upsert_artist_conn(&mut tx, &track.artist).await?;
+        Self::ensure_artist_conn(&mut tx, &track.artist).await?;
         let album_id = Self::upsert_album_conn(
             &mut tx,
             album_title,
@@ -184,6 +192,68 @@ impl Database {
         let track_id = Self::upsert_track_conn(&mut tx, &linked).await?;
         tx.commit().await?;
         Ok(track_id)
+    }
+
+    /// Atomically saves a batch of scanned tracks along with their artists and albums in one transaction.
+    ///
+    /// Returns the persisted track IDs in slice order.
+    pub async fn save_scanned_tracks(
+        &self,
+        tracks: &[ScannedTrack],
+    ) -> Result<Vec<i64>, StorageError> {
+        if tracks.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let mut seen_artists: HashSet<&str> = HashSet::new();
+        // Cache `(album_title, album_artist) -> (album_id, has_year, has_cover, has_mbid)` within the tx.
+        let mut seen_albums: HashMap<(&str, &str), (i64, bool, bool, bool)> = HashMap::new();
+        let mut ids = Vec::with_capacity(tracks.len());
+
+        for item in tracks {
+            if seen_artists.insert(item.record.artist.as_str()) {
+                Self::ensure_artist_conn(&mut tx, &item.record.artist).await?;
+            }
+
+            let album_key = (item.album_title.as_str(), item.album_artist.as_str());
+            let need_upsert = match seen_albums.get(&album_key) {
+                Some(&(_, has_year, has_cover, has_mbid)) => {
+                    (item.year.is_some() && !has_year)
+                        || (item.cover_path.is_some() && !has_cover)
+                        || (item.release_mbid.is_some() && !has_mbid)
+                }
+                None => true,
+            };
+
+            let album_id = if need_upsert {
+                let id = Self::upsert_album_conn(
+                    &mut tx,
+                    &item.album_title,
+                    &item.album_artist,
+                    item.year,
+                    item.cover_path.as_deref(),
+                    item.release_mbid.as_deref(),
+                )
+                .await?;
+                let prev = seen_albums.get(&album_key).copied();
+                let has_year = prev.is_some_and(|p| p.1) || item.year.is_some();
+                let has_cover = prev.is_some_and(|p| p.2) || item.cover_path.is_some();
+                let has_mbid = prev.is_some_and(|p| p.3) || item.release_mbid.is_some();
+                seen_albums.insert(album_key, (id, has_year, has_cover, has_mbid));
+                id
+            } else {
+                seen_albums[&album_key].0
+            };
+
+            let mut linked = item.record.clone();
+            linked.album_id = Some(album_id);
+            let track_id = Self::upsert_track_conn(&mut tx, &linked).await?;
+            ids.push(track_id);
+        }
+
+        tx.commit().await?;
+        Ok(ids)
     }
 
     /// Updates an album's cover and MBID, clearing any pending background lookup retry state.
@@ -495,9 +565,7 @@ impl Database {
 
     /// Size and modification time of every indexed file (`path → (size, mtime)`) in
     /// one query: the scanner compares them in memory instead of asking the database per file.
-    pub async fn track_file_stamps(
-        &self,
-    ) -> Result<std::collections::HashMap<String, (i64, i64)>, StorageError> {
+    pub async fn track_file_stamps(&self) -> Result<HashMap<String, (i64, i64)>, StorageError> {
         let rows = sqlx::query("SELECT path, file_size, modified_time FROM tracks;")
             .fetch_all(&self.pool)
             .await?;
@@ -507,10 +575,52 @@ impl Database {
             .collect())
     }
 
+    /// Loads track IDs, album IDs, file sizes, and modification times keyed by path for incremental scans.
+    pub async fn track_scan_index(&self) -> Result<HashMap<String, TrackScanEntry>, StorageError> {
+        let rows = sqlx::query("SELECT id, path, album_id, file_size, modified_time FROM tracks;")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                (
+                    r.get("path"),
+                    TrackScanEntry {
+                        id: r.get("id"),
+                        album_id: r.get("album_id"),
+                        file_size: r.get("file_size"),
+                        modified_time: r.get("modified_time"),
+                        visited: false,
+                    },
+                )
+            })
+            .collect())
+    }
+
+    /// Maps `(album_title, album_artist)` to `has_cover` so rescans can skip redundant cover hashing.
+    pub async fn album_cover_status_map(
+        &self,
+    ) -> Result<HashMap<(String, String), bool>, StorageError> {
+        let rows = sqlx::query(
+            "SELECT title, album_artist, (cover_path IS NOT NULL AND cover_path != '') AS has_cover FROM albums;",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                (
+                    (r.get("title"), r.get("album_artist")),
+                    r.get::<i64, _>("has_cover") != 0,
+                )
+            })
+            .collect())
+    }
+
     /// Maps track paths to their `album_id` for albums that currently have no cover path.
     pub async fn track_album_ids_without_cover(
         &self,
-    ) -> Result<std::collections::HashMap<String, i64>, StorageError> {
+    ) -> Result<HashMap<String, i64>, StorageError> {
         let rows = sqlx::query(
             r#"
             SELECT t.path, a.id AS album_id
@@ -525,6 +635,99 @@ impl Database {
             .into_iter()
             .map(|r| (r.get("path"), r.get("album_id")))
             .collect())
+    }
+
+    /// Bulk-loads tracks and their album titles by path using chunks of 500 parameters.
+    pub async fn get_tracks_with_album_by_paths(
+        &self,
+        paths: &[String],
+    ) -> Result<HashMap<String, (TrackRecord, Option<String>)>, StorageError> {
+        let mut out = HashMap::new();
+        if paths.is_empty() {
+            return Ok(out);
+        }
+
+        let unique: Vec<&str> = {
+            let mut seen = HashSet::with_capacity(paths.len());
+            paths
+                .iter()
+                .filter_map(|p| seen.insert(p.as_str()).then_some(p.as_str()))
+                .collect()
+        };
+
+        for chunk in unique.chunks(SQLITE_IN_CHUNK) {
+            let placeholders = std::iter::repeat_n("?", chunk.len())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let sql = format!(
+                "SELECT t.*, a.title AS __album_title FROM tracks t LEFT JOIN albums a ON a.id = t.album_id WHERE t.path IN ({placeholders});"
+            );
+            let mut query = sqlx::query(&sql);
+            for path in chunk {
+                query = query.bind(*path);
+            }
+            let rows = query.fetch_all(&self.pool).await?;
+            for row in rows {
+                let record = TrackRecord::from_row(&row)?;
+                let album_title: Option<String> = row.try_get("__album_title").ok();
+                out.insert(record.path.clone(), (record, album_title));
+            }
+        }
+
+        Ok(out)
+    }
+
+    /// Bulk-resolves track IDs by raw filesystem path or `file://` URI in chunks of 500.
+    ///
+    /// Returned map is keyed by each input string that matched a row in `tracks`.
+    pub async fn find_track_ids_by_paths_or_uris(
+        &self,
+        paths_or_uris: &[String],
+    ) -> Result<HashMap<String, i64>, StorageError> {
+        let mut out = HashMap::new();
+        if paths_or_uris.is_empty() {
+            return Ok(out);
+        }
+
+        let mut candidate_set = HashSet::with_capacity(paths_or_uris.len() * 2);
+        for raw in paths_or_uris {
+            let clean = raw.strip_prefix("file://").unwrap_or(raw.as_str());
+            candidate_set.insert(clean.to_string());
+            candidate_set.insert(format!("file://{clean}"));
+        }
+        let candidates: Vec<String> = candidate_set.into_iter().collect();
+        let mut path_to_id: HashMap<String, i64> = HashMap::new();
+
+        for chunk in candidates.chunks(SQLITE_IN_CHUNK) {
+            let placeholders = std::iter::repeat_n("?", chunk.len())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let sql = format!("SELECT id, path FROM tracks WHERE path IN ({placeholders});");
+            let mut query = sqlx::query(&sql);
+            for c in chunk {
+                query = query.bind(c);
+            }
+            let rows = query.fetch_all(&self.pool).await?;
+            for row in rows {
+                let id: i64 = row.get("id");
+                let path: String = row.get("path");
+                path_to_id.insert(path, id);
+            }
+        }
+
+        for raw in paths_or_uris {
+            let clean = raw.strip_prefix("file://").unwrap_or(raw.as_str());
+            if let Some(&id) = path_to_id.get(clean) {
+                out.insert(raw.clone(), id);
+            } else {
+                let file_uri = format!("file://{clean}");
+                if let Some(&id) = path_to_id.get(&file_uri) {
+                    out.insert(raw.clone(), id);
+                }
+            }
+        }
+
+        Ok(out)
     }
 
     /// Returns a track by its path on disk.
@@ -726,6 +929,38 @@ impl Database {
         Ok(())
     }
 
+    /// Deletes tracks by `(track_id, album_id)` in chunked statements inside one transaction
+    /// and prunes any touched albums that become empty.
+    pub async fn delete_tracks_by_ids(
+        &self,
+        entries: &[(i64, Option<i64>)],
+    ) -> Result<usize, StorageError> {
+        if entries.is_empty() {
+            return Ok(0);
+        }
+
+        let stale_ids: Vec<i64> = entries.iter().map(|(id, _)| *id).collect();
+        let touched_albums: HashSet<i64> = entries.iter().filter_map(|(_, aid)| *aid).collect();
+
+        let mut tx = self.pool.begin().await?;
+        for chunk in stale_ids.chunks(SQLITE_IN_CHUNK) {
+            let placeholders = std::iter::repeat_n("?", chunk.len())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let sql = format!("DELETE FROM tracks WHERE id IN ({placeholders});");
+            let mut query = sqlx::query(&sql);
+            for id in chunk {
+                query = query.bind(id);
+            }
+            query.execute(&mut *tx).await?;
+        }
+        for aid in touched_albums {
+            Self::prune_album_if_empty_conn(&mut tx, aid).await?;
+        }
+        tx.commit().await?;
+        Ok(stale_ids.len())
+    }
+
     /// Removes the tracks under the `root` directory whose paths are no longer in the list of
     /// active files. Tracks outside `root` (other library folders) are not touched.
     /// Also prunes any affected albums that are left with zero tracks.
@@ -737,40 +972,20 @@ impl Database {
     ) -> Result<usize, StorageError> {
         let prefix = format!("{}/", root.trim_end_matches('/'));
         let candidates: Vec<(i64, String, Option<i64>)> = sqlx::query_as(
-            "SELECT id, path, album_id FROM tracks WHERE substr(path, 1, length(?1)) = ?1;",
+            "SELECT id, path, album_id FROM tracks WHERE path >= ?1 AND path < ?1 || char(0x10FFFF);",
         )
         .bind(&prefix)
         .fetch_all(&self.pool)
         .await?;
 
-        let active_set: std::collections::HashSet<&str> =
-            active_paths.iter().map(|s| s.as_str()).collect();
-        let mut stale_ids: Vec<i64> = Vec::new();
-        let mut touched_albums = std::collections::HashSet::new();
+        let active_set: HashSet<&str> = active_paths.iter().map(|s| s.as_str()).collect();
+        let mut stale: Vec<(i64, Option<i64>)> = Vec::new();
         for (id, path, album_id) in candidates {
             if !active_set.contains(path.as_str()) {
-                stale_ids.push(id);
-                if let Some(aid) = album_id {
-                    touched_albums.insert(aid);
-                }
+                stale.push((id, album_id));
             }
         }
-        if stale_ids.is_empty() {
-            return Ok(0);
-        }
-
-        let mut tx = self.pool.begin().await?;
-        for id in &stale_ids {
-            sqlx::query("DELETE FROM tracks WHERE id = ?1;")
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
-        }
-        for aid in touched_albums {
-            Self::prune_album_if_empty_conn(&mut tx, aid).await?;
-        }
-        tx.commit().await?;
-        Ok(stale_ids.len())
+        self.delete_tracks_by_ids(&stale).await
     }
 
     /// Updates a track's metadata in the SQLite database.

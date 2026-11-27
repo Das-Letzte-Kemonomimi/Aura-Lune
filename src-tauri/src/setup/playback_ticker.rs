@@ -16,6 +16,8 @@ use crate::commands::playback::{sync_mpris_from_queue_item, tick_status, Playbac
 use crate::setup::silence_trim::SilenceTrimmer;
 use crate::AppState;
 use domain::PlaybackState;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tracing::{info, warn};
@@ -29,6 +31,28 @@ pub const PLAYBACK_ERROR_EVENT: &str = "auralune://playback-error";
 pub const TICK_PLAYING: Duration = Duration::from_millis(100);
 /// Tick interval while paused / stopped.
 pub const TICK_IDLE: Duration = Duration::from_millis(250);
+/// Keepalive / tray-hidden emit interval.
+pub const EMIT_KEEPALIVE: Duration = Duration::from_secs(1);
+
+/// Decides whether the ticker should emit [`PLAYBACK_STATUS_EVENT`] on this tick.
+///
+/// Always emits the first status (`prev` is `None`). While the window is hidden in the tray,
+/// emits are capped at once per second (`>= EMIT_KEEPALIVE`). Otherwise emits whenever the DTO
+/// changed or at least `EMIT_KEEPALIVE` has passed since the last emit.
+pub fn should_emit(
+    prev: Option<&PlaybackStatusDto>,
+    next: &PlaybackStatusDto,
+    since_last: Duration,
+    hidden: bool,
+) -> bool {
+    let Some(prev) = prev else {
+        return true;
+    };
+    if hidden {
+        return since_last >= EMIT_KEEPALIVE;
+    }
+    prev != next || since_last >= EMIT_KEEPALIVE
+}
 
 /// Ticker stop flag and the lock of the running tick: [`stop_playback_ticker`] waits until
 /// the current tick ends, so after it returns the ticker no longer writes the Waybar status.
@@ -62,17 +86,19 @@ fn run(app: AppHandle) {
     let mut listening = ListeningTracker::default();
     let mut track_watch = TrackChangeWatcher::default();
     let mut trimmer = SilenceTrimmer::default();
+    let mut last_emitted: Option<Arc<PlaybackStatusDto>> = None;
+    let mut last_emitted_at = Instant::now();
 
     let mut errors = Vec::new();
     loop {
         let tick_guard = TICK_IN_PROGRESS
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if STOP_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
+        if STOP_REQUESTED.load(Ordering::SeqCst) {
             info!("Playback ticker stopped");
             return;
         }
-        let status = tick_status(&state, &mut errors);
+        let status = Arc::new(tick_status(&state, &mut errors));
         for message in errors.drain(..) {
             let _ = app.emit(
                 PLAYBACK_ERROR_EVENT,
@@ -82,9 +108,20 @@ fn run(app: AppHandle) {
         let now_ms = started.elapsed().as_millis() as u64;
 
         if let Ok(mut cached) = state.last_status.write() {
-            *cached = Some(status.clone());
+            *cached = Some(Arc::clone(&status));
         }
-        let _ = app.emit(PLAYBACK_STATUS_EVENT, &status);
+
+        let hidden = state.window_hidden.load(Ordering::Relaxed);
+        if should_emit(
+            last_emitted.as_deref(),
+            &status,
+            last_emitted_at.elapsed(),
+            hidden,
+        ) {
+            let _ = app.emit(PLAYBACK_STATUS_EVENT, status.as_ref());
+            last_emitted = Some(Arc::clone(&status));
+            last_emitted_at = Instant::now();
+        }
 
         if track_watch.changed(&status) {
             if let Some(item) = &status.current_track {

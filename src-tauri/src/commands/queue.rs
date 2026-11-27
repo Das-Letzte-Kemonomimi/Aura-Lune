@@ -20,16 +20,21 @@ pub fn new_queue_item_id(prefix: &str) -> String {
     format!("{prefix}-{ms}-{n}")
 }
 
-/// Schedules a queue state write. Writes are merged (debounced) and done by a single writer
-/// thread, so they cannot overtake each other and overwrite a newer state with an older one.
+/// Schedules a full queue save (items + cursor) — used when queue contents change.
 pub fn persist_queue_state(state: &AppState) {
     state.queue_saver.request_save();
+}
+
+/// Schedules a cursor-only queue save (`current_index`, `loop_mode`, `shuffle`, `shuffle_cursor`).
+pub fn persist_queue_cursor(state: &AppState) {
+    state.queue_saver.request_cursor_save();
 }
 
 /// A single delayed write of the playback queue to the database.
 #[derive(Clone)]
 pub struct QueueSaver {
     tx: std::sync::Arc<tokio::sync::watch::Sender<u64>>,
+    items_dirty: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl QueueSaver {
@@ -42,22 +47,52 @@ impl QueueSaver {
         db: std::sync::Arc<storage::Database>,
     ) -> Self {
         let (tx, mut rx) = tokio::sync::watch::channel(0u64);
+        let items_dirty = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let items_dirty_bg = items_dirty.clone();
         rt.spawn(async move {
             while rx.changed().await.is_ok() {
                 tokio::time::sleep(Self::DEBOUNCE).await;
                 rx.borrow_and_update();
-                let queue = engine.queue();
-                if let Err(e) = db.save_queue_state(&queue).await {
-                    warn!("Failed to save the queue state: {}", e);
+                let save_items = items_dirty_bg.swap(false, std::sync::atomic::Ordering::AcqRel);
+                if save_items {
+                    let queue = engine.queue();
+                    if let Err(e) = db.save_queue_state(&queue).await {
+                        warn!("Failed to save the queue state: {}", e);
+                    }
+                    continue;
+                }
+
+                let cursor = engine.with_queue(|q| storage::QueueCursorState {
+                    current_index: q.current_index,
+                    loop_mode: q.loop_mode,
+                    shuffle: q.shuffle,
+                    shuffle_cursor: q.shuffle_cursor,
+                });
+                match db.save_queue_cursor(&cursor).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        let queue = engine.queue();
+                        if let Err(e) = db.save_queue_state(&queue).await {
+                            warn!("Failed to save the queue state: {}", e);
+                        }
+                    }
+                    Err(e) => warn!("Failed to save the queue cursor: {}", e),
                 }
             }
         });
         Self {
             tx: std::sync::Arc::new(tx),
+            items_dirty,
         }
     }
 
     pub fn request_save(&self) {
+        self.items_dirty
+            .store(true, std::sync::atomic::Ordering::Release);
+        self.tx.send_modify(|v| *v = v.wrapping_add(1));
+    }
+
+    pub fn request_cursor_save(&self) {
         self.tx.send_modify(|v| *v = v.wrapping_add(1));
     }
 }
@@ -78,6 +113,7 @@ pub async fn set_queue(
         info!("Tauri command: set_queue ({} tracks)", items.len());
         let active = state.engine.set_queue(items, start_index)?;
         after_track_switch(&state, active.as_ref());
+        persist_queue_state(&state);
         Ok(active)
     })
     .await?
@@ -137,14 +173,15 @@ pub async fn add_uris_to_queue(
     }
 
     let db = state.db.clone();
-    let mut added = 0usize;
+    let matched = db
+        .get_tracks_with_album_by_paths(&resolved_files)
+        .await
+        .unwrap_or_default();
 
+    let mut items = Vec::with_capacity(resolved_files.len());
     for uri in &resolved_files {
-        // Look up metadata in the database (asynchronously)
-        let track_opt = db.get_track_by_path(uri).await.ok().flatten();
-
-        let item = if let Some(t) = track_opt {
-            db.queue_item_for_track(&t).await
+        let item = if let Some((track, album_title)) = matched.get(uri) {
+            track.to_queue_item(album_title.clone())
         } else {
             let title = std::path::Path::new(uri)
                 .file_stem()
@@ -161,10 +198,11 @@ pub async fn add_uris_to_queue(
                 duration_ms: 0,
             }
         };
-
-        state.engine.add_to_queue(item);
-        added += 1;
+        items.push(item);
     }
+
+    let added = items.len();
+    state.engine.extend_queue(items);
 
     // Save the queue state only once, after all items are added
     persist_queue_state(&state);
@@ -224,18 +262,19 @@ pub async fn play_queue_index(
             index, expected_id
         );
         let target_index = if let Some(ref target_id) = expected_id {
-            let q = state.engine.queue();
-            if index < q.items.len() && q.items[index].id == *target_id {
-                index
-            } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
-                warn!(
-                    "play_queue_index: correcting index from {} to {} for track {}",
-                    index, found, target_id
-                );
-                found
-            } else {
-                index
-            }
+            state.engine.with_queue(|q| {
+                if index < q.items.len() && q.items[index].id == *target_id {
+                    index
+                } else if let Some(found) = q.items.iter().position(|it| it.id == *target_id) {
+                    warn!(
+                        "play_queue_index: correcting index from {} to {} for track {}",
+                        index, found, target_id
+                    );
+                    found
+                } else {
+                    index
+                }
+            })
         } else {
             index
         };
@@ -292,14 +331,14 @@ fn after_track_switch(state: &AppState, item: Option<&QueueItem>) {
         }
         crate::commands::playback::sync_mpris_from_queue_item(item, state);
     }
-    persist_queue_state(state);
+    persist_queue_cursor(state);
 }
 
 #[tauri::command]
 pub fn set_loop_mode(mode: LoopMode, state: State<'_, AppState>) -> Result<(), CommandError> {
     info!("Tauri command: set_loop_mode({:?})", mode);
     state.engine.set_loop_mode(mode);
-    persist_queue_state(&state);
+    persist_queue_cursor(&state);
     Ok(())
 }
 
@@ -309,7 +348,7 @@ pub fn toggle_shuffle(state: State<'_, AppState>) -> Result<bool, CommandError> 
     let new_val = !current;
     info!("Tauri command: toggle_shuffle({} -> {})", current, new_val);
     state.engine.set_shuffle(new_val);
-    persist_queue_state(&state);
+    persist_queue_cursor(&state);
     Ok(new_val)
 }
 
@@ -319,7 +358,7 @@ pub fn set_shuffle(enabled: bool, state: State<'_, AppState>) -> Result<bool, Co
     info!("Tauri command: set_shuffle({})", enabled);
     if state.engine.shuffle() != enabled {
         state.engine.set_shuffle(enabled);
-        persist_queue_state(&state);
+        persist_queue_cursor(&state);
     }
     Ok(enabled)
 }
@@ -353,8 +392,14 @@ pub async fn set_active_track(
             CommandError::not_found(format!("Track with ID {} not found", track_id))
         })?;
     let item = state.db.queue_item_for_track(&track).await;
-    state.engine.set_active_item(item);
-    state.engine.load_uri(&track.path)?;
+    let state_bg = state.inner().clone();
+    let uri = track.path;
+    tokio::task::spawn_blocking(move || -> Result<(), CommandError> {
+        state_bg.engine.set_active_item(item);
+        state_bg.engine.load_uri(&uri)?;
+        Ok(())
+    })
+    .await??;
     persist_queue_state(&state);
     Ok(())
 }

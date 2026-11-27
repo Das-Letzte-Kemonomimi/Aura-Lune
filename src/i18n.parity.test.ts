@@ -1,6 +1,19 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { translations, type Language } from './i18n';
+import enDict from './locales/en.json';
+import plDict from './locales/pl.json';
+import deDict from './locales/de.json';
+import fiDict from './locales/fi.json';
+import laDict from './locales/la.json';
+import type { Language } from './i18n';
+
+const translations: Record<Language, unknown> = {
+  en: enDict,
+  pl: plDict,
+  de: deDict,
+  fi: fiDict,
+  la: laDict,
+};
 
 type Dict = { [key: string]: string | Dict };
 

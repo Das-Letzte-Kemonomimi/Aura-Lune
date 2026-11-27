@@ -1,22 +1,55 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { invokeMock } from '../test/ipcMock';
 import {
   livePlayback,
   useLivePositionMs,
   useLiveSpectrum,
   useLiveStatus,
   useLiveSelector,
+  useLiveVolume,
   currentPositionMs,
+  currentVolume,
+  acquireSpectrumConsumer,
+  hasSpectrumConsumers,
 } from './livePlayback';
+
+beforeEach(() => {
+  livePlayback.reset();
+});
 
 describe('livePlayback store', () => {
   it('returns fallbacks until the first status arrives', () => {
     const { result } = renderHook(() => ({
       pos: useLivePositionMs(1234),
       spec: useLiveSpectrum([0.5]),
+      vol: useLiveVolume(0.42),
     }));
-    expect(result.current).toEqual({ pos: 1234, spec: [0.5] });
+    expect(result.current).toEqual({ pos: 1234, spec: [0.5], vol: 0.42 });
     expect(currentPositionMs(99)).toBe(99);
+    expect(currentVolume(0.42)).toBe(0.42);
+  });
+
+  it('tracks live volume independently from position and spectrum', () => {
+    let posRenders = 0;
+    const { result } = renderHook(() => {
+      posRenders++;
+      return {
+        pos: useLivePositionMs(100),
+        vol: useLiveVolume(0.5),
+      };
+    });
+    expect(result.current).toEqual({ pos: 100, vol: 0.5 });
+
+    act(() => livePlayback.publish({ volume: 0.75 }));
+    expect(result.current).toEqual({ pos: 100, vol: 0.75 });
+    expect(currentVolume(0.5)).toBe(0.75);
+    expect(currentPositionMs(100)).toBe(100);
+    expect(posRenders).toBe(2);
+
+    const beforeRepeat = posRenders;
+    act(() => livePlayback.publish({ volume: 0.75 }));
+    expect(posRenders).toBe(beforeRepeat);
   });
 
   it('pushes new frames to subscribers', () => {
@@ -53,6 +86,18 @@ describe('livePlayback store', () => {
     expect(renders).toBe(after);
   });
 
+  it('does not notify subscribers when a new spectrum array has identical elements', () => {
+    let renders = 0;
+    renderHook(() => {
+      renders++;
+      return useLiveSpectrum([0]);
+    });
+    act(() => livePlayback.publish({ positionMs: 500, spectrum: [0.1, 0.2, 0.0] }));
+    const after = renders;
+    act(() => livePlayback.publish({ positionMs: 500, spectrum: [0.1, 0.2, 0.0] }));
+    expect(renders).toBe(after);
+  });
+
   it('useLiveSelector re-renders only when the derived value changes', () => {
     let renders = 0;
     const { result } = renderHook(() => {
@@ -69,5 +114,30 @@ describe('livePlayback store', () => {
     act(() => livePlayback.publish({ positionMs: 2_050, spectrum: [0.2] }));
     expect(result.current).toBe(2);
     expect(renders).toBe(afterFirst + 1);
+  });
+
+  it('toggles set_spectrum_enabled only on 0 <-> 1 consumer transitions', () => {
+    expect(hasSpectrumConsumers()).toBe(false);
+    const releaseA = acquireSpectrumConsumer();
+    expect(hasSpectrumConsumers()).toBe(true);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).toHaveBeenLastCalledWith('set_spectrum_enabled', { enabled: true });
+
+    const releaseB = acquireSpectrumConsumer();
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    releaseA();
+    expect(hasSpectrumConsumers()).toBe(true);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    // Calling an already-released cleanup is a no-op
+    releaseA();
+    expect(hasSpectrumConsumers()).toBe(true);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    releaseB();
+    expect(hasSpectrumConsumers()).toBe(false);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock).toHaveBeenLastCalledWith('set_spectrum_enabled', { enabled: false });
   });
 });

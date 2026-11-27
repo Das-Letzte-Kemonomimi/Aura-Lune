@@ -6,16 +6,16 @@ impl AudioEngine {
     /// Loads a local file or URI for playback, including Japanese characters and spaces in the URI.
     pub fn load_uri(&self, uri_or_path: &str) -> Result<(), AudioEngineError> {
         let uri = crate::uri::media_uri_checked(uri_or_path)?;
+        let _source_guard = self.source_lock.lock_safe();
 
-        let mut inner = self.inner.lock_safe();
-        let queue_sink_pad = Self::teardown_source(&mut inner)?;
+        let (pipeline, queue_sink_pad) = self.teardown_source_unlocked()?;
 
         let uri_decoder = gst::ElementFactory::make("uridecodebin")
             .property("uri", &uri)
             .build()
             .map_err(|_| AudioEngineError::MissingElement("uridecodebin"))?;
 
-        inner.pipeline.add(&uri_decoder)?;
+        pipeline.add(&uri_decoder)?;
 
         let queue_pad_clone = queue_sink_pad.clone();
         uri_decoder.connect_pad_added(move |_bin, src_pad| {
@@ -48,13 +48,17 @@ impl AudioEngine {
                 err
             );
         }
-        inner.uri_decoder = Some(uri_decoder);
-        inner.current_uri = Some(uri.to_string());
-        if !uri.starts_with("stem") {
-            inner.original_track_uri = Some(uri.to_string());
-            inner.active_stem_project_id = None;
+
+        {
+            let mut inner = self.inner.lock_safe();
+            inner.uri_decoder = Some(uri_decoder);
+            inner.current_uri = Some(uri.to_string());
+            if !uri.starts_with("stem") {
+                inner.original_track_uri = Some(uri.to_string());
+                inner.active_stem_project_id = None;
+            }
+            inner.state = PlaybackState::Stopped;
         }
-        inner.state = PlaybackState::Stopped;
 
         info!("Loaded URI: {}", uri);
         Ok(())
@@ -72,9 +76,9 @@ impl AudioEngine {
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock_safe();
-        let queue_sink_pad = Self::teardown_source(&mut inner)?;
-        let audiomixer = Self::add_stem_mixer(&inner, &queue_sink_pad)?;
+        let _source_guard = self.source_lock.lock_safe();
+        let (pipeline, queue_sink_pad) = self.teardown_source_unlocked()?;
+        let audiomixer = Self::add_stem_mixer(&pipeline, &queue_sink_pad)?;
 
         let stem_list = [
             ("vocals", &stems.vocals_path),
@@ -89,26 +93,33 @@ impl AudioEngine {
         for (name, path_str) in stem_list {
             let uri = crate::uri::media_uri(path_str);
             let gain = initial_state.get_effective_volume(name);
-            let (volume, elements) = Self::add_stem_branch(&inner, &audiomixer, &uri, gain)?;
+            let (volume, elements) = Self::add_stem_branch(&pipeline, &audiomixer, &uri, gain)?;
             stem_volumes.insert(name.to_string(), volume);
             stem_elements.extend(elements);
         }
 
         let _ = audiomixer.sync_state_with_parent();
 
-        if let Some(orig) = original_uri {
-            inner.original_track_uri = Some(orig);
-        }
-        inner.active_stem_project_id = None;
-        inner.stem_mixer_elements = Some(StemMixerHandles {
-            audiomixer,
-            stem_volumes,
-            stem_elements,
-        });
-        inner.stem_mixer_state = initial_state;
-        inner.current_uri = Some(format!("stems://{}", stems.track_id));
+        let (volume_el, user_vol) = {
+            let mut inner = self.inner.lock_safe();
+            if let Some(orig) = original_uri {
+                inner.original_track_uri = Some(orig);
+            }
+            inner.active_stem_project_id = None;
+            inner.stem_mixer_elements = Some(StemMixerHandles {
+                audiomixer,
+                stem_volumes,
+                stem_elements,
+            });
+            inner.stem_mixer_state = initial_state;
+            inner.current_uri = Some(format!("stems://{}", stems.track_id));
+            Self::prepare_stem_start_locked(&mut inner, seek_pos, start_playing);
+            (inner.volume.clone(), self.volume())
+        };
 
-        Self::start_stem_source(&mut inner, self.volume(), seek_pos, start_playing);
+        if start_playing {
+            Self::finish_stem_start_unlocked(&pipeline, &volume_el, user_vol, seek_pos);
+        }
 
         info!("Loaded stems for track {}", stems.track_id);
         Ok(())
@@ -146,9 +157,9 @@ impl AudioEngine {
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock_safe();
-        let queue_sink_pad = Self::teardown_source(&mut inner)?;
-        let audiomixer = Self::add_stem_mixer(&inner, &queue_sink_pad)?;
+        let _source_guard = self.source_lock.lock_safe();
+        let (pipeline, queue_sink_pad) = self.teardown_source_unlocked()?;
+        let audiomixer = Self::add_stem_mixer(&pipeline, &queue_sink_pad)?;
 
         let has_solo = channels.iter().any(|c| c.solo);
         let mut stem_volumes = std::collections::HashMap::new();
@@ -157,25 +168,32 @@ impl AudioEngine {
         for ch in channels {
             let uri = crate::uri::media_uri(&ch.file_path);
             let gain = domain::effective_channel_gain(ch, has_solo, master_volume);
-            let (volume, elements) = Self::add_stem_branch(&inner, &audiomixer, &uri, gain)?;
+            let (volume, elements) = Self::add_stem_branch(&pipeline, &audiomixer, &uri, gain)?;
             stem_volumes.insert(ch.id.clone(), volume);
             stem_elements.extend(elements);
         }
 
         let _ = audiomixer.sync_state_with_parent();
 
-        if let Some(orig) = original_uri {
-            inner.original_track_uri = Some(orig);
-        }
-        inner.active_stem_project_id = Some(project_id);
-        inner.stem_mixer_elements = Some(StemMixerHandles {
-            audiomixer,
-            stem_volumes,
-            stem_elements,
-        });
-        inner.current_uri = Some(format!("stemproject://{}", project_id));
+        let (volume_el, user_vol) = {
+            let mut inner = self.inner.lock_safe();
+            if let Some(orig) = original_uri {
+                inner.original_track_uri = Some(orig);
+            }
+            inner.active_stem_project_id = Some(project_id);
+            inner.stem_mixer_elements = Some(StemMixerHandles {
+                audiomixer,
+                stem_volumes,
+                stem_elements,
+            });
+            inner.current_uri = Some(format!("stemproject://{}", project_id));
+            Self::prepare_stem_start_locked(&mut inner, seek_pos, start_playing);
+            (inner.volume.clone(), self.volume())
+        };
 
-        Self::start_stem_source(&mut inner, self.volume(), seek_pos, start_playing);
+        if start_playing {
+            Self::finish_stem_start_unlocked(&pipeline, &volume_el, user_vol, seek_pos);
+        }
 
         info!(
             "Loaded stem project {} ({} channels)",
@@ -270,50 +288,61 @@ impl AudioEngine {
         inner.current_uri.clone()
     }
 
-    /// Stops the pipeline and removes the current source (decoder or stem mixer), leaving
-    /// the `queue_in` input pad unlinked so a new source can be attached.
-    ///
-    /// `State::Null` fully resets EOS on the PipeWire audio sinks; the DSP reset drops
-    /// pending samples to avoid clicks after a track change.
-    fn teardown_source(inner: &mut PipelineInner) -> Result<gst::Pad, AudioEngineError> {
-        let _ = inner.pipeline.set_state(gst::State::Null);
-        inner.base_media_pos = Duration::ZERO;
-        inner.base_sink_pts = Duration::ZERO;
-        inner.pending_seek = None;
-        inner.dsp.reset();
+    /// Stops the pipeline and removes the current source (decoder or stem mixer) without holding
+    /// `inner` across GStreamer's `State::Null` transition. Callers must hold `self.source_lock`.
+    fn teardown_source_unlocked(&self) -> Result<(gst::Pipeline, gst::Pad), AudioEngineError> {
+        let (pipeline, queue_in, dsp, old_decoder, old_stems) = {
+            let mut inner = self.inner.lock_safe();
+            inner.cached_duration = None;
+            inner.current_uri = None;
+            inner.state = PlaybackState::Stopped;
+            inner.base_media_pos = Duration::ZERO;
+            inner.base_sink_pts = Duration::ZERO;
+            inner.pending_seek = None;
+            inner.source_gen = inner.source_gen.wrapping_add(1);
+            (
+                inner.pipeline.clone(),
+                inner.queue_in.clone(),
+                inner.dsp.clone(),
+                inner.uri_decoder.take(),
+                inner.stem_mixer_elements.take(),
+            )
+        };
 
-        let queue_sink_pad = inner
-            .queue_in
+        let _ = pipeline.set_state(gst::State::Null);
+        dsp.reset();
+
+        let queue_sink_pad = queue_in
             .static_pad("sink")
             .ok_or_else(|| AudioEngineError::MissingElement("queue_in.sink"))?;
         if let Some(peer) = queue_sink_pad.peer() {
             let _ = peer.unlink(&queue_sink_pad);
         }
 
-        if let Some(old_decoder) = inner.uri_decoder.take() {
+        if let Some(old_decoder) = old_decoder {
             let _ = old_decoder.set_state(gst::State::Null);
-            let _ = inner.pipeline.remove(&old_decoder);
+            let _ = pipeline.remove(&old_decoder);
         }
-        if let Some(old_stems) = inner.stem_mixer_elements.take() {
+        if let Some(old_stems) = old_stems {
             let _ = old_stems.audiomixer.set_state(gst::State::Null);
             for el in &old_stems.stem_elements {
                 let _ = el.set_state(gst::State::Null);
-                let _ = inner.pipeline.remove(el);
+                let _ = pipeline.remove(el);
             }
-            let _ = inner.pipeline.remove(&old_stems.audiomixer);
+            let _ = pipeline.remove(&old_stems.audiomixer);
         }
-        Ok(queue_sink_pad)
+        Ok((pipeline, queue_sink_pad))
     }
 
     /// Adds an `audiomixer` linked to the `queue_in` input (the stem / project source).
     fn add_stem_mixer(
-        inner: &PipelineInner,
+        pipeline: &gst::Pipeline,
         queue_sink_pad: &gst::Pad,
     ) -> Result<gst::Element, AudioEngineError> {
         let audiomixer = gst::ElementFactory::make("audiomixer")
             .build()
             .map_err(|_| AudioEngineError::MissingElement("audiomixer"))?;
-        inner.pipeline.add(&audiomixer)?;
+        pipeline.add(&audiomixer)?;
         audiomixer
             .static_pad("src")
             .ok_or(AudioEngineError::MissingElement("audiomixer.src"))?
@@ -324,7 +353,7 @@ impl AudioEngine {
     /// Builds the branch of one stem: `uridecodebin → audioconvert → audioresample → volume → mixer`.
     /// Returns the `volume` element (for the mixer controls) and every element created.
     fn add_stem_branch(
-        inner: &PipelineInner,
+        pipeline: &gst::Pipeline,
         audiomixer: &gst::Element,
         uri: &str,
         gain: f64,
@@ -345,9 +374,7 @@ impl AudioEngine {
             .build()
             .map_err(|_| AudioEngineError::MissingElement("volume"))?;
 
-        inner
-            .pipeline
-            .add_many([&decoder, &audioconvert, &audioresample, &volume])?;
+        pipeline.add_many([&decoder, &audioconvert, &audioresample, &volume])?;
         gst::Element::link_many([&audioconvert, &audioresample, &volume])
             .map_err(|_| AudioEngineError::ElementLink("Failed to link the stem branch".into()))?;
 
@@ -383,11 +410,8 @@ impl AudioEngine {
         ))
     }
 
-    /// Shared tail of loading stems / a project: the base position after the switch
-    /// (keeping the place in the track) and an optional start of playback with a seek.
-    fn start_stem_source(
+    fn prepare_stem_start_locked(
         inner: &mut PipelineInner,
-        user_volume: f64,
         seek_pos: Option<Duration>,
         start_playing: bool,
     ) {
@@ -396,15 +420,23 @@ impl AudioEngine {
             inner.base_media_pos = pos;
             inner.base_sink_pts = pos;
         }
-        if !start_playing {
-            inner.state = PlaybackState::Stopped;
-            return;
-        }
-        inner.state = PlaybackState::Playing;
-        inner.volume.set_property("volume", user_volume);
-        let _ = inner.pipeline.set_state(gst::State::Playing);
+        inner.state = if start_playing {
+            PlaybackState::Playing
+        } else {
+            PlaybackState::Stopped
+        };
+    }
+
+    fn finish_stem_start_unlocked(
+        pipeline: &gst::Pipeline,
+        volume: &gst::Element,
+        user_volume: f64,
+        seek_pos: Option<Duration>,
+    ) {
+        volume.set_property("volume", user_volume);
+        let _ = pipeline.set_state(gst::State::Playing);
         if let Some(pos) = seek_pos {
-            let _ = inner.pipeline.seek_simple(
+            let _ = pipeline.seek_simple(
                 gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
                 gst::ClockTime::from_nseconds(pos.as_nanos() as u64),
             );

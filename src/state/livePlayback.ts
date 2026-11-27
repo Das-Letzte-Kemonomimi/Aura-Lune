@@ -8,20 +8,76 @@
  * - components drawing progress / visualisations subscribe to this store through `useLiveStatus`,
  *   `useLivePositionMs` or `useLiveSpectrum`, and only they render.
  */
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { invoke } from '../api/ipc';
 import type { PlaybackStatus } from '../types/playback';
 
 export interface LivePlaybackSnapshot {
-  /** `false` until the first status arrives; until then the hooks return the prop values. */
+  /** `false` until the first status/seek arrives; until then the hooks return the prop values. */
   ready: boolean;
   positionMs: number;
   spectrum: number[];
+  /** `false` until the first volume frame or gesture arrives. */
+  volumeReady: boolean;
+  volume: number;
 }
 
 type Listener = () => void;
 
-let snapshot: LivePlaybackSnapshot = { ready: false, positionMs: 0, spectrum: [] };
+let snapshot: LivePlaybackSnapshot = {
+  ready: false,
+  positionMs: 0,
+  spectrum: [],
+  volumeReady: false,
+  volume: 1.0,
+};
 const listeners = new Set<Listener>();
+let spectrumConsumers = 0;
+
+function sendSpectrumEnabled(enabled: boolean) {
+  try {
+    Promise.resolve(invoke('set_spectrum_enabled', { enabled })).catch(() => {});
+  } catch {
+    // Non-Tauri test / browser environments
+  }
+}
+
+export function hasSpectrumConsumers(): boolean {
+  return spectrumConsumers > 0;
+}
+
+/** Syncs the current backend spectrum setting with the frontend consumer count. */
+export function syncSpectrumEnabled(): void {
+  sendSpectrumEnabled(spectrumConsumers > 0);
+}
+
+/**
+ * Registers a mounted spectrum consumer; enables backend FFT messages on `0 -> 1`
+ * and disables them on `1 -> 0`.
+ */
+export function acquireSpectrumConsumer(): () => void {
+  let released = false;
+  spectrumConsumers += 1;
+  if (spectrumConsumers === 1) {
+    sendSpectrumEnabled(true);
+  }
+  return () => {
+    if (released) return;
+    released = true;
+    spectrumConsumers = Math.max(0, spectrumConsumers - 1);
+    if (spectrumConsumers === 0) {
+      sendSpectrumEnabled(false);
+    }
+  };
+}
+
+/** Hook that holds a spectrum consumer lease while mounted and `active`. */
+export function useSpectrumConsumer(active = true): void {
+  useEffect(() => {
+    if (!active) return;
+    return acquireSpectrumConsumer();
+  }, [active]);
+}
 
 function emit() {
   listeners.forEach((l) => l());
@@ -37,18 +93,45 @@ export const livePlayback = {
     return () => listeners.delete(listener);
   },
 
-  /** Publishes a new position and/or spectrum. No change → no notifications. */
-  publish(update: { positionMs?: number; spectrum?: number[] }) {
+  /** Publishes a new position, spectrum, and/or volume. No change → no notifications. */
+  publish(update: { positionMs?: number; spectrum?: number[]; volume?: number }) {
     const positionMs = update.positionMs ?? snapshot.positionMs;
-    const spectrum = update.spectrum ?? snapshot.spectrum;
-    if (snapshot.ready && positionMs === snapshot.positionMs && spectrum === snapshot.spectrum) return;
-    snapshot = { ready: true, positionMs, spectrum };
+    const incomingSpectrum = update.spectrum;
+    let spectrum = snapshot.spectrum;
+    if (incomingSpectrum !== undefined && incomingSpectrum !== snapshot.spectrum) {
+      let unchanged = incomingSpectrum.length === snapshot.spectrum.length;
+      if (unchanged) {
+        for (let i = 0; i < incomingSpectrum.length; i++) {
+          if (incomingSpectrum[i] !== snapshot.spectrum[i]) {
+            unchanged = false;
+            break;
+          }
+        }
+      }
+      if (!unchanged) {
+        spectrum = incomingSpectrum;
+      }
+    }
+    const ready = snapshot.ready || update.positionMs !== undefined || update.spectrum !== undefined;
+    const volume = update.volume ?? snapshot.volume;
+    const volumeReady = snapshot.volumeReady || update.volume !== undefined;
+    if (
+      ready === snapshot.ready &&
+      volumeReady === snapshot.volumeReady &&
+      positionMs === snapshot.positionMs &&
+      spectrum === snapshot.spectrum &&
+      Object.is(volume, snapshot.volume)
+    ) {
+      return;
+    }
+    snapshot = { ready, positionMs, spectrum, volumeReady, volume };
     emit();
   },
 
   /** Tests only: restores the initial state. */
   reset() {
-    snapshot = { ready: false, positionMs: 0, spectrum: [] };
+    snapshot = { ready: false, positionMs: 0, spectrum: [], volumeReady: false, volume: 1.0 };
+    spectrumConsumers = 0;
     emit();
   },
 };
@@ -61,6 +144,17 @@ function useSnapshot(): LivePlaybackSnapshot {
 export function useLivePositionMs(fallback: number): number {
   const s = useSnapshot();
   return s.ready ? s.positionMs : fallback;
+}
+
+/** Current linear gain (0..1); `fallback` until the first volume frame or gesture. */
+export function useLiveVolume(fallback: number): number {
+  return useLiveSelector((s) => (s.volumeReady ? s.volume : fallback));
+}
+
+/** Non-hook helper returning the latest volume outside React renders. */
+export function currentVolume(fallback: number): number {
+  const s = livePlayback.getSnapshot();
+  return s.volumeReady ? s.volume : fallback;
 }
 
 /** Current spectrum; `fallback` before the first backend status. */

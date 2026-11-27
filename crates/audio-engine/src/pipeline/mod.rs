@@ -14,8 +14,11 @@ mod fades;
 mod graph;
 mod probes;
 mod queue_ops;
+mod snapshot;
 mod source;
 mod transport;
+
+pub use snapshot::EngineStatusSnapshot;
 
 use crate::error::AudioEngineError;
 use crate::sync::LockExt;
@@ -77,14 +80,16 @@ struct PipelineInner {
     rgvolume: gst::Element,
     rgvolume_child: Option<gst_base::BaseTransform>,
     rglimiter: gst::Element,
-    _spectrum: gst::Element,
+    spectrum: gst::Element,
     volume: gst::Element,
     queue_sink: gst::Element,
     sink: gst::Element,
     audio_buffer_ms: u64,
     dsp_block_size: usize,
     state: PlaybackState,
+    cached_duration: Option<Duration>,
     dsp_params: DspParams,
+    cached_capabilities: DspCapabilities,
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     eq_preamp_db: f64,
@@ -106,6 +111,7 @@ struct PipelineInner {
     /// applied silently in `State::Paused` before transitioning to `Playing`.
     pending_seek: Option<Duration>,
     seek_seq: u64,
+    source_gen: u64,
     _stereo_widener: gst::Element,
     stereo_widener_config: Arc<AtomicCell<domain::dynamics::StereoWidenerConfig>>,
     crossfade_duration_ms: u64,
@@ -161,8 +167,20 @@ pub struct AudioEngine {
     is_fading_in: Arc<AtomicBool>,
     volume_element: gst::Element,
     atomic_volume: Arc<AtomicU64>,
+    /// Persistent fader worker handle (exits cleanly when the last engine clone drops).
+    volume_fader: Option<fades::VolumeFader>,
+    /// Fast lock-free mirror of `silence_trimming_config.enabled` checked on every ticker frame.
+    silence_trimming_enabled: Arc<AtomicBool>,
     /// Latched by the clip probes (`probes::install_clip_probes`) when a sample exceeds 0 dBFS.
     clip_latched: Arc<AtomicBool>,
+    /// Serialises source teardown/load transitions without holding `inner` across GStreamer waits.
+    source_lock: Arc<Mutex<()>>,
+    /// Serialises control-plane reverb graph relink operations outside `inner`.
+    reverb_switch_lock: Arc<Mutex<()>>,
+    /// Latest desired reverb link state read by a deferred `IDLE` probe when paused.
+    reverb_target: Arc<AtomicBool>,
+    /// Prevents stacking multiple deferred `IDLE` probes if `reverb` toggles while paused.
+    reverb_probe_pending: Arc<AtomicBool>,
 }
 
 /// Releases the GStreamer resources safely when the pipeline controller is dropped.

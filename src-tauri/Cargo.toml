@@ -36,6 +36,8 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 gstreamer = { workspace = true }
 glib = { workspace = true }
 walkdir = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
 url = "2"
 reqwest = { workspace = true }
 

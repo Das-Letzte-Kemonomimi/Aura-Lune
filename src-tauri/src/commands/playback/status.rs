@@ -1,19 +1,19 @@
 use super::desktop_sync::spawn_discord_cover_search;
 use super::PlaybackStatusDto;
 use crate::AppState;
-use audio_engine::PlayerEvent;
+use audio_engine::{EngineStatusSnapshot, PlayerEvent};
 use domain::queue::QueueItem;
 use domain::PlaybackState;
 use std::time::Duration;
 use tracing::{error, info};
 
 /// Whether the current source is a live stream (internet radio).
-pub(super) fn is_live_stream(state: &AppState, current_track: Option<&QueueItem>) -> bool {
+pub(super) fn is_live_stream(current_track: Option<&QueueItem>, current_uri: Option<&str>) -> bool {
     if let Some(item) = current_track {
         item.id.starts_with("radio-")
             || (item.track_id.is_none()
                 && (item.uri.starts_with("http://") || item.uri.starts_with("https://")))
-    } else if let Some(uri) = state.engine.current_uri() {
+    } else if let Some(uri) = current_uri {
         uri.starts_with("http://") || uri.starts_with("https://")
     } else {
         false
@@ -25,15 +25,13 @@ pub(super) fn is_live_stream(state: &AppState, current_track: Option<&QueueItem>
 /// and writes the Waybar status. Called only by `setup::playback_ticker`; commands
 /// read [`snapshot_status`] or the buffered `AppState.last_status`.
 pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatusDto {
-    let current_track = state.engine.queue().current_item().cloned();
-    let live_stream = is_live_stream(state, current_track.as_ref());
+    let mut latest_spectrum_event: Option<Vec<f32>> = None;
+    let mut pending_tags: Vec<String> = Vec::new();
 
     for event in state.engine.poll_events() {
         match event {
             PlayerEvent::Spectrum(mags) => {
-                if let Ok(mut s) = state.latest_spectrum.lock() {
-                    *s = mags;
-                }
+                latest_spectrum_event = Some(mags);
             }
             PlayerEvent::TrackLooped => {
                 info!("get_status: received PlayerEvent::TrackLooped (track looped / Repeat)");
@@ -48,7 +46,7 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
                 }
             }
             PlayerEvent::Tag(tag) => {
-                handle_stream_tag(state, current_track.as_ref(), live_stream, tag);
+                pending_tags.push(tag);
             }
             PlayerEvent::Error(message) => {
                 error!("Playback error: {message}");
@@ -58,17 +56,32 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
         }
     }
 
-    let pos_ms = state
-        .engine
-        .position()
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    let dur_ms = state.engine.duration().map(|d| d.as_millis() as u64);
+    let snap = state.engine.status_snapshot();
+    let live_stream = is_live_stream(snap.current_item.as_ref(), snap.current_uri.as_deref());
+
+    if snap.state != PlaybackState::Playing {
+        if let Ok(mut s) = state.latest_spectrum.lock() {
+            if !s.is_empty() {
+                s.clear();
+            }
+        }
+    } else if let Some(mags) = latest_spectrum_event {
+        if let Ok(mut s) = state.latest_spectrum.lock() {
+            *s = mags;
+        }
+    }
+
+    for tag in pending_tags {
+        handle_stream_tag(state, snap.current_item.as_ref(), live_stream, tag);
+    }
+
+    let pos_ms = snap.position.map(|d| d.as_millis() as u64).unwrap_or(0);
+    let dur_ms = snap.duration.map(|d| d.as_millis() as u64);
 
     let prev_pos = state
         .last_reported_pos_ms
         .swap(pos_ms, std::sync::atomic::Ordering::Relaxed);
-    if state.engine.state() == PlaybackState::Playing {
+    if snap.state == PlaybackState::Playing {
         let is_loop_restart = prev_pos > 3000 && pos_ms < 2500;
         let is_major_rewind = prev_pos > pos_ms + 4000;
         if is_loop_restart || is_major_rewind {
@@ -87,8 +100,8 @@ pub fn tick_status(state: &AppState, errors: &mut Vec<String>) -> PlaybackStatus
         }
     }
 
-    maybe_write_waybar(state, current_track.as_ref(), pos_ms, dur_ms);
-    snapshot_status(state)
+    maybe_write_waybar(state, &snap, pos_ms, dur_ms);
+    build_status_dto(state, snap, live_stream)
 }
 
 fn handle_stream_tag(
@@ -99,15 +112,30 @@ fn handle_stream_tag(
 ) {
     if !live_stream {
         if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-            *t = None;
+            if t.is_some() {
+                *t = None;
+            }
         }
         return;
     }
 
-    info!("Received a tag from the live stream: {tag}");
-    if let Ok(mut t) = state.latest_live_stream_tag.lock() {
-        *t = Some(tag.clone());
+    let unchanged = state
+        .latest_live_stream_tag
+        .lock()
+        .map(|mut t| {
+            if t.as_deref() == Some(tag.as_str()) {
+                true
+            } else {
+                *t = Some(tag.clone());
+                false
+            }
+        })
+        .unwrap_or(false);
+    if unchanged {
+        return;
     }
+
+    info!("Received a tag from the live stream: {tag}");
 
     let (parsed_artist, parsed_title) = if let Some((a, t)) = tag.split_once(" - ") {
         (a.trim().to_string(), t.trim().to_string())
@@ -183,7 +211,7 @@ fn handle_stream_tag(
 
 fn maybe_write_waybar(
     state: &AppState,
-    current_track: Option<&QueueItem>,
+    snap: &EngineStatusSnapshot,
     pos_ms: u64,
     dur_ms: Option<u64>,
 ) {
@@ -204,7 +232,7 @@ fn maybe_write_waybar(
         return;
     }
 
-    let (title, artist, album) = if let Some(item) = current_track {
+    let (title, artist, album) = if let Some(item) = snap.current_item.as_ref() {
         (
             item.title.clone(),
             if item.artist.is_empty() {
@@ -222,7 +250,7 @@ fn maybe_write_waybar(
         )
     };
 
-    let current_state = state.engine.state();
+    let current_state = snap.state;
     let (state_str, class_str) = match current_state {
         PlaybackState::Playing => ("Playing", "playing"),
         PlaybackState::Paused => ("Paused", "paused"),
@@ -234,7 +262,7 @@ fn maybe_write_waybar(
         .map(|d| ((pos_ms as f64 / d as f64) * 100.0).clamp(0.0, 100.0) as u8)
         .unwrap_or(0);
 
-    let vol_pct = (state.engine.volume() * 100.0).clamp(0.0, 100.0) as u8;
+    let vol_pct = (snap.volume * 100.0).clamp(0.0, 100.0) as u8;
     let text = if current_state == PlaybackState::Stopped || title == "No Track" {
         "Auralune: Stopped".to_string()
     } else {
@@ -254,7 +282,7 @@ fn maybe_write_waybar(
         artist,
         album,
         state: state_str.to_string(),
-        position_ms: pos_ms,
+        position_ms: (pos_ms / 1000) * 1000,
         duration_ms: dur_ms.unwrap_or(0),
     };
 
@@ -264,23 +292,28 @@ fn maybe_write_waybar(
 /// Current playback status without side effects on the engine bus (does not call
 /// `poll_events` or write Waybar), safe to call from commands.
 pub fn snapshot_status(state: &AppState) -> PlaybackStatusDto {
-    let q = state.engine.queue();
-    let current_track = q.current_item().cloned();
-    let live_stream = is_live_stream(state, current_track.as_ref());
-    let pos_ms = state
-        .engine
-        .position()
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    let dur_ms = state.engine.duration().map(|d| d.as_millis() as u64);
-    let dsp = state.engine.dsp_params();
-    let capabilities = state.engine.dsp_capabilities();
+    let snap = state.engine.status_snapshot();
+    let live_stream = is_live_stream(snap.current_item.as_ref(), snap.current_uri.as_deref());
+    build_status_dto(state, snap, live_stream)
+}
 
-    let spectrum = state
-        .latest_spectrum
-        .lock()
-        .map(|s| s.clone())
-        .unwrap_or_default();
+fn build_status_dto(
+    state: &AppState,
+    snap: EngineStatusSnapshot,
+    live_stream: bool,
+) -> PlaybackStatusDto {
+    let pos_ms = snap.position.map(|d| d.as_millis() as u64).unwrap_or(0);
+    let dur_ms = snap.duration.map(|d| d.as_millis() as u64);
+
+    let spectrum = if snap.state == PlaybackState::Playing {
+        state
+            .latest_spectrum
+            .lock()
+            .map(|s| s.clone())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     let live_stream_title = if live_stream {
         state
             .latest_live_stream_tag
@@ -297,31 +330,31 @@ pub fn snapshot_status(state: &AppState) -> PlaybackStatusDto {
     };
 
     PlaybackStatusDto {
-        state: state.engine.state(),
+        state: snap.state,
         position_ms: pos_ms,
         duration_ms: dur_ms,
-        volume: state.engine.volume(),
-        pitch_semitones: dsp.pitch_semitones,
-        tempo_ratio: dsp.tempo_ratio,
-        rate_ratio: dsp.rate_ratio,
-        engine: dsp.engine,
-        capabilities,
-        loop_mode: q.loop_mode,
-        shuffle: q.shuffle,
-        stop_after_current: state.engine.stop_after_current(),
-        current_track,
-        equalizer_enabled: state.engine.is_equalizer_enabled(),
-        equalizer_bands: state.engine.get_equalizer_bands(),
-        parametric_eq_enabled: state.engine.is_parametric_eq_enabled(),
-        compressor_enabled: state.engine.is_compressor_enabled(),
-        saturator_enabled: state.engine.is_saturator_enabled(),
-        limiter_enabled: state.engine.is_limiter_enabled(),
-        clip_detected: state.engine.clip_detected(),
+        volume: snap.volume,
+        pitch_semitones: snap.dsp_params.pitch_semitones,
+        tempo_ratio: snap.dsp_params.tempo_ratio,
+        rate_ratio: snap.dsp_params.rate_ratio,
+        engine: snap.dsp_params.engine,
+        capabilities: snap.capabilities,
+        loop_mode: snap.loop_mode,
+        shuffle: snap.shuffle,
+        stop_after_current: snap.stop_after_current,
+        current_track: snap.current_item,
+        equalizer_enabled: snap.equalizer_enabled,
+        equalizer_bands: snap.equalizer_bands,
+        parametric_eq_enabled: snap.parametric_eq_enabled,
+        compressor_enabled: snap.compressor_enabled,
+        saturator_enabled: snap.saturator_enabled,
+        limiter_enabled: snap.limiter_enabled,
+        clip_detected: snap.clip_detected,
         spectrum,
-        replaygain_config: state.engine.replaygain_config(),
-        replaygain_status: state.engine.replaygain_status(),
+        replaygain_config: snap.replaygain_config,
+        replaygain_status: snap.replaygain_status,
         live_stream_title,
-        is_stems_active: state.engine.is_stems_active(),
-        active_stem_project_id: state.engine.active_stem_project_id(),
+        is_stems_active: snap.is_stems_active,
+        active_stem_project_id: snap.active_stem_project_id,
     }
 }

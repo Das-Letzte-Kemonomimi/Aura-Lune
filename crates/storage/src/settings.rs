@@ -13,6 +13,18 @@ impl Database {
         tempo: f64,
         rate: f64,
     ) -> Result<i64, StorageError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::save_dsp_preset_conn(&mut conn, name, engine, pitch, tempo, rate).await
+    }
+
+    async fn save_dsp_preset_conn(
+        conn: &mut sqlx::SqliteConnection,
+        name: &str,
+        engine: &str,
+        pitch: f64,
+        tempo: f64,
+        rate: f64,
+    ) -> Result<i64, StorageError> {
         let rec = sqlx::query(
             r#"
             INSERT INTO dsp_presets (name, engine, pitch_semitones, tempo_ratio, rate_ratio)
@@ -30,7 +42,7 @@ impl Database {
         .bind(pitch)
         .bind(tempo)
         .bind(rate)
-        .fetch_one(&self.pool)
+        .fetch_one(conn)
         .await?;
 
         Ok(rec.get::<i64, _>("id"))
@@ -47,6 +59,14 @@ impl Database {
 
     /// Stores or updates a theme in the database.
     pub async fn save_theme(&self, theme: &domain::Theme) -> Result<(), StorageError> {
+        let mut conn = self.pool.acquire().await?;
+        Self::save_theme_conn(&mut conn, theme).await
+    }
+
+    async fn save_theme_conn(
+        conn: &mut sqlx::SqliteConnection,
+        theme: &domain::Theme,
+    ) -> Result<(), StorageError> {
         theme.validate()?;
         let tokens_json = serde_json::to_string(&theme.tokens)?;
 
@@ -73,7 +93,7 @@ impl Database {
         .bind(theme.overlay_opacity as f64)
         .bind(theme.blur_radius as f64)
         .bind(&theme.attribution)
-        .execute(&self.pool)
+        .execute(conn)
         .await?;
 
         Ok(())
@@ -169,5 +189,67 @@ impl Database {
             .fetch_all(&self.pool)
             .await?;
         Ok(rows.into_iter().collect())
+    }
+
+    /// Atomically imports validated DSP presets, themes, and playlists (with pre-resolved track IDs)
+    /// inside a single SQLite transaction.
+    ///
+    /// Returns `(restored_presets, restored_themes, restored_playlists)`.
+    pub async fn import_profile_entries(
+        &self,
+        dsp_presets: &[(&str, &str, f64, f64, f64)],
+        themes: &[domain::Theme],
+        playlists: &[(String, Vec<i64>)],
+    ) -> Result<(usize, usize, usize), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        let mut restored_presets = 0;
+        let mut restored_themes = 0;
+        let mut restored_playlists = 0;
+
+        for &(name, engine, pitch, tempo, rate) in dsp_presets {
+            if Self::save_dsp_preset_conn(&mut tx, name, engine, pitch, tempo, rate)
+                .await
+                .is_ok()
+            {
+                restored_presets += 1;
+            }
+        }
+
+        for theme in themes {
+            if Self::save_theme_conn(&mut tx, theme).await.is_ok() {
+                restored_themes += 1;
+            }
+        }
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        for (name, track_ids) in playlists {
+            if let Ok(row) = sqlx::query(
+                "INSERT INTO playlists (name, created_at) VALUES (?1, ?2) RETURNING id;",
+            )
+            .bind(name)
+            .bind(now)
+            .fetch_one(&mut *tx)
+            .await
+            {
+                let pl_id: i64 = row.get("id");
+                restored_playlists += 1;
+                for (pos, &track_id) in track_ids.iter().enumerate() {
+                    let _ = sqlx::query(
+                        "INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?1, ?2, ?3);",
+                    )
+                    .bind(pl_id)
+                    .bind(track_id)
+                    .bind(pos as i64)
+                    .execute(&mut *tx)
+                    .await;
+                }
+            }
+        }
+
+        tx.commit().await?;
+        Ok((restored_presets, restored_themes, restored_playlists))
     }
 }

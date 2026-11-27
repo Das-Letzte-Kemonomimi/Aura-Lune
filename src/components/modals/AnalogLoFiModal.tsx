@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Sparkles, Disc, CassetteTape, Volume2, Check, Radio } from '../ui/icons';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { type Language, getTranslations } from '../../i18n';
@@ -44,6 +44,11 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
   const t = getTranslations(currentLang);
   const [config, setConfig] = useState<VinylSimConfig>(() => vinylSimulator.getConfig());
   const [previewActive, setPreviewActive] = useState<boolean>(false);
+  const previewActiveRef = useRef<boolean>(false);
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  useLayoutEffect(() => {
+    isPlayingRef.current = isPlaying;
+  });
   const titleId = useId();
 
   useEffect(() => {
@@ -52,9 +57,20 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
     });
   }, []);
 
+  // Restore real playback state if the modal unmounts while previewing.
+  useEffect(() => {
+    return () => {
+      if (previewActiveRef.current) {
+        previewActiveRef.current = false;
+        vinylSimulator.setPlaybackState(isPlayingRef.current);
+      }
+    };
+  }, []);
+
   // While the modal is open and the user clicks preview, temporarily force the playing state
   useEffect(() => {
     if (!isOpen && previewActive) {
+      previewActiveRef.current = false;
       setPreviewActive(false);
       vinylSimulator.setPlaybackState(isPlaying);
     }
@@ -62,6 +78,7 @@ export const AnalogLoFiModal: React.FC<AnalogLoFiModalProps> = ({
 
   const handleTogglePreview = () => {
     const next = !previewActive;
+    previewActiveRef.current = next;
     setPreviewActive(next);
     vinylSimulator.setPlaybackState(next ? true : isPlaying);
   };

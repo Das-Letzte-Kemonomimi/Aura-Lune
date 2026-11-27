@@ -28,7 +28,9 @@ pub fn init_app(
     app: &mut tauri::App,
     rt: Arc<tokio::runtime::Runtime>,
     engine: Arc<AudioEngine>,
+    launch_started: std::time::Instant,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let init_started = std::time::Instant::now();
     let data_dir = app.path().app_data_dir().map_err(|e| {
         let msg = format!("The app data directory is missing: {e}");
         crate::setup::fatal::report_fatal_startup_error(&msg);
@@ -41,6 +43,7 @@ pub fn init_app(
     }
     let db_path = data_dir.join("auralune_library.db");
     let cache_dir = data_dir.join("cache");
+    crate::media_protocol::init_app_data_dir(data_dir.clone());
     crate::commands::library::init_thumbnail_cache_dir(cache_dir.join("thumbs"));
 
     let db = match rt.block_on(Database::open(&db_path)) {
@@ -405,6 +408,55 @@ pub fn init_app(
     }
     let queue_saver = crate::commands::queue::QueueSaver::spawn(&rt, engine.clone(), db.clone());
     let rt_for_cli = rt.clone();
+    {
+        let bg_db = db.clone();
+        let bg_data_dir = data_dir.clone();
+        rt.spawn(async move {
+            let Ok(themes) = bg_db.list_themes().await else {
+                return;
+            };
+            for mut theme in themes {
+                let Some(raw) = theme
+                    .background_ref
+                    .as_deref()
+                    .filter(|r| r.trim().starts_with("data:"))
+                    .map(str::to_string)
+                else {
+                    continue;
+                };
+                let dir = bg_data_dir.clone();
+                match tokio::task::spawn_blocking(move || {
+                    crate::commands::themes::normalize_background_ref_for_storage(&dir, Some(raw))
+                })
+                .await
+                {
+                    Ok(Ok(Some(url))) => {
+                        theme.background_ref = Some(url);
+                        if let Err(e) = bg_db.save_theme(&theme).await {
+                            tracing::warn!(
+                                "Failed to save migrated wallpaper URL for theme '{}': {}",
+                                theme.id,
+                                e
+                            );
+                        } else {
+                            info!("Migrated inline wallpaper for theme '{}' to file", theme.id);
+                        }
+                    }
+                    Ok(Ok(None)) => {}
+                    Ok(Err(e)) => {
+                        tracing::warn!(
+                            "Skipped invalid inline wallpaper migration for theme '{}': {}",
+                            theme.id,
+                            e
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!("Wallpaper migration task panicked: {e}");
+                    }
+                }
+            }
+        });
+    }
     let app_state = AppState {
         engine,
         db,
@@ -432,6 +484,8 @@ pub fn init_app(
                 .unwrap_or(true),
         )),
         window_revealed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        window_hidden: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        mpris_volume: Arc::new(crate::commands::playback::MprisVolumeCoalescer::default()),
         cover_worker_notify: Arc::new(tokio::sync::Notify::new()),
         cover_worker_force_run: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         cover_worker_active: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -477,6 +531,12 @@ pub fn init_app(
             }
         });
     }
+
+    info!(
+        "app_init finished in {} ms ({} ms since launch)",
+        init_started.elapsed().as_millis(),
+        launch_started.elapsed().as_millis()
+    );
 
     Ok(())
 }

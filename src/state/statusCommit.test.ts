@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { shouldCommitStatus, COARSE_POSITION_STEP_MS } from './statusCommit';
+import { shouldCommitStatus } from './statusCommit';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
 import type { PlaybackStatus } from '../types/playback';
 
@@ -12,16 +12,10 @@ const base: PlaybackStatus = {
 };
 
 describe('shouldCommitStatus', () => {
-  it('skips frames where only live fields moved a little', () => {
+  it('skips frames where only live position or spectrum changed (even across whole seconds or loops)', () => {
     expect(shouldCommitStatus(base, { ...base, position_ms: 10_100, spectrum: [0.5, 0.9] })).toBe(false);
-  });
-
-  it('commits once position advanced by the coarse step', () => {
-    expect(shouldCommitStatus(base, { ...base, position_ms: 10_000 + COARSE_POSITION_STEP_MS })).toBe(true);
-  });
-
-  it('commits when position jumps backwards (seek / loop)', () => {
-    expect(shouldCommitStatus(base, { ...base, position_ms: 9_950 })).toBe(true);
+    expect(shouldCommitStatus(base, { ...base, position_ms: 25_000, spectrum: [0.2, 0.4] })).toBe(false);
+    expect(shouldCommitStatus(base, { ...base, position_ms: 0 })).toBe(false);
   });
 
   it('commits on any structural change', () => {

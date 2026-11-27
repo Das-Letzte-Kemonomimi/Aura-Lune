@@ -1,5 +1,48 @@
-use desktop_integration::{write_waybar_status_to_path, ControlIpcServer, WaybarStatus};
+use desktop_integration::{
+    waybar_status_changed, write_waybar_status_to_path, ControlIpcServer, WaybarStatus,
+};
 use std::fs;
+
+#[test]
+fn test_waybar_change_detection_ignores_position_jitter() {
+    let base = WaybarStatus {
+        text: "A - B".into(),
+        alt: "playing".into(),
+        tooltip: "B".into(),
+        class: "playing".into(),
+        percentage: 25,
+        volume: 80,
+        art_url: None,
+        title: "B".into(),
+        artist: "A".into(),
+        album: String::new(),
+        state: "Playing".into(),
+        position_ms: 45_000,
+        duration_ms: 180_000,
+    };
+
+    assert!(waybar_status_changed(None, &base));
+
+    let same_pct_new_pos = WaybarStatus {
+        position_ms: 45_500,
+        ..base.clone()
+    };
+    assert!(!waybar_status_changed(Some(&base), &same_pct_new_pos));
+
+    let next_pct = WaybarStatus {
+        percentage: 26,
+        ..same_pct_new_pos.clone()
+    };
+    assert!(waybar_status_changed(Some(&base), &next_pct));
+
+    let paused = WaybarStatus {
+        state: "Paused".into(),
+        class: "paused".into(),
+        alt: "paused".into(),
+        ..same_pct_new_pos
+    };
+    assert!(waybar_status_changed(Some(&base), &paused));
+}
 
 #[test]
 fn test_waybar_status_serialization_and_write() {

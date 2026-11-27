@@ -40,31 +40,39 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                     // Mark window as revealed so the safety timer does not fight a tray hide.
                     let state = app.state::<AppState>();
                     state.window_revealed.store(true, Ordering::SeqCst);
+                    state.window_hidden.store(false, Ordering::SeqCst);
                 }
                 "tray_play_pause" => {
                     // The same paths as the UI commands: MPRIS, Discord and the queue save stay consistent,
                     // and the UI gets the new status from the playback ticker event.
-                    let state = app.state::<AppState>();
-                    let result = if state.engine.state() == domain::PlaybackState::Playing {
-                        crate::commands::playback::pause_internal(&state)
-                    } else {
-                        crate::commands::playback::play_internal(&state)
-                    };
-                    if let Err(e) = result {
-                        tracing::warn!("Tray: play/pause failed: {}", e);
-                    }
+                    // Dispatched via spawn_blocking because micro-fades sleep briefly off the GTK thread.
+                    let state = app.state::<AppState>().inner().clone();
+                    state.rt.clone().spawn_blocking(move || {
+                        let result = if state.engine.state() == domain::PlaybackState::Playing {
+                            crate::commands::playback::pause_internal(&state)
+                        } else {
+                            crate::commands::playback::play_internal(&state)
+                        };
+                        if let Err(e) = result {
+                            tracing::warn!("Tray: play/pause failed: {}", e);
+                        }
+                    });
                 }
                 "tray_next" => {
-                    let state = app.state::<AppState>();
-                    if let Err(e) = crate::commands::queue::play_next_internal(&state) {
-                        tracing::warn!("Tray: next track failed: {}", e);
-                    }
+                    let state = app.state::<AppState>().inner().clone();
+                    state.rt.clone().spawn_blocking(move || {
+                        if let Err(e) = crate::commands::queue::play_next_internal(&state) {
+                            tracing::warn!("Tray: next track failed: {}", e);
+                        }
+                    });
                 }
                 "tray_prev" => {
-                    let state = app.state::<AppState>();
-                    if let Err(e) = crate::commands::queue::play_previous_internal(&state) {
-                        tracing::warn!("Tray: previous track failed: {}", e);
-                    }
+                    let state = app.state::<AppState>().inner().clone();
+                    state.rt.clone().spawn_blocking(move || {
+                        if let Err(e) = crate::commands::queue::play_previous_internal(&state) {
+                            tracing::warn!("Tray: previous track failed: {}", e);
+                        }
+                    });
                 }
                 "tray_quit" => {
                     // Clean-up (ticker, Waybar, IPC) is done by `shutdown::on_exit`.
@@ -81,15 +89,17 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                 {
                     let app = tray.app_handle();
                     if let Some(window) = app.get_webview_window("main") {
+                        let state = app.state::<AppState>();
                         if window.is_visible().unwrap_or(false) {
                             let _ = window.hide();
+                            state.window_hidden.store(true, Ordering::SeqCst);
                         } else {
                             let _ = window.show();
                             let _ = window.unminimize();
                             let _ = window.set_focus();
                             // Mark revealed so the safety timer does not fight a subsequent hide.
-                            let state = app.state::<AppState>();
                             state.window_revealed.store(true, Ordering::SeqCst);
+                            state.window_hidden.store(false, Ordering::SeqCst);
                         }
                     }
                 }
@@ -101,8 +111,8 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
     if let Some(main_window) = app.get_webview_window("main") {
         let main_window_clone = main_window.clone();
         let app_handle = app.handle().clone();
-        main_window.on_window_event(move |event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        main_window.on_window_event(move |event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
                 // Value from memory (updated by `set_app_setting`), with no database query
                 // and no `block_on` on the main thread on every window close.
                 let state = app_handle.state::<AppState>();
@@ -112,8 +122,15 @@ pub fn setup_tray_and_window_events(app: &tauri::App) -> Result<(), Box<dyn std:
                 {
                     api.prevent_close();
                     let _ = main_window_clone.hide();
+                    state.window_hidden.store(true, Ordering::SeqCst);
                 }
             }
+            tauri::WindowEvent::Focused(true) => {
+                if let Some(state) = app_handle.try_state::<AppState>() {
+                    state.window_hidden.store(false, Ordering::Relaxed);
+                }
+            }
+            _ => {}
         });
     }
 

@@ -38,8 +38,19 @@ fn test_csp_does_not_allow_plain_http_or_unused_asset_protocol() {
         for directive in ["img-src", "media-src"] {
             let value = csp[directive].as_str().unwrap();
             assert!(
+                value.contains("auralune-media:"),
+                "{key}.{directive} must allow auralune-media: ({value})"
+            );
+            assert!(
                 !value.contains("http://") && !value.contains("asset:"),
                 "{key}.{directive} must not allow http:// or asset: ({value})"
+            );
+        }
+        for directive in ["style-src", "font-src"] {
+            let value = csp[directive].as_str().unwrap();
+            assert!(
+                !value.contains("fonts.googleapis.com") && !value.contains("fonts.gstatic.com"),
+                "{key}.{directive} must not reference remote Google Fonts ({value})"
             );
         }
     }

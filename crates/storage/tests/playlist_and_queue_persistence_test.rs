@@ -283,6 +283,71 @@ async fn test_duplicate_groups_are_case_insensitive_and_best_quality_first() {
     assert_eq!(groups[0].tracks[0].format, "FLAC");
 }
 
+#[tokio::test]
+async fn test_queue_cursor_only_save_preserves_items_and_overlays_cursor() {
+    let db = setup_test_db().await;
+    let empty_cursor = storage::QueueCursorState {
+        current_index: Some(0),
+        loop_mode: LoopMode::None,
+        shuffle: false,
+        shuffle_cursor: 0,
+    };
+    assert!(
+        !db.save_queue_cursor(&empty_cursor).await.unwrap(),
+        "cursor save without an existing queue row signals caller to write full queue"
+    );
+
+    let queue = PlaybackQueue {
+        items: vec![
+            QueueItem {
+                id: "q1".into(),
+                track_id: Some(1),
+                uri: "file:///one.flac".into(),
+                title: "One".into(),
+                artist: "A".into(),
+                album: None,
+                duration_ms: 10_000,
+            },
+            QueueItem {
+                id: "q2".into(),
+                track_id: Some(2),
+                uri: "file:///two.flac".into(),
+                title: "Two".into(),
+                artist: "B".into(),
+                album: None,
+                duration_ms: 20_000,
+            },
+        ],
+        current_index: Some(0),
+        loop_mode: LoopMode::None,
+        shuffle: false,
+        shuffle_order: vec![0, 1],
+        shuffle_cursor: 0,
+        active_stream: None,
+    };
+    db.save_queue_state(&queue).await.unwrap();
+
+    let updated_cursor = storage::QueueCursorState {
+        current_index: Some(1),
+        loop_mode: LoopMode::Track,
+        shuffle: true,
+        shuffle_cursor: 1,
+    };
+    assert!(db.save_queue_cursor(&updated_cursor).await.unwrap());
+
+    let restored = db
+        .load_queue_state()
+        .await
+        .unwrap()
+        .expect("restored queue");
+    assert_eq!(restored.items.len(), 2);
+    assert_eq!(restored.items[1].id, "q2");
+    assert_eq!(restored.current_index, Some(1));
+    assert_eq!(restored.loop_mode, LoopMode::Track);
+    assert!(restored.shuffle);
+    assert_eq!(restored.shuffle_cursor, 1);
+}
+
 async fn setup_test_db() -> Database {
     Database::new_in_memory().await.expect("in-memory database")
 }

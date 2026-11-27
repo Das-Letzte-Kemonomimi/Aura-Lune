@@ -162,3 +162,63 @@ fn test_very_slow_tempo_keeps_all_audio_and_monotonic_timestamps() {
     );
     assert!(out.pts_ns.windows(2).all(|w| w[1] > w[0]));
 }
+
+#[test]
+fn test_only_active_engine_is_prepared() {
+    gst::init().unwrap();
+    let _ = register_dsp_element();
+
+    let run_checked = |initial: DspParams, switch_after: Option<(usize, DspEngine)>| {
+        let desc = format!("{SOURCE} ! auralune_dsp name=dsp ! appsink name=sink sync=false");
+        let pipeline = gst::parse::launch(&desc)
+            .unwrap()
+            .downcast::<gst::Pipeline>()
+            .unwrap();
+        let dsp = pipeline
+            .by_name("dsp")
+            .unwrap()
+            .downcast::<AuraluneDsp>()
+            .unwrap();
+        dsp.set_params(initial).unwrap();
+        let sink = pipeline
+            .by_name("sink")
+            .unwrap()
+            .downcast::<gst_app::AppSink>()
+            .unwrap();
+
+        pipeline.set_state(gst::State::Playing).unwrap();
+        let mut buffers = 0usize;
+        while sink
+            .try_pull_sample(gst::ClockTime::from_seconds(10))
+            .is_some()
+        {
+            buffers += 1;
+            if let Some((after, next_engine)) = switch_after {
+                if buffers == after {
+                    dsp.set_engine(next_engine);
+                }
+            }
+        }
+        assert!(sink.is_eos());
+        let prepared = dsp.prepared_engines();
+        pipeline.set_state(gst::State::Null).unwrap();
+        prepared
+    };
+
+    // Bypass prepares neither Rubber Band nor SoundTouch.
+    assert_eq!(run_checked(DspParams::default(), None), (false, false));
+
+    // RubberBand prepares only RubberBand.
+    let rb = DspParams {
+        engine: DspEngine::RubberBand,
+        pitch_semitones: 1.0,
+        ..DspParams::default()
+    };
+    assert_eq!(run_checked(rb, None), (true, false));
+
+    // Starting in Bypass and switching to SoundTouch mid-stream prepares only SoundTouch.
+    assert_eq!(
+        run_checked(DspParams::default(), Some((10, DspEngine::SoundTouch))),
+        (false, true)
+    );
+}

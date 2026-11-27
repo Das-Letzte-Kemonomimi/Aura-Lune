@@ -1,14 +1,23 @@
+use lofty::config::ParseOptions;
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::Accessor;
 use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::UNIX_EPOCH;
-use storage::{Database, TrackRecord};
+use storage::{Database, ScannedTrack, TrackRecord, TrackScanEntry};
 use thiserror::Error;
+use tokio::sync::{mpsc, Semaphore};
+use tokio::task::JoinSet;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
+
+const SCAN_DB_BATCH_SIZE: usize = 256;
+static EMBED_COVER_TMP_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Error)]
 pub enum LibraryError {
@@ -33,16 +42,6 @@ pub struct ScanSummary {
     pub removed_stale: usize,
 }
 
-/// Result of the blocking read of one file (before the database write).
-struct ParsedTrack {
-    record: TrackRecord,
-    album_name: String,
-    album_artist: String,
-    year: Option<i64>,
-    cover_path: Option<String>,
-    release_mbid: Option<String>,
-}
-
 /// An audio file found while walking a directory.
 struct ScannedFile {
     path: PathBuf,
@@ -53,11 +52,104 @@ struct ScannedFile {
 
 #[derive(Default)]
 struct WalkResult {
+    root_canon: PathBuf,
+    root_str: String,
+    root_is_dir: bool,
     files: Vec<ScannedFile>,
     walk_errors: usize,
     /// Files whose metadata could not be read: they still exist, so they must not
     /// be removed from the database as stale.
     unreadable_paths: Vec<String>,
+}
+
+#[derive(Default)]
+struct ScanContext {
+    dir_direct_covers: RwLock<HashMap<PathBuf, Option<PathBuf>>>,
+    album_has_cover: RwLock<HashMap<(String, String), bool>>,
+    dir_album_hint: RwLock<HashMap<PathBuf, Option<(String, String)>>>,
+}
+
+impl ScanContext {
+    fn from_cover_map(album_has_cover: HashMap<(String, String), bool>) -> Self {
+        Self {
+            dir_direct_covers: RwLock::new(HashMap::new()),
+            album_has_cover: RwLock::new(album_has_cover),
+            dir_album_hint: RwLock::new(HashMap::new()),
+        }
+    }
+
+    fn has_album_cover(&self, title: &str, album_artist: &str) -> bool {
+        self.album_has_cover
+            .read()
+            .ok()
+            .and_then(|map| {
+                map.iter()
+                    .find(|((t, a), _)| t == title && a == album_artist)
+                    .map(|(_, has)| *has)
+            })
+            .unwrap_or(false)
+    }
+
+    fn mark_album_cover(&self, title: String, album_artist: String) {
+        if let Ok(mut map) = self.album_has_cover.write() {
+            map.insert((title, album_artist), true);
+        }
+    }
+
+    fn should_skip_embedded_cover(&self, parent: Option<&Path>) -> bool {
+        let Some(dir) = parent else {
+            return false;
+        };
+        let hint = self
+            .dir_album_hint
+            .read()
+            .ok()
+            .and_then(|map| map.get(dir).cloned().flatten());
+        let Some(album_key) = hint else {
+            return false;
+        };
+        self.album_has_cover
+            .read()
+            .ok()
+            .and_then(|map| map.get(&album_key).copied())
+            .unwrap_or(false)
+    }
+
+    fn mark_dir_mixed(&self, parent: Option<&Path>) {
+        if let Some(dir) = parent {
+            if let Ok(mut map) = self.dir_album_hint.write() {
+                map.insert(dir.to_path_buf(), None);
+            }
+        }
+    }
+
+    fn record_dir_album(&self, parent: Option<&Path>, title: &str, album_artist: &str) {
+        let Some(dir) = parent else {
+            return;
+        };
+        if let Ok(mut map) = self.dir_album_hint.write() {
+            match map.get(dir) {
+                None => {
+                    map.insert(
+                        dir.to_path_buf(),
+                        Some((title.to_string(), album_artist.to_string())),
+                    );
+                }
+                Some(Some((prev_t, prev_a))) if prev_t != title || prev_a != album_artist => {
+                    map.insert(dir.to_path_buf(), None);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+struct ScanState {
+    known: HashMap<String, TrackScanEntry>,
+    missing_covers: HashMap<String, i64>,
+    recovered_albums: HashSet<i64>,
+    checked_cover_dirs: HashSet<(i64, PathBuf)>,
+    context: Arc<ScanContext>,
 }
 
 const COVER_STEMS: &[&str] = &["cover", "folder", "front", "album", "artwork"];
@@ -70,13 +162,21 @@ fn home_dir_canonical() -> Option<PathBuf> {
     })
 }
 
+fn entry_is_regular_file(entry: &fs::DirEntry, path: &Path) -> bool {
+    match entry.file_type() {
+        Ok(ft) if ft.is_symlink() => path.is_file(),
+        Ok(ft) => ft.is_file(),
+        Err(_) => path.is_file(),
+    }
+}
+
 fn find_cover_in_dir(dir: &Path) -> Option<PathBuf> {
     let entries = fs::read_dir(dir).ok()?;
     let mut best: Option<(usize, usize, String, PathBuf)> = None;
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() {
+        if !entry_is_regular_file(&entry, &path) {
             continue;
         }
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
@@ -110,6 +210,64 @@ fn find_cover_in_dir(dir: &Path) -> Option<PathBuf> {
     }
 
     best.map(|(_, _, _, path)| path)
+}
+
+/// Cached lookup of a cover image directly inside `dir`.
+fn direct_cover_cached(ctx: &ScanContext, dir: &Path) -> Option<PathBuf> {
+    if let Ok(guard) = ctx.dir_direct_covers.read() {
+        if let Some(hit) = guard.get(dir) {
+            return hit.clone();
+        }
+    }
+    let found = find_cover_in_dir(dir);
+    if let Ok(mut guard) = ctx.dir_direct_covers.write() {
+        guard.insert(dir.to_path_buf(), found.clone());
+    }
+    found
+}
+
+fn find_folder_cover_cached(
+    ctx: &ScanContext,
+    track_dir: &Path,
+    canon_root: Option<&Path>,
+) -> Option<PathBuf> {
+    if let Some(hit) = direct_cover_cached(ctx, track_dir) {
+        return Some(hit);
+    }
+
+    if let Some(root) = canon_root {
+        let mut current = if track_dir.starts_with(root) {
+            track_dir.to_path_buf()
+        } else {
+            track_dir
+                .canonicalize()
+                .unwrap_or_else(|_| track_dir.to_path_buf())
+        };
+
+        while current != root && current.starts_with(root) {
+            let Some(parent) = current.parent() else {
+                break;
+            };
+            if !parent.starts_with(root) {
+                break;
+            }
+            if let Some(hit) = direct_cover_cached(ctx, parent) {
+                return Some(hit);
+            }
+            current = parent.to_path_buf();
+        }
+        return None;
+    }
+
+    let parent = track_dir.parent()?;
+    parent.parent()?;
+    let canon_parent = parent
+        .canonicalize()
+        .unwrap_or_else(|_| parent.to_path_buf());
+    if home_dir_canonical().as_ref() == Some(&canon_parent) {
+        return None;
+    }
+    direct_cover_cached(ctx, parent)
 }
 
 /// Finds a local cover image for a track directory (case-insensitive stems/extensions).
@@ -191,84 +349,200 @@ impl LibraryScanner {
         dir: impl AsRef<Path>,
         db: &Database,
     ) -> Result<ScanSummary, LibraryError> {
-        let root = dir.as_ref();
+        let mut state = Self::load_scan_state(db).await;
+        self.scan_directory_with_state(dir.as_ref(), db, &mut state)
+            .await
+    }
+
+    async fn load_scan_state(db: &Database) -> ScanState {
+        let (known, missing_covers, album_has_cover) = tokio::join!(
+            db.track_scan_index(),
+            db.track_album_ids_without_cover(),
+            db.album_cover_status_map(),
+        );
+        ScanState {
+            known: known.unwrap_or_default(),
+            missing_covers: missing_covers.unwrap_or_default(),
+            recovered_albums: HashSet::new(),
+            checked_cover_dirs: HashSet::new(),
+            context: Arc::new(ScanContext::from_cover_map(
+                album_has_cover.unwrap_or_default(),
+            )),
+        }
+    }
+
+    async fn scan_directory_with_state(
+        &self,
+        root: &Path,
+        db: &Database,
+        state: &mut ScanState,
+    ) -> Result<ScanSummary, LibraryError> {
         info!("Starting incremental scan: {}", root.display());
 
         let mut summary = ScanSummary::default();
-        let mut active_paths = Vec::new();
-        let mut walk_errors = 0usize;
 
         // Walking the directory, canonicalize and stat are blocking, so they run off the Tokio threads.
         let walk_root = root.to_path_buf();
         let walk = tokio::task::spawn_blocking(move || Self::walk_audio_files(&walk_root)).await?;
-        walk_errors += walk.walk_errors;
         summary.total_files_found += walk.unreadable_paths.len();
-        summary.errors += walk.unreadable_paths.len();
-        active_paths.extend(walk.unreadable_paths);
+        summary.errors += walk.unreadable_paths.len() + walk.walk_errors;
 
-        // Bulk lookups instead of querying the database per file.
-        let known = db.track_file_stamps().await.unwrap_or_default();
-        let missing_covers = db.track_album_ids_without_cover().await.unwrap_or_default();
-        let mut checked_cover_dirs = std::collections::HashSet::new();
-        let mut recovered_albums = std::collections::HashSet::new();
+        for u_path in &walk.unreadable_paths {
+            if let Some(entry) = state.known.get_mut(u_path) {
+                entry.visited = true;
+            }
+        }
+
+        let mut to_parse = Vec::new();
+        let mut cover_recovery_candidates: Vec<(i64, PathBuf)> = Vec::new();
 
         for file in walk.files {
             summary.total_files_found += 1;
-            active_paths.push(file.path_str.clone());
-            let path = file.path.as_path();
-            let path_str = file.path_str;
-            let (file_size, modified_time) = (file.file_size, file.modified_time);
-
-            // INCREMENTAL CHECK:
-            // Does the file already exist with unchanged size and modification time?
-            if known.get(&path_str) == Some(&(file_size, modified_time)) {
-                summary.skipped_unchanged += 1;
-                if let (Some(&album_id), Some(parent)) =
-                    (missing_covers.get(&path_str), path.parent())
-                {
-                    if !recovered_albums.contains(&album_id)
-                        && checked_cover_dirs.insert((album_id, parent.to_path_buf()))
+            if let Some(entry) = state.known.get_mut(&file.path_str) {
+                entry.visited = true;
+                if entry.file_size == file.file_size && entry.modified_time == file.modified_time {
+                    summary.skipped_unchanged += 1;
+                    if let (Some(&album_id), Some(parent)) =
+                        (state.missing_covers.get(&file.path_str), file.path.parent())
                     {
-                        if let Some(cover) = find_folder_cover(parent, Some(root)) {
-                            let cover_str = cover.display().to_string();
-                            if db
-                                .update_album_cover(album_id, &cover_str, None)
-                                .await
-                                .is_ok()
-                            {
-                                recovered_albums.insert(album_id);
-                            }
+                        if !state.recovered_albums.contains(&album_id)
+                            && state
+                                .checked_cover_dirs
+                                .insert((album_id, parent.to_path_buf()))
+                        {
+                            cover_recovery_candidates.push((album_id, parent.to_path_buf()));
                         }
                     }
+                    continue;
                 }
-                continue;
             }
+            to_parse.push(file);
+        }
 
-            // Full tag extraction via lofty
-            match self
-                .extract_and_save_track(path, &path_str, file_size, modified_time, Some(root), db)
-                .await
-            {
-                Ok(_) => {
-                    summary.new_or_updated_tracks += 1;
-                    debug!("Indexed: {}", path.display());
+        if !cover_recovery_candidates.is_empty() {
+            let ctx = state.context.clone();
+            let canon_root = walk.root_canon.clone();
+            let resolved_covers = tokio::task::spawn_blocking(move || {
+                cover_recovery_candidates
+                    .into_iter()
+                    .filter_map(|(album_id, parent)| {
+                        find_folder_cover_cached(&ctx, &parent, Some(&canon_root))
+                            .map(|cover| (album_id, cover.display().to_string()))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .await?;
+
+            for (album_id, cover_str) in resolved_covers {
+                if state.recovered_albums.contains(&album_id) {
+                    continue;
                 }
-                Err(err) => {
-                    warn!("Failed to read tags from {}: {:?}", path.display(), err);
-                    summary.errors += 1;
+                if db
+                    .update_album_cover(album_id, &cover_str, None)
+                    .await
+                    .is_ok()
+                {
+                    state.recovered_albums.insert(album_id);
                 }
             }
         }
-        summary.errors += walk_errors;
+
+        if !to_parse.is_empty() {
+            let parallelism = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4)
+                .min(8);
+            let sem = Arc::new(Semaphore::new(parallelism));
+            let (tx, mut rx) = mpsc::channel::<Option<ScannedTrack>>(SCAN_DB_BATCH_SIZE * 2);
+            let scanner = self.clone();
+            let ctx = state.context.clone();
+            let canon_root = walk.root_canon.clone();
+
+            let producer = async move {
+                let mut join_set: JoinSet<()> = JoinSet::new();
+                for file in to_parse {
+                    let Ok(permit) = sem.clone().acquire_owned().await else {
+                        break;
+                    };
+                    let scanner = scanner.clone();
+                    let ctx = ctx.clone();
+                    let canon_root = canon_root.clone();
+                    let tx = tx.clone();
+                    join_set.spawn_blocking(move || {
+                        let _permit = permit;
+                        let item = match scanner.read_track_file_cached(
+                            &file.path,
+                            &file.path_str,
+                            file.file_size,
+                            file.modified_time,
+                            Some(&canon_root),
+                            &ctx,
+                        ) {
+                            Ok(parsed) => {
+                                debug!("Indexed: {}", file.path.display());
+                                Some(parsed)
+                            }
+                            Err(err) => {
+                                warn!(
+                                    "Failed to read tags from {}: {:?}",
+                                    file.path.display(),
+                                    err
+                                );
+                                None
+                            }
+                        };
+                        let _ = tx.blocking_send(item);
+                    });
+                    while join_set.len() >= parallelism * 2 {
+                        let _ = join_set.join_next().await;
+                    }
+                }
+                while join_set.join_next().await.is_some() {}
+                drop(tx);
+            };
+
+            let writer = async {
+                let mut batch: Vec<ScannedTrack> = Vec::with_capacity(SCAN_DB_BATCH_SIZE);
+                let mut indexed = 0usize;
+                let mut errors = 0usize;
+
+                while let Some(msg) = rx.recv().await {
+                    match msg {
+                        Some(track) => {
+                            batch.push(track);
+                            if batch.len() >= SCAN_DB_BATCH_SIZE {
+                                let saved = db.save_scanned_tracks(&batch).await?;
+                                indexed += saved.len();
+                                batch.clear();
+                            }
+                        }
+                        None => errors += 1,
+                    }
+                }
+                if !batch.is_empty() {
+                    let saved = db.save_scanned_tracks(&batch).await?;
+                    indexed += saved.len();
+                }
+                Ok::<(usize, usize), LibraryError>((indexed, errors))
+            };
+
+            let ((), write_res) = tokio::join!(producer, writer);
+            let (indexed, parse_errors) = write_res?;
+            summary.new_or_updated_tracks += indexed;
+            summary.errors += parse_errors;
+        }
 
         // Remove files that disappeared from disk from the database. Only after a complete walk
         // of an existing directory: an unreachable drive or permission errors must not wipe the library.
-        if walk_errors == 0 && root.is_dir() {
-            let root_str = match root.canonicalize() {
-                Ok(p) => p.display().to_string(),
-                Err(_) => root.display().to_string(),
-            };
-            let removed = db.delete_stale_tracks(&root_str, &active_paths).await?;
+        if walk.walk_errors == 0 && walk.root_is_dir {
+            let prefix = format!("{}/", walk.root_str.trim_end_matches('/'));
+            let stale: Vec<(i64, Option<i64>)> = state
+                .known
+                .iter()
+                .filter(|(path, entry)| !entry.visited && path.starts_with(&prefix))
+                .map(|(_, entry)| (entry.id, entry.album_id))
+                .collect();
+            let removed = db.delete_tracks_by_ids(&stale).await?;
             summary.removed_stale = removed;
             if removed > 0 {
                 info!("Removed {} missing tracks from the database", removed);
@@ -293,10 +567,11 @@ impl LibraryScanner {
         db: &Database,
     ) -> Result<ScanSummary, LibraryError> {
         let mut summary = ScanSummary::default();
+        let mut state = Self::load_scan_state(db).await;
         for p in paths {
             let path = p.as_ref();
             if path.is_dir() {
-                let s = self.scan_directory(path, db).await?;
+                let s = self.scan_directory_with_state(path, db, &mut state).await?;
                 summary.total_files_found += s.total_files_found;
                 summary.new_or_updated_tracks += s.new_or_updated_tracks;
                 summary.skipped_unchanged += s.skipped_unchanged;
@@ -334,7 +609,15 @@ impl LibraryScanner {
                 // Individual dropped/picked files are always re-indexed so tag updates on
                 // disk take effect even when file size and 1-second mtime match.
                 match self
-                    .extract_and_save_track(path, &path_str, file_size, modified_time, None, db)
+                    .extract_and_save_track(
+                        path,
+                        &path_str,
+                        file_size,
+                        modified_time,
+                        None,
+                        &state.context,
+                        db,
+                    )
                     .await
                 {
                     Ok(_) => {
@@ -352,6 +635,7 @@ impl LibraryScanner {
     }
 
     /// Extracts tags and the cover (in `spawn_blocking`), then writes the entities atomically.
+    #[allow(clippy::too_many_arguments)]
     async fn extract_and_save_track(
         &self,
         file_path: &Path,
@@ -359,26 +643,29 @@ impl LibraryScanner {
         file_size: i64,
         modified_time: i64,
         scan_root: Option<&Path>,
+        ctx: &Arc<ScanContext>,
         db: &Database,
     ) -> Result<(), LibraryError> {
         let scanner = self.clone();
         let file_path = file_path.to_path_buf();
         let canonical_path = canonical_path.to_string();
         let scan_root = scan_root.map(Path::to_path_buf);
+        let ctx = ctx.clone();
         let parsed = tokio::task::spawn_blocking(move || {
-            scanner.read_track_file(
+            scanner.read_track_file_cached(
                 &file_path,
                 &canonical_path,
                 file_size,
                 modified_time,
                 scan_root.as_deref(),
+                &ctx,
             )
         })
         .await??;
 
         db.save_scanned_track(
             &parsed.record,
-            &parsed.album_name,
+            &parsed.album_title,
             &parsed.album_artist,
             parsed.year,
             parsed.cover_path.as_deref(),
@@ -388,17 +675,51 @@ impl LibraryScanner {
         Ok(())
     }
 
-    /// Blocking read of one file's tags (lofty) and cover.
-    fn read_track_file(
+    /// Blocking read of one file's tags (lofty) and cover, reusing scan-wide album/dir caches.
+    fn read_track_file_cached(
         &self,
         file_path: &Path,
         canonical_path: &str,
         file_size: i64,
         modified_time: i64,
         scan_root: Option<&Path>,
-    ) -> Result<ParsedTrack, LibraryError> {
-        let probe = Probe::open(file_path)?;
-        let tagged_file = probe.read()?;
+        ctx: &ScanContext,
+    ) -> Result<ScannedTrack, LibraryError> {
+        let parent = file_path.parent();
+        let skip_cover = ctx.should_skip_embedded_cover(parent);
+        let mut tagged_file = Probe::open(file_path)?
+            .options(ParseOptions::new().read_cover_art(!skip_cover))
+            .read()?;
+
+        let mut tag_ref = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
+        let artist_initial = tag_ref
+            .and_then(|t| t.artist())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "Unknown Artist".to_string());
+        let album_initial = tag_ref
+            .and_then(|t| t.album())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "Unknown Album".to_string());
+        let album_artist_initial = tag_ref
+            .and_then(|t| t.get_string(lofty::tag::ItemKey::AlbumArtist))
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| artist_initial.clone());
+
+        ctx.record_dir_album(parent, &album_initial, &album_artist_initial);
+        let mut already_has_cover = ctx.has_album_cover(&album_initial, &album_artist_initial);
+        if skip_cover && !already_has_cover {
+            ctx.mark_dir_mixed(parent);
+            tagged_file = Probe::open(file_path)?
+                .options(ParseOptions::new().read_cover_art(true))
+                .read()?;
+            tag_ref = tagged_file
+                .primary_tag()
+                .or_else(|| tagged_file.first_tag());
+            already_has_cover = ctx.has_album_cover(&album_initial, &album_artist_initial);
+        }
 
         let properties = tagged_file.properties();
         let duration_ms = properties.duration().as_millis() as i64;
@@ -412,10 +733,7 @@ impl LibraryScanner {
             .unwrap_or("AUDIO")
             .to_uppercase();
 
-        let tag = tagged_file
-            .primary_tag()
-            .or_else(|| tagged_file.first_tag());
-
+        let tag = tag_ref;
         let title = tag
             .as_ref()
             .and_then(|t| t.title())
@@ -453,8 +771,16 @@ impl LibraryScanner {
         let disc_no = tag.as_ref().and_then(|t| t.disk()).map(|d| d as i64);
         let year = tag.as_ref().and_then(|t| t.date()).map(|d| d.year as i64);
 
-        // Cover detection: 1. embedded, 2. folder / ancestor root
-        let cover_path = self.resolve_cover_art(file_path, tag, scan_root);
+        // Cover detection: 1. embedded, 2. folder / ancestor root (skipped when album already has art).
+        let cover_path = if already_has_cover {
+            None
+        } else {
+            let resolved = self.resolve_cover_art_cached(file_path, tag, scan_root, ctx);
+            if resolved.is_some() {
+                ctx.mark_album_cover(album_name.clone(), album_artist.clone());
+            }
+            resolved
+        };
 
         let release_mbid = tag
             .as_ref()
@@ -522,9 +848,9 @@ impl LibraryScanner {
             added_at: None,
         };
 
-        Ok(ParsedTrack {
+        Ok(ScannedTrack {
             record,
-            album_name,
+            album_title: album_name,
             album_artist,
             year,
             cover_path,
@@ -534,8 +860,20 @@ impl LibraryScanner {
 
     /// Collects the supported audio files in a directory with their size and modification time.
     fn walk_audio_files(root: &Path) -> WalkResult {
-        let mut out = WalkResult::default();
-        for entry in WalkDir::new(root).follow_links(true) {
+        let root_is_dir = root.is_dir();
+        let root_canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+        let root_str = root_canon.display().to_string();
+        let mut out = WalkResult {
+            root_canon: root_canon.clone(),
+            root_str,
+            root_is_dir,
+            ..WalkResult::default()
+        };
+
+        // Track symlinked ancestor directories on the WalkDir depth-first stack so regular
+        // files without symlinked ancestors skip redundant per-file `canonicalize()` syscalls.
+        let mut symlink_dirs: Vec<usize> = Vec::new();
+        for entry in WalkDir::new(&root_canon).follow_links(true) {
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
@@ -544,13 +882,31 @@ impl LibraryScanner {
                     continue;
                 }
             };
-            let path = entry.path();
-            if !path.is_file() || !Self::is_supported_audio_extension(path) {
+            while let Some(&depth) = symlink_dirs.last() {
+                if entry.depth() <= depth {
+                    symlink_dirs.pop();
+                } else {
+                    break;
+                }
+            }
+            let ft = entry.file_type();
+            if ft.is_dir() {
+                if entry.path_is_symlink() {
+                    symlink_dirs.push(entry.depth());
+                }
                 continue;
             }
-            let path_str = match path.canonicalize() {
-                Ok(p) => p.display().to_string(),
-                Err(_) => path.display().to_string(),
+            let path = entry.path();
+            if !ft.is_file() || !Self::is_supported_audio_extension(path) {
+                continue;
+            }
+            let path_str = if entry.path_is_symlink() || !symlink_dirs.is_empty() {
+                match path.canonicalize() {
+                    Ok(p) => p.display().to_string(),
+                    Err(_) => path.display().to_string(),
+                }
+            } else {
+                path.display().to_string()
             };
             let metadata = match entry.metadata() {
                 Ok(m) => m,
@@ -581,11 +937,12 @@ impl LibraryScanner {
     }
 
     /// Looks for a cover in the tags, the file's directory, or its ancestor root.
-    fn resolve_cover_art(
+    fn resolve_cover_art_cached(
         &self,
         file_path: &Path,
         tag: Option<&lofty::tag::Tag>,
         scan_root: Option<&Path>,
+        ctx: &ScanContext,
     ) -> Option<String> {
         // 1. Check for embedded artwork in the tags
         if let Some(tag) = tag {
@@ -600,7 +957,20 @@ impl LibraryScanner {
                     .join(format!("{}.jpg", hash_str));
 
                 if !target_path.exists() {
-                    let _ = fs::write(&target_path, data);
+                    let seq = EMBED_COVER_TMP_SEQ.fetch_add(1, Ordering::Relaxed);
+                    let tmp_path = self.cache_dir.join("covers").join(format!(
+                        ".tmp_{}_{}_{}.jpg",
+                        std::process::id(),
+                        seq,
+                        hash_str
+                    ));
+                    if fs::write(&tmp_path, data).is_ok() {
+                        if fs::rename(&tmp_path, &target_path).is_err() {
+                            let _ = fs::remove_file(&tmp_path);
+                        }
+                    } else {
+                        let _ = fs::remove_file(&tmp_path);
+                    }
                 }
                 return Some(target_path.display().to_string());
             }
@@ -608,7 +978,7 @@ impl LibraryScanner {
 
         // 2. Look for a cover image in the track's folder or ancestor root
         if let Some(parent) = file_path.parent() {
-            if let Some(cand_path) = find_folder_cover(parent, scan_root) {
+            if let Some(cand_path) = find_folder_cover_cached(ctx, parent, scan_root) {
                 return Some(cand_path.display().to_string());
             }
         }

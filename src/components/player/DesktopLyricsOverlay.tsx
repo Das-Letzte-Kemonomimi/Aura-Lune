@@ -59,8 +59,12 @@ interface DesktopLyricsOverlayProps {
 type FontSize = 'sm' | 'md' | 'lg';
 type OpacityLevel = 'low' | 'med' | 'high';
 
-export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
-  isOpen,
+export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = (props) => {
+  if (!props.isOpen) return null;
+  return <DesktopLyricsOverlayInner {...props} />;
+};
+
+const DesktopLyricsOverlayInner: React.FC<DesktopLyricsOverlayProps> = ({
   onClose,
   trackTitle,
   trackArtist,
@@ -126,7 +130,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   useEffect(() => {
     let active = true;
 
-    if (!isOpen || (!trackTitle && !trackPath)) {
+    if (!trackTitle && !trackPath) {
       queueMicrotask(() => {
         if (active) setLyrics(null);
       });
@@ -161,7 +165,7 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
     return () => {
       active = false;
     };
-  }, [isOpen, trackTitle, trackArtist, trackAlbum, trackPath, durationMs]);
+  }, [trackTitle, trackArtist, trackAlbum, trackPath, durationMs]);
 
   // Effective synced lyric lines
   const lines = useMemo(() => {
@@ -238,8 +242,6 @@ export const DesktopLyricsOverlay: React.FC<DesktopLyricsOverlayProps> = ({
   const handleSelectFontSize = (size: FontSize) => setFontSize(size);
 
   const handleSelectOpacity = (op: OpacityLevel) => setOpacityLevel(op);
-
-  if (!isOpen) return null;
 
   // Compute the background and styles
   const bgAlpha = opacityLevel === 'low' ? '0.45' : opacityLevel === 'med' ? '0.78' : '0.94';

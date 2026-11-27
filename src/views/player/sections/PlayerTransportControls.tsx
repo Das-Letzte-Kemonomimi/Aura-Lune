@@ -2,7 +2,7 @@ import React from 'react';
 import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, Sliders, SkipBack, SkipForward, Square, X } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
-import { currentPositionMs } from '../../../state/livePlayback';
+import { currentPositionMs, useLiveVolume } from '../../../state/livePlayback';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
 import { Button, Chip, IconButton } from '../../../components/ui';
@@ -12,6 +12,67 @@ export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmar
   status: PlaybackStatus;
 };
 
+
+/** Leaf volume cluster reading live volume from `livePlayback` so drag/smooth fades avoid `PlayerTransportControls` re-renders. */
+const PlayerVolumeCluster: React.FC<{
+  stopAfterCurrent: boolean | undefined;
+  volumeFallback: number;
+  volumeUnit: PlayerViewProps['volumeUnit'];
+  loc: PlayerViewProps['loc'];
+  handleToggleStopAfterCurrent: PlayerViewProps['handleToggleStopAfterCurrent'];
+  handleToggleMute: PlayerViewProps['handleToggleMute'];
+  handleVolumeChange: PlayerViewProps['handleVolumeChange'];
+  handleToggleVolumeUnit: PlayerViewProps['handleToggleVolumeUnit'];
+  formatVolumeValue: PlayerViewProps['formatVolumeValue'];
+}> = React.memo(({
+  stopAfterCurrent,
+  volumeFallback,
+  volumeUnit,
+  loc,
+  handleToggleStopAfterCurrent,
+  handleToggleMute,
+  handleVolumeChange,
+  handleToggleVolumeUnit,
+  formatVolumeValue,
+}) => {
+  const volume = useLiveVolume(volumeFallback);
+  return (
+    <div className="order-3 flex items-center gap-2 rounded-2xl border border-line bg-black/25 py-1 pr-1.5 pl-1.5 lg:justify-self-end">
+      <Chip
+        tone="amber"
+        pressed={Boolean(stopAfterCurrent)}
+        onClick={handleToggleStopAfterCurrent}
+        aria-label={stopAfterCurrent ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
+        title={stopAfterCurrent ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
+        className="size-8 rounded-xl p-0"
+      >
+        <Square size={14} fill={stopAfterCurrent ? 'currentColor' : 'none'} />
+      </Chip>
+      <IconButton
+        size="sm"
+        label={volume === 0 ? loc.player.unmute : loc.player.mute}
+        onClick={handleToggleMute}
+      >
+        <VolumeIcon gain={volume} size={16} className={volume === 0 ? undefined : 'text-fg-secondary'} />
+      </IconButton>
+      <VolumeSlider
+        ariaLabel={loc.player.volume}
+        gain={volume}
+        onGainChange={handleVolumeChange}
+        className="w-30"
+        title={`${loc.player.volume}: ${formatVolumeValue(volume, 'db')} (${formatVolumeValue(volume, 'percent')})`}
+      />
+      <Button
+        size="sm"
+        onClick={handleToggleVolumeUnit}
+        title={loc.player.volumeToggleUnitTooltip}
+        className={cn('min-w-13 rounded-md px-1.5 py-0.5 font-mono', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
+      >
+        {formatVolumeValue(volume)}
+      </Button>
+    </div>
+  );
+});
 
 /** Rounded cluster that groups related tool buttons (bookmarks, loop, extras). */
 function ToolGroup({ children }: { children: React.ReactNode }) {
@@ -269,40 +330,17 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
       </div>
 
       {/* Volume */}
-      <div className="order-3 flex items-center gap-2 rounded-2xl border border-line bg-black/25 py-1 pr-1.5 pl-1.5 lg:justify-self-end">
-        <Chip
-          tone="amber"
-          pressed={Boolean(status.stop_after_current)}
-          onClick={handleToggleStopAfterCurrent}
-          aria-label={status.stop_after_current ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
-          title={status.stop_after_current ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
-          className="size-8 rounded-xl p-0"
-        >
-          <Square size={14} fill={status.stop_after_current ? 'currentColor' : 'none'} />
-        </Chip>
-        <IconButton
-          size="sm"
-          label={status.volume === 0 ? loc.player.unmute : loc.player.mute}
-          onClick={handleToggleMute}
-        >
-          <VolumeIcon gain={status.volume} size={16} className={status.volume === 0 ? undefined : 'text-fg-secondary'} />
-        </IconButton>
-        <VolumeSlider
-          ariaLabel={loc.player.volume}
-          gain={status.volume}
-          onGainChange={handleVolumeChange}
-          className="w-30"
-          title={`${loc.player.volume}: ${formatVolumeValue(status.volume, 'db')} (${formatVolumeValue(status.volume, 'percent')})`}
-        />
-        <Button
-          size="sm"
-          onClick={handleToggleVolumeUnit}
-          title={loc.player.volumeToggleUnitTooltip}
-          className={cn('min-w-13 rounded-md px-1.5 py-0.5 font-mono', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
-        >
-          {formatVolumeValue(status.volume)}
-        </Button>
-      </div>
+      <PlayerVolumeCluster
+        stopAfterCurrent={status.stop_after_current}
+        volumeFallback={status.volume}
+        volumeUnit={volumeUnit}
+        loc={loc}
+        handleToggleStopAfterCurrent={handleToggleStopAfterCurrent}
+        handleToggleMute={handleToggleMute}
+        handleVolumeChange={handleVolumeChange}
+        handleToggleVolumeUnit={handleToggleVolumeUnit}
+        formatVolumeValue={formatVolumeValue}
+      />
     </div>
   );
 });

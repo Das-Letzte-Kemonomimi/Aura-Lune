@@ -4,7 +4,6 @@ import { SpectrumVisualizer } from '../../components/player/SpectrumVisualizer';
 import { type EqualizerPreset } from '../../types/equalizer';
 import type { DspPresetRecord, PlaybackStatus } from '../../types/player';
 import { type Language, getTranslations } from '../../i18n';
-import { useLiveStatus } from '../../state/livePlayback';
 import { DspGraphicEqRack } from './sections/DspGraphicEqRack';
 import { DspMasteringRack } from './sections/DspMasteringRack';
 import { DspPresetManager } from './sections/DspPresetManager';
@@ -113,15 +112,13 @@ export interface DspStudioViewProps {
 export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
   const {
     loc,
-    status: statusProp,
+    status,
     dspAutoStartup,
     dspDefaultEngine,
     handleToggleDspAutoStartup,
     handleSaveDspStartupDefault,
     handleResetDsp,
   } = props;
-  // Live position/spectrum (livePlayback): this component renders, not the whole app.
-  const status = useLiveStatus(statusProp);
 
   return (
     <div className="flex flex-col gap-4">

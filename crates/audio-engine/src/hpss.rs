@@ -95,21 +95,34 @@ fn quick_median(values: &mut [f32]) -> f32 {
     values[mid]
 }
 
-/// Spectrum of one STFT frame for both channels (magnitude and phase for `num_bins` bins).
+/// Spectrum of one STFT channel: the complex bins and their magnitudes (`num_bins` each).
+struct ChannelSpectrum {
+    re: Vec<f32>,
+    im: Vec<f32>,
+    mag: Vec<f32>,
+}
+
+impl ChannelSpectrum {
+    fn new(num_bins: usize) -> Self {
+        Self {
+            re: vec![0.0; num_bins],
+            im: vec![0.0; num_bins],
+            mag: vec![0.0; num_bins],
+        }
+    }
+}
+
+/// Spectrum of one STFT frame for both channels.
 struct StftFrame {
-    mag_l: Vec<f32>,
-    phase_l: Vec<f32>,
-    mag_r: Vec<f32>,
-    phase_r: Vec<f32>,
+    l: ChannelSpectrum,
+    r: ChannelSpectrum,
 }
 
 impl StftFrame {
     fn new(num_bins: usize) -> Self {
         Self {
-            mag_l: vec![0.0; num_bins],
-            phase_l: vec![0.0; num_bins],
-            mag_r: vec![0.0; num_bins],
-            phase_r: vec![0.0; num_bins],
+            l: ChannelSpectrum::new(num_bins),
+            r: ChannelSpectrum::new(num_bins),
         }
     }
 }
@@ -120,36 +133,44 @@ struct FftScratch {
     im: Vec<f32>,
 }
 
-/// Magnitude and phase of the windowed slice `signal[offset..offset + fft_size]`.
+/// Spectrum (complex bins and magnitudes) of the windowed slice `signal[offset..offset + fft_size]`.
 fn analyze_channel(
     signal: &[f32],
     offset: usize,
     window: &[f32],
     fft: &mut FftScratch,
-    mag: &mut [f32],
-    phase: &mut [f32],
+    out: &mut ChannelSpectrum,
 ) {
     for (i, &w) in window.iter().enumerate() {
         fft.re[i] = signal[offset + i] * w;
         fft.im[i] = 0.0;
     }
     fft_radix2(&mut fft.re, &mut fft.im, false);
-    for k in 0..mag.len() {
-        let (re, im) = (fft.re[k], fft.im[k]);
-        mag[k] = (re * re + im * im).sqrt();
-        phase[k] = im.atan2(re);
+    let num_bins = out.mag.len();
+    out.re.copy_from_slice(&fft.re[..num_bins]);
+    out.im.copy_from_slice(&fft.im[..num_bins]);
+    for (mag, (&re, &im)) in out.mag.iter_mut().zip(out.re.iter().zip(&out.im)) {
+        *mag = (re * re + im * im).sqrt();
     }
 }
 
 /// Runs the HPSS and stereo-panorama separation on a pair of L/R sample buffers.
 ///
+/// Takes the input by value: "other" is computed in place in the input buffers, so the input is
+/// never held next to all eight output signals.
+///
 /// The harmonic median needs only ±`R_TIME` neighbouring frames, so the spectrum is computed
 /// into a ring buffer of `2·R_TIME + 1` frames, and every frame is masked and
 /// resynthesised right away (overlap-add). Memory beyond the output signals is constant; previously
 /// 16 full spectrogram matrices took about 1.7 GB for a 5-minute track.
+///
+/// Every stem is a real-valued mask applied to the mixture spectrum, so it is resynthesised as
+/// `gain · X` (no `atan2` / `sin` / `cos` round trip through polar form). "Other" is the exact
+/// residual `input − vocals − drums − bass` in the time domain, so it needs no ISTFT of its own
+/// and the four stems always sum to the input.
 pub fn separate_stereo_hpss<F>(
-    left: &[f32],
-    right: &[f32],
+    mut left: Vec<f32>,
+    mut right: Vec<f32>,
     sample_rate: u32,
     mut progress_cb: Option<&mut F>,
 ) -> StereoStems
@@ -169,7 +190,7 @@ where
     if n_samples < FFT_SIZE {
         // Fallback for very short signals
         return StereoStems {
-            vocals: (left.to_vec(), right.to_vec()),
+            vocals: (left, right),
             drums: (vec![0.0; n_samples], vec![0.0; n_samples]),
             bass: (vec![0.0; n_samples], vec![0.0; n_samples]),
             other: (vec![0.0; n_samples], vec![0.0; n_samples]),
@@ -204,9 +225,9 @@ where
     let mut computed = 0usize; // number of frames already analysed
     let mut scratch = Vec::with_capacity(2 * R_TIME.max(R_FREQ) + 1);
 
-    // Stem spectra of the current frame: [vocals, drums, bass, other] × [L, R].
-    let mut stem_spec = vec![vec![0.0f32; num_bins]; 8];
-    let mut rec: Vec<Vec<f32>> = (0..8).map(|_| vec![0.0f32; n_samples]).collect();
+    // Per-bin spectral gains of the current frame: [vocals, drums, bass] × [L, R].
+    let mut stem_gain = vec![vec![0.0f32; num_bins]; 6];
+    let mut rec: Vec<Vec<f32>> = (0..6).map(|_| vec![0.0f32; n_samples]).collect();
     let norm_factor = 1.5f32; // Sum of squares of the Hann window at 75% overlap
 
     let mut next_report = 1usize;
@@ -216,22 +237,8 @@ where
         while computed < f_end {
             let slot = &mut ring[computed % RING];
             let offset = computed * HOP_SIZE;
-            analyze_channel(
-                left,
-                offset,
-                &window,
-                &mut fft,
-                &mut slot.mag_l,
-                &mut slot.phase_l,
-            );
-            analyze_channel(
-                right,
-                offset,
-                &window,
-                &mut fft,
-                &mut slot.mag_r,
-                &mut slot.phase_r,
-            );
+            analyze_channel(&left, offset, &window, &mut fft, &mut slot.l);
+            analyze_channel(&right, offset, &window, &mut fft, &mut slot.r);
             computed += 1;
         }
         let f_start = f.saturating_sub(R_TIME);
@@ -242,20 +249,20 @@ where
             let k_start = k.saturating_sub(R_FREQ);
             let k_end = (k + R_FREQ + 1).min(num_bins);
             scratch.clear();
-            scratch.extend((f_start..f_end).map(|j| ring[j % RING].mag_l[k]));
+            scratch.extend((f_start..f_end).map(|j| ring[j % RING].l.mag[k]));
             let h_l = quick_median(&mut scratch);
             scratch.clear();
-            scratch.extend_from_slice(&cur.mag_l[k_start..k_end]);
+            scratch.extend_from_slice(&cur.l.mag[k_start..k_end]);
             let p_l = quick_median(&mut scratch);
             scratch.clear();
-            scratch.extend((f_start..f_end).map(|j| ring[j % RING].mag_r[k]));
+            scratch.extend((f_start..f_end).map(|j| ring[j % RING].r.mag[k]));
             let h_r = quick_median(&mut scratch);
             scratch.clear();
-            scratch.extend_from_slice(&cur.mag_r[k_start..k_end]);
+            scratch.extend_from_slice(&cur.r.mag[k_start..k_end]);
             let p_r = quick_median(&mut scratch);
 
-            let m_l = cur.mag_l[k];
-            let m_r = cur.mag_r[k];
+            let m_l = cur.l.mag[k];
+            let m_r = cur.r.mag[k];
 
             // HPSS Wiener masks (squared for a crisper separation)
             let mask_perc_l = (p_l * p_l) / (p_l * p_l + h_l * h_l + EPS);
@@ -269,17 +276,15 @@ where
             let pan_side = (diff / sum).min(1.0);
             let pan_center = (1.0 - 1.6 * pan_side).clamp(0.0, 1.0);
 
+            // Each stem's magnitude is `m × gain`; the gains below are those masks without `m`.
             // 1. DRUMS: every percussive component across the full range
-            let drums_l = m_l * mask_perc_l;
-            let drums_r = m_r * mask_perc_r;
-            let rem_h_l = m_l * mask_harm_l;
-            let rem_h_r = m_r * mask_harm_r;
+            let (drums_l, drums_r) = (mask_perc_l, mask_perc_r);
 
             // 2. BASS: centred harmonics below 220 Hz
             let (bass_l, bass_r) = if k <= bass_cutoff_bin {
                 let bass_weight = (1.0 - (k as f32 / bass_cutoff_bin as f32).powi(2)).max(0.0);
                 let bass_mask = bass_weight * (0.3 + 0.7 * pan_center);
-                (rem_h_l * bass_mask, rem_h_r * bass_mask)
+                (mask_harm_l * bass_mask, mask_harm_r * bass_mask)
             } else {
                 (0.0, 0.0)
             };
@@ -288,35 +293,30 @@ where
             let (vocals_l, vocals_r) = if k >= vocal_low_bin && k <= vocal_high_bin {
                 let vocal_mask = pan_center.powf(1.2);
                 (
-                    (rem_h_l - bass_l) * vocal_mask,
-                    (rem_h_r - bass_r) * vocal_mask,
+                    (mask_harm_l - bass_l) * vocal_mask,
+                    (mask_harm_r - bass_r) * vocal_mask,
                 )
             } else {
                 (0.0, 0.0)
             };
 
-            // 4. OTHER: the rest (guitars, keys, synths, reverb, panned backing vocals)
-            let other_l = (m_l - (drums_l + bass_l + vocals_l)).max(0.0);
-            let other_r = (m_r - (drums_r + bass_r + vocals_r)).max(0.0);
-
-            for (spec, v) in stem_spec.iter_mut().zip([
-                vocals_l, vocals_r, drums_l, drums_r, bass_l, bass_r, other_l, other_r,
-            ]) {
-                spec[k] = v;
+            // 4. OTHER (guitars, keys, synths, reverb, panned backing vocals) is the time-domain
+            // residual below.
+            for (gain, v) in stem_gain
+                .iter_mut()
+                .zip([vocals_l, vocals_r, drums_l, drums_r, bass_l, bass_r])
+            {
+                gain[k] = v;
             }
         }
 
         // Frame reconstruction (ISTFT + overlap-add) for every stem.
         let offset = f * HOP_SIZE;
-        for (i, (spec, out)) in stem_spec.iter().zip(rec.iter_mut()).enumerate() {
-            let phase = if i % 2 == 0 {
-                &cur.phase_l
-            } else {
-                &cur.phase_r
-            };
+        for (i, (gain, out)) in stem_gain.iter().zip(rec.iter_mut()).enumerate() {
+            let spectrum = if i % 2 == 0 { &cur.l } else { &cur.r };
             synth_frame(
-                spec,
-                phase,
+                gain,
+                spectrum,
                 &window,
                 norm_factor,
                 &mut fft,
@@ -348,15 +348,17 @@ where
     let (vocals_l, vocals_r) = (take(), take());
     let (drums_l, drums_r) = (take(), take());
     let (bass_l, bass_r) = (take(), take());
-    let (mut other_l, mut other_r) = (take(), take());
 
-    // 5. Exact residual correction: the stems must sum to the original
-    for i in 0..n_samples {
-        let sum_l = vocals_l[i] + drums_l[i] + bass_l[i] + other_l[i];
-        other_l[i] = (other_l[i] + (left[i] - sum_l)).clamp(-1.0, 1.0);
-        let sum_r = vocals_r[i] + drums_r[i] + bass_r[i] + other_r[i];
-        other_r[i] = (other_r[i] + (right[i] - sum_r)).clamp(-1.0, 1.0);
-    }
+    // 5. OTHER: the exact residual, so the stems sum to the original (in the input buffers).
+    let residual = |input: &mut Vec<f32>, v: &[f32], d: &[f32], b: &[f32]| {
+        input.truncate(n_samples);
+        for (i, s) in input.iter_mut().enumerate() {
+            *s = (*s - (v[i] + d[i] + b[i])).clamp(-1.0, 1.0);
+        }
+    };
+    residual(&mut left, &vocals_l, &drums_l, &bass_l);
+    residual(&mut right, &vocals_r, &drums_r, &bass_r);
+    let (other_l, other_r) = (left, right);
 
     StereoStems {
         vocals: (vocals_l, vocals_r),
@@ -366,22 +368,23 @@ where
     }
 }
 
-/// Reconstructs one FFT frame into the time domain with a synthesis window (overlap-add into `out`).
+/// Reconstructs one masked FFT frame (`gain[k] · X[k]`) into the time domain with a synthesis
+/// window (overlap-add into `out`).
 #[inline]
 fn synth_frame(
-    mag: &[f32],
-    phase: &[f32],
+    gain: &[f32],
+    spectrum: &ChannelSpectrum,
     window: &[f32],
     norm_factor: f32,
     fft: &mut FftScratch,
     out: &mut [f32],
 ) {
     let fft_size = window.len();
-    let num_bins = mag.len();
+    let num_bins = gain.len();
     fft.re.fill(0.0);
     fft.im.fill(0.0);
-    for k in 0..num_bins {
-        let (re, im) = (mag[k] * phase[k].cos(), mag[k] * phase[k].sin());
+    for (k, ((&g, &x_re), &x_im)) in gain.iter().zip(&spectrum.re).zip(&spectrum.im).enumerate() {
+        let (re, im) = (g * x_re, g * x_im);
         fft.re[k] = re;
         fft.im[k] = im;
         if k > 0 && k < num_bins - 1 {

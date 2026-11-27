@@ -99,7 +99,8 @@ impl Database {
             CREATE TABLE IF NOT EXISTS queue_state (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 queue_json TEXT NOT NULL,
-                updated_at INTEGER NOT NULL
+                updated_at INTEGER NOT NULL,
+                cursor_json TEXT
             );
 
             CREATE TABLE IF NOT EXISTS listening_history (
@@ -231,7 +232,7 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
             CREATE INDEX IF NOT EXISTS idx_tracks_album_id ON tracks(album_id);
             CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums(album_artist);
-            CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON playlist_tracks(playlist_id);
+            CREATE INDEX IF NOT EXISTS idx_playlist_tracks_pos ON playlist_tracks(playlist_id, position);
             CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track ON playlist_tracks(track_id);
             CREATE INDEX IF NOT EXISTS idx_tracks_dup_key ON tracks(LOWER(TRIM(title)), LOWER(TRIM(artist)));
             -- `tracks.path` already has an index from its UNIQUE constraint.
@@ -249,7 +250,6 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_stem_projects_hash ON stem_projects(track_hash);
             CREATE INDEX IF NOT EXISTS idx_stem_channels_proj ON stem_project_channels(project_id);
             CREATE INDEX IF NOT EXISTS idx_stem_mixes_proj ON stem_project_mixes(project_id);
-            CREATE INDEX IF NOT EXISTS idx_track_waveforms_track ON track_waveforms(track_id);
             "#,
         )
         .execute(&self.pool)
@@ -282,6 +282,9 @@ impl Database {
         if user_version < 7 {
             self.migrate_v7().await?;
         }
+        if user_version < 8 {
+            self.migrate_v8().await?;
+        }
 
         // Seed the default anime themes (make sure every theme exists)
         for theme in domain::default_themes() {
@@ -293,6 +296,10 @@ impl Database {
             self.set_app_setting("active_theme_id", "cyber-kitsune")
                 .await?;
         }
+
+        sqlx::query("PRAGMA optimize=0x10002;")
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
@@ -535,6 +542,35 @@ impl Database {
         sqlx::query("PRAGMA user_version = 7;")
             .execute(&mut *tx)
             .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Migration v8: drops redundant indexes (`idx_playlist_tracks_playlist`,
+    /// `idx_track_waveforms_track`), creates `idx_playlist_tracks_pos`, and adds
+    /// `queue_state.cursor_json` for cursor-only queue saves.
+    async fn migrate_v8(&self) -> Result<(), StorageError> {
+        let mut tx = self.pool.begin().await?;
+        let existing_qs: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM pragma_table_info('queue_state');")
+                .fetch_all(&mut *tx)
+                .await?;
+        if !existing_qs.iter().any(|c| c == "cursor_json") {
+            sqlx::query("ALTER TABLE queue_state ADD COLUMN cursor_json TEXT;")
+                .execute(&mut *tx)
+                .await?;
+        }
+        sqlx::query(
+            r#"
+            DROP INDEX IF EXISTS idx_playlist_tracks_playlist;
+            DROP INDEX IF EXISTS idx_track_waveforms_track;
+            CREATE INDEX IF NOT EXISTS idx_playlist_tracks_pos
+                ON playlist_tracks(playlist_id, position);
+            PRAGMA user_version = 8;
+            "#,
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(())
     }

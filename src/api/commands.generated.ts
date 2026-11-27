@@ -176,6 +176,7 @@ export const COMMAND_NAMES = [
   'set_reverb_params',
   'set_shuffle',
   'set_silence_trimming_config',
+  'set_spectrum_enabled',
   'set_stem_mixer_state',
   'set_stereo_widener',
   'set_tempo',

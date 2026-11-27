@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { RangeSlider } from '../ui';
 import { Volume, Volume1, Volume2, VolumeX } from '../ui/icons';
 import { useVolumeCurve } from '../../hooks/useVolumeCurve';
+import { useLiveVolume } from '../../state/livePlayback';
 import {
   DEFAULT_VOLUME_POSITION,
   gainToPosition,
@@ -15,10 +16,10 @@ import {
 const SHORTCUT_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
 
 export interface VolumeSliderProps {
-  /** Current linear gain (0..1), as in `PlaybackStatus.volume`. */
+  /** Fallback linear gain (0..1); live drag/animation updates come from `livePlayback`. */
   gain: number;
-  /** Receives the new linear gain; the slider position never leaves this component. */
-  onGainChange: (gain: number) => void;
+  /** Receives the new linear gain; `immediate = true` commits to `App` state (pointer release / preset). */
+  onGainChange: (gain: number, immediate?: boolean) => void;
   ariaLabel: string;
   title?: string;
   className?: string;
@@ -28,10 +29,11 @@ export interface VolumeSliderProps {
  * The one volume slider (dock, player, mini player, big screen). It shows the POSITION on the
  * user's volume curve and sends GAIN. Wheel: ±2% (Shift 0.5%, Ctrl 5%). Double-click: 70%.
  */
-export function VolumeSlider({ gain, onGainChange, ariaLabel, title, className }: VolumeSliderProps) {
+export function VolumeSlider({ gain: gainProp, onGainChange, ariaLabel, title, className }: VolumeSliderProps) {
+  const gain = useLiveVolume(gainProp);
   const [curve] = useVolumeCurve();
   const inputRef = useRef<HTMLInputElement>(null);
-  // The wheel listener is attached once; it reads the latest values through this ref.
+  // The wheel and pointer-up listeners read the latest values through this ref.
   const latestRef = useRef({ gain, curve, onGainChange });
   useEffect(() => {
     latestRef.current = { gain, curve, onGainChange };
@@ -61,8 +63,11 @@ export function VolumeSlider({ gain, onGainChange, ariaLabel, title, className }
       step={0.001}
       value={gainToPosition(gain, curve)}
       onChange={(position) => onGainChange(positionToGain(position, curve))}
-      onDoubleClick={() => onGainChange(positionToGain(DEFAULT_VOLUME_POSITION, curve))}
-      onPointerUp={(e) => e.currentTarget.blur()}
+      onDoubleClick={() => onGainChange(positionToGain(DEFAULT_VOLUME_POSITION, curve), true)}
+      onPointerUp={(e) => {
+        e.currentTarget.blur();
+        onGainChange(latestRef.current.gain, true);
+      }}
       onKeyDown={(e) => {
         // Hand the arrow keys and Space back to the global shortcuts.
         if (SHORTCUT_KEYS.includes(e.key)) e.currentTarget.blur();
@@ -74,14 +79,15 @@ export function VolumeSlider({ gain, onGainChange, ariaLabel, title, className }
 }
 
 export interface VolumeIconProps {
-  /** Linear gain (0..1); the icon follows the slider position on the active curve. */
+  /** Fallback linear gain (0..1); the icon follows live `livePlayback` volume updates. */
   gain: number;
   size?: number;
   className?: string;
 }
 
 /** Speaker icon with 0 / 1 / 2 waves by slider position, crossed out when muted. */
-export function VolumeIcon({ gain, size, className }: VolumeIconProps) {
+export function VolumeIcon({ gain: gainProp, size, className }: VolumeIconProps) {
+  const gain = useLiveVolume(gainProp);
   const [curve] = useVolumeCurve();
   const level = volumeIconFor(gainToPosition(gain, curve));
   const Icon = level === 'mute' ? VolumeX : level === 'low' ? Volume : level === 'mid' ? Volume1 : Volume2;

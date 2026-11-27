@@ -1,4 +1,6 @@
 import type { useAudioSettings } from './useAudioSettings';
+import { useShallowMemo } from './useShallowMemo';
+import { useStableCallback } from './useStableCallback';
 import type { TrackRecord } from '../types/library';
 import type { useLibraryManager } from './useLibraryManager';
 import type { useLibraryPlaybackActions } from './useLibraryPlaybackActions';
@@ -86,7 +88,38 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     } : {}),
     ...params,
   } as MainViewInputs & ManagerOutputs & Pick<UseMainRouterPropsParams, 'modals'>;
-  const playerProps: PlayerViewProps = {
+  const handleOpenStemProject = useStableCallback((pid: number) => {
+    p.setActiveStemProjectId(pid);
+    p.setIsStemStudioOpen(true);
+  });
+  const handleOpenCreateStemProject = useStableCallback(() => {
+    p.setCreateStemProjectTrack(p.currentPlayingTrack || null);
+    p.setIsCreateStemProjectOpen(true);
+  });
+  const handleOpenAddRadioStation = useStableCallback(() => {
+    p.setIsAddStationModalOpen(true);
+  });
+  const handleStatsPlayTrack = useStableCallback((track: TrackRecord) => {
+    if (p.handlePlayLibraryTrack) {
+      p.handlePlayLibraryTrack(track);
+    }
+  });
+  const handleStatsOpenModal = useStableCallback((track: TrackRecord) => {
+    if (p.setStatsModalTrack) {
+      p.setStatsModalTrack(track);
+    } else if (p.modals?.setStatsModalTrack) {
+      p.modals.setStatsModalTrack(track);
+    }
+  });
+  const handleStatsOpenRecap = useStableCallback(() => {
+    if (p.setIsRecapModalOpen) {
+      p.setIsRecapModalOpen(true);
+    } else if (p.modals?.setIsRecapModalOpen) {
+      p.modals.setIsRecapModalOpen(true);
+    }
+  });
+
+  const playerProps = useShallowMemo<PlayerViewProps>({
     layoutMaxWidth: p.layoutMaxWidth,
     language: p.language,
     loc: p.loc,
@@ -149,7 +182,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     handleDeleteBookmark: p.handleDeleteBookmark,
     handleJumpToBookmark: p.handleJumpToBookmark,
     queue: p.queue,
-    filteredQueueItems: p.filteredQueueItems,
     queueSearchQuery: p.queueSearchQuery,
     setQueueSearchQuery: p.setQueueSearchQuery,
     queueColumns: p.queueColumns,
@@ -168,13 +200,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     handlePlayQueueIndex: p.handlePlayQueueIndex,
     handleRemoveFromQueue: p.handleRemoveFromQueue,
     handleClearQueue: p.handleClearQueue,
-    totalQueueDurationMs: p.totalQueueDurationMs,
-    formatTotalDuration: p.formatTotalDuration,
-    queueListRef: p.queueListRef,
-    queueStartIndex: p.queueStartIndex,
-    queueEndIndex: p.queueEndIndex,
-    queueTopSpacer: p.queueTopSpacer,
-    queueBottomSpacer: p.queueBottomSpacer,
+    mainContentRef: p.mainContentRef,
     handleSeek: p.handleSeek,
     handleSeekPreview: p.handleSeekPreview,
     handleSeekCommit: p.handleSeekCommit,
@@ -200,9 +226,9 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     formatTime: p.formatTime,
     formatTimeMs: p.formatTimeMs,
     showMessage: p.showMessage,
-  };
+  });
 
-  const libraryProps: LibraryViewProps = {
+  const libraryProps = useShallowMemo<LibraryViewProps>({
     layoutMaxWidth: p.layoutMaxWidth,
     currentLang: p.language,
     language: p.language,
@@ -213,7 +239,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     sortedTracks: p.sortedTracks,
     filteredAlbums: p.filteredAlbums,
     sortedAlbums: p.sortedAlbums,
-    filteredArtists: p.filteredArtists,
     activeTrackId: p.activeTrackId,
     currentPlayingTrack: p.currentPlayingTrack,
     status: p.status,
@@ -305,9 +330,9 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     coverSyncProgress: p.coverSyncProgress,
     showMessage: p.showMessage,
     formatTime: p.formatTime,
-  };
+  });
 
-  const dspProps: DspStudioViewProps = {
+  const dspProps = useShallowMemo<DspStudioViewProps>({
     uiScale: p.uiScale,
     loc: p.loc,
     language: p.language,
@@ -370,9 +395,9 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     setIsAutoEqOpen: p.setIsAutoEqOpen,
     setIsDynamicsStudioOpen: p.setIsDynamicsStudioOpen,
     showMessage: p.showMessage,
-  };
+  });
 
-  const playlistsProps: PlaylistsViewProps = {
+  const playlistsProps = useShallowMemo<PlaylistsViewProps>({
     layoutMaxWidth: p.layoutMaxWidth,
     loc: p.loc,
     playlists: p.playlists,
@@ -394,21 +419,15 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     onOpenContainingFolder: p.handleOpenContainingFolder,
     onRemoveTrackFromPlaylist: p.handleRemoveTrackFromPlaylist,
     onOpenPlaylist: p.handleOpenPlaylist,
-  };
+  });
 
-  const stemProjectsProps: StemProjectsRouterProps = {
+  const stemProjectsProps = useShallowMemo<StemProjectsRouterProps>({
     currentLang: p.language,
-    onOpenProject: (pid: number) => {
-      p.setActiveStemProjectId(pid);
-      p.setIsStemStudioOpen(true);
-    },
-    onOpenCreateProject: () => {
-      p.setCreateStemProjectTrack(p.currentPlayingTrack || null);
-      p.setIsCreateStemProjectOpen(true);
-    },
-  };
+    onOpenProject: handleOpenStemProject,
+    onOpenCreateProject: handleOpenCreateStemProject,
+  });
 
-  const radioProps: RadioRouterProps = {
+  const radioProps = useShallowMemo<RadioRouterProps>({
     currentLang: p.language,
     currentStation: p.currentRadioStation,
     isPlaying: p.status?.state === 'Playing',
@@ -416,36 +435,20 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     customStations: p.customRadioStations,
     onPlayStation: p.handlePlayRadioStation,
     onStop: p.handleStop,
-    onOpenAddModal: () => p.setIsAddStationModalOpen(true),
+    onOpenAddModal: handleOpenAddRadioStation,
     onDeleteCustomStation: p.handleDeleteCustomStation,
-  };
+  });
 
-  const statsProps: StatsDashboardViewProps = {
+  const statsProps = useShallowMemo<StatsDashboardViewProps>({
     tracks: p.tracks || [],
     albums: p.albums || [],
     currentLang: p.language,
-    onPlayTrack: (track: TrackRecord) => {
-      if (p.handlePlayLibraryTrack) {
-        p.handlePlayLibraryTrack(track);
-      }
-    },
-    onOpenStatsModal: (track: TrackRecord) => {
-      if (p.setStatsModalTrack) {
-        p.setStatsModalTrack(track);
-      } else if (p.modals?.setStatsModalTrack) {
-        p.modals.setStatsModalTrack(track);
-      }
-    },
-    onOpenRecapModal: () => {
-      if (p.setIsRecapModalOpen) {
-        p.setIsRecapModalOpen(true);
-      } else if (p.modals?.setIsRecapModalOpen) {
-        p.modals.setIsRecapModalOpen(true);
-      }
-    },
-  };
+    onPlayTrack: handleStatsPlayTrack,
+    onOpenStatsModal: handleStatsOpenModal,
+    onOpenRecapModal: handleStatsOpenRecap,
+  });
 
-  return {
+  return useShallowMemo({
     playerProps,
     libraryProps,
     dspProps,
@@ -453,5 +456,5 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     stemProjectsProps,
     radioProps,
     statsProps,
-  };
+  });
 }

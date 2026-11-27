@@ -198,3 +198,33 @@ pub struct CachedTrackWaveform {
     pub analyzer_version: String,
     pub file_modified_time: i64,
 }
+
+/// Prepared scanned track payload for batched database persistence.
+#[derive(Debug, Clone)]
+pub struct ScannedTrack {
+    pub record: TrackRecord,
+    pub album_title: String,
+    pub album_artist: String,
+    pub year: Option<i64>,
+    pub cover_path: Option<String>,
+    pub release_mbid: Option<String>,
+}
+
+/// Lightweight index entry loaded once per library scan for skip and stale detection.
+#[derive(Debug, Clone)]
+pub struct TrackScanEntry {
+    pub id: i64,
+    pub album_id: Option<i64>,
+    pub file_size: i64,
+    pub modified_time: i64,
+    pub visited: bool,
+}
+
+/// Playback queue cursor/mode subset persisted independently from `items`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueueCursorState {
+    pub current_index: Option<usize>,
+    pub loop_mode: domain::queue::LoopMode,
+    pub shuffle: bool,
+    pub shuffle_cursor: usize,
+}

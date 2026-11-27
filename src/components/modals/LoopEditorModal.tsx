@@ -23,8 +23,12 @@ export interface LoopEditorModalProps {
   currentLang?: Language;
 }
 
-export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
-  isOpen,
+export const LoopEditorModal: React.FC<LoopEditorModalProps> = (props) => {
+  if (!props.isOpen) return null;
+  return <LoopEditorModalInner {...props} />;
+};
+
+const LoopEditorModalInner: React.FC<LoopEditorModalProps> = ({
   onClose,
   loopPointA,
   loopPointB,
@@ -44,15 +48,11 @@ export const LoopEditorModal: React.FC<LoopEditorModalProps> = ({
   const [inputB, setInputB] = useState('');
   const titleId = useId();
 
-  // Sync when the window opens
+  // Sync when loop bounds change while open
   useEffect(() => {
-    if (isOpen) {
-      setInputA(loopPointA !== null ? `${loopPointA}ms` : '');
-      setInputB(loopPointB !== null ? `${loopPointB}ms` : '');
-    }
-  }, [isOpen, loopPointA, loopPointB]);
-
-  if (!isOpen) return null;
+    setInputA(loopPointA !== null ? `${loopPointA}ms` : '');
+    setInputB(loopPointB !== null ? `${loopPointB}ms` : '');
+  }, [loopPointA, loopPointB]);
 
   const parsedA = parseTimeToMs(inputA);
   const parsedB = parseTimeToMs(inputB);

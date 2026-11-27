@@ -1,5 +1,6 @@
 import type { AppTab } from '../types/navigation';
 import { useEffect, useRef } from "react";
+import { currentPositionMs, currentVolume } from "../state/livePlayback";
 import type { PlaybackStatus } from "../types/player";
 import type { getTranslations } from "../i18n";
 import { fmt } from '../utils/fmt';
@@ -146,7 +147,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         if (e.ctrlKey || e.metaKey) {
           handleNext();
         } else {
-          const currentPos = statusRef.current.position_ms;
+          const currentPos = currentPositionMs(statusRef.current.position_ms);
           const duration = statusRef.current.duration_ms || 3600000;
           const newPos = Math.min(duration, currentPos + 5000);
           handleSeek(newPos);
@@ -161,7 +162,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
         if (e.ctrlKey || e.metaKey) {
           handlePrevious();
         } else {
-          const currentPos = statusRef.current.position_ms;
+          const currentPos = currentPositionMs(statusRef.current.position_ms);
           const newPos = Math.max(0, currentPos - 5000);
           handleSeek(newPos);
           showMessage(`Seek: -5s (${formatTime(newPos)})`);
@@ -172,7 +173,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // Up / Down arrow: slider position ±2% (Shift 0.5%, Ctrl 5%) on the user's volume curve
       if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const newVol = stepVolumeGain(statusRef.current.volume, volumeStepSize(e), volumeCurve);
+        const newVol = stepVolumeGain(currentVolume(statusRef.current.volume), volumeStepSize(e), volumeCurve);
         handleVolumeChange(newVol);
         showMessage(fmt(t.notifications.volumeMsg, formatVolumeValue(newVol)));
         return;
@@ -180,7 +181,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
 
       if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const newVol = stepVolumeGain(statusRef.current.volume, -volumeStepSize(e), volumeCurve);
+        const newVol = stepVolumeGain(currentVolume(statusRef.current.volume), -volumeStepSize(e), volumeCurve);
         handleVolumeChange(newVol);
         showMessage(fmt(t.notifications.volumeMsg, formatVolumeValue(newVol)));
         return;
@@ -203,7 +204,7 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // M: mute / unmute, restoring the level from before the mute
       if (e.code === 'KeyM' || e.key === 'm' || e.key === 'M') {
         e.preventDefault();
-        const wasMuted = statusRef.current.volume === 0;
+        const wasMuted = currentVolume(statusRef.current.volume) === 0;
         handleToggleMute();
         showMessage(wasMuted ? t.notifications.unmutedMsg : t.notifications.mutedMsg);
         return;
@@ -257,12 +258,12 @@ export function useHotkeysManager(props: UseHotkeysManagerProps) {
       // A, B, C: A-B loop points and clearing them
       if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        setLoopPointA(statusRef.current.position_ms);
+        setLoopPointA(currentPositionMs(statusRef.current.position_ms));
         return;
       }
       if (e.code === 'KeyB' || e.key === 'b' || e.key === 'B') {
         e.preventDefault();
-        setLoopPointB(statusRef.current.position_ms);
+        setLoopPointB(currentPositionMs(statusRef.current.position_ms));
         return;
       }
       if (e.code === 'KeyC' || e.key === 'c' || e.key === 'C') {

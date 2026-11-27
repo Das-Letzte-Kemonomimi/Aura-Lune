@@ -1,5 +1,6 @@
 import type { useLibraryManager } from '../../hooks/useLibraryManager';
-import React, { useCallback, useState } from "react";
+import { useArtistsIndex } from '../../hooks/useArtistsIndex';
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Clock,
   Disc,
@@ -43,7 +44,6 @@ export interface LibraryViewProps {
   sortedTracks: TrackRecord[];
   filteredAlbums: AlbumRecord[];
   sortedAlbums: AlbumRecord[];
-  filteredArtists: ArtistLibraryItem[];
   activeTrackId?: number | null;
   currentPlayingTrack?: TrackRecord | null;
   status: PlaybackStatus;
@@ -175,6 +175,24 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   const [artistSortOrder, setArtistSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedArtistName, setSelectedArtistName] = useState<string | null>(null);
 
+  const filteredArtists = useArtistsIndex({
+    tracks,
+    albums,
+    search: props.librarySearch,
+    unknownArtist: loc.stats.unknownArtist,
+    enabled: librarySubView === 'artists',
+  });
+
+  const totalArtistCount = useMemo(
+    () => new Set(tracks.map((track) => track.artist || loc.stats.unknownArtist)).size,
+    [tracks, loc.stats.unknownArtist],
+  );
+
+  const totalDurationMs = useMemo(
+    () => tracks.reduce((acc, track) => acc + track.duration_ms, 0),
+    [tracks],
+  );
+
   const formatAlbumDuration = useCallback((ms: number) => {
     if (!ms || ms <= 0) return "";
     const totalSec = Math.floor(ms / 1000);
@@ -217,7 +235,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
           <LibraryStat
             icon={<Clock size={20} className="text-accent-cyan" />}
             label={loc.library.totalDuration}
-            value={formatTime(tracks.reduce((acc, track) => acc + track.duration_ms, 0))}
+            value={formatTime(totalDurationMs)}
           />
         </div>
 
@@ -245,6 +263,8 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
       {/* Toolbar: Tracks/Albums/Artists views, live search and context-aware filters */}
       <LibraryToolbar
         {...props}
+        filteredArtists={filteredArtists}
+        totalArtistCount={totalArtistCount}
         artistSortField={artistSortField}
         setArtistSortField={setArtistSortField}
         artistSortOrder={artistSortOrder}
@@ -274,6 +294,7 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
       {librarySubView === 'artists' && (
         <LibraryArtistsView
           {...props}
+          filteredArtists={filteredArtists}
           t={t}
           artistSortField={artistSortField}
           artistSortOrder={artistSortOrder}

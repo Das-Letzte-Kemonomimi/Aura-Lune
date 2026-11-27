@@ -10,19 +10,32 @@ afterEach(() => {
   raf?.restore();
 });
 
-const reelTransforms = (container: HTMLElement) =>
-  [...container.querySelectorAll('g[transform^="rotate("]')].map((g) => g.getAttribute('transform'));
+/** Rotating overlays: CSS `rotate(…deg)` with the rotation centre given in viewBox space as `transform-origin`. */
+const rotatingParts = (container: HTMLElement) =>
+  [...container.querySelectorAll<HTMLElement>('div.will-change-transform')].map((el) => ({
+    origin: el.style.transformOrigin,
+    transform: el.style.transform,
+  }));
 
 describe('TapeDeckWidget', () => {
   it('spins both reels and the pinch roller while playing', () => {
     raf = installFakeRaf();
     const { container } = render(<TapeDeckWidget isPlaying positionMs={30_000} durationMs={180_000} />);
     for (let i = 0; i < 30; i++) raf.step(16);
-    const transforms = reelTransforms(container);
-    expect(transforms.length).toBeGreaterThanOrEqual(3);
-    expect(transforms.some((t) => t?.includes('65 75'))).toBe(true);
-    expect(transforms.some((t) => t?.includes('175 75'))).toBe(true);
-    expect(transforms.some((t) => t?.includes('158 135'))).toBe(true);
+    const parts = rotatingParts(container);
+    expect(parts).toHaveLength(3);
+    // Left reel (65, 75), right reel (175, 75) and pinch roller (158, 135) in the 240×155 viewBox
+    const centres = [
+      [65, 75],
+      [175, 75],
+      [158, 135],
+    ];
+    parts.forEach((part, i) => {
+      const [x, y] = part.origin.split(' ').map(parseFloat);
+      expect(x).toBeCloseTo((centres[i][0] / 240) * 100, 2);
+      expect(y).toBeCloseTo((centres[i][1] / 155) * 100, 2);
+    });
+    for (const part of parts) expect(part.transform).toMatch(/^rotate\(-?\d+(\.\d+)?deg\)$/);
   });
 
   it('keeps a single loop per reel while the position (reel radii) advances (regression: loop restarted on every tick)', () => {

@@ -1,6 +1,20 @@
-use desktop_integration::{DiscordRpcController, DiscordTrackInfo, DEFAULT_DISCORD_CLIENT_ID};
+use desktop_integration::{
+    next_reconnect_backoff, DiscordRpcController, DiscordTrackInfo, DEFAULT_DISCORD_CLIENT_ID,
+};
 use domain::PlaybackState;
 use std::time::Duration;
+
+#[test]
+fn test_discord_reconnect_backoff_schedule() {
+    let expected_ms = [1500, 3000, 6000, 12000, 24000, 48000, 60000, 60000, 60000];
+    for (attempt, &ms) in expected_ms.iter().enumerate() {
+        assert_eq!(
+            next_reconnect_backoff(attempt as u32),
+            Duration::from_millis(ms),
+            "attempt {attempt}"
+        );
+    }
+}
 
 #[tokio::test]
 async fn test_discord_rpc_controller_lifecycle() {

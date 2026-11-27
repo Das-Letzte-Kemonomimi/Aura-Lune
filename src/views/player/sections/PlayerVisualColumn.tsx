@@ -6,12 +6,25 @@ import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
+import { useLiveSelector } from '../../../state/livePlayback';
 import { arePlayerVisualColumnPropsEqual } from './playerVisualColumnMemo';
 import { cn } from '../../../utils/cn';
+import { coverUrlWithSize } from '../../../utils/mediaUrl';
 import { Button, SegmentedControl, StatusDot } from '../../../components/ui';
 
 export type PlayerVisualColumnProps = Pick<PlayerViewProps, 'nowPlayingVisualMode' | 'handleSelectNowPlayingVisualMode' | 'loc' | 'language' | 'currentCover' | 'currentPlayingTrack' | 'tracks' | 'handlePlayPause' | 'vinylRpm' | 'handleSelectVinylRpm' | 'setIsLoFiModalOpen' | 'tapeType' | 'handleSelectTapeType' | 'tapeSpeed' | 'handleSelectTapeSpeed' | 'currentAlbum' | 'handleOpenCoverPicker' | 'albums' | 'handleUploadCustomCoverDirect' | 'dspBadgeTitle' | 'dspBadgeText'> & {
   status: PlaybackStatus;
+};
+
+type LiveTapeDeckProps = Omit<React.ComponentProps<typeof TapeDeckWidget>, 'positionMs'> & {
+  fallbackPositionMs: number;
+};
+
+const LiveTapeDeck: React.FC<LiveTapeDeckProps> = ({ fallbackPositionMs, ...tapeProps }) => {
+  // Updates at most 1 Hz (per-second counter / reel radii) while Tape mode is visible.
+  const liveSecond = useLiveSelector((s) => (s.ready ? Math.floor(s.positionMs / 1000) : null));
+  const positionMs = liveSecond !== null ? liveSecond * 1000 : fallbackPositionMs;
+  return <TapeDeckWidget {...tapeProps} positionMs={positionMs} />;
 };
 
 const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
@@ -39,6 +52,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
   vinylRpm,
 }) => {
   // BPM of the current track: looked up in the library only when the track/library changes, not on every tick
+  const largeCover = coverUrlWithSize(currentCover, 768);
   const currentTrackId = status.current_track?.track_id;
   const currentTrackUri = status.current_track?.uri;
   const turntableBpm = useMemo(
@@ -74,7 +88,7 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
         {nowPlayingVisualMode === 'turntable' ? (
           <VinylTurntable
             currentLang={language}
-            coverUrl={currentCover}
+            coverUrl={largeCover}
             isPlaying={status.state === 'Playing'}
             tempo={status.tempo_ratio ?? 1.0}
             rate={status.rate_ratio ?? 1.0}
@@ -90,10 +104,10 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
             size={265}
           />
         ) : nowPlayingVisualMode === 'tape' ? (
-          <TapeDeckWidget
+          <LiveTapeDeck
             currentLang={language}
             isPlaying={status.state === 'Playing'}
-            positionMs={status.position_ms ?? 0}
+            fallbackPositionMs={status.position_ms ?? 0}
             durationMs={status.current_track?.duration_ms ?? 180000}
             tempo={status.tempo_ratio ?? 1.0}
             rate={status.rate_ratio ?? 1.0}
@@ -124,12 +138,12 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
               status.state === 'Playing' ? 'shadow-halo-xl shadow-accent-pink/45' : 'shadow-panel',
             )}
             style={{
-              background: currentCover
-                ? `url("${currentCover}") center/cover no-repeat`
+              background: largeCover
+                ? `url("${largeCover}") center/cover no-repeat`
                 : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
             }}
           >
-            {!currentCover && (
+            {!largeCover && (
               <div
                 className={cn(
                   'flex size-56 items-center justify-center rounded-full border-2 border-line',

@@ -1,6 +1,6 @@
 use audio_engine::{
-    calculate_file_sha256, get_analysis_capabilities, get_models_dir, get_stems_cache_dir,
-    verify_file_sha256, DeviceManager,
+    cached_file_sha256, calculate_file_sha256, get_analysis_capabilities, get_models_dir,
+    get_stems_cache_dir, verify_file_sha256, DeviceManager,
 };
 use domain::device::BluetoothCodec;
 use std::fs;
@@ -69,6 +69,24 @@ fn test_file_sha256_calculation() {
         "0000000000000000000000000000000000000000000000000000000000000000",
     );
     assert!(!failed);
+
+    let _ = fs::remove_file(test_file);
+}
+
+#[test]
+fn test_cached_file_sha256_rehashes_when_the_file_changes() {
+    let test_file =
+        std::env::temp_dir().join(format!("auralune_sha256_cache_{}.txt", std::process::id()));
+    fs::write(&test_file, b"first contents").unwrap();
+    let first = cached_file_sha256(&test_file).unwrap();
+    assert_eq!(first, calculate_file_sha256(&test_file).unwrap());
+    assert_eq!(cached_file_sha256(&test_file).unwrap(), first);
+
+    // A different size invalidates the entry even when the mtime does not move.
+    fs::write(&test_file, b"second, longer contents").unwrap();
+    let second = cached_file_sha256(&test_file).unwrap();
+    assert_ne!(second, first);
+    assert_eq!(second, calculate_file_sha256(&test_file).unwrap());
 
     let _ = fs::remove_file(test_file);
 }

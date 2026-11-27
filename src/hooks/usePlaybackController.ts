@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import { setSetting } from '../api/settings';
-import { livePlayback } from '../state/livePlayback';
+import { livePlayback, currentVolume, syncSpectrumEnabled } from '../state/livePlayback';
 import { shouldCommitStatus } from '../state/statusCommit';
 import { useTauriEvent } from './useTauriEvent';
 import type { PlaybackStatus } from '../types/playback';
@@ -106,7 +106,7 @@ export function usePlaybackController({
   const lastRecordedTrackRef = useRef<{ id: number; recorded: boolean }>({ id: -1, recorded: false });
   const lastTrackPositionMsRef = useRef<number>(0);
   const statusRef = useRef(status);
-  useEffect(() => {
+  useLayoutEffect(() => {
     statusRef.current = status;
   }, [status]);
 
@@ -196,6 +196,7 @@ export function usePlaybackController({
   const loopSeekPendingRef = useRef(false);
   const handleSeekRef = useRef<((val: number) => Promise<void>) | null>(null);
   const lastStatusEventAtRef = useRef(0);
+  const firstStatusLoggedRef = useRef(false);
 
   const applyStatus = useCallback((res: PlaybackStatus) => {
     const {
@@ -221,19 +222,22 @@ export function usePlaybackController({
       initialStartupPositionRef: curInitialStartupPositionRef,
     } = pollingDepsRef.current;
 
-    // "Live" frame: the position (unless the user is dragging the slider) and the spectrum.
+    // "Live" frame: position (unless seeking), spectrum, and volume (unless dragging).
+    const liveVol = isVolumeInteractingRef.current
+      ? currentVolume(statusRef.current.volume)
+      : res.volume;
     if (!isSeekingRef.current) {
       // After start-up (Stopped state) the UI shows the resume position from the saved session.
       const resumePos = pollingDepsRef.current.initialStartupPositionRef.current;
       const livePos = res.state === 'Stopped' && resumePos !== null ? resumePos : res.position_ms;
-      livePlayback.publish({ positionMs: livePos, spectrum: res.spectrum });
+      livePlayback.publish({ positionMs: livePos, spectrum: res.spectrum, volume: liveVol });
       statusRef.current = {
         ...statusRef.current,
         ...res,
-        volume: isVolumeInteractingRef.current ? statusRef.current.volume : res.volume,
+        volume: liveVol,
       };
-    } else if (res.spectrum) {
-      livePlayback.publish({ spectrum: res.spectrum });
+    } else {
+      livePlayback.publish({ spectrum: res.spectrum, volume: liveVol });
     }
 
     // The A-B loop is checked on every frame (~100 ms accuracy).
@@ -254,13 +258,14 @@ export function usePlaybackController({
       const targetVolume = isVolumeInteractingRef.current ? prev.volume : res.volume;
 
       if (res.state === 'Stopped' && curInitialStartupPositionRef.current !== null && prev.current_track) {
-        return {
+        const candidate = {
           ...res,
           position_ms: curInitialStartupPositionRef.current,
           duration_ms: prev.duration_ms || res.duration_ms,
           current_track: prev.current_track,
           volume: targetVolume,
         };
+        return shouldCommitStatus(prev, candidate) ? candidate : prev;
       }
       const merged = {
         ...res,
@@ -270,8 +275,11 @@ export function usePlaybackController({
       return shouldCommitStatus(prev, merged) ? merged : prev;
     });
 
-    if (res.replaygain_status) {
-      curSetReplaygainStatus(res.replaygain_status);
+    const rg = res.replaygain_status;
+    if (rg) {
+      curSetReplaygainStatus((prev) =>
+        prev[0] === rg[0] && prev[1] === rg[1] && prev[2] === rg[2] ? prev : rg,
+      );
     }
 
     if (res.current_track) {
@@ -394,14 +402,19 @@ export function usePlaybackController({
   }, []);
 
   useTauriEvent<PlaybackStatus>('auralune://playback-status', (res) => {
+    if (!firstStatusLoggedRef.current) {
+      firstStatusLoggedRef.current = true;
+      console.info(`[perf] first playback-status event at ${performance.now().toFixed(1)} ms`);
+    }
     lastStatusEventAtRef.current = Date.now();
     applyStatus(res);
   });
 
   // Start-up and fallback: the first status is fetched right away; if events stop
-  // arriving (e.g. an environment without the ticker), the status is polled once a second.
+  // arriving (e.g. an environment without the ticker), the status is polled while visible.
   useEffect(() => {
     let cancelled = false;
+    syncSpectrumEnabled();
     const fetchOnce = () => {
       invoke<PlaybackStatus>('get_status')
         .then((res) => {
@@ -413,7 +426,7 @@ export function usePlaybackController({
     };
     fetchOnce();
     const watchdog = setInterval(() => {
-      if (Date.now() - lastStatusEventAtRef.current > 1500) fetchOnce();
+      if (!document.hidden && Date.now() - lastStatusEventAtRef.current > 3000) fetchOnce();
     }, 1000);
     return () => {
       cancelled = true;
@@ -499,17 +512,18 @@ export function usePlaybackController({
   // 4. Transport Actions
   const handlePlayPause = useCallback(async () => {
     try {
-      if (status.state === 'Playing') {
+      const currentStatus = statusRef.current;
+      if (currentStatus.state === 'Playing') {
         await invoke('pause');
       } else {
-        const currentUri = status.current_track?.uri || filePath;
+        const currentUri = currentStatus.current_track?.uri || filePath;
         const targetResumePos = initialStartupPositionRef.current;
         // Only load if the engine has no loaded track duration yet (e.g. UI-only session restore).
         // Reloading unconditionally when `targetResumePos` is set would wipe the backend's position.
         const needsLoad =
           Boolean(currentUri) &&
-          !status.current_track?.duration_ms &&
-          (!status.duration_ms || status.duration_ms === 0);
+          !currentStatus.current_track?.duration_ms &&
+          (!currentStatus.duration_ms || currentStatus.duration_ms === 0);
         if (needsLoad && currentUri) {
           try {
             await invoke('load_file', { path: currentUri });
@@ -530,7 +544,7 @@ export function usePlaybackController({
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  }, [status, filePath, initialStartupPositionRef, showMessage, loc]);
+  }, [filePath, initialStartupPositionRef, showMessage, loc]);
 
   const handleStop = useCallback(async () => {
     try {
@@ -576,10 +590,11 @@ export function usePlaybackController({
       }
 
       if (isInstant) {
-        // Mode 1: Instant Response (direct, zero-delay IPC & optimistic UI update)
-        setStatus((prev) => ({ ...prev, volume: clamped }));
-
+        // Mode 1: Instant Response (direct IPC & live UI update; commit App state on pointer-up / immediate)
+        livePlayback.publish({ volume: clamped });
+        statusRef.current = { ...statusRef.current, volume: clamped };
         if (immediate) {
+          setStatus((prev) => ({ ...prev, volume: clamped }));
           if (volumeThrottleTimerRef.current) {
             if (typeof cancelAnimationFrame !== 'undefined') {
               cancelAnimationFrame(volumeThrottleTimerRef.current);
@@ -634,8 +649,8 @@ export function usePlaybackController({
             showMessage(`${loc.common.errorPrefix} ${e}`, true);
           });
 
-          // Frontend smoothly animates the visual slider position
-          const startVol = statusRef.current.volume;
+          // Frontend smoothly animates the visual slider via livePlayback (one App commit at end)
+          const startVol = currentVolume(statusRef.current.volume);
           const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
           const duration = 120;
 
@@ -646,23 +661,29 @@ export function usePlaybackController({
               // Cosine S-curve easing
               const factor = 0.5 * (1 - Math.cos(Math.PI * progress));
               const currentVal = startVol + (clamped - startVol) * factor;
-              setStatus((prev) => ({ ...prev, volume: currentVal }));
+              livePlayback.publish({ volume: currentVal });
+              statusRef.current = { ...statusRef.current, volume: currentVal };
               if (progress < 1) {
                 smoothVolumeAnimRef.current = requestAnimationFrame(animate);
               } else {
+                livePlayback.publish({ volume: clamped });
+                statusRef.current = { ...statusRef.current, volume: clamped };
                 setStatus((prev) => ({ ...prev, volume: clamped }));
                 smoothVolumeAnimRef.current = null;
               }
             };
             smoothVolumeAnimRef.current = requestAnimationFrame(animate);
           } else {
+            livePlayback.publish({ volume: clamped });
+            statusRef.current = { ...statusRef.current, volume: clamped };
             setStatus((prev) => ({ ...prev, volume: clamped }));
           }
           return;
         }
 
-        // When dragging in smooth mode, UI tracks cursor directly while engine micro-eases
-        setStatus((prev) => ({ ...prev, volume: clamped }));
+        // When dragging in smooth mode, live UI tracks cursor without App re-renders
+        livePlayback.publish({ volume: clamped });
+        statusRef.current = { ...statusRef.current, volume: clamped };
         pendingVolumeRef.current = clamped;
         if (!volumeThrottleTimerRef.current) {
           invoke('set_volume', { volume: clamped, smooth: true, fadeMs: 60 }).catch((e: unknown) => {

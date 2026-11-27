@@ -5,6 +5,7 @@ import { SpectrumVisualizer } from '../../../components/player/SpectrumVisualize
 import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
+import { useLiveVolume } from '../../../state/livePlayback';
 import { formatTime } from '../../../utils/timeFormat';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
@@ -50,12 +51,14 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
   spectrum,
   t,
   tempoRatio,
-  volume,
+  volume: volumeProp,
   volumeUnit,
   waveformBands,
   waveformPeaks,
   isWaveformLoading,
-}) => (
+}) => {
+  const volume = useLiveVolume(volumeProp);
+  return (
     <div
       className={cn(
         'flex flex-col gap-3 transition-opacity duration-300',
@@ -198,4 +201,5 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
         </div>
       </div>
     </div>
-);
+  );
+};

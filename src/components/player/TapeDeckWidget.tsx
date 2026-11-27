@@ -2,7 +2,8 @@ import React, { useState, useEffect, useId, useRef } from 'react';
 import { CassetteTape, Sparkles } from '../ui/icons';
 import { vinylSimulator, type VinylSimConfig } from '../../utils/vinylSimulator';
 import { getTranslations, type Language } from '../../i18n';
-import { useInertialSpin } from '../../hooks/useInertialSpin';
+import { useFrameLoop } from '../../hooks/useFrameLoop';
+import { stepSpin, type SpinState } from '../../utils/inertialSpin';
 import { playbackSpeed } from '../../utils/playbackSpeed';
 import { tauFromFrameLerp } from '../../utils/smoothing';
 import { Chip } from '../ui';
@@ -10,6 +11,11 @@ import { Chip } from '../ui';
 // Former reel inertia: 0.09 (spin-up) / 0.05 (braking) per 60 Hz frame => ~0.18 s / ~0.33 s
 const REEL_TAU_UP = tauFromFrameLerp(0.09);
 const REEL_TAU_DOWN = tauFromFrameLerp(0.05);
+/** Reel animation cap: the spokes are 3-fold symmetric, so 30 fps reads as smooth and halves the work. */
+const REEL_MAX_FPS = 30;
+
+/** Rotation centre of an element inside the 240×155 SVG viewBox, as a CSS `transform-origin`. */
+const viewBoxOrigin = (x: number, y: number) => `${(x / 240) * 100}% ${(y / 155) * 100}%`;
 
 const AnalogLoFiModal = React.lazy(() =>
   import('../modals/AnalogLoFiModal').then((m) => ({ default: m.AnalogLoFiModal }))
@@ -157,9 +163,11 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
   const progress = durationMs > 0 ? Math.min(1.0, Math.max(0.0, positionMs / durationMs)) : 0.0;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const leftSpoolRef = useRef<SVGGElement | null>(null);
-  const rightSpoolRef = useRef<SVGGElement | null>(null);
-  const pinchRollerRef = useRef<SVGGElement | null>(null);
+  // Reels and the pinch roller sit in HTML wrappers rotated with a CSS transform (compositor-only),
+  // instead of rewriting an SVG `transform` attribute (a full SVG repaint) on every frame.
+  const leftSpoolRef = useRef<HTMLDivElement | null>(null);
+  const rightSpoolRef = useRef<HTMLDivElement | null>(null);
+  const pinchRollerRef = useRef<HTMLDivElement | null>(null);
 
   // Tape wind radii (the left one shrinks, the right one grows)
   const leftTapeRadius = 38 - progress * 20; // 38 -> 18
@@ -171,34 +179,45 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
 
   // As on a reel-to-reel deck: angular speed ω = v / r. Both reels turn left
   // (the tape runs along the bottom from left to right). The parameters reach the loop through a ref, so changing the radius,
-  // tempo or tape speed does not restart it, and the loop sleeps once stopped.
-  useInertialSpin({
-    targetDegPerSec: isPlaying ? (baseLinearVelocity / leftTapeRadius) * 36 : 0,
-    playing: isPlaying,
-    tauUp: REEL_TAU_UP,
-    tauDown: REEL_TAU_DOWN,
-    direction: -1,
-    target: rootRef,
-    apply: (angle) => {
-      leftSpoolRef.current?.setAttribute('transform', `rotate(${angle.toFixed(2)} 65 75)`);
-    },
+  // tempo or tape speed does not restart it, and the loop sleeps once stopped. One loop drives both reels.
+  const leftTargetDegPerSec = isPlaying ? (baseLinearVelocity / leftTapeRadius) * 36 : 0;
+  const rightTargetDegPerSec = isPlaying ? (baseLinearVelocity / rightTapeRadius) * 36 : 0;
+  const pinchRatio = tapeSpeed === '7.5' ? 2.4 : 1.2;
+  const spinParamsRef = useRef({ leftTargetDegPerSec, rightTargetDegPerSec, isPlaying, pinchRatio });
+  useEffect(() => {
+    spinParamsRef.current = { leftTargetDegPerSec, rightTargetDegPerSec, isPlaying, pinchRatio };
   });
-  useInertialSpin({
-    targetDegPerSec: isPlaying ? (baseLinearVelocity / rightTapeRadius) * 36 : 0,
-    playing: isPlaying,
-    tauUp: REEL_TAU_UP,
-    tauDown: REEL_TAU_DOWN,
-    direction: -1,
-    target: rootRef,
-    apply: (angle) => {
-      rightSpoolRef.current?.setAttribute('transform', `rotate(${angle.toFixed(2)} 175 75)`);
-      // Pinch roller driven from the right reel
-      pinchRollerRef.current?.setAttribute(
-        'transform',
-        `rotate(${((angle * (tapeSpeed === '7.5' ? 2.4 : 1.2)) % 360).toFixed(2)} 158 135)`
-      );
-    },
+  const reelsRef = useRef<{ left: SpinState; right: SpinState }>({
+    left: { angle: 0, speed: 0 },
+    right: { angle: 0, speed: 0 },
   });
+
+  const { wake: wakeReels } = useFrameLoop(
+    ({ dt }) => {
+      const p = spinParamsRef.current;
+      const reels = reelsRef.current;
+      const left = stepSpin(reels.left, p.leftTargetDegPerSec, p.isPlaying, dt, REEL_TAU_UP, REEL_TAU_DOWN, -1);
+      const right = stepSpin(reels.right, p.rightTargetDegPerSec, p.isPlaying, dt, REEL_TAU_UP, REEL_TAU_DOWN, -1);
+      reels.left = left;
+      reels.right = right;
+      if (left.speed > 0.01 && leftSpoolRef.current) {
+        leftSpoolRef.current.style.transform = `rotate(${left.angle.toFixed(2)}deg)`;
+      }
+      if (right.speed > 0.01) {
+        if (rightSpoolRef.current) rightSpoolRef.current.style.transform = `rotate(${right.angle.toFixed(2)}deg)`;
+        // Pinch roller driven from the right reel
+        if (pinchRollerRef.current) {
+          pinchRollerRef.current.style.transform = `rotate(${((right.angle * p.pinchRatio) % 360).toFixed(2)}deg)`;
+        }
+      }
+      return !(left.settled && right.settled);
+    },
+    { maxFps: REEL_MAX_FPS, target: rootRef },
+  );
+
+  useEffect(() => {
+    wakeReels();
+  }, [leftTargetDegPerSec, rightTargetDegPerSec, isPlaying, wakeReels]);
 
   // Tape counter (4 digits): ticks 2x faster at 7.5 IPS
   const tapeCounterVal = Math.floor((positionMs / 1000) * (tapeSpeed === '7.5' ? 3.2 : 1.6));
@@ -257,99 +276,111 @@ export const TapeDeckWidget: React.FC<TapeDeckWidgetProps> = ({
         </div>
       </div>
 
-      {/* Reels and head view (SVG) */}
+      {/* Reels and head view (SVG). The wrapper has the viewBox aspect ratio, so the rotating overlays
+          (each a full-size SVG with the same viewBox) line up exactly with the static layer. */}
       <div className="relative flex h-36.5 w-full justify-center">
-        <svg
-          viewBox="0 0 240 155"
-          className="h-full w-full overflow-visible"
-        >
-          <defs>
-            {/* Dynamic magnetic tape gradient (FE-I vs CR-II vs METAL) */}
-            <radialGradient id={packGradId} cx="50%" cy="50%" r="50%">
-              <stop offset="60%" stopColor={currentTheme.tapePackStart} />
-              <stop offset="90%" stopColor={currentTheme.tapePackMid} />
-              <stop offset="100%" stopColor={currentTheme.tapePackEnd} />
-            </radialGradient>
+        <div className="relative aspect-[240/155] h-full max-w-full">
+          <svg
+            viewBox="0 0 240 155"
+            className="absolute inset-0 h-full w-full overflow-visible"
+          >
+            <defs>
+              {/* Dynamic magnetic tape gradient (FE-I vs CR-II vs METAL) */}
+              <radialGradient id={packGradId} cx="50%" cy="50%" r="50%">
+                <stop offset="60%" stopColor={currentTheme.tapePackStart} />
+                <stop offset="90%" stopColor={currentTheme.tapePackMid} />
+                <stop offset="100%" stopColor={currentTheme.tapePackEnd} />
+              </radialGradient>
 
-            {/* Dynamic NAB reel gradient (aluminium vs titanium vs gold) */}
-            <linearGradient id={spoolGradId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.spoolStart} />
-              <stop offset="50%" stopColor={currentTheme.spoolMid} />
-              <stop offset="100%" stopColor={currentTheme.spoolEnd} />
-            </linearGradient>
-          </defs>
+              {/* Dynamic NAB reel gradient (aluminium vs titanium vs gold) */}
+              <linearGradient id={spoolGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={currentTheme.spoolStart} />
+                <stop offset="50%" stopColor={currentTheme.spoolMid} />
+                <stop offset="100%" stopColor={currentTheme.spoolEnd} />
+              </linearGradient>
+            </defs>
 
-          {/* Head mechanism base */}
-          <rect x="30" y="20" width="180" height="120" rx="8" fill="rgba(10, 8, 18, 0.6)" stroke="rgba(255,255,255,0.06)" />
+            {/* Head mechanism base */}
+            <rect x="30" y="20" width="180" height="120" rx="8" fill="rgba(10, 8, 18, 0.6)" stroke="rgba(255,255,255,0.06)" />
 
-          {/* Studio tape label badge */}
-          <rect
-            x="86"
-            y="28"
-            width="68"
-            height="28"
-            rx="3"
-            fill={currentTheme.badgeBg}
-            stroke={currentTheme.badgeBorder}
-            strokeWidth="0.8"
-          />
-          <line x1="86" y1="42" x2="154" y2="42" stroke={currentTheme.badgeBorder} strokeWidth="0.5" strokeOpacity="0.5" />
-          <text x="120" y="38" textAnchor="middle" fill={currentTheme.badgeText} fontSize="5.2" fontWeight="bold" className="font-mono">
-            {displayArtist.length > 14 ? `${displayArtist.slice(0, 12)}...` : displayArtist}
-          </text>
-          <text x="120" y="48" textAnchor="middle" fontSize="5.8" fontWeight="bold" className="font-mono fill-fg">
-            {displayTitle.length > 13 ? `${displayTitle.slice(0, 11)}...` : displayTitle}
-          </text>
-          <text x="120" y="54" textAnchor="middle" fill={currentTheme.accentColor} fontSize="4.2" fontWeight="bold" className="font-mono">
-            {currentTheme.biasLabel}
-          </text>
+            {/* Studio tape label badge */}
+            <rect
+              x="86"
+              y="28"
+              width="68"
+              height="28"
+              rx="3"
+              fill={currentTheme.badgeBg}
+              stroke={currentTheme.badgeBorder}
+              strokeWidth="0.8"
+            />
+            <line x1="86" y1="42" x2="154" y2="42" stroke={currentTheme.badgeBorder} strokeWidth="0.5" strokeOpacity="0.5" />
+            <text x="120" y="38" textAnchor="middle" fill={currentTheme.badgeText} fontSize="5.2" fontWeight="bold" className="font-mono">
+              {displayArtist.length > 14 ? `${displayArtist.slice(0, 12)}...` : displayArtist}
+            </text>
+            <text x="120" y="48" textAnchor="middle" fontSize="5.8" fontWeight="bold" className="font-mono fill-fg">
+              {displayTitle.length > 13 ? `${displayTitle.slice(0, 11)}...` : displayTitle}
+            </text>
+            <text x="120" y="54" textAnchor="middle" fill={currentTheme.accentColor} fontSize="4.2" fontWeight="bold" className="font-mono">
+              {currentTheme.biasLabel}
+            </text>
 
-          {/* Tape path joining the reels and heads */}
-          <path
-            d="M 65 110 L 85 132 L 120 130 L 155 132 L 175 110"
-            fill="none"
-            stroke={currentTheme.tapePath}
-            strokeWidth="3.2"
-            strokeLinecap="round"
-          />
+            {/* Tape path joining the reels and heads */}
+            <path
+              d="M 65 110 L 85 132 L 120 130 L 155 132 L 175 110"
+              fill="none"
+              stroke={currentTheme.tapePath}
+              strokeWidth="3.2"
+              strokeLinecap="round"
+            />
 
-          {/* --- LEFT REEL (feed reel) --- */}
-          <circle cx="65" cy="75" r={leftTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
-          <g ref={leftSpoolRef}>
-            <circle cx="65" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
-            <circle cx="65" cy="75" r="14" fill={currentTheme.spoolHub} stroke={currentTheme.spoolMid} strokeWidth="1.5" />
-            <circle cx="65" cy="75" r="4" fill="#0f172a" />
-            <path d="M 65 61 L 62 42 L 68 42 Z" fill={`url(#${spoolGradId})`} />
-            <path d="M 53 82 L 36 92 L 39 97 Z" fill={`url(#${spoolGradId})`} />
-            <path d="M 77 82 L 94 92 L 91 97 Z" fill={`url(#${spoolGradId})`} />
-          </g>
+            {/* --- LEFT REEL (feed reel); the spool rotates in an overlay below --- */}
+            <circle cx="65" cy="75" r={leftTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
 
-          {/* --- RIGHT REEL (take-up reel) --- */}
-          <circle cx="175" cy="75" r={rightTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
-          <g ref={rightSpoolRef}>
-            <circle cx="175" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
-            <circle cx="175" cy="75" r="14" fill={currentTheme.spoolHub} stroke={currentTheme.spoolMid} strokeWidth="1.5" />
-            <circle cx="175" cy="75" r="4" fill="#0f172a" />
-            <path d="M 175 61 L 172 42 L 178 42 Z" fill={`url(#${spoolGradId})`} />
-            <path d="M 163 82 L 146 92 L 149 97 Z" fill={`url(#${spoolGradId})`} />
-            <path d="M 187 82 L 204 92 L 201 97 Z" fill={`url(#${spoolGradId})`} />
-          </g>
+            {/* --- RIGHT REEL (take-up reel) --- */}
+            <circle cx="175" cy="75" r={rightTapeRadius} fill={`url(#${packGradId})`} stroke={currentTheme.badgeBorder} strokeWidth="0.6" />
 
-          {/* Guide rollers and the studio head block */}
-          <circle cx="85" cy="132" r="6" fill="#475569" stroke="#94a3b8" strokeWidth="1.2" />
-          <circle cx="85" cy="132" r="2" fill="#0f172a" />
+            {/* Guide rollers and the studio head block */}
+            <circle cx="85" cy="132" r="6" fill="#475569" stroke="#94a3b8" strokeWidth="1.2" />
+            <circle cx="85" cy="132" r="2" fill="#0f172a" />
 
-          {/* Playback head */}
-          <rect x="111" y="123" width="18" height="14" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="1.2" />
-          <line x1="120" y1="123" x2="120" y2="137" stroke={currentTheme.accentColor} strokeWidth="1.4" />
+            {/* Playback head */}
+            <rect x="111" y="123" width="18" height="14" rx="2" fill="#1e293b" stroke="#cbd5e1" strokeWidth="1.2" />
+            <line x1="120" y1="123" x2="120" y2="137" stroke={currentTheme.accentColor} strokeWidth="1.4" />
 
-          {/* Capstan and rubber pinch roller */}
-          <circle cx="147" cy="128" r="3" fill="#cbd5e1" />
-          <g ref={pinchRollerRef}>
-            <circle cx="158" cy="135" r="7" fill="#18181b" stroke="#52525b" strokeWidth="1.5" />
-            <circle cx="158" cy="135" r="2" fill="#a1a1aa" />
-          </g>
-        </svg>
+            {/* Capstan */}
+            <circle cx="147" cy="128" r="3" fill="#cbd5e1" />
+          </svg>
+
+          {/* Rotating parts: compositor-only CSS rotation around their centre in viewBox space.
+              None of them overlaps a static part drawn after it, so stacking them on top keeps the picture. */}
+          <div ref={leftSpoolRef} className="pointer-events-none absolute inset-0 will-change-transform" style={{ transformOrigin: viewBoxOrigin(65, 75) }}>
+            <svg viewBox="0 0 240 155" className="h-full w-full overflow-visible">
+              <circle cx="65" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
+              <circle cx="65" cy="75" r="14" fill={currentTheme.spoolHub} stroke={currentTheme.spoolMid} strokeWidth="1.5" />
+              <circle cx="65" cy="75" r="4" fill="#0f172a" />
+              <path d="M 65 61 L 62 42 L 68 42 Z" fill={`url(#${spoolGradId})`} />
+              <path d="M 53 82 L 36 92 L 39 97 Z" fill={`url(#${spoolGradId})`} />
+              <path d="M 77 82 L 94 92 L 91 97 Z" fill={`url(#${spoolGradId})`} />
+            </svg>
+          </div>
+          <div ref={rightSpoolRef} className="pointer-events-none absolute inset-0 will-change-transform" style={{ transformOrigin: viewBoxOrigin(175, 75) }}>
+            <svg viewBox="0 0 240 155" className="h-full w-full overflow-visible">
+              <circle cx="175" cy="75" r="42" fill="none" stroke={`url(#${spoolGradId})`} strokeWidth="1.8" />
+              <circle cx="175" cy="75" r="14" fill={currentTheme.spoolHub} stroke={currentTheme.spoolMid} strokeWidth="1.5" />
+              <circle cx="175" cy="75" r="4" fill="#0f172a" />
+              <path d="M 175 61 L 172 42 L 178 42 Z" fill={`url(#${spoolGradId})`} />
+              <path d="M 163 82 L 146 92 L 149 97 Z" fill={`url(#${spoolGradId})`} />
+              <path d="M 187 82 L 204 92 L 201 97 Z" fill={`url(#${spoolGradId})`} />
+            </svg>
+          </div>
+          <div ref={pinchRollerRef} className="pointer-events-none absolute inset-0 will-change-transform" style={{ transformOrigin: viewBoxOrigin(158, 135) }}>
+            <svg viewBox="0 0 240 155" className="h-full w-full overflow-visible">
+              <circle cx="158" cy="135" r="7" fill="#18181b" stroke="#52525b" strokeWidth="1.5" />
+              <circle cx="158" cy="135" r="2" fill="#a1a1aa" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* Bottom control bar and reel-to-reel selectors */}

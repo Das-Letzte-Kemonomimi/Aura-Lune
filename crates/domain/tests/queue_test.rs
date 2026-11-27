@@ -166,3 +166,27 @@ fn set_active_item_keeps_queue_entry_and_shuffle_position() {
     q.next();
     assert_eq!(q.current_index, Some(expected));
 }
+
+#[test]
+fn test_extend_appends_items_and_builds_shuffle_order_once() {
+    let mk = |id: &str| QueueItem {
+        id: id.into(),
+        track_id: None,
+        uri: format!("file:///{id}.flac"),
+        title: id.into(),
+        artist: "Artist".into(),
+        album: None,
+        duration_ms: 1000,
+    };
+    let mut q = PlaybackQueue::new();
+    q.extend(Vec::new());
+    assert!(q.items.is_empty());
+    assert_eq!(q.current_index, None);
+
+    q.set_shuffle(true);
+    q.extend((1..=5).map(|i| mk(&format!("t{i}"))));
+    assert_eq!(q.items.len(), 5);
+    assert_eq!(q.current_index, Some(0));
+    assert_eq!(q.shuffle_order.len(), 5);
+    assert_eq!(q.shuffle_order[0], 0);
+}

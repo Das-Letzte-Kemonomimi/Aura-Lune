@@ -236,7 +236,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <table className="w-full table-fixed border-collapse text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md">
+            <thead className="sticky top-0 z-10 bg-ink/95">
               <tr className="h-10.5 border-b border-line text-fg-muted">
                 <SortableTh field="default" {...sortProps} title={loc.library.sortDefaultTooltip} className="w-11 px-1.5 text-center">#</SortableTh>
                 <SortableTh field="title" {...sortProps} title={loc.library.sortTitleTooltip} className="px-2.5">{loc.library.sortTitle}</SortableTh>

@@ -32,13 +32,16 @@ impl AudioEngine {
 
         if (old_speed - new_speed).abs() > 1e-4 || inner.dsp_params.engine != params.engine {
             let current_media =
-                Self::calculate_media_position(&inner).unwrap_or(inner.base_media_pos);
+                Self::calculate_media_position(&mut inner).unwrap_or(inner.base_media_pos);
             let current_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
             inner.base_media_pos = current_media;
             inner.base_sink_pts = current_sink;
         }
 
         inner.dsp.set_params(params)?;
+        if inner.dsp_params.engine != params.engine {
+            inner.cached_capabilities = params.engine.capabilities();
+        }
         inner.dsp_params = params;
         debug!(
             "DSP updated: engine={:?}, pitch={:.2} st, tempo={:.2}x, rate={:.2}x",
@@ -47,7 +50,8 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Sets the reverb parameters.
+    /// Sets the reverb parameters, dynamically linking or unlinking `freeverb` between `auralune_dsp`
+    /// and `equalizer_10bands` via an `IDLE` pad probe when enabled state changes.
     pub fn set_reverb_params(
         &self,
         enabled: bool,
@@ -56,24 +60,143 @@ impl AudioEngine {
         width: f64,
         level: f64,
     ) {
-        let mut inner = self.inner.lock_safe();
-        inner.reverb_enabled = enabled;
-        inner.reverb_room_size = room_size.clamp(0.0, 1.0);
-        inner.reverb_damping = damping.clamp(0.0, 1.0);
-        inner.reverb_width = width.clamp(0.0, 1.0);
-        inner.reverb_level = level.clamp(0.0, 1.0);
+        let _reverb_guard = self.reverb_switch_lock.lock_safe();
 
-        if let Some(ref fv) = inner.freeverb {
-            let actual_level = if enabled {
-                inner.reverb_level as f32
+        let relink_targets = {
+            let mut inner = self.inner.lock_safe();
+            inner.reverb_enabled = enabled;
+            inner.reverb_room_size = room_size.clamp(0.0, 1.0);
+            inner.reverb_damping = damping.clamp(0.0, 1.0);
+            inner.reverb_width = width.clamp(0.0, 1.0);
+            inner.reverb_level = level.clamp(0.0, 1.0);
+            self.reverb_target.store(enabled, Ordering::Release);
+
+            if let Some(ref fv) = inner.freeverb {
+                let actual_level = if enabled {
+                    inner.reverb_level as f32
+                } else {
+                    0.0f32
+                };
+                fv.set_property("level", actual_level);
+                fv.set_property("room-size", inner.reverb_room_size as f32);
+                fv.set_property("damping", inner.reverb_damping as f32);
+                fv.set_property("width", inner.reverb_width as f32);
+
+                let linked = Self::is_fv_linked(inner.dsp.upcast_ref(), fv);
+                if linked != enabled || self.reverb_probe_pending.load(Ordering::Acquire) {
+                    Some((
+                        inner.pipeline.clone(),
+                        inner.dsp.upcast_ref::<gst::Element>().clone(),
+                        fv.clone(),
+                        inner.equalizer.clone(),
+                    ))
+                } else {
+                    None
+                }
             } else {
-                0.0f32
-            };
-            fv.set_property("level", actual_level);
-            fv.set_property("room-size", inner.reverb_room_size as f32);
-            fv.set_property("damping", inner.reverb_damping as f32);
-            fv.set_property("width", inner.reverb_width as f32);
+                None
+            }
+        };
+
+        if let Some((pipeline, dsp_elem, fv, equalizer)) = relink_targets {
+            self.relink_reverb(pipeline, dsp_elem, fv, equalizer, enabled);
         }
+    }
+
+    pub(super) fn is_fv_linked(dsp_elem: &gst::Element, fv: &gst::Element) -> bool {
+        dsp_elem
+            .static_pad("src")
+            .and_then(|pad| pad.peer())
+            .and_then(|peer| peer.parent_element())
+            .is_some_and(|parent| parent == *fv)
+    }
+
+    fn relink_reverb(
+        &self,
+        pipeline: gst::Pipeline,
+        dsp_elem: gst::Element,
+        fv: gst::Element,
+        equalizer: gst::Element,
+        enable: bool,
+    ) {
+        // Ensure `freeverb` matches the pipeline state before linking it in.
+        if enable {
+            fv.set_locked_state(false);
+            let _ = fv.sync_state_with_parent();
+        }
+
+        // If a deferred probe from a paused state is already armed, updating `reverb_target`
+        // (done above) is sufficient; avoid stacking redundant `IDLE` probes.
+        if self.reverb_probe_pending.swap(true, Ordering::AcqRel) {
+            return;
+        }
+
+        let Some(dsp_src) = dsp_elem.static_pad("src") else {
+            self.reverb_probe_pending.store(false, Ordering::Release);
+            return;
+        };
+
+        let target = Arc::clone(&self.reverb_target);
+        let pending = Arc::clone(&self.reverb_probe_pending);
+        let done = Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
+        let done_probe = Arc::clone(&done);
+        let fv_probe = fv.clone();
+        let dsp_probe = dsp_elem.clone();
+        let eq_probe = equalizer.clone();
+
+        dsp_src.add_probe(gst::PadProbeType::IDLE, move |_pad, _info| {
+            let want = target.load(Ordering::Acquire);
+            let linked = AudioEngine::is_fv_linked(&dsp_probe, &fv_probe);
+            if want && !linked {
+                dsp_probe.unlink(&eq_probe);
+                if dsp_probe.link(&fv_probe).is_err() || fv_probe.link(&eq_probe).is_err() {
+                    warn!("Failed to link freeverb dynamically; falling back to direct DSP->EQ");
+                    dsp_probe.unlink(&fv_probe);
+                    fv_probe.unlink(&eq_probe);
+                    let _ = dsp_probe.link(&eq_probe);
+                }
+            } else if !want && linked {
+                dsp_probe.unlink(&fv_probe);
+                fv_probe.unlink(&eq_probe);
+                if dsp_probe.link(&eq_probe).is_err() {
+                    warn!("Failed to relink DSP directly to equalizer after unlinking freeverb");
+                }
+            }
+            pending.store(false, Ordering::Release);
+            let (mtx, cv) = &*done_probe;
+            if let Ok(mut guard) = mtx.lock() {
+                *guard = true;
+                cv.notify_all();
+            }
+            gst::PadProbeReturn::Remove
+        });
+
+        let wait_limit = if pipeline.current_state() == gst::State::Paused {
+            Duration::from_millis(20)
+        } else {
+            Duration::from_millis(1000)
+        };
+        let (mtx, cv) = &*done;
+        let finished = mtx
+            .lock()
+            .ok()
+            .and_then(|guard| cv.wait_timeout_while(guard, wait_limit, |done| !*done).ok())
+            .is_some_and(|(guard, _)| *guard);
+
+        // Transition `freeverb` back to `Null` outside the streaming thread once unlinked.
+        if finished && !enable && !Self::is_fv_linked(&dsp_elem, &fv) {
+            fv.set_locked_state(true);
+            let _ = fv.set_state(gst::State::Null);
+        }
+    }
+
+    /// Returns whether `freeverb` is currently linked between `auralune_dsp` and `equalizer_10bands`.
+    pub fn is_reverb_linked(&self) -> bool {
+        let inner = self.inner.lock_safe();
+        inner
+            .freeverb
+            .as_ref()
+            .is_some_and(|fv| Self::is_fv_linked(inner.dsp.upcast_ref(), fv))
     }
 
     /// Returns the current reverb parameters (enabled, room_size, damping, width, level).
@@ -205,7 +328,7 @@ impl AudioEngine {
         let entering_from_bypass = is_active_playback
             && current.engine == DspEngine::Bypass
             && engine != DspEngine::Bypass;
-        let rebase_media = Self::calculate_media_position(&inner).unwrap_or(current_pos);
+        let rebase_media = Self::calculate_media_position(&mut inner).unwrap_or(current_pos);
         let rebase_sink = Self::query_raw_sink_position(&inner).unwrap_or(inner.base_sink_pts);
 
         // When leaving an active DSP engine (RubberBand / SoundTouch), remember its parameters
@@ -245,6 +368,7 @@ impl AudioEngine {
         inner.dsp.set_engine(engine);
         let _ = inner.dsp.set_params(target_params);
         inner.dsp_params = target_params;
+        inner.cached_capabilities = caps.clone();
         if entering_from_bypass {
             inner.base_media_pos = rebase_media;
             inner.base_sink_pts = rebase_sink;
@@ -270,6 +394,14 @@ impl AudioEngine {
 
     /// Returns the properties and limits of the current DSP engine.
     pub fn dsp_capabilities(&self) -> DspCapabilities {
-        self.dsp_params().engine.capabilities()
+        self.inner.lock_safe().cached_capabilities.clone()
+    }
+
+    /// Enables or disables GStreamer `spectrum` bus messages when UI visualizers mount/unmount.
+    pub fn set_spectrum_enabled(&self, enabled: bool) {
+        self.inner
+            .lock_safe()
+            .spectrum
+            .set_property("post-messages", enabled);
     }
 }

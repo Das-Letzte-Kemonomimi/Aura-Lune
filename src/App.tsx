@@ -21,7 +21,6 @@ import { useAudioMasteringEffects } from './hooks/useAudioMasteringEffects';
 import { useVolumeUnit } from './hooks/useVolumeUnit';
 import { useAppBootstrap } from './hooks/useAppBootstrap';
 import { useMainRouterProps } from './hooks/useMainRouterProps';
-import { AppSettingsModal } from './views/settings/AppSettingsModal';
 import { useAppSettingsModalProps } from './views/settings/useAppSettingsModalProps';
 import { AppModalsContainer } from './components/modals/AppModalsContainer';
 import { useAppModalsProps } from './components/modals/useAppModalsProps';
@@ -34,7 +33,12 @@ import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { StartupSplash } from './components/layout/StartupSplash';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+
+const AppSettingsModal = lazy(() =>
+  import('./views/settings/AppSettingsModal').then((m) => ({ default: m.AppSettingsModal })),
+);
+import { currentPositionMs } from './state/livePlayback';
 import { errorMessage, invoke } from './api/ipc';
 import { setSetting } from './api/settings';
 import { useTauriEvent } from './hooks/useTauriEvent';
@@ -49,7 +53,6 @@ import {
 } from './components/player';
 import { BigScreenView } from './views/player/BigScreenView';
 
-import { useQueueVirtualScroll } from './hooks/useQueueVirtualScroll';
 import { useAmbienceMode, useAmbienceOpacity } from './hooks/useAmbienceMode';
 import { type Language, getTranslations } from './i18n';
 import type {
@@ -179,14 +182,14 @@ export default function App() {
   } = modalManager;
 
 
-  const handleOpenCoverPicker = (album: AlbumRecord) => {
+  const handleOpenCoverPicker = useCallback((album: AlbumRecord) => {
     setCoverPickerState({
       isOpen: true,
       albumId: album.id,
       title: album.title,
       artist: album.album_artist,
     });
-  };
+  }, [setCoverPickerState]);
 
   // DSP engines, EQ, reverb and vibe profiles (useDspManager)
   const dspManager = useDspManager({
@@ -353,8 +356,6 @@ export default function App() {
     queue,
     isQueueOpen,
     setIsQueueOpen,
-    queueSearchQuery,
-    queueColumns,
     refreshQueue,
     playQueueIndex: handlePlayQueueIndex,
     removeFromQueue: handleRemoveFromQueue,
@@ -479,9 +480,9 @@ export default function App() {
   // the user decides in the UI when to show or hide it.
   const [showDesktopLyrics, setShowDesktopLyrics] = useState<boolean>(false);
 
-  const toggleDesktopLyrics = () => {
+  const toggleDesktopLyrics = useCallback(() => {
     setShowDesktopLyrics((prev) => !prev);
-  };
+  }, []);
 
   // Mini-player state (Floating PiP Widget)
   const { isMiniPlayer, toggleMiniPlayer } = useMiniPlayer();
@@ -504,24 +505,6 @@ export default function App() {
     true,
     { parse: parseBoolean, legacyKeys: ['auralune_notifications_enabled'] },
   );
-
-
-  const {
-    queueListRef,
-    totalQueueDurationMs,
-    formatTotalDuration,
-    filteredQueueItems,
-    queueStartIndex,
-    queueEndIndex,
-    queueTopSpacer,
-    queueBottomSpacer,
-  } = useQueueVirtualScroll({
-    items: queue.items,
-    searchQuery: queueSearchQuery,
-    compactMode: queueColumns.compactMode,
-    containerRef: mainContentRef,
-    loc: t,
-  });
 
   // Detects scrolling below the top player panel
   const [isPlayerScrolledDown, setIsPlayerScrolledDown] = useState(false);
@@ -725,7 +708,7 @@ export default function App() {
     showMessage,
   });
 
-  const handleToggleCloseToTray = async (enabled: boolean) => {
+  const handleToggleCloseToTray = useCallback(async (enabled: boolean) => {
     setCloseToTray(enabled);
     try {
       await setSetting('close_to_tray', String(enabled));
@@ -737,18 +720,18 @@ export default function App() {
     } catch (e: unknown) {
       console.warn('Failed to save close_to_tray:', e);
     }
-  };
+  }, [showMessage, t]);
 
-  const handleToggleAutoFetchCoversBg = async (enabled: boolean) => {
+  const handleToggleAutoFetchCoversBg = useCallback(async (enabled: boolean) => {
     setAutoFetchCoversBg(enabled);
     try {
       await setSetting('auto_fetch_covers_bg', String(enabled));
     } catch (e: unknown) {
       console.warn('Failed to save auto_fetch_covers_bg:', e);
     }
-  };
+  }, []);
 
-  const handleTriggerBackgroundCoverFetch = async () => {
+  const handleTriggerBackgroundCoverFetch = useCallback(async () => {
     if (isTriggeringCoverSyncRef.current || coverSyncProgress.running) return;
     isTriggeringCoverSyncRef.current = true;
     setCoverSyncProgress((prev) => (prev.running ? prev : { running: true, processed: 0, total: 0 }));
@@ -766,13 +749,13 @@ export default function App() {
     } finally {
       isTriggeringCoverSyncRef.current = false;
     }
-  };
+  }, [coverSyncProgress.running, showMessage, loc, t]);
 
-  const handleTrackKeyBpmUpdated = (trackId: number, bpm: number, keyName: string) => {
+  const handleTrackKeyBpmUpdated = useCallback((trackId: number, bpm: number, keyName: string) => {
     setTracks((prev) =>
       prev.map((t) => (t.id === trackId ? { ...t, bpm, initial_key: keyName } : t))
     );
-  };
+  }, [setTracks]);
 
   // ============================================
   // ============================================
@@ -986,14 +969,7 @@ export default function App() {
     trackWaveformPeaks,
     trackWaveformBands,
     isWaveformLoading,
-    filteredQueueItems,
-    totalQueueDurationMs,
-    formatTotalDuration,
-    queueListRef,
-    queueStartIndex,
-    queueEndIndex,
-    queueTopSpacer,
-    queueBottomSpacer,
+    mainContentRef,
     handleOpenCoverPicker,
     handleUploadCustomCoverDirect,
     handlePickFiles,
@@ -1075,6 +1051,36 @@ export default function App() {
     setIsSettingsOpen(true);
   }, [setSettingsTab, setIsSettingsOpen]);
 
+  const closeSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, [setIsSettingsOpen]);
+
+  const closeQueue = useCallback(() => {
+    setIsQueueOpen(false);
+  }, [setIsQueueOpen]);
+
+  const closeBigScreen = useCallback(() => {
+    setIsBigScreen(false);
+  }, []);
+
+  const dismissDragOverlay = useCallback(() => {
+    setIsDraggingOver(false);
+  }, [setIsDraggingOver]);
+
+  const openTranscodeSettings = useCallback(() => {
+    setSettingsTab('transcode');
+    setIsSettingsOpen(true);
+  }, [setSettingsTab, setIsSettingsOpen]);
+
+  const handleUploadCurrentAlbumCover = useCallback(() => {
+    handleUploadCustomCoverDirect(currentAlbum);
+  }, [handleUploadCustomCoverDirect, currentAlbum]);
+
+  const handleOpenCreateStemFromCurrent = useCallback(() => {
+    setCreateStemProjectTrack(currentPlayingTrack || null);
+    setIsCreateStemProjectOpen(true);
+  }, [setCreateStemProjectTrack, setIsCreateStemProjectOpen, currentPlayingTrack]);
+
   const appHeaderProps = useAppHeaderProps({
     appVersion,
     updateAvailable: updateManager.hasUpdate,
@@ -1138,7 +1144,7 @@ export default function App() {
         artist={effectiveDisplayArtist}
         coverUrl={currentCover}
         isPlaying={status.state === 'Playing'}
-        positionMs={status.position_ms}
+        positionMs={currentPositionMs(status.position_ms)}
         durationMs={status.duration_ms}
         volume={status.volume}
         pitchSemitones={status.pitch_semitones}
@@ -1192,7 +1198,7 @@ export default function App() {
 
         <DragDropOverlay
           isDraggingOver={isDraggingOver}
-          onDismiss={() => setIsDraggingOver(false)}
+          onDismiss={dismissDragOverlay}
           loc={loc}
         />
         {/* Top bar / header */}
@@ -1224,7 +1230,7 @@ export default function App() {
         <BottomPlaybackDock {...bottomDockProps} />
         <QueueDrawer
           isOpen={isQueueOpen}
-          onClose={() => setIsQueueOpen(false)}
+          onClose={closeQueue}
           queue={queue}
           status={status}
           tracks={tracks}
@@ -1251,7 +1257,7 @@ export default function App() {
           coverUrl={currentCover}
           trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
           isPlaying={status.state === 'Playing'}
-          positionMs={status.position_ms}
+          positionMs={currentPositionMs(status.position_ms)}
           durationMs={status.duration_ms}
           volume={status.volume}
           pitchSemitones={status.pitch_semitones}
@@ -1272,30 +1278,31 @@ export default function App() {
           formatVolumeValue={formatVolumeValue}
           volumeUnit={volumeUnit}
           onToggleVolumeUnit={handleToggleVolumeUnit}
-          onClose={() => setIsBigScreen(false)}
+          onClose={closeBigScreen}
           onFetchCover={handleFetchCurrentTrackCover}
-          onUploadCover={() => handleUploadCustomCoverDirect(currentAlbum)}
-          onCreateStemProject={() => {
-            setCreateStemProjectTrack(currentPlayingTrack || null);
-            setIsCreateStemProjectOpen(true);
-          }}
+          onUploadCover={handleUploadCurrentAlbumCover}
+          onCreateStemProject={handleOpenCreateStemFromCurrent}
         />
       )}
 
-      <AppSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        activeTab={settingsTab}
-        onSelectTab={setSettingsTab}
-        loc={loc}
-        devicesProps={settingsModalProps.devicesProps}
-        transcodeProps={settingsModalProps.transcodeProps}
-        themesProps={settingsModalProps.themesProps}
-        updatesProps={settingsModalProps.updatesProps}
-        aboutProps={settingsModalProps.aboutProps}
-        backupProps={settingsModalProps.backupProps}
-        updateAvailable={updateManager.hasUpdate}
-      />
+      {isSettingsOpen && (
+        <Suspense fallback={null}>
+          <AppSettingsModal
+            isOpen={isSettingsOpen}
+            onClose={closeSettings}
+            activeTab={settingsTab}
+            onSelectTab={setSettingsTab}
+            loc={loc}
+            devicesProps={settingsModalProps.devicesProps}
+            transcodeProps={settingsModalProps.transcodeProps}
+            themesProps={settingsModalProps.themesProps}
+            updatesProps={settingsModalProps.updatesProps}
+            aboutProps={settingsModalProps.aboutProps}
+            backupProps={settingsModalProps.backupProps}
+            updateAvailable={updateManager.hasUpdate}
+          />
+        </Suspense>
+      )}
 
       <AppModalsContainer {...appModalsProps} />
       {/* Floating Background Export Badge */}
@@ -1306,10 +1313,7 @@ export default function App() {
         transcodeProgress={transcodeProgress}
         transcodeElapsedSeconds={transcodeElapsedSeconds}
         transcodeOutput={transcodeOutput}
-        onOpenTranscodeSettings={() => {
-          setSettingsTab('transcode');
-          setIsSettingsOpen(true);
-        }}
+        onOpenTranscodeSettings={openTranscodeSettings}
         loc={loc}
       />
     </div>

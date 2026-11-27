@@ -190,6 +190,48 @@
         "de": "Zuverlässigere, schnellere Coversuche und automatisches Laden im Hintergrund: Die Suche prüft Erscheinungsjahr, Titelanzahl und Songtitel gegen Verwechslungen gleichnamiger Künstler, lädt fehlende Cover bei hoher Sicherheit automatisch im Hintergrund (in den Einstellungen umschaltbar), speichert Vorschaubilder auf der Festplatte und nutzt Cover Art Archive sowie MusicBrainz parallel.",
         "fi": "Luotettavampi ja nopeampi kansikuvahaku sekä automaattinen haku taustalla: haku varmistaa julkaisuvuoden, kappalemäärän ja kappaleiden nimet samannimisten artistien erottamiseksi, hakee puuttuvat kansikuvat taustalla automaattisesti korkealla varmuudella (valittavissa Asetuksissa) ja tallentaa pikkukuvat levylle.",
         "la": "Accommodatio tegumentorum certior ac celerior et inquisitio spontanea in curriculo: annus editionis, numerus carminum et tituli probantur ne artifices eiusdem nominis confundantur, tegumenta absentia altae fiduciae sponte quaeruntur, et imagines parvulae in disco servantur."
+      },
+      {
+        "en": "Smoother playback controls and lower processor usage while listening, as only the moving progress bars, lyrics, and bottom controls update during playback instead of redrawing the entire window.",
+        "pl": "Płynniejsze sterowanie odtwarzaniem i mniejsze zużycie procesora podczas słuchania — w trakcie gry aktualizują się tylko ruchome paski postępu, tekst utworu i dolny pasek zamiast całego okna aplikacji.",
+        "de": "Flüssigere Wiedergabesteuerung und geringere Prozessorlast beim Hören, da während der Wiedergabe nur Fortschrittsbalken, Liedtexte und die untere Leiste statt des gesamten Fensters neu gezeichnet werden.",
+        "fi": "Sulavammat toistosäätimet ja pienempi suoritinkäyttö kuuntelun aikana, kun vain liikkuvat edistymispalkit, sanoitukset ja alapalkki päivittyvät koko ikkunan uudelleenpiirtämisen sijaan.",
+        "la": "Moderatio cantus lenior et minor labor processoris, cum solum indices progressus, verba et vectis inferior dum canitur renoventur."
+      },
+      {
+        "en": "Library search responds much more smoothly while browsing large music collections, and volume changes feel smoother during playback.",
+        "pl": "Wyszukiwanie w bibliotece działa znacznie płynniej przy przeglądaniu dużych kolekcji muzycznych, a regulacja głośności podczas odtwarzania jest łagodniejsza.",
+        "de": "Die Bibliothekssuche reagiert beim Durchsuchen großer Musiksammlungen deutlich flüssiger, und Lautstärkeänderungen während der Wiedergabe laufen geschmeidiger.",
+        "fi": "Kirjastohaku reagoi paljon sujuvammin suuria musiikkikokoelmia selatessa, ja äänenvoimakkuuden säätö toiston aikana tuntuu pehmeämmältä.",
+        "la": "Inquisitio bibliothecae multo lenius respondet dum magnae collectiones musicae lustrantur, et mutationes soni inter cantum suavius fluunt."
+      },
+      {
+        "en": "Album covers and custom wallpapers now load directly as files instead of large inline blobs, cutting memory usage and speeding up the album grid.",
+        "pl": "Okładki albumów i własne tapety wczytują się teraz bezpośrednio jako pliki zamiast dużych osadzonych danych, co zmniejsza zużycie pamięci i przyspiesza siatkę albumów.",
+        "de": "Albumcover und eigene Hintergrundbilder werden jetzt direkt als Dateien statt großer eingebetteter Daten geladen, was den Speicherbedarf senkt und das Albumraster beschleunigt.",
+        "fi": "Albumien kannet ja omat taustakuvat ladataan nyt suoraan tiedostoina suurten upotettujen tietojen sijaan, mikä vähentää muistinkulutusta ja nopeuttaa albumiruudukkoa.",
+        "la": "Opercula alborum et picturae fundi propriae nunc directe ut fasciculi onerantur pro magnis datis inclusis, quod usum memoriae minuit et tabulam alborum accelerat."
+      },
+      {
+        "en": "Reduced CPU and memory usage during playback by bypassing the reverb effect when off and only loading the active audio speed/pitch engine.",
+        "pl": "Zmniejszono zużycie procesora i pamięci podczas odtwarzania dzięki całkowitemu pomijaniu wyłączonego pogłosu oraz uruchamianiu tylko aktywnego silnika zmiany tempa i tonacji.",
+        "de": "Geringere CPU- und Speichernutzung bei der Wiedergabe, indem der Halleffekt im ausgeschalteten Zustand komplett umgangen und nur die aktive Tempo-/Tonhöhen-Engine geladen wird.",
+        "fi": "Vähennetty suorittimen ja muistin käyttöä toiston aikana ohittamalla pois kytketty kaikutehoste kokonaan ja lataamalla vain aktiivinen nopeus- ja sävelkorkeusmoottori.",
+        "la": "Consumptio CPU memoriaeque inter sonum imminuta est, effectu echo omisso cum absit et solo motore activo onerato."
+      },
+      {
+        "en": "Made music library scanning much faster on large collections, cut duplicate work during rescans and playback history saving, and cached fetched song lyrics locally.",
+        "pl": "Znacznie przyspieszono skanowanie dużych bibliotek muzycznych, ograniczono zbędne zapisy przy ponownych skanach i w historii odsłuchu oraz dodano lokalną pamięć podręczną pobranych tekstów piosenek.",
+        "de": "Das Einlesen großer Musikbibliotheken wurde deutlich beschleunigt, unnötige Schreibvorgänge beim erneuten Scannen und im Hörverlauf wurden reduziert und abgerufene Songtexte werden nun lokal zwischengespeichert.",
+        "fi": "Suurten musiikkikirjastojen skannausta nopeutettiin huomattavasti, uudelleenskannauksen ja kuunteluhistorian turhia tallennuksia vähennettiin sekä haetut sanoitukset tallennetaan nyt välimuistiin.",
+        "la": "Bibliothecarum musicarum magnarum inspectio multo celerior facta est, scripturae supervacuae in recensione et historia auscultandi imminutae sunt, atque verba carminum quaesita nunc in memoria temporaria servantur."
+      },
+      {
+        "en": "Faster startup and fully offline fonts: the app now opens quickly even without internet, loads extra tabs, Settings, and other languages only when you need them, and uses crisp lightweight header icons.",
+        "pl": "Szybsze uruchamianie i czcionki w pełni offline: odtwarzacz otwiera się sprawnie nawet bez internetu, wczytuje dodatkowe zakładki, Ustawienia oraz inne języki dopiero wtedy, gdy ich używasz, i korzysta z lżejszych ikon w nagłówku.",
+        "de": "Schnellerer Start und komplett offline verfügbare Schriften: Die App startet auch ohne Internetverbindung zügig, lädt weitere Tabs, Einstellungen und andere Sprachen erst bei Bedarf und nutzt leichtere Header-Symbole.",
+        "fi": "Nopeampi käynnistys ja täysin ilman verkkoa toimivat fontit: sovellus avautuu nopeasti myös ilman verkkoyhteyttä, lataa muut välilehdet, asetukset ja kielet vasta tarvittaessa ja käyttää kevyempiä otsikkokuvakkeita.",
+        "la": "Initium velocius et litterae sine rete semper paratae: programma celeriter aperitur etiam sine interreti, tabulas additas, optionum fenestram et alias linguas tantum cum opus est onerat, et iconibus levioribus in capite utitur."
       }
     ],
     "fixed": [
@@ -311,6 +353,13 @@
         "de": "Kurzes Zurückspringen der Fortschrittsanzeige auf 0:01 beim ersten Starten der Wiedergabe nach dem Programmstart behoben.",
         "fi": "Korjattu toiston edistymispalkin lyhyt hyppy kohtaan 0:01 aloitettaessa toisto ensimmäisen kerran sovelluksen käynnistyksen jälkeen.",
         "la": "Saltus brevis indicis progressus ad 0:01 in primo initio sonitus post aperturam applicationis correctus."
+      },
+      {
+        "en": "Fixed Big Screen controls not auto-hiding while playing, and restored periodic saving of your playback position during continuous playback so resuming tracks works reliably.",
+        "pl": "Naprawiono automatyczne ukrywanie panelu sterowania w trybie pełnego ekranu podczas odtwarzania oraz przywrócono cykliczny zapis aktualnej pozycji utworu w trakcie ciągłego słuchania, aby wznawianie działało niezawodnie.",
+        "de": "Das automatische Ausblenden der Steuerung im Großbildmodus während der Wiedergabe wurde behoben und das regelmäßige Speichern der Wiedergabeposition bei fortlaufender Wiedergabe wiederhergestellt.",
+        "fi": "Korjattiin suuren näytön säätimien automaattinen piilotus toiston aikana ja palautettiin toistokohdan säännöllinen tallennus jatkuvan toiston aikana.",
+        "la": "Emendata est occultatio spontanea moderationum in aspectu magno atque servatio periodica loci cantus inter continuam auditionem restituta."
       }
     ]
   },

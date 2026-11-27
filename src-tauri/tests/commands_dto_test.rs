@@ -1,8 +1,8 @@
 use auralune_desktop::commands::dsp::get_equalizer_presets_internal;
-use auralune_desktop::commands::library::{resolve_cover_thumbnail, resolve_cover_to_data_uri};
+use auralune_desktop::commands::library::{init_thumbnail_cache_dir, thumbnail_file};
 use auralune_desktop::commands::metadata::LastFmScrobbleRequest;
 use auralune_desktop::commands::playback::{
-    extract_audio_paths_from_args, is_supported_audio, normalize_path_or_url,
+    extract_audio_paths_from_args, is_supported_audio, normalize_art_url, normalize_path_or_url,
 };
 use auralune_desktop::commands::stems::{list_model_packs_internal, StemProgressPayload};
 use auralune_desktop::AppState;
@@ -35,41 +35,40 @@ fn test_equalizer_presets_not_empty() {
 }
 
 #[test]
-fn test_resolve_cover_to_data_uri_http() {
+fn test_normalize_art_url_passes_https_and_drops_data_uris() {
     let http_url = "https://example.com/cover.jpg";
     assert_eq!(
-        resolve_cover_to_data_uri(http_url),
+        normalize_art_url(Some(http_url)),
         Some(http_url.to_string())
+    );
+    assert_eq!(
+        normalize_art_url(Some("data:image/jpeg;base64,/9j/4AAQ")),
+        None
     );
 }
 
 #[test]
-fn test_resolve_cover_thumbnail_downscales_local_images() {
-    use base64::Engine;
+fn test_thumbnail_file_downscales_local_images_by_edge() {
     let dir = std::env::temp_dir().join(format!("auralune_cover_thumb_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let thumbs_dir = dir.join("thumbs");
+    std::fs::create_dir_all(&thumbs_dir).unwrap();
+    init_thumbnail_cache_dir(thumbs_dir);
+
     let path = dir.join("cover.png");
     image::RgbImage::from_pixel(1600, 1200, image::Rgb([200, 40, 120]))
         .save(&path)
         .unwrap();
 
-    let uri = resolve_cover_thumbnail(&path.to_string_lossy()).expect("thumbnail");
-    let encoded = uri
-        .strip_prefix("data:image/jpeg;base64,")
-        .expect("jpeg data uri");
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .unwrap();
-    let thumb = image::load_from_memory(&bytes).unwrap();
-    assert_eq!((thumb.width(), thumb.height()), (512, 384));
+    let small = thumbnail_file(&path, 256).expect("256px thumbnail");
+    let small_img = image::open(&small).unwrap();
+    assert_eq!((small_img.width(), small_img.height()), (256, 192));
+
+    let large = thumbnail_file(&path, 768).expect("768px thumbnail");
+    let large_img = image::open(&large).unwrap();
+    assert_eq!((large_img.width(), large_img.height()), (768, 576));
+    assert_ne!(small, large);
 
     let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
-fn test_resolve_cover_thumbnail_passes_urls_through() {
-    let url = "https://example.com/cover.jpg";
-    assert_eq!(resolve_cover_thumbnail(url), Some(url.to_string()));
 }
 
 #[test]

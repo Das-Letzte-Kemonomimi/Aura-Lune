@@ -365,7 +365,7 @@ describe('useCurrentTrackInfo', () => {
         },
         filePath: mockTrack2.path,
         activeTrackId: 2,
-        trackDirectCover: 'data:image/jpeg;base64,OLD_COVER',
+        trackDirectCover: 'auralune-media://localhost/cover/track/1?s=256&v=old',
         setTrackDirectCover,
         loc,
       })
@@ -382,7 +382,7 @@ describe('useCurrentTrackInfo', () => {
       title: 'Adagio',
       album_artist: 'Artist A',
       year: 2007,
-      cover_path: 'data:image/jpeg;base64,ARTIST_A_COVER',
+      cover_path: 'auralune-media://localhost/cover/album/101?s=256&v=artista',
     };
     const otherStatus: PlaybackStatus = {
       ...baseStatus,

@@ -35,7 +35,7 @@ The GStreamer streaming threads (pad probes, the `auralune_dsp` element, `dsp-*`
 
 - **`domain`**: no filesystem, network or audio access, so everything stays unit-testable. Pure decisions used by the host (`silence::trim_action`, `paths::check_write_target`, `version::is_newer`) live here.
 - **`dsp-api`**: map engine names only through `DspEngine::as_str()` / `from_name()` (case-insensitive, unknown → `Bypass`). Never match engine strings by hand.
-- **`audio-engine` analysis**: bump `CHORD_ANALYZER_VERSION` / `TRANSCRIPTION_ANALYZER_VERSION` whenever the algorithm changes; cached rows of other versions are then treated as misses. Tunables are named `const`s. Transcription onsets are computed in `f64` from the fractional hop; never truncate them to whole ms.
+- **`audio-engine` analysis**: bump `CHORD_ANALYZER_VERSION` / `TRANSCRIPTION_ANALYZER_VERSION` whenever the algorithm changes; cached rows of other versions are then treated as misses. Tunables are named `const`s. Transcription onsets are computed in `f64` from the fractional hop; never truncate them to whole ms. Hash whole audio files with `model_manager::cached_file_sha256` (LRU by path, size, mtime), not `calculate_file_sha256` directly. Long-signal jobs (stems) drop each full-length buffer as soon as it is written.
 - **`storage`**:
   - Schema changes are **versioned migrations** in `schema.rs` that bump `PRAGMA user_version`, one transaction per step. Never run raw unversioned `ALTER TABLE` in `init_db()`.
   - Performance PRAGMAs are set per connection in `Database::with_performance_pragmas`, never on the pool.

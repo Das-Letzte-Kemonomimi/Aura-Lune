@@ -11,11 +11,12 @@ pub mod waybar;
 
 pub use control_ipc::ControlIpcServer;
 pub use discord_rpc::{
-    build_activity_payload, DiscordRpcController, DiscordRpcStatus, DiscordTrackInfo,
-    DEFAULT_DISCORD_CLIENT_ID,
+    build_activity_payload, next_reconnect_backoff, DiscordRpcController, DiscordRpcStatus,
+    DiscordTrackInfo, DEFAULT_DISCORD_CLIENT_ID,
 };
 pub use mpris::{MprisController, MprisTrackInfo};
 pub use runtime_dir::{control_fifo_path, control_socket_path, waybar_status_path};
 pub use waybar::{
-    cleanup_waybar_status, write_waybar_status, write_waybar_status_to_path, WaybarStatus,
+    cleanup_waybar_status, waybar_status_changed, write_waybar_status, write_waybar_status_to_path,
+    WaybarStatus,
 };

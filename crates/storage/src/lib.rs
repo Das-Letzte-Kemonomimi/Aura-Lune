@@ -36,11 +36,12 @@ pub struct Database {
 
 impl Database {
     /// Performance pragmas applied to **every** pool connection (they are per connection):
-    /// a 64 MB page cache, temp tables in RAM, 256 MB mmap.
+    /// a 16 MB page cache, temp tables in RAM, 64 MB mmap and a 64 MB WAL journal limit.
     fn with_performance_pragmas(opts: SqliteConnectOptions) -> SqliteConnectOptions {
         opts.pragma("temp_store", "MEMORY")
-            .pragma("cache_size", "-64000")
-            .pragma("mmap_size", "268435456")
+            .pragma("cache_size", "-16000")
+            .pragma("mmap_size", "67108864")
+            .pragma("journal_size_limit", "67108864")
     }
 
     /// Creates an in-memory database (useful for tests and ephemeral sessions).
@@ -76,7 +77,9 @@ impl Database {
             .busy_timeout(std::time::Duration::from_secs(15));
 
         let pool = SqlitePoolOptions::new()
-            .max_connections(5)
+            .max_connections(4)
+            .idle_timeout(None)
+            .max_lifetime(None)
             .connect_with(Self::with_performance_pragmas(opts))
             .await?;
 
@@ -84,6 +87,12 @@ impl Database {
         db.run_migrations().await?;
         info!("SQLite database initialised: {}", path.display());
         Ok(db)
+    }
+
+    /// Runs `PRAGMA optimize;` so SQLite refreshes query-planner statistics before shutdown.
+    pub async fn optimize(&self) -> Result<(), StorageError> {
+        sqlx::query("PRAGMA optimize;").execute(&self.pool).await?;
+        Ok(())
     }
 
     /// Returns a reference to the internal SQLite connection pool.

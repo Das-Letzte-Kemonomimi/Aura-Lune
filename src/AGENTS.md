@@ -76,8 +76,8 @@ Always go through `src/api/ipc.ts`. Its `invoke` accepts only `CommandName` (the
 
 The backend playback ticker is the clock. The frontend never polls; a watchdog falls back to `get_status` once per second only if events stop.
 
-- Each status event publishes `position_ms` + `spectrum` to `state/livePlayback.ts`. React state in `App` updates only when `shouldCommitStatus` (`state/statusCommit.ts`) reports a structural change or a ≥ 1 s position step.
-- Anything that draws progress or visualizers reads `useLiveStatus(status)`, `useLivePositionMs(fallback)` or `useLiveSpectrum(fallback)`. Event handlers that need the exact position call `currentPositionMs(fallback)`. **Never read `status.position_ms` for display**: it can be up to 1 s stale.
+- Each status event publishes `position_ms`, `spectrum`, and settled `volume` to `state/livePlayback.ts`. React state in `App` updates only when `shouldCommitStatus` (`state/statusCommit.ts`) reports a structural change (state, track, DSP, EQ, committed volume), so `App` stays idle while playing uninterrupted.
+- Anything that draws progress, visualizers, or volume controls reads `useLiveStatus(status)`, `useLivePositionMs(fallback)`, `useLiveSpectrum(fallback)`, `useLiveVolume(fallback)`, or `useLiveSelector(...)`. Event handlers that need the exact position or volume call `currentPositionMs(fallback)` / `currentVolume(fallback)`. **Never read `status.position_ms` for display**: `App` does not tick on time alone.
 - Seeking is two-phase: `handleSeekPreview` writes only to `livePlayback` while dragging (no IPC, no re-render), and `handleSeekCommit` sends one `seek` on release. `isSeekingRef` / `isVolumeInteractingRef` guard against rubber-banding.
 - Per-frame logic (A-B loop) runs inside the status handler in `usePlaybackController`, not in effects on `status`. Canvas loops (`useCanvasLoop`, `useFrameLoop`) sleep when paused or when `document.hidden`.
 
@@ -95,8 +95,9 @@ The backend playback ticker is the clock. The frontend never polls; a watchdog f
 - **Hooks**: `react-hooks/exhaustive-deps` is an **error**. An intentional mount-only effect needs an `oxlint-disable-next-line` with a reason. Long-lived timers read the latest values through refs (`useSleepTimer`, `useHotkeysManager`).
 - **State**: component state via hooks, domain state in `use*Manager` hooks, per-frame data in `livePlayback`. UI preferences use `usePersistedState` (one key for read and write, `parse` validator), not hand-written `localStorage` pairs.
 - **Formatting values**: use `utils/timeFormat.ts`, `utils/fileSizeFormat.ts`, and `fmt(template, …args)` for `{0}` placeholders. Never chain `.replace('{0}', …)` or write a local formatter copy.
-- **i18n**: every user-visible string goes in all five `locales/*.json`. `i18n.test.ts` (all English keys exist everywhere) and `i18n.parity.test.ts` (no stale keys, same `{n}` placeholders) must pass. The `i18n-sync` skill helps.
-- **Performance**: wrap layout and player components that receive ticking props in `React.memo`. Virtualize long lists (`useVirtualScroll`, `useQueueVirtualScroll`). Update hover tooltips on canvases imperatively, not through React state.
+- **Views & Modals**: Non-player tabs (`Library`, `DSP`, `Playlists`, `Stem Projects`, `Radio`, `Stats`) in `MainContentRouter.tsx`, `AppSettingsModal` in `App.tsx`, and all modal dialogs in `AppModalsContainer.tsx` are `React.lazy` + `<Suspense fallback={null}>` and conditionally mounted so only the active screen loads its JS chunk at startup.
+- **i18n**: `en.json` is static while `pl`/`de`/`fi`/`la` load on demand via `loadLocale(lang)` (`useAppBootstrap`, `LanguageSelector`). Every user-visible string goes in all five `locales/*.json`. `i18n.test.ts` (all English keys exist everywhere) and `i18n.parity.test.ts` (no stale keys, same `{n}` placeholders) must pass. The `i18n-sync` skill helps.
+- **Performance**: wrap layout and player components that receive ticking props in `React.memo`. Virtualize long lists (`useVirtualScroll`, `useQueueVirtualScroll`). Update hover tooltips on canvases imperatively, not through React state. Canvas and rAF animations go through `useFrameLoop` / `useCanvasLoop` with a `maxFps` cap, cache layers and gradients instead of redrawing static parts, and never use per-frame `shadowBlur`.
 - **Conventional Commits** (`feat(player): …`, `fix(library): …`); see the root `AGENTS.md`.
 
 ## Testing

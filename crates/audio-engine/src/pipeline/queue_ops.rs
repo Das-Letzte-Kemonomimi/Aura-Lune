@@ -3,6 +3,17 @@
 use super::*;
 
 impl AudioEngine {
+    /// Runs `f` on a borrowed reference to the queue without cloning it.
+    pub fn with_queue<R>(&self, f: impl FnOnce(&PlaybackQueue) -> R) -> R {
+        let q = self.queue.lock_safe();
+        f(&q)
+    }
+
+    /// Returns a clone of the current queue item without cloning the full queue.
+    pub fn current_item(&self) -> Option<QueueItem> {
+        self.queue.lock_safe().current_item().cloned()
+    }
+
     /// Returns a copy of the current playback queue state.
     pub fn queue(&self) -> PlaybackQueue {
         self.queue.lock_safe().clone()
@@ -45,6 +56,15 @@ impl AudioEngine {
     pub fn add_to_queue(&self, item: QueueItem) {
         let mut q = self.queue.lock_safe();
         q.add_item(item);
+    }
+
+    /// Appends multiple tracks to the end of the current queue, rebuilding shuffle order once.
+    pub fn extend_queue(&self, items: Vec<QueueItem>) {
+        if items.is_empty() {
+            return;
+        }
+        let mut q = self.queue.lock_safe();
+        q.extend(items);
     }
 
     /// Inserts a track to play next, after the current one.

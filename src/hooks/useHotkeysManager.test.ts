@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, renderHook } from '@testing-library/react';
 import { useHotkeysManager } from './useHotkeysManager';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
-import { getTranslations } from '../i18n';
+import { getTranslations, loadLocale } from '../i18n';
 import { gainToPosition, positionToGain } from '../utils/volumeCurve';
 
 describe('useHotkeysManager', () => {
@@ -107,13 +107,13 @@ describe('useHotkeysManager', () => {
     expect(handlePrevious).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the latest translations, formatter and handlers after a re-render', () => {
+  it('uses the latest translations, formatter and handlers after a re-render', async () => {
     // Regression: a listener registered with an empty dependency list froze the values from the first render.
     const statusRef = { current: { ...DEFAULT_PLAYBACK_STATUS, volume: 1.0 } };
     const firstNotify = vi.fn();
     const latestNotify = vi.fn();
     const latestVolumeChange = vi.fn();
-    const pl = getTranslations('pl');
+    const pl = await loadLocale('pl');
 
     const baseProps = {
       statusRef,

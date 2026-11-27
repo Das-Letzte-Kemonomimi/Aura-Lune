@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useFrameLoop } from '../../hooks/useFrameLoop';
 import type { AmbienceMode } from './ambienceModes';
 
 export type { AmbienceMode };
@@ -114,8 +115,50 @@ interface Ember {
   glowColor: string;
 }
 
+/** Ambience frame cap: slow drifting particles read as smooth at 30 fps and cost half of 60 (or a quarter of 120). */
+const AMBIENCE_MAX_FPS = 30;
+/** Logical drawing space is half the CSS size; particle sizes and speeds are tuned for it. */
+const LOGICAL_SCALE = 0.5;
+/** Motion constants were tuned per 60 Hz frame; `k = dt × 60` keeps the same speed at any frame rate. */
+const FRAME_RATE_BASE = 60;
+/** The matrix rain swaps one glyph every 3 frames at 60 Hz. */
+const MATRIX_GLYPH_SWAP_FRAMES = 3;
+
+/**
+ * Radial glow sprite (colour → transparent), rendered once and blitted with `drawImage` instead of
+ * a per-particle `shadowBlur` (a Gaussian blur per draw call).
+ */
+function createGlowSprite(color: string, size = 64): HTMLCanvasElement | null {
+  const sprite = document.createElement('canvas');
+  sprite.width = size;
+  sprite.height = size;
+  const ctx = sprite.getContext('2d');
+  if (!ctx) return null;
+  const r = size / 2;
+  const grad = ctx.createRadialGradient(r, r, 0, r, r, r);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.35, color);
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return sprite;
+}
+
 export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity = 0.55 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  /** The scene of the current mode: advances and draws one frame (`k` = elapsed time in 60 Hz frames). */
+  const sceneRef = useRef<((k: number) => void) | null>(null);
+
+  const { wake } = useFrameLoop(
+    ({ dt }) => {
+      const scene = sceneRef.current;
+      if (!scene) return false;
+      scene(dt * FRAME_RATE_BASE);
+      return true;
+    },
+    { active: mode !== 'off', maxFps: AMBIENCE_MAX_FPS },
+  );
 
   useEffect(() => {
     if (mode === 'off') return;
@@ -125,14 +168,10 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationFrameId: number;
-    // Logical drawing space is half the CSS size (particle sizes/speeds are tuned for it), but the
-    // backing store matches the device pixel ratio and a transform scales drawing up, so it stays
-    // crisp on HiDPI screens instead of being a 0.5x bitmap stretched by the compositor.
-    const LOGICAL_SCALE = 0.5;
+    // The backing store is half the device-pixel size: one logical unit = one device pixel, so a 1× screen
+    // fills a quarter of the pixels of a full-size buffer (the particles are soft anyway) and HiDPI stays at CSS resolution.
     let width = 0;
     let height = 0;
-    let pxScale = 1; // backing-store pixels per logical unit; shadowBlur is not affected by transforms
 
     const applySize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -140,15 +179,25 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       const cssH = Math.max(1, window.innerHeight);
       width = cssW * LOGICAL_SCALE;
       height = cssH * LOGICAL_SCALE;
-      pxScale = dpr / LOGICAL_SCALE;
-      canvas.width = Math.round(cssW * dpr);
-      canvas.height = Math.round(cssH * dpr);
+      canvas.width = Math.max(1, Math.round(width * dpr));
+      canvas.height = Math.max(1, Math.round(height * dpr));
       ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
     };
     applySize();
 
     const handleResize = applySize;
     window.addEventListener('resize', handleResize);
+
+    // Glow sprites, one per colour (instead of per-particle shadowBlur)
+    const sprites = new Map<string, HTMLCanvasElement | null>();
+    const glowSprite = (color: string) => {
+      if (!sprites.has(color)) sprites.set(color, createGlowSprite(color));
+      return sprites.get(color) ?? null;
+    };
+    const drawGlow = (color: string, x: number, y: number, radius: number) => {
+      const sprite = glowSprite(color);
+      if (sprite) ctx.drawImage(sprite, x - radius, y - radius, radius * 2, radius * 2);
+    };
 
     // 1. Initialise the sakura petals
     const petalColors = [
@@ -242,7 +291,7 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       radius: 0.8 + Math.random() * 1.8,
       phase: Math.random() * Math.PI * 2,
       pulseSpeed: 0.015 + Math.random() * 0.03,
-      color: Math.random() > 0.4 ? 'rgba(255, 255, 0.9)' : 'rgba(167, 139, 250, 0.85)',
+      color: Math.random() > 0.4 ? 'rgba(255, 255, 255, 0.9)' : 'rgba(167, 139, 250, 0.85)',
     }));
 
     const meteors: Meteor[] = Array.from({ length: 5 }, () => ({
@@ -379,18 +428,19 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       ctx.restore();
     };
 
+    // `tick` counts elapsed 60 Hz frames (fractional), driving the wind waves.
     let tick = 0;
-    const render = () => {
-      tick++;
+    const render = (k: number) => {
+      tick += k;
       ctx.clearRect(0, 0, width, height);
 
       if (mode === 'sakura') {
         const wind = Math.sin(tick * 0.008) * 0.75;
         for (const p of petals) {
-          p.y += p.speedY;
-          p.x += p.speedX + wind;
-          p.angle += p.angleSpeed;
-          p.flip += p.flipSpeed;
+          p.y += p.speedY * k;
+          p.x += (p.speedX + wind) * k;
+          p.angle += p.angleSpeed * k;
+          p.flip += p.flipSpeed * k;
 
           if (p.y > height + 20) {
             p.y = -20;
@@ -405,17 +455,17 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           drawPetal(p);
         }
       } else if (mode === 'neon_rain') {
+        ctx.lineCap = 'round';
         for (const d of drops) {
           ctx.beginPath();
           ctx.moveTo(d.x, d.y);
           ctx.lineTo(d.x - 2, d.y + d.length);
           ctx.strokeStyle = d.color;
           ctx.lineWidth = d.width;
-          ctx.lineCap = 'round';
           ctx.stroke();
 
-          d.y += d.speed;
-          d.x -= 1.2;
+          d.y += d.speed * k;
+          d.x -= 1.2 * k;
 
           if (d.y > height + 40) {
             d.y = -d.length;
@@ -424,10 +474,10 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
         }
       } else if (mode === 'fireflies') {
         for (const f of fireflies) {
-          f.y -= f.speedY;
-          f.driftAngle += 0.015;
-          f.x += Math.sin(f.driftAngle) * 0.55 + f.speedX;
-          f.phase += f.pulseSpeed;
+          f.y -= f.speedY * k;
+          f.driftAngle += 0.015 * k;
+          f.x += (Math.sin(f.driftAngle) * 0.55 + f.speedX) * k;
+          f.phase += f.pulseSpeed * k;
 
           if (f.y < -20) {
             f.y = height + 15;
@@ -442,7 +492,6 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           const brightness = Math.max(0.08, (Math.sin(f.phase) + 1) / 2);
 
           // Outer glow
-          ctx.save();
           ctx.beginPath();
           ctx.arc(f.x, f.y, f.radius * 2.8, 0, Math.PI * 2);
           ctx.fillStyle = f.glowColor;
@@ -455,13 +504,13 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.fillStyle = f.color;
           ctx.globalAlpha = brightness * 0.95;
           ctx.fill();
-          ctx.restore();
         }
+        ctx.globalAlpha = 1;
       } else if (mode === 'snow') {
         for (const s of snowflakes) {
-          s.y += s.speedY;
-          s.sway += s.swaySpeed;
-          s.x += Math.sin(s.sway) * 0.65 + s.speedX;
+          s.y += s.speedY * k;
+          s.sway += s.swaySpeed * k;
+          s.x += (Math.sin(s.sway) * 0.65 + s.speedX) * k;
 
           if (s.y > height + 15) {
             s.y = -10;
@@ -481,21 +530,19 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       } else if (mode === 'meteor_shower') {
         // Star background
         for (const s of backgroundStars) {
-          s.phase += s.pulseSpeed;
-          const alpha = 0.3 + (Math.sin(s.phase) + 1) * 0.35;
-          ctx.save();
-          ctx.globalAlpha = alpha;
+          s.phase += s.pulseSpeed * k;
+          ctx.globalAlpha = 0.3 + (Math.sin(s.phase) + 1) * 0.35;
           ctx.beginPath();
           ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
           ctx.fillStyle = s.color;
           ctx.fill();
-          ctx.restore();
         }
+        ctx.globalAlpha = 1;
 
         // Falling meteors
         for (const m of meteors) {
           if (!m.active) {
-            m.cooldown--;
+            m.cooldown -= k;
             if (m.cooldown <= 0) {
               m.active = true;
               m.x = Math.random() * width * 1.2 - width * 0.2;
@@ -521,18 +568,17 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
           ctx.lineWidth = m.thickness;
           ctx.lineCap = 'round';
           ctx.stroke();
+          ctx.restore();
 
-          // Bright dot at the meteor head
+          // Bright dot at the meteor head over a tail-coloured glow sprite
+          drawGlow(m.tailColor, m.x, m.y, m.thickness * 1.4 + 8);
           ctx.beginPath();
           ctx.arc(m.x, m.y, m.thickness * 1.4, 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
-          ctx.shadowBlur = 8 * pxScale;
-          ctx.shadowColor = m.tailColor;
           ctx.fill();
-          ctx.restore();
 
-          m.x += Math.cos(m.angle) * m.speed;
-          m.y += Math.sin(m.angle) * m.speed;
+          m.x += Math.cos(m.angle) * m.speed * k;
+          m.y += Math.sin(m.angle) * m.speed * k;
 
           if (m.y > height + 100 || m.x > width + 100) {
             m.active = false;
@@ -541,8 +587,9 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       } else if (mode === 'matrix_rain') {
         ctx.font = '13px monospace';
         for (const drop of matrixDrops) {
-          drop.tickCounter++;
-          if (drop.tickCounter % 3 === 0) {
+          drop.tickCounter += k;
+          if (drop.tickCounter >= MATRIX_GLYPH_SWAP_FRAMES) {
+            drop.tickCounter %= MATRIX_GLYPH_SWAP_FRAMES;
             // Randomly change one character
             const rIdx = Math.floor(Math.random() * drop.chars.length);
             drop.chars[rIdx] = katakana[Math.floor(Math.random() * katakana.length)];
@@ -553,20 +600,18 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
             if (charY < -20 || charY > height + 20) continue;
 
             if (i === 0) {
-              // Leading character: white and glowing
+              // Leading character: white over a green glow sprite
+              drawGlow('rgba(74, 222, 128, 0.9)', drop.x + 6.5, charY - 4.5, 12);
               ctx.fillStyle = '#ffffff';
-              ctx.shadowColor = '#4ade80';
-              ctx.shadowBlur = 6 * pxScale;
             } else {
               // Neon green tail that fades out
               const alpha = Math.max(0.1, 1 - i / drop.chars.length);
               ctx.fillStyle = `rgba(74, 222, 128, ${alpha})`;
-              ctx.shadowBlur = 0;
             }
             ctx.fillText(drop.chars[i], drop.x, charY);
           }
 
-          drop.y += drop.speed;
+          drop.y += drop.speed * k;
           if (drop.y - drop.chars.length * 15 > height) {
             drop.y = -20;
             drop.speed = 3 + Math.random() * 4;
@@ -575,11 +620,11 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       } else if (mode === 'momiji') {
         const wind = Math.sin(tick * 0.01) * 1.1;
         for (const m of momijiLeaves) {
-          m.y += m.speedY;
-          m.sway += m.swaySpeed;
-          m.x += Math.sin(m.sway) * 0.8 + m.speedX + wind;
-          m.angle += m.angleSpeed;
-          m.flip += m.flipSpeed;
+          m.y += m.speedY * k;
+          m.sway += m.swaySpeed * k;
+          m.x += (Math.sin(m.sway) * 0.8 + m.speedX + wind) * k;
+          m.angle += m.angleSpeed * k;
+          m.flip += m.flipSpeed * k;
 
           if (m.y > height + 25) {
             m.y = -25;
@@ -596,10 +641,10 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
       } else if (mode === 'embers') {
         const wind = Math.sin(tick * 0.012) * 0.5;
         for (const e of embers) {
-          e.y -= e.speedY; // Sparks rise upwards
-          e.sway += e.swaySpeed;
-          e.x += Math.sin(e.sway) * 0.6 + e.speedX + wind;
-          e.phase += e.pulseSpeed;
+          e.y -= e.speedY * k; // Sparks rise upwards
+          e.sway += e.swaySpeed * k;
+          e.x += (Math.sin(e.sway) * 0.6 + e.speedX + wind) * k;
+          e.phase += e.pulseSpeed * k;
 
           if (e.y < -30) {
             e.y = height + 10 + Math.random() * 30;
@@ -613,30 +658,26 @@ export const AnimeAmbienceFX: React.FC<AnimeAmbienceFXProps> = ({ mode, opacity 
 
           const pulse = (Math.sin(e.phase) + 1) * 0.5;
           const r = Math.max(0.6, e.radius * (0.8 + pulse * 0.4));
-          const alpha = 0.5 + pulse * 0.5;
-
-          ctx.save();
+          ctx.globalAlpha = 0.5 + pulse * 0.5;
+          // Pulsing glow sprite (formerly shadowBlur 8..16) under the bright core
+          drawGlow(e.glowColor, e.x, e.y, r + 8 + pulse * 8);
           ctx.beginPath();
           ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
           ctx.fillStyle = e.coreColor;
-          ctx.shadowColor = e.glowColor;
-          ctx.shadowBlur = (8 + pulse * 8) * pxScale;
-          ctx.globalAlpha = alpha;
           ctx.fill();
-          ctx.restore();
         }
+        ctx.globalAlpha = 1;
       }
-
-      animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    sceneRef.current = render;
+    wake();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      sceneRef.current = null;
       window.removeEventListener('resize', handleResize);
     };
-  }, [mode]);
+  }, [mode, wake]);
 
   if (mode === 'off') return null;
 

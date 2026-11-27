@@ -1,5 +1,6 @@
 import type { AppTab } from '../../types/navigation';
 import { useMemo } from 'react';
+import { useShallowMemo } from '../../hooks/useShallowMemo';
 import type { BottomPlaybackDockProps } from './BottomPlaybackDock';
 import type { usePlaybackController } from '../../hooks/usePlaybackController';
 import type { useDspManager } from '../../hooks/useDspManager';
@@ -64,7 +65,7 @@ export function useBottomPlaybackDockProps(
       filePath
     );
 
-  return useMemo<BottomPlaybackDockProps>(
+  const props = useMemo<BottomPlaybackDockProps>(
     () => ({
       isVisible,
       activeTab,
@@ -135,4 +136,6 @@ export function useBottomPlaybackDockProps(
       toggleMiniPlayer,
     ]
   );
+
+  return useShallowMemo(props);
 }

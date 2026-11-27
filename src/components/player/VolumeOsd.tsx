@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { cn } from '../../utils/cn';
 import { useVolumeCurve } from '../../hooks/useVolumeCurve';
+import { useLiveVolume } from '../../state/livePlayback';
 import { formatVolume, gainToPosition } from '../../utils/volumeCurve';
 import { VolumeIcon } from './VolumeSlider';
 
@@ -29,7 +30,8 @@ const OSD_POSITIONS: Record<string, string> = {
   'bottom-left': 'bottom-32.5 left-8',
 };
 
-export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = 'percent' }) => {
+export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume: volumeProp, position, unit = 'percent' }) => {
+  const volume = useLiveVolume(volumeProp);
   const [visible, setVisible] = useState(false);
   const [curve] = useVolumeCurve();
   const hideTimerRef = useRef<number | null>(null);

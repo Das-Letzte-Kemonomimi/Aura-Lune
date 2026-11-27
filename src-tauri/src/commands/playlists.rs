@@ -67,25 +67,41 @@ pub async fn save_queue_as_playlist(
     state: State<'_, AppState>,
 ) -> Result<i64, CommandError> {
     info!("Tauri command: save_queue_as_playlist('{}')", name);
-    let queue = state.engine.queue();
-    if queue.items.is_empty() {
+    let entries: Vec<Result<i64, String>> = state.engine.with_queue(|q| {
+        q.items
+            .iter()
+            .map(|item| item.track_id.ok_or_else(|| item.uri.clone()))
+            .collect()
+    });
+    if entries.is_empty() {
         return Err(CommandError::validation("The playback queue is empty"));
     }
 
     let pl_id = state.db.create_playlist(&name).await?;
 
-    for item in &queue.items {
-        let track_id = if let Some(tid) = item.track_id {
-            Some(tid)
-        } else if let Ok(Some(track)) = state.db.get_track_by_path(&item.uri).await {
-            Some(track.id)
-        } else {
-            None
-        };
+    let unresolved_uris: Vec<String> = entries
+        .iter()
+        .filter_map(|e| e.as_ref().err().cloned())
+        .collect();
+    let resolved_map = if unresolved_uris.is_empty() {
+        std::collections::HashMap::new()
+    } else {
+        state
+            .db
+            .get_tracks_with_album_by_paths(&unresolved_uris)
+            .await
+            .unwrap_or_default()
+    };
 
-        if let Some(tid) = track_id {
-            let _ = state.db.add_track_to_playlist(pl_id, tid).await;
-        }
+    let track_ids: Vec<i64> = entries
+        .into_iter()
+        .filter_map(|entry| match entry {
+            Ok(tid) => Some(tid),
+            Err(uri) => resolved_map.get(&uri).map(|(t, _)| t.id),
+        })
+        .collect();
+    if let Err(e) = state.db.add_tracks_to_playlist(pl_id, &track_ids).await {
+        error!("Failed to save queue tracks to playlist {}: {}", pl_id, e);
     }
     Ok(pl_id)
 }
@@ -252,25 +268,34 @@ pub async fn import_playlist_m3u8(
         CommandError::from(e).context("Failed to create the playlist in the database")
     })?;
 
-    let mut matched_tracks = 0;
-    let mut missing_tracks = Vec::new();
+    let lookup_keys: Vec<String> = m3u.entries.iter().map(|e| e.path_or_uri.clone()).collect();
+    let matched_map = state
+        .db
+        .find_track_ids_by_paths_or_uris(&lookup_keys)
+        .await
+        .unwrap_or_default();
 
+    let mut matched_ids = Vec::with_capacity(m3u.entries.len());
+    let mut missing_tracks = Vec::new();
     for entry in &m3u.entries {
-        if let Some(track) = state
-            .db
-            .find_track_by_path_or_uri(&entry.path_or_uri)
-            .await
-            .unwrap_or(None)
-        {
-            if let Err(e) = state.db.add_track_to_playlist(playlist_id, track.id).await {
-                error!("Failed to add track {} to the playlist: {}", track.id, e);
-            } else {
-                matched_tracks += 1;
-            }
+        if let Some(&tid) = matched_map.get(&entry.path_or_uri) {
+            matched_ids.push(tid);
         } else {
             missing_tracks.push(entry.path_or_uri.clone());
         }
     }
+
+    let matched_tracks = match state
+        .db
+        .add_tracks_to_playlist(playlist_id, &matched_ids)
+        .await
+    {
+        Ok(n) => n,
+        Err(e) => {
+            error!("Failed to add tracks to playlist {}: {}", playlist_id, e);
+            0
+        }
+    };
 
     Ok(ImportM3uResult {
         playlist_id,

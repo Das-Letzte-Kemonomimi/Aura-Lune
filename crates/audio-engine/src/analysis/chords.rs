@@ -572,7 +572,7 @@ pub fn analyze_track_chords_and_grid(
     let local = crate::uri::local_path(uri_or_path);
     let path = local.as_path();
     let file_hash = if path.exists() {
-        calculate_file_sha256(path).unwrap_or_else(|_| "hash_unknown".to_string())
+        cached_file_sha256(path).unwrap_or_else(|_| "hash_unknown".to_string())
     } else {
         format!("hash_{}", track_id)
     };

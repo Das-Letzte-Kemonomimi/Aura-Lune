@@ -1,4 +1,5 @@
-import { renderHook, act } from '@testing-library/react';
+import { useState, useEffect } from 'react';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlaybackController } from './usePlaybackController';
 import { livePlayback } from '../state/livePlayback';
@@ -100,6 +101,7 @@ describe('usePlaybackController', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -138,7 +140,29 @@ describe('usePlaybackController', () => {
   });
 
   it('handlePlayPause plays when Stopped and pauses when Playing', async () => {
-    const { result } = setupHook();
+    const { result, rerender } = renderHook(
+      (props: Partial<Parameters<typeof usePlaybackController>[0]>) =>
+        usePlaybackController({
+          status: mockStatus,
+          setStatus: setStatus as any,
+          filePath: '/music/song.flac',
+          setFilePath: setFilePath as any,
+          activeTrackId: 10,
+          setActiveTrackId: setActiveTrackId as any,
+          queue: mockQueue,
+          refreshQueue: refreshQueue as any,
+          seekFadeEnabled: true,
+          initialStartupPositionRef,
+          tracks: [],
+          setTracks: setTracks as any,
+          albums: [],
+          setReplaygainStatus: setReplaygainStatus as any,
+          showMessage: showMessage as any,
+          loc,
+          ...props,
+        }),
+      { initialProps: { status: mockStatus } }
+    );
 
     // 1. Play from stopped
     await act(async () => {
@@ -146,8 +170,8 @@ describe('usePlaybackController', () => {
     });
     expect(mockInvoke).toHaveBeenCalledWith('play');
 
-    // 2. Pause when playing
-    mockStatus.state = 'Playing';
+    // 2. Pause when playing (committed via status prop)
+    rerender({ status: { ...mockStatus, state: 'Playing' } });
     await act(async () => {
       await result.current.handlePlayPause();
     });
@@ -240,14 +264,21 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 42000, fade: false });
   });
 
-  it('handleVolumeChange clamps volume and sends set_volume', async () => {
+  it('handleVolumeChange updates livePlayback while dragging and commits to App when immediate', async () => {
     const { result } = setupHook();
+    setStatus.mockClear();
     act(() => {
       result.current.handleVolumeChange(0.65);
     });
-    expect(setStatus).toHaveBeenCalled();
+    expect(livePlayback.getSnapshot()).toMatchObject({ volumeReady: true, volume: 0.65 });
+    expect(setStatus).not.toHaveBeenCalled();
     // Instant mode still ramps for a few ms in the engine, so a jump never clicks.
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.65, smooth: true, fadeMs: 15 });
+
+    act(() => {
+      result.current.handleVolumeChange(0.65, true);
+    });
+    expect(setStatus).toHaveBeenCalledTimes(1);
   });
 
   it('handleToggleMute mutes and restores last non-zero volume', async () => {
@@ -289,12 +320,14 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.8, smooth: true, fadeMs: 15 });
   });
 
-  it('handleVolumeChange in smooth fade mode sends smooth flag and fadeMs', async () => {
+  it('handleVolumeChange in smooth fade mode sends smooth flag and fadeMs via livePlayback', async () => {
     const { result } = setupHook({ instantVolume: false });
+    setStatus.mockClear();
     act(() => {
       result.current.handleVolumeChange(0.45);
     });
-    expect(setStatus).toHaveBeenCalled();
+    expect(livePlayback.getSnapshot()).toMatchObject({ volumeReady: true, volume: 0.45 });
+    expect(setStatus).not.toHaveBeenCalled();
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.45, smooth: true, fadeMs: 60 });
   });
 
@@ -406,6 +439,126 @@ describe('usePlaybackController', () => {
       const seeks = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'seek');
       expect(seeks).toHaveLength(1);
       expect(seeks[0][1]).toMatchObject({ positionMs: 5_000 });
+    });
+
+    it('two identical status events cause no second App state commit (including replaygain_status)', async () => {
+      const settledStatus: PlaybackStatus = {
+        ...mockStatus,
+        state: 'Stopped',
+        replaygain_status: [-3.5, 0.9, true],
+      };
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'get_status') return settledStatus;
+        if (cmd === 'get_bookmark') return null;
+        if (cmd === 'get_track_bookmarks') return [];
+        return null;
+      });
+      let commits = 0;
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders++;
+        const [st, setSt] = useState<PlaybackStatus>(settledStatus);
+        const [rg, setRg] = useState<[number, number, boolean]>([-3.5, 0.9, true]);
+        useEffect(() => {
+          commits++;
+        });
+        usePlaybackController({
+          status: st,
+          setStatus: setSt,
+          filePath: '/music/song.flac',
+          setFilePath: setFilePath as any,
+          activeTrackId: 10,
+          setActiveTrackId: setActiveTrackId as any,
+          queue: mockQueue,
+          refreshQueue: refreshQueue as any,
+          seekFadeEnabled: true,
+          initialStartupPositionRef,
+          tracks: [],
+          setTracks: setTracks as any,
+          albums: [],
+          setReplaygainStatus: setRg,
+          showMessage: showMessage as any,
+          loc,
+        });
+        return { st, rg };
+      });
+      await act(async () => {});
+
+      const settledCommits = commits;
+      act(() => emitStatus({ ...settledStatus, replaygain_status: [-3.5, 0.9, true] }));
+      act(() => emitStatus({ ...settledStatus, replaygain_status: [-3.5, 0.9, true] }));
+      expect(commits).toBe(settledCommits);
+
+      // Genuine transition commits once; subsequent identical events cause zero additional commits
+      const nextStatus: PlaybackStatus = {
+        ...settledStatus,
+        replaygain_status: [-1.2, 0.85, false],
+      };
+      act(() => emitStatus(nextStatus));
+      expect(commits).toBe(settledCommits + 1);
+      const commitsAfterTransition = commits;
+      act(() => emitStatus({ ...nextStatus, replaygain_status: [-1.2, 0.85, false] }));
+      const rendersAfterFirstDuplicate = renders;
+      act(() => emitStatus({ ...nextStatus, replaygain_status: [-1.2, 0.85, false] }));
+      expect(result.current.rg).toEqual([-1.2, 0.85, false]);
+      expect(commits).toBe(commitsAfterTransition);
+      expect(renders).toBe(rendersAfterFirstDuplicate);
+    });
+
+    it('does not commit repeatedly while stopped on a restored session tick', async () => {
+      initialStartupPositionRef.current = 45_000;
+      const restoredTrack = {
+        id: 'restored-1',
+        uri: '/music/song.flac',
+        track_id: 10,
+        title: 'Song',
+        artist: 'Artist',
+        album: null,
+        duration_ms: 200_000,
+      };
+      let renders = 0;
+      renderHook(() => {
+        renders++;
+        const [st, setSt] = useState<PlaybackStatus>({
+          ...mockStatus,
+          state: 'Stopped',
+          position_ms: 45_000,
+          current_track: restoredTrack,
+        });
+        const [, setRg] = useState<[number, number, boolean]>([0, 0, false]);
+        return usePlaybackController({
+          status: st,
+          setStatus: setSt,
+          filePath: '/music/song.flac',
+          setFilePath: setFilePath as any,
+          activeTrackId: 10,
+          setActiveTrackId: setActiveTrackId as any,
+          queue: mockQueue,
+          refreshQueue: refreshQueue as any,
+          seekFadeEnabled: true,
+          initialStartupPositionRef,
+          tracks: [],
+          setTracks: setTracks as any,
+          albums: [],
+          setReplaygainStatus: setRg,
+          showMessage: showMessage as any,
+          loc,
+        });
+      });
+      await act(async () => {});
+
+      const stoppedTick: PlaybackStatus = {
+        ...mockStatus,
+        state: 'Stopped',
+        position_ms: 0,
+        current_track: null,
+      };
+
+      act(() => emitStatus(stoppedTick));
+      const rendersAfterFirst = renders;
+
+      act(() => emitStatus({ ...stoppedTick }));
+      expect(renders).toBe(rendersAfterFirst);
     });
   });
 });
