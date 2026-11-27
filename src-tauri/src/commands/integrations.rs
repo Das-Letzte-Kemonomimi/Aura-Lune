@@ -8,7 +8,7 @@ use metadata::LastFmSession;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use storage::DspPresetRecord;
-use tauri::State;
+use tauri::{Manager, State};
 use tracing::{info, warn};
 
 pub use crate::commands::metadata::{LastFmAuthUrlResult, LastFmScrobbleRequest};
@@ -25,6 +25,7 @@ pub struct ProfileBackupDto {
 #[tauri::command]
 pub async fn export_profile_backup(
     destination_path: Option<String>,
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
     info!(
@@ -36,8 +37,26 @@ pub async fn export_profile_backup(
         .map(|dest| super::paths::ensure_writable(std::path::Path::new(dest)))
         .transpose()?;
     let presets = state.db.list_dsp_presets().await.unwrap_or_default();
-    let themes = state.db.list_themes().await.unwrap_or_default();
+    let mut themes = state.db.list_themes().await.unwrap_or_default();
     let playlists = state.db.list_playlists().await.unwrap_or_default();
+
+    let data_dir = app.path().app_data_dir()?;
+    themes = tokio::task::spawn_blocking(move || {
+        for theme in &mut themes {
+            if theme
+                .background_ref
+                .as_deref()
+                .is_some_and(|r| r.starts_with("auralune-media://"))
+            {
+                theme.background_ref = crate::commands::themes::inline_background_ref_for_export(
+                    &data_dir,
+                    theme.background_ref.as_deref(),
+                );
+            }
+        }
+        themes
+    })
+    .await?;
 
     let mut playlist_exports = Vec::new();
     for pl in playlists {
@@ -80,6 +99,7 @@ pub async fn export_profile_backup(
 #[tauri::command]
 pub async fn import_profile_backup(
     file_path_or_json: String,
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, CommandError> {
     info!("Tauri command: import_profile_backup");
@@ -116,13 +136,35 @@ pub async fn import_profile_backup(
         }
     }
 
-    for theme in backup.themes {
+    let data_dir = app.path().app_data_dir()?;
+    for mut theme in backup.themes {
         if let Err(e) = theme.validate() {
             warn!(
                 "Skipped invalid theme '{}' from the profile backup: {}",
                 theme.id, e
             );
             continue;
+        }
+        if theme
+            .background_ref
+            .as_deref()
+            .is_some_and(|r| r.trim().starts_with("data:"))
+        {
+            let dir = data_dir.clone();
+            let bg = theme.background_ref.take();
+            match tokio::task::spawn_blocking(move || {
+                crate::commands::themes::normalize_background_ref_for_storage(&dir, bg)
+            })
+            .await?
+            {
+                Ok(url) => theme.background_ref = url,
+                Err(e) => {
+                    warn!(
+                        "Failed to store wallpaper for imported theme '{}': {}",
+                        theme.id, e
+                    );
+                }
+            }
         }
         if state.db.save_theme(&theme).await.is_ok() {
             restored_themes += 1;

@@ -51,7 +51,7 @@ Tauri runs non-`async` commands on the main thread. Anything that sleeps (fades)
 
 ### Path contract
 
-Commands that write a file the UI names call `paths::ensure_writable`. Commands that read a file and return or store its content call `paths::ensure_readable(path, &[extensions])`, using `paths::AUDIO_EXTENSIONS` / `paths::IMAGE_EXTENSIONS`. Both resolve symlinks and return a `#[must_use]` `PathBuf`. **Always read or write through the returned path**, never the original string. Tag writes (`update_track_metadata`) resolve the file from `track_id` in the database, not from a UI path.
+Commands that write a file the UI names call `paths::ensure_writable`. Commands that read a file and return or store its content call `paths::ensure_readable(path, &[extensions])`, using `paths::AUDIO_EXTENSIONS` / `paths::IMAGE_EXTENSIONS`. Both resolve symlinks and return a `#[must_use]` `PathBuf`. **Always read or write through the returned path**, never the original string. Tag writes (`update_track_metadata`) resolve the file from `track_id` in the database, not from a UI path. Media URLs (`auralune-media://localhost/...`) carry only database IDs or SHA-256 content hashes (never filesystem paths); protocol handlers validate `{sha}.{ext}` with `domain::paths::is_safe_file_token` + an extension allow-list and resolve paths through `paths::ensure_readable`.
 
 ### Playback & state
 

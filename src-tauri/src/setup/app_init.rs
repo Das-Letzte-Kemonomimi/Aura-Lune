@@ -408,6 +408,55 @@ pub fn init_app(
     }
     let queue_saver = crate::commands::queue::QueueSaver::spawn(&rt, engine.clone(), db.clone());
     let rt_for_cli = rt.clone();
+    {
+        let bg_db = db.clone();
+        let bg_data_dir = data_dir.clone();
+        rt.spawn(async move {
+            let Ok(themes) = bg_db.list_themes().await else {
+                return;
+            };
+            for mut theme in themes {
+                let Some(raw) = theme
+                    .background_ref
+                    .as_deref()
+                    .filter(|r| r.trim().starts_with("data:"))
+                    .map(str::to_string)
+                else {
+                    continue;
+                };
+                let dir = bg_data_dir.clone();
+                match tokio::task::spawn_blocking(move || {
+                    crate::commands::themes::normalize_background_ref_for_storage(&dir, Some(raw))
+                })
+                .await
+                {
+                    Ok(Ok(Some(url))) => {
+                        theme.background_ref = Some(url);
+                        if let Err(e) = bg_db.save_theme(&theme).await {
+                            tracing::warn!(
+                                "Failed to save migrated wallpaper URL for theme '{}': {}",
+                                theme.id,
+                                e
+                            );
+                        } else {
+                            info!("Migrated inline wallpaper for theme '{}' to file", theme.id);
+                        }
+                    }
+                    Ok(Ok(None)) => {}
+                    Ok(Err(e)) => {
+                        tracing::warn!(
+                            "Skipped invalid inline wallpaper migration for theme '{}': {}",
+                            theme.id,
+                            e
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!("Wallpaper migration task panicked: {e}");
+                    }
+                }
+            }
+        });
+    }
     let app_state = AppState {
         engine,
         db,

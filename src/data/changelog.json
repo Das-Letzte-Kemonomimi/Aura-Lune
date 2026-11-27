@@ -204,6 +204,13 @@
         "de": "Die Bibliothekssuche reagiert beim Durchsuchen großer Musiksammlungen deutlich flüssiger, und Lautstärkeänderungen während der Wiedergabe laufen geschmeidiger.",
         "fi": "Kirjastohaku reagoi paljon sujuvammin suuria musiikkikokoelmia selatessa, ja äänenvoimakkuuden säätö toiston aikana tuntuu pehmeämmältä.",
         "la": "Inquisitio bibliothecae multo lenius respondet dum magnae collectiones musicae lustrantur, et mutationes soni inter cantum suavius fluunt."
+      },
+      {
+        "en": "Album covers and custom wallpapers now load directly as files instead of large inline blobs, cutting memory usage and speeding up the album grid.",
+        "pl": "Okładki albumów i własne tapety wczytują się teraz bezpośrednio jako pliki zamiast dużych osadzonych danych, co zmniejsza zużycie pamięci i przyspiesza siatkę albumów.",
+        "de": "Albumcover und eigene Hintergrundbilder werden jetzt direkt als Dateien statt großer eingebetteter Daten geladen, was den Speicherbedarf senkt und das Albumraster beschleunigt.",
+        "fi": "Albumien kannet ja omat taustakuvat ladataan nyt suoraan tiedostoina suurten upotettujen tietojen sijaan, mikä vähentää muistinkulutusta ja nopeuttaa albumiruudukkoa.",
+        "la": "Opercula alborum et picturae fundi propriae nunc directe ut fasciculi onerantur pro magnis datis inclusis, quod usum memoriae minuit et tabulam alborum accelerat."
       }
     ],
     "fixed": [
