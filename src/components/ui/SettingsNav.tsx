@@ -7,7 +7,7 @@ export interface SettingsNavItem<T extends string> {
   id: T;
   label: string;
   icon?: React.ReactNode;
-  /** Small pill after the label (e.g. the "new" marker on Updates). */
+  /** Bubble pinned to the item's top-right corner (e.g. the "new" marker on Updates); it floats over the item, so it never changes the layout. */
   badge?: React.ReactNode;
   disabled?: boolean;
 }
@@ -109,14 +109,16 @@ export function SettingsNav<T extends string>({
                 onClick={() => onChange(item.id)}
                 onKeyDown={(e) => onKeyDown(e, item.id)}
                 className={cn(
-                  'flex items-center gap-2 rounded-xl px-3 py-2 text-left text-ui font-semibold whitespace-nowrap text-fg-secondary hover:text-fg',
+                  'relative flex items-center gap-2 rounded-xl px-3 py-2 text-left text-ui font-semibold whitespace-nowrap text-fg-secondary hover:text-fg',
                   'aria-selected:bg-accent-purple aria-selected:text-fg aria-selected:shadow-halo-sm aria-selected:shadow-accent-purple/40',
                   !vertical && 'shrink-0',
                 )}
               >
                 {item.icon}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.badge}
+                {item.badge && (
+                  <span className="pointer-events-none absolute -top-1 -right-0.5 z-1 flex">{item.badge}</span>
+                )}
               </button>
             );
           })}
