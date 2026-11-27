@@ -232,6 +232,13 @@
         "de": "Schnellerer Start und komplett offline verfügbare Schriften: Die App startet auch ohne Internetverbindung zügig, lädt weitere Tabs, Einstellungen und andere Sprachen erst bei Bedarf und nutzt leichtere Header-Symbole.",
         "fi": "Nopeampi käynnistys ja täysin ilman verkkoa toimivat fontit: sovellus avautuu nopeasti myös ilman verkkoyhteyttä, lataa muut välilehdet, asetukset ja kielet vasta tarvittaessa ja käyttää kevyempiä otsikkokuvakkeita.",
         "la": "Initium velocius et litterae sine rete semper paratae: programma celeriter aperitur etiam sine interreti, tabulas additas, optionum fenestram et alias linguas tantum cum opus est onerat, et iconibus levioribus in capite utitur."
+      },
+      {
+        "en": "Settings got a fresh look: a side menu on the left, and options now sit where you'd expect them — Playback, Integrations, Backup & Data and more.",
+        "pl": "Ustawienia mają nowy wygląd: menu boczne po lewej, a opcje znajdziesz tam, gdzie ich szukasz — w Odtwarzaniu, Integracjach, Kopii i danych i innych działach.",
+        "de": "Die Einstellungen sehen neu aus: ein Seitenmenü links, und die Optionen stehen dort, wo man sie erwartet — Wiedergabe, Integrationen, Backup & Daten und mehr.",
+        "fi": "Asetukset ovat uudistuneet: vasemmalla on sivuvalikko, ja valinnat löytyvät sieltä, mistä niitä odottaa — Toisto, Integraatiot, Varmuuskopio ja data ja muut.",
+        "la": "Optiones novam speciem habent: tabula lateralis ad sinistram, et optiones ibi sunt ubi exspectantur — Ludere, Coniunctiones, Tutela et data aliaque."
       }
     ],
     "fixed": [

@@ -51,7 +51,7 @@ export const DiscordSection: React.FC<DiscordSectionProps> = ({
         {discordRpcEnabled && (
           <details>
             <summary className="cursor-pointer text-xs font-semibold text-fg-muted select-none">
-              {loc.settings.group.advanced}: {loc.settings.discordAdvancedClientId}
+              {loc.settings.discordAdvancedClientId}
             </summary>
             <div className="mt-2.5">
               <div className="mb-2 flex items-center justify-between">
