@@ -223,3 +223,70 @@ fn context_disambiguates_same_title_and_same_name_artist_albums() {
     assert!(good >= BACKGROUND_AUTO_ACCEPT_SCORE, "right score {good}");
     assert!(is_ambiguity_prone("ef", "ELISA"));
 }
+
+const FELICE_ALBUM: &str = "ef - a tale of melodies. ORIGINAL SOUNDTRACK 2 -felice-";
+const FELICE_MBID: &str = "a12cd2ef-4689-4520-92ed-48181765d453";
+
+fn felice_release() -> CandidateContext<'static> {
+    CandidateContext {
+        title: "ef – a tale of melodies. ORIGINAL SOUNDTRACK 2 〜felice〜",
+        artist: "TENMON & Eiichiro Yanagi / minori",
+        year: Some(2009),
+        track_count: Some(35),
+        release_mbid: Some(FELICE_MBID),
+    }
+}
+
+#[test]
+fn guest_vocalist_artist_tag_is_not_enough_to_auto_accept_on_its_own() {
+    // `ELISA` sang three tracks of the OST; the release is credited to TENMON & Eiichiro Yanagi.
+    // A partial album (3 of 35 tracks) must not score as a confident match by title alone.
+    let partial = AlbumLookupContext {
+        year: Some(2009),
+        track_count: Some(3),
+        ..Default::default()
+    };
+    let score = match_score_with_context(FELICE_ALBUM, "ELISA", &partial, &felice_release());
+    assert!(score < AUTO_ACCEPT_SCORE, "score {score}");
+}
+
+#[test]
+fn whole_release_context_accepts_the_release_despite_a_guest_artist() {
+    // The storage layer folds split sibling albums back together: 29 + 1 + 3 + 2 = 35 tracks.
+    let whole = AlbumLookupContext {
+        year: Some(2009),
+        track_count: Some(35),
+        ..Default::default()
+    };
+    let score = match_score_with_context(FELICE_ALBUM, "ELISA", &whole, &felice_release());
+    assert!(score >= AUTO_ACCEPT_SCORE, "score {score}");
+}
+
+#[test]
+fn inherited_release_mbid_pins_the_release_whatever_the_artist_tag_says() {
+    let inherited = AlbumLookupContext {
+        year: Some(2009),
+        track_count: Some(3),
+        release_mbid: Some(FELICE_MBID.to_string()),
+        ..Default::default()
+    };
+    let score = match_score_with_context(FELICE_ALBUM, "ELISA", &inherited, &felice_release());
+    assert_eq!(score, 100);
+}
+
+#[test]
+fn musicbrainz_tries_the_bare_title_before_shortened_artist_variants() {
+    let queries = MusicBrainzClient::release_queries(FELICE_ALBUM, "ELISA");
+    let bare_title = queries
+        .iter()
+        .position(|q| !q.contains("artist:") && q.contains("felice"))
+        .expect("an artist-less title query exists");
+    let first_variant = queries
+        .iter()
+        .position(|q| q.contains("release:\"ef\" AND artist:"))
+        .expect("the short `ef` variant is still tried with the artist");
+    assert!(
+        bare_title < first_variant,
+        "bare title at {bare_title}, short variant at {first_variant}: {queries:?}"
+    );
+}

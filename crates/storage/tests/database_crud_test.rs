@@ -392,3 +392,135 @@ async fn test_background_cover_context_and_cooldowns() {
     assert_eq!(updated.cover_path.as_deref(), Some("/cache/covers/a1.jpg"));
     assert_eq!(updated.release_mbid.as_deref(), Some("mbid-1"));
 }
+
+const OST_TITLE: &str = "ef - a tale of melodies. ORIGINAL SOUNDTRACK 2 -felice-";
+const OST_MBID: &str = "a12cd2ef-4689-4520-92ed-48181765d453";
+
+async fn save_ost_track(
+    db: &storage::Database,
+    path: &str,
+    title: &str,
+    artist: &str,
+    track_no: i64,
+    mbid: Option<&str>,
+) -> i64 {
+    let mut track = make_dummy_track(path, title, artist);
+    track.track_no = Some(track_no);
+    let track_id = db
+        .save_scanned_track(&track, OST_TITLE, artist, Some(2009), None, mbid)
+        .await
+        .unwrap();
+    db.get_track_by_id(track_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .album_id
+        .unwrap()
+}
+
+#[tokio::test]
+async fn test_cover_context_folds_in_split_sibling_albums() {
+    let db = setup_test_db().await;
+    // One release, no ALBUMARTIST tag: the scanner makes one album per track artist.
+    save_ost_track(
+        &db,
+        "/music/ef2/01.flac",
+        "Selfish proposal",
+        "TENMON",
+        1,
+        Some(OST_MBID),
+    )
+    .await;
+    save_ost_track(&db, "/music/ef2/03.flac", "Lights", "TENMON", 3, None).await;
+    let elisa = save_ost_track(
+        &db,
+        "/music/ef2/02.flac",
+        "ebullient future (Piano Ver.)",
+        "ELISA",
+        2,
+        None,
+    )
+    .await;
+
+    let ctx = db.get_album_cover_context(elisa).await.unwrap().unwrap();
+    assert_eq!(ctx.album.album_artist, "ELISA");
+    assert_eq!(ctx.track_count, 3, "the whole release, not just own track");
+    assert_eq!(
+        ctx.sample_tracks,
+        vec![
+            "ebullient future (Piano Ver.)".to_string(),
+            "Selfish proposal".to_string(),
+            "Lights".to_string()
+        ],
+        "own tracks first, then the siblings'"
+    );
+    assert_eq!(ctx.release_mbid.as_deref(), Some(OST_MBID));
+    assert!(
+        ctx.album.release_mbid.is_none(),
+        "the record itself is untouched"
+    );
+}
+
+#[tokio::test]
+async fn test_cover_context_keeps_homonyms_in_other_folders_apart() {
+    let db = setup_test_db().await;
+    let mut a = make_dummy_track("/music/band-a/01.flac", "Song A", "Band A");
+    a.track_no = Some(1);
+    let mut b = make_dummy_track("/music/band-b/01.flac", "Song B", "Band B");
+    b.track_no = Some(1);
+    db.save_scanned_track(
+        &a,
+        "Greatest Hits",
+        "Band A",
+        Some(2009),
+        None,
+        Some("mbid-a"),
+    )
+    .await
+    .unwrap();
+    let b_id = db
+        .save_scanned_track(&b, "Greatest Hits", "Band B", Some(2009), None, None)
+        .await
+        .unwrap();
+    let album_b = db
+        .get_track_by_id(b_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .album_id
+        .unwrap();
+
+    let ctx = db.get_album_cover_context(album_b).await.unwrap().unwrap();
+    assert_eq!(ctx.track_count, 1);
+    assert_eq!(ctx.sample_tracks, vec!["Song B".to_string()]);
+    assert_eq!(
+        ctx.release_mbid, None,
+        "another folder's MBID must not leak in"
+    );
+}
+
+#[tokio::test]
+async fn test_cover_context_prefers_own_mbid_over_sibling_mbid() {
+    let db = setup_test_db().await;
+    save_ost_track(
+        &db,
+        "/music/ef2/01.flac",
+        "Selfish proposal",
+        "TENMON",
+        1,
+        Some(OST_MBID),
+    )
+    .await;
+    let own = save_ost_track(
+        &db,
+        "/music/ef2/02.flac",
+        "Piano",
+        "ELISA",
+        2,
+        Some("own-mbid"),
+    )
+    .await;
+
+    let ctx = db.get_album_cover_context(own).await.unwrap().unwrap();
+    assert_eq!(ctx.release_mbid.as_deref(), Some("own-mbid"));
+}

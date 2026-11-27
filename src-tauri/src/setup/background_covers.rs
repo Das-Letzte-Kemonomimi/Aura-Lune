@@ -257,11 +257,12 @@ async fn process_one_album(
         year: album.year,
         track_count: Some(item.track_count),
         sample_tracks: item.sample_tracks,
-        release_mbid: album.release_mbid.clone(),
+        release_mbid: item.release_mbid.clone(),
     };
 
-    // 1. If the file tags already contain a MusicBrainz Release ID, fetch Cover Art Archive first.
-    if let Some(mbid) = album
+    // 1. If the file tags (or a split sibling of this album) already carry a MusicBrainz Release ID,
+    //    fetch Cover Art Archive first.
+    if let Some(mbid) = item
         .release_mbid
         .as_deref()
         .map(str::trim)

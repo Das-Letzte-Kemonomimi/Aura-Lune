@@ -127,11 +127,19 @@ pub struct AlbumRecord {
 
 /// Album metadata together with track count and sample track titles for online cover
 /// disambiguation and background high-confidence matching.
+///
+/// Without an `ALBUMARTIST` tag the scanner splits one release into one album per track artist
+/// (e.g. an anime OST with guest vocalists). The counts, samples and MBID below therefore cover the
+/// album **plus its split siblings**: albums with the same title whose tracks share a folder.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlbumCoverLookupContext {
     pub album: AlbumRecord,
+    /// Tracks of this album and of its split siblings, i.e. the size of the whole release.
     pub track_count: usize,
+    /// Own tracks first, then tracks of split siblings (at most 5 in total).
     pub sample_tracks: Vec<String>,
+    /// The album's own `release_mbid`, or the first one a split sibling carries.
+    pub release_mbid: Option<String>,
 }
 
 /// An artist record in the database.

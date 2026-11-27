@@ -324,6 +324,14 @@ impl MusicBrainzClient {
             }
         }
 
+        // The artist tag is often a track artist, not the album artist (guest vocalists on a
+        // soundtrack), so every artist-constrained query above can miss a release whose title is
+        // matched exactly. Try the title alone before the shortened-title variants, which would
+        // otherwise cost one more rate-limited request each.
+        if let Some(toks) = token_expr(&cleaned_album) {
+            push(format!("release:({toks})"));
+        }
+
         for variant in cover_query::album_variants(album) {
             let v = variant.replace(['"', '\\'], "");
             let v = v.trim();
@@ -335,9 +343,8 @@ impl MusicBrainzClient {
             }
         }
 
-        if let Some(toks) = token_expr(&cleaned_album) {
-            push(format!("release:({toks})"));
-        } else if !cleaned_album.is_empty() {
+        // Titles too short for a token query (fewer than two words) fall back to the exact phrase.
+        if token_expr(&cleaned_album).is_none() && !cleaned_album.is_empty() {
             push(format!("release:\"{cleaned_album}\""));
         }
         if has_artist && !primary.is_empty() {

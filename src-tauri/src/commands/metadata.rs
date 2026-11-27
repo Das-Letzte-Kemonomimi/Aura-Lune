@@ -66,7 +66,7 @@ async fn load_album_lookup_context(
         year: ctx.album.year,
         track_count: Some(ctx.track_count),
         sample_tracks: ctx.sample_tracks,
-        release_mbid: ctx.album.release_mbid,
+        release_mbid: ctx.release_mbid,
     }
 }
 

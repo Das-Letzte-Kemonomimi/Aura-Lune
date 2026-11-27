@@ -412,7 +412,7 @@ async fn resolve_cover_lookup(
     if !metadata::cover_query::is_neutral_artist(&album.album_artist) {
         lookup.artist = album.album_artist;
     }
-    lookup.release_mbid = album.release_mbid.filter(|m| !m.trim().is_empty());
+    lookup.release_mbid = ctx.release_mbid;
     lookup.context = metadata::AlbumLookupContext {
         year: album.year,
         track_count: Some(ctx.track_count),

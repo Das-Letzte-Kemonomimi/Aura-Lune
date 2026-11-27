@@ -367,6 +367,13 @@
         "de": "Die Spektrumanzeige läuft jetzt synchron zum Gehörten statt etwa 0,8 s voraus, mit feineren Balken im Bass, und Änderungen an EQ, Dynamik, Crossfeed und Hall sind um ein Vielfaches schneller hörbar.",
         "fi": "Spektrinäyttö liikkuu nyt kuullun tahdissa noin 0,8 s etuajassa olemisen sijaan, bassossa on tarkemmat palkit, ja EQ-, dynamiikka-, crossfeed- ja kaikumuutokset kuuluvat moninkertaisesti nopeammin.",
         "la": "Spectrum nunc cum sono audito congruit neque fere 0,8 s praecedit, et mutationes aequatoris ac reverberationis multo citius audiuntur."
+      },
+      {
+        "en": "Album covers are now found for soundtracks whose songs have different artists, such as an anime soundtrack with guest singers. The search treats them as one album instead of giving up on the singer's few tracks.",
+        "pl": "Okładki są teraz odnajdywane także dla ścieżek dźwiękowych, w których utwory mają różnych wykonawców, np. anime z gościnnymi wokalistkami. Wyszukiwanie traktuje je jak jeden album, zamiast poddawać się przy kilku utworach wokalistki.",
+        "de": "Cover werden jetzt auch für Soundtracks gefunden, deren Stücke verschiedene Interpreten haben, etwa ein Anime-Soundtrack mit Gastsängerinnen. Die Suche behandelt sie als ein Album, statt bei den wenigen Stücken der Sängerin aufzugeben.",
+        "fi": "Kansikuvat löytyvät nyt myös ääniraidoille, joiden kappaleilla on eri esittäjät, esimerkiksi animen ääniraidalle vierailevine laulajineen. Haku käsittelee ne yhtenä albumina sen sijaan, että luovuttaisi laulajan muutaman kappaleen kohdalla.",
+        "la": "Tegumenta nunc etiam pro sonis cinematographicis inveniuntur, quorum cantus varios artifices habent. Quaestio eos ut unum album tractat, non singulos cantores."
       }
     ]
   },

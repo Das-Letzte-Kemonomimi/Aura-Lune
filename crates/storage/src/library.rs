@@ -320,8 +320,24 @@ impl Database {
         Ok(updated)
     }
 
+    /// Ids of the albums that are really the same release as `album_id`: same title (ignoring
+    /// case and surrounding spaces) with at least one track in the same folder. The scanner creates
+    /// them when files lack `ALBUMARTIST` and the track artists differ (guest vocalists on an OST).
+    /// Requiring a shared folder keeps unrelated homonyms ("Greatest Hits" by two artists) apart.
+    /// `dirname` is `rtrim(path, replace(path, '/', ''))`: the path up to and including its last `/`.
+    const SPLIT_ALBUM_SIBLINGS: &'static str = r#"
+        SELECT DISTINCT sib.id
+        FROM albums sib
+        JOIN tracks st ON st.album_id = sib.id
+        JOIN tracks ot ON ot.album_id = ?1
+        WHERE sib.id != ?1
+          AND LOWER(TRIM(sib.title)) = LOWER(TRIM(?2))
+          AND rtrim(st.path, replace(st.path, '/', '')) = rtrim(ot.path, replace(ot.path, '/', ''))
+    "#;
+
     /// Returns album details plus track count and up to 5 sample track titles for online
-    /// disambiguation and tracklist verification.
+    /// disambiguation and tracklist verification. Split siblings (see [`Self::SPLIT_ALBUM_SIBLINGS`])
+    /// are folded in, so an album holding 3 of a 35-track soundtrack is looked up as the whole release.
     pub async fn get_album_cover_context(
         &self,
         album_id: i64,
@@ -329,12 +345,21 @@ impl Database {
         let Some(album) = self.get_album_by_id(album_id).await? else {
             return Ok(None);
         };
-        let track_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM tracks WHERE album_id = ?1;")
-                .bind(album_id)
-                .fetch_one(&self.pool)
-                .await?;
-        let sample_tracks: Vec<String> = sqlx::query_scalar(
+        let siblings = Self::SPLIT_ALBUM_SIBLINGS;
+
+        let own_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tracks WHERE album_id = ?1;")
+            .bind(album_id)
+            .fetch_one(&self.pool)
+            .await?;
+        let sibling_count: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM tracks WHERE album_id IN ({siblings});"
+        ))
+        .bind(album_id)
+        .bind(&album.title)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let mut sample_tracks: Vec<String> = sqlx::query_scalar(
             r#"
             SELECT title FROM tracks
             WHERE album_id = ?1
@@ -345,11 +370,54 @@ impl Database {
         .bind(album_id)
         .fetch_all(&self.pool)
         .await?;
+        let missing = 5usize.saturating_sub(sample_tracks.len());
+        if missing > 0 {
+            let more: Vec<String> = sqlx::query_scalar(&format!(
+                r#"
+                SELECT title FROM tracks
+                WHERE album_id IN ({siblings})
+                ORDER BY album_id, COALESCE(disc_no, 1), COALESCE(track_no, 0), id
+                LIMIT ?3;
+                "#
+            ))
+            .bind(album_id)
+            .bind(&album.title)
+            .bind(missing as i64)
+            .fetch_all(&self.pool)
+            .await?;
+            sample_tracks.extend(more);
+        }
+
+        let own_mbid = album
+            .release_mbid
+            .as_deref()
+            .map(str::trim)
+            .filter(|m| !m.is_empty())
+            .map(str::to_string);
+        let release_mbid = match own_mbid {
+            Some(mbid) => Some(mbid),
+            None => {
+                sqlx::query_scalar(&format!(
+                    r#"
+                    SELECT TRIM(release_mbid) FROM albums
+                    WHERE id IN ({siblings})
+                      AND release_mbid IS NOT NULL AND TRIM(release_mbid) != ''
+                    ORDER BY id
+                    LIMIT 1;
+                    "#
+                ))
+                .bind(album_id)
+                .bind(&album.title)
+                .fetch_optional(&self.pool)
+                .await?
+            }
+        };
 
         Ok(Some(AlbumCoverLookupContext {
             album,
-            track_count: track_count.max(0) as usize,
+            track_count: (own_count + sibling_count).max(0) as usize,
             sample_tracks,
+            release_mbid,
         }))
     }
 
