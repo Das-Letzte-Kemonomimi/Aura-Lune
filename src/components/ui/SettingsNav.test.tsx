@@ -92,4 +92,15 @@ describe('SettingsNav', () => {
     fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowDown' });
     expect(onChange).toHaveBeenLastCalledWith('appearance');
   });
+
+  it('stops propagation of handled navigation keys so global hotkeys do not fire', () => {
+    const parentKeyDown = vi.fn();
+    render(
+      <div onKeyDown={parentKeyDown}>
+        <SettingsNav groups={groups} value="general" onChange={vi.fn()} label="Settings" />
+      </div>,
+    );
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowDown' });
+    expect(parentKeyDown).not.toHaveBeenCalled();
+  });
 });

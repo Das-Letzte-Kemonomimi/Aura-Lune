@@ -74,6 +74,7 @@ export function SettingsNav<T extends string>({
     else if (e.key === 'End') next = enabledIds[enabledIds.length - 1];
     if (next === undefined) return;
     e.preventDefault();
+    e.stopPropagation();
     select(next);
   };
 
