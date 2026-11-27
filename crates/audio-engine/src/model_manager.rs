@@ -3,9 +3,12 @@
 use domain::analysis::{AiModelInfo, AiTaskType, AnalysisCapabilities};
 use hex;
 use sha2::{Digest, Sha256};
+use std::collections::VecDeque;
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use std::time::SystemTime;
 
 /// Returns the AI model storage directory, following the XDG Base Directory spec.
 pub fn get_models_dir() -> PathBuf {
@@ -71,6 +74,43 @@ pub fn calculate_file_sha256(path: &Path) -> io::Result<String> {
     }
 
     Ok(hex::encode(hasher.finalize()))
+}
+
+/// Entries kept by [`cached_file_sha256`].
+const FILE_HASH_CACHE_CAP: usize = 64;
+
+/// `(path, size, mtime) → SHA-256` of recently hashed files, most recent last.
+type FileHashCache = Mutex<VecDeque<((PathBuf, u64, SystemTime), String)>>;
+
+fn file_hash_cache() -> &'static FileHashCache {
+    static CACHE: OnceLock<FileHashCache> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(VecDeque::with_capacity(FILE_HASH_CACHE_CAP)))
+}
+
+/// [`calculate_file_sha256`] through a small process-wide LRU keyed by (path, size, mtime).
+///
+/// Chord analysis, transcription and stem separation each hash the whole file (hundreds of MB
+/// for hi-res); the same track is usually analysed by several of them in a row. A file that
+/// changes on disk gets a new size or mtime and is hashed again.
+pub fn cached_file_sha256(path: &Path) -> io::Result<String> {
+    let meta = fs::metadata(path)?;
+    let key = (path.to_path_buf(), meta.len(), meta.modified()?);
+    if let Ok(mut cache) = file_hash_cache().lock() {
+        if let Some(pos) = cache.iter().position(|(k, _)| *k == key) {
+            let entry = cache.remove(pos).expect("position is in range");
+            let hash = entry.1.clone();
+            cache.push_back(entry);
+            return Ok(hash);
+        }
+    }
+    let hash = calculate_file_sha256(path)?;
+    if let Ok(mut cache) = file_hash_cache().lock() {
+        if cache.len() >= FILE_HASH_CACHE_CAP {
+            cache.pop_front();
+        }
+        cache.push_back((key, hash.clone()));
+    }
+    Ok(hash)
 }
 
 /// Checks that a file exists and that its SHA-256 matches the expected value.

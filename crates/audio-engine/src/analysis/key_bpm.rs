@@ -162,31 +162,30 @@ pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, boo
         .map(|n| 0.5 * (1.0 - (2.0 * PI * n as f64 / (frame_size - 1) as f64).cos()))
         .collect();
 
-    // Accumulate magnitudes per frame, which avoids destructive phase interference.
     // Analyse octaves 2 to 5 (100 Hz to 1350 Hz) to avoid sub-bass (kick) interference < 100 Hz.
+    // The probe frequencies and their cos/sin tables do not depend on the frame, so they are
+    // computed once per call (the same expressions as before, so the result is bit-identical).
+    let probes = key_probe_tables(sample_rate, frame_size);
+    let mut windowed = vec![0.0f64; frame_size.div_ceil(2)];
+
+    // Accumulate magnitudes per frame, which avoids destructive phase interference.
     for f_idx in 0..num_frames {
         let frame_start = f_idx * hop_size;
         let frame = &analysis_samples[frame_start..frame_start + frame_size];
+        // Every other sample (the analysis decimates by 2), windowed once for all notes.
+        for (slot, i) in windowed.iter_mut().zip((0..frame_size).step_by(2)) {
+            *slot = frame[i] as f64 * hanning[i];
+        }
 
-        for (p, chroma_slot) in chroma.iter_mut().enumerate() {
+        for (chroma_slot, note_probes) in chroma.iter_mut().zip(&probes) {
             let mut note_frame_energy = 0.0;
-            for octave in 2..=5 {
-                let f = 440.0 * 2.0f64.powf(((p as i32 - 9) as f64) / 12.0 + (octave as f64 - 4.0));
-                if !(100.0..=1350.0).contains(&f) {
-                    continue;
-                }
-
-                let omega = 2.0 * PI * f / sample_rate;
+            for probe in note_probes {
                 let mut re = 0.0f64;
                 let mut im = 0.0f64;
-
-                for i in (0..frame_size).step_by(2) {
-                    let s = frame[i] as f64 * hanning[i];
-                    let angle = omega * (i as f64);
-                    re += s * angle.cos();
-                    im -= s * angle.sin();
+                for ((&s, &c), &sn) in windowed.iter().zip(&probe.cos).zip(&probe.sin) {
+                    re += s * c;
+                    im -= s * sn;
                 }
-
                 note_frame_energy += (re * re + im * im).sqrt();
             }
             *chroma_slot += note_frame_energy;
@@ -228,6 +227,36 @@ pub fn detect_key_from_samples(samples: &[f32], sample_rate: f64) -> (usize, boo
     }
 
     (best_key, best_is_minor)
+}
+
+/// `cos(ω·i)` / `sin(ω·i)` for the even sample indices of one frame, for one probe frequency.
+struct KeyProbe {
+    cos: Vec<f64>,
+    sin: Vec<f64>,
+}
+
+/// The probe tables of every pitch class (C .. B): one entry per octave 2..=5 whose frequency
+/// lies in 100–1350 Hz.
+fn key_probe_tables(sample_rate: f64, frame_size: usize) -> [Vec<KeyProbe>; 12] {
+    std::array::from_fn(|p| {
+        (2..=5)
+            .filter_map(|octave| {
+                let f = 440.0 * 2.0f64.powf(((p as i32 - 9) as f64) / 12.0 + (octave as f64 - 4.0));
+                if !(100.0..=1350.0).contains(&f) {
+                    return None;
+                }
+                let omega = 2.0 * PI * f / sample_rate;
+                let (sin, cos) = (0..frame_size)
+                    .step_by(2)
+                    .map(|i| {
+                        let angle = omega * (i as f64);
+                        (angle.sin(), angle.cos())
+                    })
+                    .unzip();
+                Some(KeyProbe { cos, sin })
+            })
+            .collect()
+    })
 }
 
 fn pearson_correlation(x: &[f64; 12], y: &[f64; 12]) -> f64 {

@@ -274,7 +274,7 @@ pub async fn create_stem_project_internal(
     // SHA-256 of the whole audio file (hundreds of MB for hi-res), off the Tokio threads.
     let hash_path = track_path.clone();
     let track_hash = tokio::task::spawn_blocking(move || {
-        audio_engine::calculate_file_sha256(Path::new(&hash_path))
+        audio_engine::cached_file_sha256(Path::new(&hash_path))
     })
     .await
     .map_err(|e| CommandError::internal(format!("SHA-256 computation interrupted: {e}")))?

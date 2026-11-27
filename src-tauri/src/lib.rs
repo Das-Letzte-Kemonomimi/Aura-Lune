@@ -36,6 +36,7 @@ pub use commands::stems::*;
 pub use commands::system::*;
 pub use commands::themes::*;
 pub use commands::updates::*;
+pub use commands::waveform::*;
 
 #[derive(Clone)]
 pub struct AppState {

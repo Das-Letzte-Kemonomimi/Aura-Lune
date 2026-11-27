@@ -29,7 +29,12 @@ fn test_hpss_stereo_sum_reconstruction() {
         right[i] = (2.0 * PI * 100.0 * t).sin() * 0.5 + (2.0 * PI * 1200.0 * t).sin() * 0.3;
     }
 
-    let stems = separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
+    let stems = separate_stereo_hpss(
+        left.clone(),
+        right.clone(),
+        44100,
+        None::<&mut fn(f32, &str)>,
+    );
 
     // Check the sum: all stems together must reproduce the input exactly
     for i in 2048..6144 {
@@ -428,11 +433,32 @@ fn mixed_test_signal(n: usize) -> (Vec<f32>, Vec<f32>) {
     (left, right)
 }
 
+/// Largest absolute sample difference between two signals of equal length.
+fn max_abs_diff(a: &[f32], b: &[f32]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.iter()
+        .zip(b)
+        .map(|(x, y)| (x - y).abs())
+        .fold(0.0, f32::max)
+}
+
+/// The streaming version differs from the reference only in floating-point rounding:
+/// - stems are resynthesised as `gain · X` instead of `|gain · X| · (cos φ, sin φ)` with
+///   `φ = atan2(im, re)` (the same complex value, without the polar round trip);
+/// - "other" is `input − (vocals + drums + bass)` directly, which is what the reference's
+///   residual correction `other + (input − (vocals + drums + bass + other))` reduces to.
+///
+/// So every stem must match the full-matrix reference within 1e-6 (≈ 1/30 of a 16-bit LSB).
 #[test]
-fn test_streaming_hpss_matches_full_matrix_reference_exactly() {
+fn test_streaming_hpss_matches_full_matrix_reference() {
     // 1.5 s: far more frames than the ring buffer (15), plus partial edges.
     let (left, right) = mixed_test_signal(66_150);
-    let new = separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
+    let new = separate_stereo_hpss(
+        left.clone(),
+        right.clone(),
+        44100,
+        None::<&mut fn(f32, &str)>,
+    );
     let old = reference_separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
     for (name, a, b) in [
         ("vocals", &new.vocals, &old.vocals),
@@ -440,8 +466,51 @@ fn test_streaming_hpss_matches_full_matrix_reference_exactly() {
         ("bass", &new.bass, &old.bass),
         ("other", &new.other, &old.other),
     ] {
-        assert_eq!(a.0, b.0, "{name} L differs from the reference");
-        assert_eq!(a.1, b.1, "{name} R differs from the reference");
+        let (diff_l, diff_r) = (max_abs_diff(&a.0, &b.0), max_abs_diff(&a.1, &b.1));
+        assert!(
+            diff_l < 1e-6,
+            "{name} L differs from the reference by {diff_l}"
+        );
+        assert!(
+            diff_r < 1e-6,
+            "{name} R differs from the reference by {diff_r}"
+        );
+    }
+}
+
+#[test]
+fn test_hpss_stems_sum_exactly_to_the_input() {
+    // Halved so no sample reaches the ±1 clamp of the residual.
+    let (mut left, mut right) = mixed_test_signal(44_100);
+    left.iter_mut()
+        .chain(right.iter_mut())
+        .for_each(|s| *s *= 0.5);
+    let stems = separate_stereo_hpss(
+        left.clone(),
+        right.clone(),
+        44100,
+        None::<&mut fn(f32, &str)>,
+    );
+    for (input, v, d, b, o) in [
+        (
+            &left,
+            &stems.vocals.0,
+            &stems.drums.0,
+            &stems.bass.0,
+            &stems.other.0,
+        ),
+        (
+            &right,
+            &stems.vocals.1,
+            &stems.drums.1,
+            &stems.bass.1,
+            &stems.other.1,
+        ),
+    ] {
+        for i in 0..input.len() {
+            let sum = v[i] + d[i] + b[i] + o[i];
+            assert!((sum - input[i]).abs() < 1e-6, "sum differs at sample {i}");
+        }
     }
 }
 
@@ -450,7 +519,7 @@ fn test_hpss_reports_progress_in_order() {
     let (left, right) = mixed_test_signal(44_100);
     let mut steps = Vec::new();
     let mut cb = |p: f32, _msg: &str| steps.push(p);
-    separate_stereo_hpss(&left, &right, 44100, Some(&mut cb));
+    separate_stereo_hpss(left.clone(), right.clone(), 44100, Some(&mut cb));
     assert_eq!(steps, vec![0.35, 0.50, 0.65, 0.80]);
 }
 
@@ -458,7 +527,12 @@ fn test_hpss_reports_progress_in_order() {
 fn test_hpss_short_input_falls_back_to_passthrough() {
     let left = vec![0.1f32; 1000];
     let right = vec![0.2f32; 1000];
-    let stems = separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
+    let stems = separate_stereo_hpss(
+        left.clone(),
+        right.clone(),
+        44100,
+        None::<&mut fn(f32, &str)>,
+    );
     assert_eq!(stems.vocals.0, left);
     assert!(stems.drums.0.iter().all(|&s| s == 0.0));
 }

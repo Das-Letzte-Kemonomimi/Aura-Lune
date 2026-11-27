@@ -16,7 +16,7 @@ const WAVEFORM_SAMPLE_RATE: u32 = 11_025;
 /// Number of samples in one amplitude statistics block (peak + sum of squares).
 const BLOCK_SAMPLES: usize = 256;
 /// Longest decode time; a longer decode yields a waveform of the beginning of the track.
-const MAX_DECODE: Duration = Duration::from_secs(60);
+pub(super) const MAX_DECODE: Duration = Duration::from_secs(60);
 
 /// FFT window size for the spectral seekbar analyser (~46.4 ms at 22,050 Hz, ~21.5 Hz/bin).
 const SPECTRAL_FFT_SIZE: usize = 1024;

@@ -2,7 +2,9 @@
 //!
 //! Called from the playback status loop ([`super::playback_ticker`]):
 //! - on a track change, detects the silence bounds in the background (`audio_engine::detect_silence_bounds`)
-//!   and stores them in the database (`track_silence_bounds`), so later plays do not decode the file,
+//!   and stores them in the database (`track_silence_bounds`), so later plays do not decode the file;
+//!   when the seekbar waveform is not cached either, one decode builds both
+//!   (`audio_engine::analyze_waveform_and_silence`) and the waveform request waits for it,
 //! - at the start of playback, seeks past the leading silence,
 //! - on reaching the trailing silence, seeks to just before the end of the file; the rest
 //!   (repeat, "stop after current", crossfade, next track) is handled by the engine's normal EOS path.
@@ -11,9 +13,14 @@
 //! F32 / bit-perfect path), and dropping buffers on a synchronised output does not shorten playback.
 
 use crate::commands::playback::{seek_internal, PlaybackStatusDto};
+use crate::commands::waveform::{
+    begin_waveform_job, cached_waveform, file_mtime_secs, store_waveform, WaveformJob,
+    DEFAULT_WAVEFORM_BUCKETS,
+};
 use crate::AppState;
 use domain::silence::{trim_action, SilenceBounds, TrimAction};
 use domain::PlaybackState;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
@@ -154,6 +161,12 @@ impl SilenceTrimmer {
         let uri = item.uri.clone();
         let track_id = item.track_id;
         let expected = duration_ms.or(Some(item.duration_ms)).filter(|d| *d > 0);
+        // Claimed synchronously, before the frontend's waveform request for the new track can
+        // arrive, so that request waits for this decode instead of starting its own. Released
+        // (dropped) as soon as it is clear the waveform is not needed from here.
+        let waveform_job = std::fs::canonicalize(audio_engine::uri::local_path(&uri).as_path())
+            .ok()
+            .and_then(|path| begin_waveform_job(&path).map(|job| (path, job)));
         state.rt.spawn(async move {
             let modified = match track_id {
                 Some(id) => db
@@ -175,16 +188,15 @@ impl SilenceTrimmer {
                 }
             }
 
-            let uri_for_task = uri.clone();
-            let cancel_for_task = cancel.clone();
-            let detected = tokio::task::spawn_blocking(move || {
-                audio_engine::detect_silence_bounds(
-                    &uri_for_task,
-                    threshold_db,
-                    expected,
-                    Some(&cancel_for_task),
-                )
-            })
+            let detected = detect_bounds(
+                &db,
+                &uri,
+                track_id,
+                threshold_db,
+                expected,
+                &cancel,
+                waveform_job,
+            )
             .await;
             if cancel.load(Ordering::Relaxed) {
                 debug!("Silence detection cancelled (track changed): {}", uri);
@@ -212,6 +224,78 @@ impl SilenceTrimmer {
             }
         });
     }
+}
+
+/// Detects the silence bounds; when `waveform_job` is held and the seekbar waveform of this file
+/// is not cached, the same decode also builds and stores the waveform.
+async fn detect_bounds(
+    db: &Arc<storage::Database>,
+    uri: &str,
+    track_id: Option<i64>,
+    threshold_db: f64,
+    expected: Option<u64>,
+    cancel: &Arc<AtomicBool>,
+    waveform_job: Option<(PathBuf, WaveformJob)>,
+) -> Result<Result<Option<SilenceBounds>, audio_engine::AnalysisError>, tokio::task::JoinError> {
+    let shared = match waveform_job {
+        Some((path, job)) => {
+            let mtime = file_mtime_secs(&path).await;
+            let cached = cached_waveform(db, track_id, &path, mtime, DEFAULT_WAVEFORM_BUCKETS)
+                .await
+                .is_some();
+            (!cached).then_some((path, mtime, job))
+        }
+        None => None,
+    };
+
+    let uri_for_task = uri.to_string();
+    let cancel_for_task = cancel.clone();
+    let Some((path, mtime, job)) = shared else {
+        return tokio::task::spawn_blocking(move || {
+            audio_engine::detect_silence_bounds(
+                &uri_for_task,
+                threshold_db,
+                expected,
+                Some(&cancel_for_task),
+            )
+        })
+        .await;
+    };
+
+    debug!(
+        "One decode for the waveform and the silence bounds: {}",
+        uri
+    );
+    let combined = tokio::task::spawn_blocking(move || {
+        audio_engine::analyze_waveform_and_silence(
+            &uri_for_task,
+            DEFAULT_WAVEFORM_BUCKETS,
+            track_id,
+            threshold_db,
+            expected,
+            Some(&cancel_for_task),
+        )
+    })
+    .await?;
+    let silence = match combined {
+        Ok(result) => {
+            if let Some(waveform) = &result.waveform {
+                store_waveform(
+                    db,
+                    track_id,
+                    path,
+                    mtime,
+                    DEFAULT_WAVEFORM_BUCKETS,
+                    waveform,
+                )
+                .await;
+            }
+            result.silence
+        }
+        Err(e) => Err(e),
+    };
+    drop(job);
+    Ok(silence)
 }
 
 fn is_stream(uri: &str) -> bool {

@@ -58,8 +58,31 @@ pub fn detect_notes_from_samples(
         pitch_freqs.push(freq);
     }
 
+    // Low notes round to the same Goertzel bin `k` (≈10.8 Hz bins at 22.05 kHz), so each distinct
+    // bin is filtered once per frame and its power shared by every pitch that maps to it.
+    let mut bin_coeffs: Vec<(f64, f64)> = Vec::new(); // (k, 2·cos ω)
+    let pitch_bins: Vec<Option<usize>> = pitch_freqs
+        .iter()
+        .map(|&freq| {
+            let k = (window_size as f64 * freq / sample_rate).round();
+            if k < 1.0 || k >= (window_size / 2) as f64 {
+                return None;
+            }
+            if bin_coeffs.last().map(|&(last_k, _)| last_k) != Some(k) {
+                let omega = 2.0 * PI * k / (window_size as f64);
+                bin_coeffs.push((k, 2.0 * omega.cos()));
+            }
+            Some(bin_coeffs.len() - 1)
+        })
+        .collect();
+
     let mut active_notes: Vec<(u8, u64, u64, f64)> = Vec::new(); // (midi_pitch, start_frame, last_frame, max_energy)
     let mut finished_notes: Vec<DetectedNote> = Vec::new();
+    // Per-frame buffers, reused across frames.
+    let mut bin_powers = vec![0.0f64; bin_coeffs.len()];
+    let mut frame_energies = vec![0.0f64; num_pitches];
+    let mut current_frame_pitches: Vec<(u8, f64)> = Vec::new();
+    let mut still_active: Vec<bool> = Vec::new();
 
     for f_idx in 0..num_frames {
         let start = f_idx * hop_size;
@@ -74,35 +97,27 @@ pub fn detect_notes_from_samples(
             continue;
         }
 
-        let mut frame_energies = vec![0.0f64; num_pitches];
-        let mut max_p_energy = 0.0f64;
-
-        for (p_idx, &freq) in pitch_freqs.iter().enumerate() {
-            let k = (window_size as f64 * freq / sample_rate).round();
-            if k < 1.0 || k >= (window_size / 2) as f64 {
-                continue;
-            }
-
-            let omega = 2.0 * PI * k / (window_size as f64);
-            let coeff = 2.0 * omega.cos();
+        for (power, &(_, coeff)) in bin_powers.iter_mut().zip(&bin_coeffs) {
             let mut s1 = 0.0;
             let mut s2 = 0.0;
-
             for &sample in frame.iter() {
                 let s0 = (sample as f64) + coeff * s1 - s2;
                 s2 = s1;
                 s1 = s0;
             }
+            *power = (s1 * s1 + s2 * s2 - s1 * s2 * coeff).max(0.0);
+        }
 
-            let power = (s1 * s1 + s2 * s2 - s1 * s2 * coeff).max(0.0);
-            frame_energies[p_idx] = power;
-            if power > max_p_energy {
-                max_p_energy = power;
+        let mut max_p_energy = 0.0f64;
+        for (energy, bin) in frame_energies.iter_mut().zip(&pitch_bins) {
+            *energy = bin.map_or(0.0, |b| bin_powers[b]);
+            if *energy > max_p_energy {
+                max_p_energy = *energy;
             }
         }
 
         let threshold = (max_p_energy * 0.25).max(1e-4);
-        let mut current_frame_pitches = Vec::new();
+        current_frame_pitches.clear();
 
         for (p_idx, &energy) in frame_energies.iter().enumerate() {
             if energy >= threshold {
@@ -115,7 +130,8 @@ pub fn detect_notes_from_samples(
             }
         }
 
-        let mut still_active = vec![false; active_notes.len()];
+        still_active.clear();
+        still_active.resize(active_notes.len(), false);
         for &(midi, energy) in &current_frame_pitches {
             if let Some(pos) = active_notes.iter().position(|n| n.0 == midi) {
                 still_active[pos] = true;
@@ -339,7 +355,7 @@ pub fn analyze_track_transcription(
     let local = crate::uri::local_path(uri_or_path);
     let path = local.as_path();
     let file_hash = if path.exists() {
-        calculate_file_sha256(path).unwrap_or_else(|_| format!("hash_{}", track_id))
+        cached_file_sha256(path).unwrap_or_else(|_| format!("hash_{track_id}"))
     } else {
         format!("hash_{}", track_id)
     };

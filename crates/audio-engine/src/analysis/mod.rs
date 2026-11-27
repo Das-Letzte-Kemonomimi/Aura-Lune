@@ -15,6 +15,7 @@ mod replaygain;
 mod silence;
 mod transcription;
 mod waveform;
+mod waveform_silence;
 
 pub use chords::*;
 pub use decode::*;
@@ -23,8 +24,9 @@ pub use replaygain::*;
 pub use silence::*;
 pub use transcription::*;
 pub use waveform::*;
+pub use waveform_silence::*;
 
-use crate::model_manager::calculate_file_sha256;
+use crate::model_manager::cached_file_sha256;
 use domain::analysis::{
     BeatPoint, ChordSegment, DetectedNote, TrackChordsData, TrackTranscriptionData,
 };
