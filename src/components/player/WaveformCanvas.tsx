@@ -16,7 +16,7 @@ import {
 import type { SpectralBandTriple } from '../../types/analysis';
 import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
-import { roundRectPath } from '../../utils/canvasDraw';
+import { clientPointToLocal, getDocumentZoom, roundRectPath } from '../../utils/canvasDraw';
 import { cn } from '../../utils/cn';
 import { Chip } from '../ui';
 
@@ -165,7 +165,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     const surfaceWidth =
       canvasWidthRef.current > 0
         ? canvasWidthRef.current
-        : (containerRef.current?.getBoundingClientRect().width ?? 0);
+        : (containerRef.current?.clientWidth || containerRef.current?.getBoundingClientRect().width || 0);
     const halfWidth = tip.offsetWidth > 0 ? Math.max(24, tip.offsetWidth / 2 + 2) : 30;
     const clampedX =
       surfaceWidth > 0
@@ -272,9 +272,10 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
         ctx.lineWidth = 1;
         for (let gx = 0; gx < width; gx += 40) {
+          const lineX = Math.floor(gx) + 0.5;
           ctx.beginPath();
-          ctx.moveTo(gx, 0);
-          ctx.lineTo(gx, canvasHeight);
+          ctx.moveTo(lineX, 0);
+          ctx.lineTo(lineX, canvasHeight);
           ctx.stroke();
         }
 
@@ -346,11 +347,13 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
             ? (dragProgressRef.current / 100) * durationMs
             : positionMs;
         if (durationMs > 0 && effectivePosMs > 0) {
-          ctx.fillStyle = 'rgba(15, 20, 32, 0.85)';
-          ctx.fillRect(playheadX + 4, 4, 38, 14);
+          ctx.fillStyle = 'rgba(15, 20, 32, 0.88)';
+          ctx.beginPath();
+          roundRectPath(ctx, playheadX + 5, 4, 38, 15, 3);
+          ctx.fill();
           ctx.fillStyle = '#fff';
-          ctx.font = '9px monospace';
-          ctx.fillText(formatTimeSec(effectivePosMs / 1000), playheadX + 7, 14);
+          ctx.font = '600 10px monospace';
+          ctx.fillText(formatTimeSec(effectivePosMs / 1000), playheadX + 8, 14.5);
         }
 
         // Playhead marker at the top and bottom
@@ -511,22 +514,24 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
    * Falls back to the container rect when the canvas has 0 layout width (e.g. jsdom tests mocking `.waveform-container`).
    */
   const getPctFromClientX = (clientX: number): { pct: number; x: number } => {
-    const canvasRect = canvasRef.current?.getBoundingClientRect();
-    const rect = canvasRect && canvasRect.width > 0 ? canvasRect : containerRef.current?.getBoundingClientRect();
-    if (!rect) return { pct: 0, x: 0 };
-    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const canvas = canvasRef.current;
+    const canvasRect = canvas?.getBoundingClientRect();
+    const target = canvas && canvasRect && canvasRect.width > 0 ? canvas : containerRef.current;
+    if (!target) return { pct: 0, x: 0 };
+    const { x: rawX, width } = clientPointToLocal(target, clientX, 0);
+    const x = Math.max(0, Math.min(width, rawX));
     if (isScrolling) {
       const base = (isDraggingRef.current && dragProgressRef.current !== null ? dragProgressRef.current : progress) / 100;
-      const pct = base + (x - rect.width * SCROLL_PLAYHEAD_RATIO) / scrollTotalWidth;
+      const pct = base + (x - width * SCROLL_PLAYHEAD_RATIO) / scrollTotalWidth;
       return { pct: Math.max(0, Math.min(1, pct)), x };
     }
-    const pct = rect.width > 0 ? x / rect.width : 0;
+    const pct = width > 0 ? x / width : 0;
     return { pct, x };
   };
 
   /** New progress (0..1) after dragging the DJ wave: the wave follows the cursor, so the track moves the opposite way. */
   const getScrollDragPct = (clientX: number): number => {
-    const dx = clientX - scrollDragStartXRef.current;
+    const dx = (clientX - scrollDragStartXRef.current) / getDocumentZoom();
     const next = scrollDragStartProgressRef.current - (dx / scrollTotalWidth) * 100;
     return Math.max(0, Math.min(100, next)) / 100;
   };
@@ -557,7 +562,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   const moveDrag = (clientX: number, pct: number, x: number) => {
     if (isScrolling) {
       if (!scrollDragMovedRef.current) {
-        if (Math.abs(clientX - scrollDragStartXRef.current) < SCROLL_DRAG_THRESHOLD_PX) return;
+        if (Math.abs(clientX - scrollDragStartXRef.current) / getDocumentZoom() < SCROLL_DRAG_THRESHOLD_PX) return;
         scrollDragMovedRef.current = true;
       }
       const nextPct = getScrollDragPct(clientX);

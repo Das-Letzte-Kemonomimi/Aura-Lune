@@ -7,6 +7,7 @@ import { WaveformCanvas } from '../../../components/player/WaveformCanvas';
 import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
 import { useLiveVolume } from '../../../state/livePlayback';
 import { formatTime } from '../../../utils/timeFormat';
+import { clientPointToLocal } from '../../../utils/canvasDraw';
 import type { BigScreenViewProps } from '../BigScreenView';
 import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../../utils/cn';
@@ -146,8 +147,8 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
           <div
             onClick={(e) => {
               if (!durationMs || durationMs <= 0) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              const { x, width } = clientPointToLocal(e.currentTarget, e.clientX, e.clientY);
+              const pct = width > 0 ? Math.max(0, Math.min(1, x / width)) : 0;
               onSeek(Math.floor(pct * durationMs));
             }}
             className="h-1.5 flex-1 cursor-pointer overflow-hidden rounded-sm bg-white/10"

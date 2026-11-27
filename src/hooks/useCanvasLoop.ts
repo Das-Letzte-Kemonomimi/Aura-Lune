@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
-import { clampDpr, computeBackingSize } from '../utils/canvasDraw';
+import { clampDpr, computeBackingSize, getDocumentZoom } from '../utils/canvasDraw';
 import { useFrameLoop } from './useFrameLoop';
 
 export interface CanvasSize {
@@ -74,7 +74,10 @@ export function useCanvasLoop(
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     const requested = pixelRatioRef.current;
-    const dpr = requested === 'device' ? clampDpr(window.devicePixelRatio || 1) : requested;
+    const dpr =
+      requested === 'device'
+        ? clampDpr((window.devicePixelRatio || 1) * getDocumentZoom(), 3)
+        : requested;
     const prev = sizeRef.current;
     if (width === prev.width && height === prev.height && dpr === prev.dpr) return;
 
@@ -106,8 +109,15 @@ export function useCanvasLoop(
     }
     // The window `resize` also catches devicePixelRatio changes (zoom, moving to another monitor).
     window.addEventListener('resize', measure);
+    // Watch CSS `zoom` changes on `<html>` (UI Scale) so the backing buffer scales 1:1 with physical pixels.
+    let styleObserver: MutationObserver | undefined;
+    if (typeof MutationObserver !== 'undefined') {
+      styleObserver = new MutationObserver(() => measure());
+      styleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    }
     return () => {
       observer?.disconnect();
+      styleObserver?.disconnect();
       window.removeEventListener('resize', measure);
     };
   }, [measure]);

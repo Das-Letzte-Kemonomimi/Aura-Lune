@@ -1,5 +1,61 @@
 /** Canvas drawing helpers shared by the visualisations. */
 
+/** Returns the active CSS `zoom` factor on `<html>` (1 when unset or invalid). */
+export function getDocumentZoom(): number {
+  if (typeof document === 'undefined') return 1;
+  const raw = document.documentElement?.style?.zoom;
+  if (!raw) return 1;
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+/**
+ * Converts viewport pointer coordinates (`clientX`, `clientY`) into `el`'s CSS layout space (`0 .. clientWidth/Height`).
+ * Handles both browsers where `getBoundingClientRect()` is scaled by CSS `zoom` (Chromium/modern WebKit)
+ * and browsers where `getBoundingClientRect()` stays unscaled while `clientX/Y` are in viewport space.
+ */
+export function clientPointToLocal(
+  el: Element,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number; width: number; height: number } {
+  const rect = el.getBoundingClientRect();
+  const clientW = el.clientWidth;
+  const clientH = el.clientHeight;
+  const width = clientW > 0 ? clientW : rect.width;
+  const height = clientH > 0 ? clientH : rect.height;
+  const zoom = getDocumentZoom();
+
+  if (zoom === 1 || clientW <= 0) {
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+      width,
+      height,
+    };
+  }
+
+  const scaleX = rect.width / clientW;
+  const scaleY = clientH > 0 ? rect.height / clientH : scaleX;
+  const rectIsZoomed = Math.abs(scaleX - zoom) < Math.abs(scaleX - 1);
+
+  if (rectIsZoomed) {
+    return {
+      x: scaleX > 0 ? (clientX - rect.left) / scaleX : clientX - rect.left,
+      y: scaleY > 0 ? (clientY - rect.top) / scaleY : clientY - rect.top,
+      width,
+      height,
+    };
+  }
+
+  return {
+    x: clientX / zoom - rect.left,
+    y: clientY / zoom - rect.top,
+    width,
+    height,
+  };
+}
+
 /** Clamps devicePixelRatio to a sensible range (memory and fill cost grow with its square). */
 export function clampDpr(dpr: number, max = 2): number {
   if (!Number.isFinite(dpr) || dpr < 1) return 1;

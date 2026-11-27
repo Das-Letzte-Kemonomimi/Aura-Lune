@@ -252,11 +252,12 @@ function drawMirror(ctx: CanvasRenderingContext2D, spec: WaveLayerSpec, played: 
   }
 
   // Central zero line
+  const zeroY = Math.round(midY) + 0.5;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, midY);
-  ctx.lineTo(width, midY);
+  ctx.moveTo(0, zeroY);
+  ctx.lineTo(width, zeroY);
   ctx.stroke();
 }
 

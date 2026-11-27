@@ -14,6 +14,7 @@ import { cn } from '../../utils/cn';
 import { Badge, Button, IconButton } from '../ui';
 import { useVolumeCurve } from '../../hooks/useVolumeCurve';
 import { formatVolume } from '../../utils/volumeCurve';
+import { clientPointToLocal } from '../../utils/canvasDraw';
 import { VolumeIcon, VolumeSlider } from './VolumeSlider';
 
 interface MiniPlayerWidgetProps {
@@ -124,9 +125,8 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
         <div
           onClick={(e) => {
             if (!durationMs || durationMs <= 0) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const pct = Math.max(0, Math.min(1, clickX / rect.width));
+            const { x, width } = clientPointToLocal(e.currentTarget, e.clientX, e.clientY);
+            const pct = width > 0 ? Math.max(0, Math.min(1, x / width)) : 0;
             onSeek(Math.floor(pct * durationMs));
           }}
           className="relative h-1 cursor-pointer overflow-hidden rounded-xs bg-white/10"

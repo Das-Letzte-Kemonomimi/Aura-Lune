@@ -9,6 +9,7 @@ let canvas: CanvasMock;
 
 afterEach(() => {
   cleanup();
+  document.documentElement.style.zoom = '';
   canvas?.restore();
   raf?.restore();
 });
@@ -98,5 +99,26 @@ describe('useCanvasLoop', () => {
     setup(vi.fn());
     raf.step();
     expect(canvas.calls).toContain('clearRect');
+  });
+
+  it('scales the backing store by CSS zoom on documentElement and reallocates when zoom changes', async () => {
+    document.documentElement.style.zoom = '1.1';
+    const draw = vi.fn();
+    setup(draw, { width: 200, height: 100 }, 1);
+    raf.step();
+
+    const firstFrame = draw.mock.calls[0][0] as CanvasFrame;
+    expect(firstFrame.dpr).toBeCloseTo(1.1, 4);
+    expect(canvas.widthAssignments()).toBe(1);
+
+    await act(async () => {
+      document.documentElement.style.zoom = '1.2';
+      await Promise.resolve();
+    });
+    raf.step();
+
+    const lastFrame = draw.mock.calls[draw.mock.calls.length - 1][0] as CanvasFrame;
+    expect(lastFrame.dpr).toBeCloseTo(1.2, 4);
+    expect(canvas.widthAssignments()).toBe(2);
   });
 });

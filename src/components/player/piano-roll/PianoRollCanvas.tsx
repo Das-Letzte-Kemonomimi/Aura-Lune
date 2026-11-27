@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useCanvasLoop, type CanvasFrame } from '../../../hooks/useCanvasLoop';
 import { livePlayback } from '../../../state/livePlayback';
-import { roundRectPath } from '../../../utils/canvasDraw';
+import { clientPointToLocal, roundRectPath } from '../../../utils/canvasDraw';
 import { smoothTo } from '../../../utils/smoothing';
 import { easeDisplayPosition, extrapolatePositionMs, type ClockAnchor } from '../../../utils/playbackClock';
 import { formatTime, formatTimeMs } from '../../../utils/timeFormat';
@@ -508,8 +508,10 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
   useEffect(() => livePlayback.subscribe(invalidate), [invalidate]);
 
   const toLocal = (clientX: number, clientY: number) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+    const el = canvasRef.current;
+    if (!el) return { x: clientX, y: clientY };
+    const { x, y } = clientPointToLocal(el, clientX, clientY);
+    return { x, y };
   };
 
   const setView = (change: PianoRollViewChange) => {

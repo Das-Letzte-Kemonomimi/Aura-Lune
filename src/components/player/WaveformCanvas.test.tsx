@@ -444,4 +444,44 @@ describe('WaveformCanvas shared style', () => {
     const saved = render(<WaveformCanvas {...props} initialStyle="mirror" />);
     expect(within(saved.container).getByTitle('Cyber Bars').getAttribute('aria-pressed')).toBe('true');
   });
+
+  it('aligns seek and hover coordinates under 110% CSS zoom', () => {
+    document.documentElement.style.zoom = '1.1';
+    try {
+      const onSeekCommit = vi.fn();
+      const { container } = render(
+        <WaveformCanvas
+          {...props}
+          onSeekCommit={onSeekCommit}
+        />,
+      );
+      const canvas = container.querySelector('canvas')!;
+      Object.defineProperty(canvas, 'clientWidth', { value: 800, configurable: true });
+      Object.defineProperty(canvas, 'clientHeight', { value: 64, configurable: true });
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        left: 220,
+        top: 100,
+        right: 1100,
+        bottom: 170.4,
+        width: 880,
+        height: 70.4,
+        x: 220,
+        y: 100,
+        toJSON: () => {},
+      });
+
+      const waveformContainer = container.querySelector('.waveform-container') as HTMLElement;
+      // Midpoint in viewport coordinates: 220 + 880 * 0.5 = 660
+      fireEvent.pointerMove(waveformContainer, { clientX: 660, button: 0, pointerId: 1 });
+      const tooltip = container.querySelector('[aria-hidden="true"]') as HTMLElement;
+      expect(tooltip.style.left).toBe('400px');
+
+      fireEvent.pointerDown(waveformContainer, { clientX: 660, button: 0, pointerId: 1 });
+      fireEvent.pointerUp(waveformContainer, { clientX: 660, button: 0, pointerId: 1 });
+      expect(onSeekCommit).toHaveBeenCalledTimes(1);
+      expect(onSeekCommit.mock.calls[0][0]).toBeCloseTo(0.5, 5);
+    } finally {
+      document.documentElement.style.zoom = '';
+    }
+  });
 });

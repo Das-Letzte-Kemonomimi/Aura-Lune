@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { describe, it, expect, vi } from 'vitest';
-import { clampDpr, computeBackingSize, GradientCache, roundRectPath } from './canvasDraw';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { clampDpr, clientPointToLocal, computeBackingSize, getDocumentZoom, GradientCache, roundRectPath } from './canvasDraw';
 
 describe('clampDpr', () => {
   it('limits to the max and rejects invalid values', () => {
@@ -66,5 +66,60 @@ describe('roundRectPath', () => {
     expect(() => roundRectPath(ctx, 0, 0, 20, 10, 3)).not.toThrow();
     expect(calls.filter((c) => c === 'arcTo')).toHaveLength(4);
     expect(calls[calls.length - 1]).toBe('closePath');
+  });
+});
+
+describe('getDocumentZoom & clientPointToLocal', () => {
+  const originalDocument = globalThis.document;
+
+  afterEach(() => {
+    if (originalDocument === undefined) {
+      delete (globalThis as { document?: Document }).document;
+    } else {
+      globalThis.document = originalDocument;
+    }
+  });
+
+  const setZoom = (zoom: string) => {
+    globalThis.document = { documentElement: { style: { zoom } } } as unknown as Document;
+  };
+
+  it('reads CSS zoom from documentElement and falls back to 1', () => {
+    setZoom('');
+    expect(getDocumentZoom()).toBe(1);
+    setZoom('1.1');
+    expect(getDocumentZoom()).toBe(1.1);
+    setZoom('0');
+    expect(getDocumentZoom()).toBe(1);
+  });
+
+  it('maps viewport pointer coordinates to layout space when getBoundingClientRect is zoomed (110%)', () => {
+    setZoom('1.1');
+    // Layout: left=200, width=800 -> zoomed rect: left=220, width=880; midpoint in viewport=660
+    const el = {
+      clientWidth: 800,
+      clientHeight: 64,
+      getBoundingClientRect: () => ({ left: 220, top: 110, width: 880, height: 70.4 }),
+    } as unknown as Element;
+
+    const local = clientPointToLocal(el, 660, 145.2);
+    expect(local.x).toBeCloseTo(400, 4);
+    expect(local.y).toBeCloseTo(32, 4);
+    expect(local.width).toBe(800);
+  });
+
+  it('maps viewport pointer coordinates to layout space when getBoundingClientRect is unzoomed (WebKitGTK 110%)', () => {
+    setZoom('1.1');
+    // Layout: left=200, width=800 (unzoomed rect), midpoint in viewport=660 (= 600 * 1.1)
+    const el = {
+      clientWidth: 800,
+      clientHeight: 64,
+      getBoundingClientRect: () => ({ left: 200, top: 100, width: 800, height: 64 }),
+    } as unknown as Element;
+
+    const local = clientPointToLocal(el, 660, 145.2);
+    expect(local.x).toBeCloseTo(400, 4);
+    expect(local.y).toBeCloseTo(32, 4);
+    expect(local.width).toBe(800);
   });
 });
