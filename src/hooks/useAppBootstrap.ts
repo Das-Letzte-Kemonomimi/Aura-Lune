@@ -211,6 +211,7 @@ export function useAppBootstrap({
     const beginBootExit = () => {
       if (disposed || bootFinished) return;
       bootFinished = true;
+      console.info(`[perf] bootstrap completed in ${performance.now().toFixed(1)} ms`);
       if (safetyTimer !== null) {
         clearTimeout(safetyTimer);
         safetyTimer = null;

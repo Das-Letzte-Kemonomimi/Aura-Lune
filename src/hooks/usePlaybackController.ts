@@ -196,6 +196,7 @@ export function usePlaybackController({
   const loopSeekPendingRef = useRef(false);
   const handleSeekRef = useRef<((val: number) => Promise<void>) | null>(null);
   const lastStatusEventAtRef = useRef(0);
+  const firstStatusLoggedRef = useRef(false);
 
   const applyStatus = useCallback((res: PlaybackStatus) => {
     const {
@@ -394,6 +395,10 @@ export function usePlaybackController({
   }, []);
 
   useTauriEvent<PlaybackStatus>('auralune://playback-status', (res) => {
+    if (!firstStatusLoggedRef.current) {
+      firstStatusLoggedRef.current = true;
+      console.info(`[perf] first playback-status event at ${performance.now().toFixed(1)} ms`);
+    }
     lastStatusEventAtRef.current = Date.now();
     applyStatus(res);
   });

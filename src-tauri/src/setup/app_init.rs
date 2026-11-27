@@ -28,7 +28,9 @@ pub fn init_app(
     app: &mut tauri::App,
     rt: Arc<tokio::runtime::Runtime>,
     engine: Arc<AudioEngine>,
+    launch_started: std::time::Instant,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let init_started = std::time::Instant::now();
     let data_dir = app.path().app_data_dir().map_err(|e| {
         let msg = format!("The app data directory is missing: {e}");
         crate::setup::fatal::report_fatal_startup_error(&msg);
@@ -477,6 +479,12 @@ pub fn init_app(
             }
         });
     }
+
+    info!(
+        "app_init finished in {} ms ({} ms since launch)",
+        init_started.elapsed().as_millis(),
+        launch_started.elapsed().as_millis()
+    );
 
     Ok(())
 }

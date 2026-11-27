@@ -75,6 +75,7 @@ pub struct AppState {
 }
 
 pub fn run() {
+    let launch_started = std::time::Instant::now();
     setup::init_linux_environment();
 
     tracing_subscriber::fmt()
@@ -84,7 +85,15 @@ pub fn run() {
         )
         .init();
 
-    let rt = Arc::new(tokio::runtime::Runtime::new().expect("Failed to create the tokio runtime"));
+    let rt = Arc::new(
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(4)
+            .thread_name("auralune-rt")
+            .build()
+            .expect("Failed to create the tokio runtime"),
+    );
+    tauri::async_runtime::set(rt.handle().clone());
 
     let engine = match AudioEngine::new() {
         Ok(e) => Arc::new(e),
@@ -128,7 +137,7 @@ pub fn run() {
         .setup({
             let rt = rt.clone();
             let engine = engine.clone();
-            move |app| setup::init_app(app, rt, engine)
+            move |app| setup::init_app(app, rt, engine, launch_started)
         })
         .invoke_handler(tauri::generate_handler![
             load_file,
