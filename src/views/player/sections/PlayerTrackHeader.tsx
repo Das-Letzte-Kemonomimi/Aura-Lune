@@ -7,7 +7,7 @@ import { Badge, Chip, IconButton, StatusDot } from '../../../components/ui';
 
 export type PlayerTrackHeaderProps = Pick<
   PlayerViewProps,
-  'loc' | 'currentAlbum' | 'currentPlayingTrack' | 'cleanLiveTitle' | 'effectiveDisplayTitle' | 'effectiveDisplayArtist' | 'filePath' | 'setStatsModalTrack' | 'handleToggleFavorite' | 'handleOpenContainingFolder'
+  'loc' | 'currentAlbum' | 'currentPlayingTrack' | 'cleanLiveTitle' | 'effectiveDisplayTitle' | 'effectiveDisplayArtist' | 'filePath' | 'setStatsModalTrack' | 'handleToggleFavorite' | 'handleOpenContainingFolder' | 'handleOpenAlbumInLibrary'
 > & {
   status: PlaybackStatus;
 };
@@ -45,6 +45,7 @@ export const PlayerTrackHeader: React.FC<PlayerTrackHeaderProps> = React.memo(({
   effectiveDisplayArtist,
   effectiveDisplayTitle,
   filePath,
+  handleOpenAlbumInLibrary,
   handleOpenContainingFolder,
   handleToggleFavorite,
   loc,
@@ -72,10 +73,22 @@ export const PlayerTrackHeader: React.FC<PlayerTrackHeaderProps> = React.memo(({
             {effectiveDisplayArtist}
           </span>
           {albumTitle && (
-            <span className="flex min-w-0 items-center gap-1.5 text-ui font-medium text-fg-secondary" title={albumTitle}>
-              <Disc size={13} className="shrink-0 text-fg-muted" />
-              <span className="truncate">{albumTitle}</span>
-            </span>
+            currentAlbum ? (
+              <button
+                type="button"
+                onClick={() => handleOpenAlbumInLibrary(currentAlbum)}
+                className="group flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md text-left text-ui font-medium text-fg-secondary transition-colors hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-pink/60"
+                title={albumTitle}
+              >
+                <Disc size={13} className="shrink-0 text-fg-muted transition-colors group-hover:text-accent-cyan" />
+                <span className="truncate group-hover:underline group-hover:underline-offset-2">{albumTitle}</span>
+              </button>
+            ) : (
+              <span className="flex min-w-0 items-center gap-1.5 text-ui font-medium text-fg-secondary" title={albumTitle}>
+                <Disc size={13} className="shrink-0 text-fg-muted" />
+                <span className="truncate">{albumTitle}</span>
+              </span>
+            )
           )}
         </div>
         {cleanLiveTitle && (

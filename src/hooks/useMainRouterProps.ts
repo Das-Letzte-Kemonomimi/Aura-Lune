@@ -1,7 +1,7 @@
 import type { useAudioSettings } from './useAudioSettings';
 import { useShallowMemo } from './useShallowMemo';
 import { useStableCallback } from './useStableCallback';
-import type { TrackRecord } from '../types/library';
+import type { AlbumRecord, TrackRecord } from '../types/library';
 import type { useLibraryManager } from './useLibraryManager';
 import type { useLibraryPlaybackActions } from './useLibraryPlaybackActions';
 import type { useModalManager } from './useModalManager';
@@ -91,6 +91,11 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
   const handleOpenStemProject = useStableCallback((pid: number) => {
     p.setActiveStemProjectId(pid);
     p.setIsStemStudioOpen(true);
+  });
+  const handleOpenAlbumInLibrary = useStableCallback((album: AlbumRecord) => {
+    p.setLibrarySubView('albums');
+    p.handleOpenAlbumDetail(album);
+    p.setActiveTab('library');
   });
   const handleOpenCreateStemProject = useStableCallback(() => {
     p.setCreateStemProjectTrack(p.currentPlayingTrack || null);
@@ -220,6 +225,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     handleOpenContainingFolder: p.handleOpenContainingFolder,
     handleOpenCoverPicker: p.handleOpenCoverPicker,
     handleUploadCustomCoverDirect: p.handleUploadCustomCoverDirect,
+    handleOpenAlbumInLibrary,
     handleRestoreOriginalTrack: p.handleRestoreOriginalTrack,
     handleLoadFile: p.handleLoadFile,
     handlePickFiles: p.handlePickFiles,

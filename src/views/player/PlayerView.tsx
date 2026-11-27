@@ -122,6 +122,7 @@ export interface PlayerViewProps {
   handleOpenContainingFolder: (path: string, e?: React.MouseEvent) => void;
   handleOpenCoverPicker: (album: AlbumRecord) => void;
   handleUploadCustomCoverDirect: (album?: AlbumRecord | null) => void;
+  handleOpenAlbumInLibrary: (album: AlbumRecord) => void;
   handleRestoreOriginalTrack: () => void;
   handleLoadFile: (path: string) => void | Promise<void>;
   handlePickFiles: () => void;

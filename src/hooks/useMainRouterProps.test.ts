@@ -352,5 +352,38 @@ describe('useMainRouterProps', () => {
     expect(result.current.statsProps).toBeDefined();
     expect(result.current.statsProps.currentLang).toBe('en');
   });
+
+  it('switches to library albums detail when handleOpenAlbumInLibrary is called', () => {
+    const loc = getTranslations('en');
+    const setActiveTab = vi.fn();
+    const setLibrarySubView = vi.fn();
+    const handleOpenAlbumDetail = vi.fn();
+    const album = {
+      id: 9,
+      title: 'Mein rasend Herz',
+      album_artist: 'In Extremo',
+      year: 2005,
+      cover_path: null,
+      release_mbid: null,
+    };
+
+    const { result } = renderHook(() =>
+      useMainRouterProps({
+        language: 'en',
+        loc,
+        setActiveTab,
+        library: {
+          setLibrarySubView,
+          handleOpenAlbumDetail,
+        },
+      } as any),
+    );
+
+    result.current.playerProps.handleOpenAlbumInLibrary(album);
+
+    expect(setLibrarySubView).toHaveBeenCalledWith('albums');
+    expect(handleOpenAlbumDetail).toHaveBeenCalledWith(album);
+    expect(setActiveTab).toHaveBeenCalledWith('library');
+  });
 });
 
