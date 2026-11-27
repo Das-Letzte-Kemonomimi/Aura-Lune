@@ -150,7 +150,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   return (
-    <header className="relative z-30 mb-3 flex min-w-0 shrink-0 flex-col gap-2">
+    <header className="relative z-30 mb-3 flex min-w-0 shrink-0 flex-col gap-2 rounded-2xl border border-line bg-ink/80 px-3 py-2 shadow-card">
       {/* Row 1: brand on the left, the main tabs on the right */}
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
         {/* App logo and name */}
@@ -200,7 +200,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
 
       {/* Row 2: tools in groups, settings and language at the end */}
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-xl border border-line bg-black/35 px-2 py-1.5">
         <Button
           onClick={onOpenRecap}
           title={loc.nav.recapTitle}

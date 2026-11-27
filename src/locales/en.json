@@ -600,6 +600,7 @@
     "versionName": "Release Codename",
     "changelog": "Changelog",
     "themeOpacity": "Glass Opacity",
+    "cardOpacity": "Card & Surface Opacity",
     "themeBlur": "Background Blur",
     "ambienceOpacity": "Particle Effect Opacity",
     "appIconTitle": "App Icon Style",

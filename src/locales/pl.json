@@ -600,6 +600,7 @@
     "versionName": "Nazwa wydania",
     "changelog": "Dziennik zmian (Changelog)",
     "themeOpacity": "Przezroczystość paneli",
+    "cardOpacity": "Przezroczystość kart i powierzchni",
     "themeBlur": "Rozmycie tła (Blur)",
     "ambienceOpacity": "Przezroczystość efektu cząsteczek",
     "appIconTitle": "Styl ikony aplikacji",

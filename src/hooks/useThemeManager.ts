@@ -3,6 +3,22 @@ import { invoke } from '../api/ipc';
 import type { Theme } from '../types/theme';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { setCssColorOpacity } from '../utils/colorOpacity';
+import { usePersistedState } from './usePersistedState';
+
+export const SURFACE_OPACITY_KEY = 'auralune_surface_opacity';
+export const SURFACE_OPACITY_DEFAULT = 0.7;
+export const SURFACE_OPACITY_MIN = 0.1;
+
+/** Scale factor (0.1 to 1) applied to theme surface and card opacity. Persisted across sessions. */
+export function useSurfaceOpacity() {
+  return usePersistedState<number>(SURFACE_OPACITY_KEY, SURFACE_OPACITY_DEFAULT, {
+    parse: (raw) => {
+      const value = Number(raw);
+      return Number.isFinite(value) ? Math.min(1, Math.max(SURFACE_OPACITY_MIN, value)) : undefined;
+    },
+  });
+}
 
 export interface UseThemeManagerOptions {
   showMessage: (msg: string, isError?: boolean) => void;
@@ -105,15 +121,28 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
   const [appIconStyle, setAppIconStyle] = useState<'lineout' | 'classic'>('lineout');
   const [jsonExportContent, setJsonExportContent] = useState('');
   const [jsonImportContent, setJsonImportContent] = useState('');
+  const [surfaceOpacity] = useSurfaceOpacity();
+
+  const applySurfaceTokens = useCallback((theme: Theme, opacity: number) => {
+    const root = document.documentElement;
+    const t = theme.tokens;
+    root.style.setProperty('--bg-surface', setCssColorOpacity(t.bg_surface, opacity));
+    root.style.setProperty('--bg-surface-hover', setCssColorOpacity(t.bg_surface_hover, Math.min(1, opacity + 0.08)));
+    root.style.setProperty('--bg-card', setCssColorOpacity(t.bg_card, opacity));
+  }, []);
+
+  useEffect(() => {
+    if (currentTheme) {
+      applySurfaceTokens(currentTheme, surfaceOpacity);
+    }
+  }, [applySurfaceTokens, currentTheme, surfaceOpacity]);
 
   const applyThemeToDom = useCallback((theme: Theme | null) => {
     if (!theme) return;
     const root = document.documentElement;
     const t = theme.tokens;
     root.style.setProperty('--bg-deep', t.bg_deep);
-    root.style.setProperty('--bg-surface', t.bg_surface);
-    root.style.setProperty('--bg-surface-hover', t.bg_surface_hover);
-    root.style.setProperty('--bg-card', t.bg_card);
+    applySurfaceTokens(theme, surfaceOpacity);
     root.style.setProperty('--border-subtle', t.border_subtle);
     root.style.setProperty('--border-accent', t.border_accent);
     root.style.setProperty('--accent-pink', t.accent_pink);
@@ -134,7 +163,7 @@ export function useThemeManager({ showMessage, loc }: UseThemeManagerOptions) {
     setThemeBlur(theme.blur_radius);
     setThemeBgImage(theme.background_ref);
     setCurrentTheme(theme);
-  }, []);
+  }, [applySurfaceTokens, surfaceOpacity]);
 
   const loadThemes = useCallback(async () => {
     try {

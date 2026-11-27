@@ -17,6 +17,7 @@ import { cn } from '../../utils/cn';
 import { SettingsPage } from './SettingsPage';
 import { ToggleRow } from './ToggleRow';
 import { AMBIENCE_OPACITY_MIN, useAmbienceOpacity } from '../../hooks/useAmbienceMode';
+import { SURFACE_OPACITY_MIN, useSurfaceOpacity } from '../../hooks/useThemeManager';
 
 export interface AppearanceSettingsViewProps {
   loc: Translations;
@@ -70,6 +71,7 @@ export const AppearanceSettingsView: React.FC<AppearanceSettingsViewProps> = ({
   onSelectIconStyle,
 }) => {
   const [ambienceOpacity, setAmbienceOpacity] = useAmbienceOpacity();
+  const [surfaceOpacity, setSurfaceOpacity] = useSurfaceOpacity();
   const [isDraggingWallpaper, setIsDraggingWallpaper] = useState<boolean>(false);
   const id = useId();
 
@@ -299,6 +301,16 @@ export const AppearanceSettingsView: React.FC<AppearanceSettingsViewProps> = ({
             value={themeOverlay}
             format={(v) => `${Math.round(v * 100)}%`}
             onChange={onThemeOverlayChange}
+          />
+          <SliderRow
+            label={loc.settings.cardOpacity}
+            tone="amber"
+            min={SURFACE_OPACITY_MIN}
+            max={1}
+            step={0.05}
+            value={surfaceOpacity}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={setSurfaceOpacity}
           />
           <SliderRow
             label={loc.settings.ambienceOpacity}

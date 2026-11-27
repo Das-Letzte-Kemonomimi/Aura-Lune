@@ -600,6 +600,7 @@
     "versionName": "Codename der Version",
     "changelog": "Änderungsprotokoll (Changelog)",
     "themeOpacity": "Panel-Deckkraft",
+    "cardOpacity": "Karten- & Oberflächendeckkraft",
     "themeBlur": "Hintergrundunschärfe (Blur)",
     "ambienceOpacity": "Deckkraft des Partikeleffekts",
     "appIconTitle": "App-Symbol-Stil",

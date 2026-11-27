@@ -84,7 +84,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
   ];
 
   return (
-    <nav aria-label="Main" className="flex shrink-0 gap-1 rounded-2xl border border-line bg-black/30 p-1">
+    <nav aria-label="Main" className="flex shrink-0 gap-1 rounded-2xl border border-line bg-black/50 p-1">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (

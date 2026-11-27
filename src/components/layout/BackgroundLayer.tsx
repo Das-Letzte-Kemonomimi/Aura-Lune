@@ -22,7 +22,7 @@ export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
     <>
       {isVideo ? (
         <video
-          className="pointer-events-none fixed inset-0 -z-2 size-full scale-105 object-cover transition-[filter] duration-250"
+          className="pointer-events-none fixed inset-0 z-0 size-full scale-105 object-cover transition-[filter] duration-250"
           src={themeBgImage!}
           autoPlay
           loop

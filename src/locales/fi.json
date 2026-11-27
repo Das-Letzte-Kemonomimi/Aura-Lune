@@ -600,6 +600,7 @@
     "versionName": "Julkaisunimi",
     "changelog": "Muutosloki (Changelog)",
     "themeOpacity": "Paneelien läpinäkyvyys",
+    "cardOpacity": "Korttien ja pintojen läpinäkyvyys",
     "themeBlur": "Taustan sumennus (Blur)",
     "ambienceOpacity": "Hiukkastehosteen läpinäkyvyys",
     "appIconTitle": "Sovelluskuvakkeen tyyli",
