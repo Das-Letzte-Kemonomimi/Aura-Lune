@@ -68,12 +68,14 @@ describe('VolumeIcon', () => {
   });
 
   it.each([
-    [0, 'mute'],
-    [positionToGain(0.2, 'cubic'), 'low'],
-    [positionToGain(0.5, 'cubic'), 'mid'],
-    [positionToGain(0.9, 'cubic'), 'high'],
-  ])('gain %f shows the %s speaker', (gain, level) => {
+    [0, 'mute', 'tabler-icon-volume-off'],
+    [positionToGain(0.2, 'cubic'), 'low', 'tabler-icon-volume-4'],
+    [positionToGain(0.5, 'cubic'), 'mid', 'tabler-icon-volume-2'],
+    [positionToGain(0.9, 'cubic'), 'high', 'tabler-icon-volume'],
+  ])('gain %f shows the %s speaker (%s)', (gain, level, iconClass) => {
     const { container } = render(<VolumeIcon gain={gain} />);
-    expect(container.querySelector('svg')?.getAttribute('data-volume-level')).toBe(level);
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('data-volume-level')).toBe(level);
+    expect(svg?.classList.contains(iconClass)).toBe(true);
   });
 });
