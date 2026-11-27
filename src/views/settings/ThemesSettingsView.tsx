@@ -269,7 +269,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       <Card>
         <SectionHeader icon={<ImageIcon size={20} />} tone="cyan" title={loc.settings.appearance} />
 
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-6">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(68),1fr))] gap-6">
           <div className="flex flex-col gap-4">
             {/* Wallpaper drop zone (also opens the file picker) */}
             <button
@@ -417,7 +417,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
       <Card>
         <SectionHeader icon={<Download size={20} />} tone="pink" title={loc.settings.themePortability} />
 
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-5">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(68),1fr))] gap-5">
           {/* Export */}
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">

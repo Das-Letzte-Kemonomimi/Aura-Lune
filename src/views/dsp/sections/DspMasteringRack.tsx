@@ -50,7 +50,7 @@ export const DspMasteringRack: React.FC<DspMasteringRackProps> = ({
   ] as const;
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(90),1fr))] gap-5">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(72),1fr))] gap-4">
       {/* Bass boost (sub-bass exciter). Switching it back on restores the last boost. */}
       <ToggleCard
         icon={<Flame size={18} />}

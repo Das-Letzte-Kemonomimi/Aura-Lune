@@ -31,7 +31,7 @@ export const LibraryMusicBrainzMatchPanel: React.FC<LibraryMusicBrainzMatchPanel
         closeLabel={loc.common.close}
       />
 
-      <div className="grid shrink-0 grid-cols-[1fr_1fr_auto] gap-2.5 border-b border-line px-6 py-4">
+      <div className="grid shrink-0 grid-cols-1 gap-2.5 border-b border-line px-6 py-4 sm:grid-cols-[1fr_1fr_auto]">
         <TextField
           aria-label={loc.covers.searchAlbumPlaceholder}
           value={mbSearchTitle}

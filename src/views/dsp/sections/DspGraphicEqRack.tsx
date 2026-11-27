@@ -184,8 +184,8 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
         onResetClip={handleResetClipIndicator}
       />
 
-      {/* 10 bands in two columns */}
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      {/* 10 bands in responsive 1-2 columns */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {EQUALIZER_BANDS.map((band, idx) => {
           const gain = status.equalizer_bands?.[idx] ?? 0;
           return (

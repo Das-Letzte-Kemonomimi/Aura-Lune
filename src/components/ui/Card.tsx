@@ -88,12 +88,12 @@ export function SectionHeader({
   );
 }
 
-const pageHeaderTile = cva('flex shrink-0 items-center justify-center', {
+const pageHeaderTile = cva('flex shrink-0 items-center justify-center border border-current/25', {
   variants: {
     size: {
-      md: 'size-9 rounded-lg',
+      md: 'size-10 rounded-xl',
       /** Settings pages: the tile matches `ModalHeader` and carries a 22px icon. */
-      lg: 'size-10 rounded-xl',
+      lg: 'size-11 rounded-2xl',
     },
   },
   defaultVariants: { size: 'md' },

@@ -13,7 +13,6 @@ import { DspRateSlider } from './sections/DspRateSlider';
 import { DspTempoSlider } from './sections/DspTempoSlider';
 import { DspPitchSlider } from './sections/DspPitchSlider';
 import { DspEngineSelector } from './sections/DspEngineSelector';
-import { cn } from '../../utils/cn';
 import { Badge, Button, Card, Chip, PageHeader, SectionHeader } from '../../components/ui';
 
 export interface DspCombinationInfo {
@@ -113,7 +112,6 @@ export interface DspStudioViewProps {
 
 export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
   const {
-    uiScale,
     loc,
     status: statusProp,
     dspAutoStartup,
@@ -126,48 +124,45 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
   const status = useLiveStatus(statusProp);
 
   return (
-    <div
-      className={cn(
-        'mx-auto my-0 flex flex-col gap-5',
-        uiScale >= 1.28 ? 'max-w-300' : uiScale >= 1.18 ? 'max-w-270' : uiScale >= 1.08 ? 'max-w-240' : 'max-w-220',
-      )}
-    >
-      <PageHeader
-        title={loc.dsp.title}
-        description={loc.dsp.subtitle}
-        icon={<Sliders size={18} />}
-        tone="purple"
-        actions={
-          <>
-            {/* Remember the DSP parameters at start-up */}
-            <Chip pressed={dspAutoStartup} tone="green" onClick={handleToggleDspAutoStartup} title={loc.dsp.dspAutostart}>
-              <Power size={13} /> {loc.dsp.dspAutostartShort}
-            </Chip>
-            {/* Save the current settings as the start-up default */}
-            <Button variant="tinted" tone="amber" size="sm" onClick={handleSaveDspStartupDefault}>
-              <Save size={13} /> {loc.dsp.dspSaveStartupBtn}
-            </Button>
-            {/* Default start-up engine */}
-            <Badge title={loc.dsp.defaultEngineStartup}>
-              Start: <strong className={dspDefaultEngine === 'Bypass' ? 'text-accent-green' : 'text-accent-pink'}>{dspDefaultEngine}</strong>
-            </Badge>
-            <Button size="sm" onClick={handleResetDsp}>
-              <RotateCcw size={13} /> {loc.dsp.reset}
-            </Button>
-          </>
-        }
-      />
+    <div className="flex flex-col gap-4">
+      <Card variant="panel" padding="md">
+        <PageHeader
+          title={loc.dsp.title}
+          description={loc.dsp.subtitle}
+          icon={<Sliders size={18} />}
+          tone="purple"
+          actions={
+            <>
+              {/* Remember the DSP parameters at start-up */}
+              <Chip pressed={dspAutoStartup} tone="green" onClick={handleToggleDspAutoStartup} title={loc.dsp.dspAutostart}>
+                <Power size={13} /> {loc.dsp.dspAutostartShort}
+              </Chip>
+              {/* Save the current settings as the start-up default */}
+              <Button variant="tinted" tone="amber" size="sm" onClick={handleSaveDspStartupDefault}>
+                <Save size={13} /> {loc.dsp.dspSaveStartupBtn}
+              </Button>
+              {/* Default start-up engine */}
+              <Badge title={loc.dsp.defaultEngineStartup}>
+                Start: <strong className={dspDefaultEngine === 'Bypass' ? 'text-accent-green' : 'text-accent-pink'}>{dspDefaultEngine}</strong>
+              </Badge>
+              <Button size="sm" onClick={handleResetDsp}>
+                <RotateCcw size={13} /> {loc.dsp.reset}
+              </Button>
+            </>
+          }
+        />
+      </Card>
 
       {/* Engine choice (Bypass / Rubber Band / SoundTouch), block size and the Bypass notice */}
       <DspEngineSelector {...props} status={status} />
 
-      {/* Pitch, tempo (time stretch) and rate: nudges, typed values, slider and presets */}
-      <DspPitchSlider {...props} status={status} />
-      <DspTempoSlider {...props} status={status} />
-      <DspRateSlider {...props} status={status} />
-
-      {/* Reverb (GStreamer Freeverb) */}
-      <DspReverbPanel {...props} />
+      {/* Pitch, tempo, rate & reverb/presets in a balanced 2-column studio grid on wide screens */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <DspPitchSlider {...props} status={status} />
+        <DspTempoSlider {...props} status={status} />
+        <DspRateSlider {...props} status={status} />
+        <DspReverbPanel {...props} />
+      </div>
 
       {/* DSP presets (SQLite) and the signature profiles */}
       <DspPresetManager {...props} />

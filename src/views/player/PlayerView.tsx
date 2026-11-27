@@ -168,13 +168,13 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
   );
 
   return (
-            <div className="mx-auto my-0 flex flex-col gap-5 pb-8" style={{ maxWidth: layoutMaxWidth }}>
-              <Card variant="panel" padding="lg" className="flex flex-col gap-5">
+            <div className="mx-auto my-0 flex flex-col gap-5 pb-6" style={{ maxWidth: layoutMaxWidth }}>
+              <Card variant="panel" padding="lg" className="@container flex flex-col gap-5">
                 {/* Top toolbar: audio engine and a discreet open-file button */}
                 <PlayerToolbar {...props} status={statusProp} />
 
-                {/* Main player deck: 2-column layout (fixed visual stage width + controls & spectrogram) */}
-                <div className="grid grid-cols-[--spacing(69)_minmax(0,1fr)] items-center gap-6.5">
+                {/* Main player deck: container-aware 2-column layout */}
+                <div className="grid grid-cols-1 items-center gap-5 @3xl:grid-cols-[--spacing(64)_minmax(0,1fr)] @5xl:grid-cols-[--spacing(69)_minmax(0,1fr)] @5xl:gap-6.5">
                   {/* Left column: cover / vinyl / tape / VU meter */}
                   <PlayerVisualColumn {...props} status={status} />
 

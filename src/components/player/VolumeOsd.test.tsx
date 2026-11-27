@@ -75,14 +75,14 @@ describe('VolumeOsd', () => {
     const { rerender } = renderOsd(1);
     rerender(<VolumeOsd volume={0.5} position={DEFAULT_VOLUME_OSD_POSITION} />);
     await flush();
-    expect(screen.getByRole('status').className).toContain('bottom-36.5 left-1/2 -translate-x-1/2');
+    expect(screen.getByRole('status').className).toContain('bottom-32.5 left-1/2 -translate-x-1/2');
   });
 
   it('can sit in the bottom-right corner', async () => {
     const { rerender } = renderOsd(1, 'bottom-right');
     rerender(<VolumeOsd volume={0.5} position="bottom-right" />);
     await flush();
-    expect(screen.getByRole('status').className).toContain('bottom-36.5 right-8');
+    expect(screen.getByRole('status').className).toContain('bottom-32.5 right-8');
   });
 
   it('never shows when switched off', async () => {

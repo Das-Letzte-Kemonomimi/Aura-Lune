@@ -151,7 +151,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       <div
         className={cn(
           'my-[clamp(0.5rem,2vh,1.25rem)] grid min-h-0 items-center gap-[clamp(1.25rem,3vw,3.125rem)] flex-[1_0_auto]',
-          showLyrics ? 'grid-cols-[minmax(0,--spacing(105))_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
+          showLyrics ? 'grid-cols-1 lg:grid-cols-[minmax(0,--spacing(96))_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)]',
         )}
       >
         {/* Left column: large spinning vinyl record / cover */}

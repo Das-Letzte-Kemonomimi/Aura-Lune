@@ -13,7 +13,7 @@ import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { fmt } from '../../utils/fmt';
-import { Badge, Button, Callout, Card, EmptyState, IconButton, PageHeader, Spinner, TextField } from '../../components/ui';
+import { Badge, Button, Callout, Card, EmptyState, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, PageHeader, Spinner, TextField } from '../../components/ui';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
@@ -32,6 +32,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
   const [error, setError] = useState<string | null>(null);
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: number; title: string } | null>(null);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -63,15 +64,15 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
     }
   });
 
-  const handleDelete = async (projectId: number, title: string) => {
-    if (!window.confirm(fmt(t.stems.deleteConfirm, title))) {
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { id } = pendingDelete;
+    setPendingDelete(null);
     try {
-      await invoke('delete_stem_project', { projectId });
-      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      await invoke('delete_stem_project', { projectId: id });
+      setProjects((prev) => prev.filter((p) => p.id !== id));
     } catch (err: unknown) {
-      alert(fmt(t.stems.deleteError, String(err)));
+      setError(fmt(t.stems.deleteError, String(err)));
     }
   };
 
@@ -92,7 +93,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       );
       setEditingProjectId(null);
     } catch (err: unknown) {
-      alert(fmt(t.stems.renameError, String(err)));
+      setError(fmt(t.stems.renameError, String(err)));
     }
   };
 
@@ -115,25 +116,26 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
   };
 
   return (
-    <div className="w-full px-0 py-6">
+    <div className="flex w-full flex-col gap-4">
       {/* Library section header */}
-      <PageHeader
-        className="mb-5"
-        icon={<Layers size={20} />}
-        title={t.stems.title}
-        description={t.stems.subtitle}
-        actions={
-          onOpenCreateProject && (
-            <Button variant="primary" onClick={onOpenCreateProject}>
-              <Layers size={16} />
-              {t.stems.newProject}
-            </Button>
-          )
-        }
-      />
+      <Card variant="panel" padding="md">
+        <PageHeader
+          icon={<Layers size={20} />}
+          title={t.stems.title}
+          description={t.stems.subtitle}
+          actions={
+            onOpenCreateProject && (
+              <Button variant="primary" onClick={onOpenCreateProject}>
+                <Layers size={16} />
+                {t.stems.newProject}
+              </Button>
+            )
+          }
+        />
+      </Card>
 
       {error && (
-        <Callout tone="red" className="mb-4">
+        <Callout tone="red">
           {error}
         </Callout>
       )}
@@ -144,11 +146,11 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
           <div>{t.stems.loadingProjects}</div>
         </div>
       ) : projects.length === 0 ? (
-        <Card className="border-dashed">
+        <Card variant="panel" padding="md">
           <EmptyState icon={<Layers size={22} />} title={t.stems.noProjects} description={t.stems.noProjectsDesc} />
         </Card>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(80),1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(66),1fr))] gap-4">
           {projects.map((project) => (
             <Card key={project.id} padding="sm" className="flex flex-col gap-3 rounded-2xl">
               {/* Title and status */}
@@ -211,7 +213,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
                   <IconButton
                     size="sm"
                     label={t.stems.deleteProject}
-                    onClick={() => handleDelete(project.id, project.title)}
+                    onClick={() => setPendingDelete({ id: project.id, title: project.title })}
                     className="text-accent-red hover:text-accent-red"
                   >
                     <Trash2 size={15} />
@@ -221,6 +223,29 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
             </Card>
           ))}
         </div>
+      )}
+
+      {pendingDelete && (
+        <ModalShell onClose={() => setPendingDelete(null)} size="sm" labelledBy="stem-delete-title">
+          <ModalHeader
+            titleId="stem-delete-title"
+            icon={<Trash2 size={18} />}
+            tone="red"
+            title={t.stems.deleteProject}
+            onClose={() => setPendingDelete(null)}
+          />
+          <ModalBody>
+            <p className="text-ui text-fg-secondary">
+              {fmt(t.stems.deleteConfirm, pendingDelete.title)}
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={() => setPendingDelete(null)}>{t.common.cancel}</Button>
+            <Button variant="danger" onClick={handleConfirmDelete}>
+              <Trash2 size={14} /> {t.stems.deleteProject}
+            </Button>
+          </ModalFooter>
+        </ModalShell>
       )}
     </div>
   );

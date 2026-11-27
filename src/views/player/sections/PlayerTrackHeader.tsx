@@ -58,7 +58,7 @@ export const PlayerTrackHeader: React.FC<PlayerTrackHeaderProps> = React.memo(({
   const favorite = Boolean(currentPlayingTrack?.is_favorite);
 
   return (
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
           <StatusDot tone={stateTone} pulse={status.state === 'Playing'} />

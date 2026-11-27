@@ -520,7 +520,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
         {!loading && !lyrics?.is_synced && lyrics?.plain_lyrics && (
           <div className="flex w-full max-w-170 min-w-0 flex-col gap-5 px-0 py-5">
             <div
-              className="flex items-center justify-between rounded-xl border border-accent-purple/25 bg-accent-purple/10 px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-accent-purple/25 bg-accent-purple/10 px-4 py-3"
             >
               <div className="text-left text-ui text-fg-secondary">
                 {loc.lyricsView.staticNotice}

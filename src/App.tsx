@@ -1161,7 +1161,11 @@ export default function App() {
     <div
       className={cn(
         'relative flex size-full max-h-full flex-col overflow-hidden',
-        uiScale >= 1.28 ? 'px-4.5 pt-3 pb-2' : uiScale >= 1.18 ? 'px-5 pt-3.5 pb-2.5' : 'px-6 pt-4 pb-3',
+        uiScale >= 1.28
+          ? 'px-3 pt-2.5 pb-1.5 sm:px-4'
+          : uiScale >= 1.18
+            ? 'px-3.5 pt-3 pb-2 sm:px-5'
+            : 'px-3.5 pt-3 pb-2 sm:px-6 sm:pt-3.5 sm:pb-2.5',
       )}
     >
       <BackgroundLayer

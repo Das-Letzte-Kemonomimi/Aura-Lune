@@ -150,11 +150,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   return (
-    <header className="relative z-30 mb-4 flex min-w-0 shrink-0 flex-col gap-2.5">
+    <header className="relative z-30 mb-3 flex min-w-0 shrink-0 flex-col gap-2">
       {/* Row 1: brand on the left, the main tabs on the right */}
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
         {/* App logo and name */}
-        <div className="flex min-w-0 shrink-0 items-center gap-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-2.5">
           <div className="flex shrink-0 flex-col items-center gap-0.5">
             <span className="rounded-sm border border-accent-purple/40 bg-accent-purple/25 px-1.5 py-0.5 text-2xs leading-none font-bold tracking-wide text-accent-purple">
               v{appVersion}
@@ -163,7 +163,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
               alt="Auralune Logo"
               className={cn(
-                'size-9.5 shrink-0 rounded-xl border border-line-accent bg-black/25 object-contain shadow-halo-lg',
+                'size-9 shrink-0 rounded-xl border border-line-accent bg-black/25 object-contain shadow-halo-lg',
                 appIconStyle === 'classic' ? 'shadow-accent-purple/45' : 'p-0.5 shadow-accent-pink/45',
               )}
             />
@@ -182,14 +182,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 {loc.updates.badge}
               </button>
             )}
-            <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight whitespace-nowrap">
+            <h1 className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight whitespace-nowrap sm:text-2xl">
               <span>Auralune</span>
               <span className="text-lg font-semibold text-accent-pink">狐</span>
             </h1>
           </div>
         </div>
 
-          <AppNavbar
+        <AppNavbar
           activeTab={activeTab}
           onSelectTab={onSelectTab}
           trackCount={trackCount}
@@ -200,11 +200,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
 
       {/* Row 2: tools in groups, settings and language at the end */}
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         <Button
           onClick={onOpenRecap}
           title={loc.nav.recapTitle}
-          className="h-10 shrink-0 gap-1.5 rounded-2xl border-accent-pink/45 bg-linear-135 from-accent-pink/25 to-accent-purple/25 px-3.5 text-xs font-bold text-fg shadow-halo-sm shadow-accent-pink/20"
+          className="h-9 shrink-0 gap-1.5 rounded-2xl border-accent-pink/45 bg-linear-135 from-accent-pink/25 to-accent-purple/25 px-3 text-xs font-bold text-fg shadow-halo-sm shadow-accent-pink/20"
         >
           <Flame size={15} className="text-accent-pink" />
           <span className="max-nav:hidden">{loc.nav.recap}</span>

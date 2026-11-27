@@ -125,8 +125,8 @@
 
   --tracking-label: 0.08em;
 
-  /* Header collapse points (1350px / 1820px). Use as `max-nav:hidden`. */
-  --breakpoint-nav: 84.375rem;
+  /* Header collapse points (1000px / 1820px). Use as `max-nav:hidden`. */
+  --breakpoint-nav: 62.5rem;
   --breakpoint-actions: 113.75rem;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);

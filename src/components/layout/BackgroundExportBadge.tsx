@@ -35,8 +35,8 @@ export const BackgroundExportBadge: React.FC<BackgroundExportBadgeProps> = ({
     <div
       className={cn(
         'fixed right-6 z-70 flex max-w-95 min-w-70 items-center gap-3 rounded-2xl border border-accent-pink bg-modal px-4.5 py-3 shadow-halo-xl shadow-accent-pink/30 backdrop-blur-lg motion-safe:animate-fade-in',
-        // `bottom-29` clears the `h-25.5` BottomPlaybackDock when visible.
-        activeTab !== 'player' || isPlayerScrolledDown ? 'bottom-29' : 'bottom-6',
+        // `bottom-25` clears the `h-21.5` BottomPlaybackDock when visible.
+        activeTab !== 'player' || isPlayerScrolledDown ? 'bottom-25' : 'bottom-6',
       )}
     >
       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-gradient shadow-halo shadow-accent-pink/50">

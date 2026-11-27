@@ -66,39 +66,27 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
   return (
     <main
       ref={mainContentRef}
-      // `pb-28.5` reserves clearance for the `h-25.5` BottomPlaybackDock when visible.
-      className={cn('min-h-0 flex-1 overflow-y-auto', (activeTab !== 'player' || isPlayerScrolledDown) && 'pb-28.5')}
+      // `pb-24.5` reserves clearance for the `h-21.5` BottomPlaybackDock when visible.
+      className={cn('min-h-0 flex-1 overflow-y-auto', (activeTab !== 'player' || isPlayerScrolledDown) && 'pb-24.5')}
     >
       {/* Tab 1: Player View */}
       {activeTab === 'player' && <PlayerView {...playerProps} />}
 
-      {/* Tab 2: Library View */}
-      {activeTab === 'library' && <LibraryView {...libraryProps} />}
-
-      {/* Tab 3: DSP Studio View */}
-      {activeTab === 'dsp' && <DspStudioView {...dspProps} />}
-
-      {/* Tab 4: Playlists View */}
-      {activeTab === 'playlists' && <PlaylistsView {...playlistsProps} />}
-
-      {/* Tab 5: Stem Separation Projects View */}
-      {activeTab === 'stem-projects' && (
-        <div className="mx-auto px-4 py-6" style={{ maxWidth: layoutMaxWidth }}>
-          <StemProjectsLibraryView
-            currentLang={stemProjectsProps.currentLang}
-            onOpenProject={stemProjectsProps.onOpenProject}
-            onOpenCreateProject={stemProjectsProps.onOpenCreateProject}
-          />
-        </div>
-      )}
-
-      {/* Tab 6: Anime Web Radio */}
-      {activeTab === 'radio' && <RadioView {...radioProps} />}
-
-      {/* Tab 7: Recap & Stats Dashboard */}
-      {activeTab === 'stats' && statsProps && (
-        <div className="mx-auto px-4 py-6" style={{ maxWidth: layoutMaxWidth }}>
-          <StatsDashboardView {...statsProps} />
+      {/* Tabs 2–7 share a unified container aligned to layoutMaxWidth */}
+      {activeTab !== 'player' && (
+        <div className="mx-auto w-full px-1 py-2 sm:px-2" style={{ maxWidth: layoutMaxWidth }}>
+          {activeTab === 'library' && <LibraryView {...libraryProps} />}
+          {activeTab === 'dsp' && <DspStudioView {...dspProps} />}
+          {activeTab === 'playlists' && <PlaylistsView {...playlistsProps} />}
+          {activeTab === 'stem-projects' && (
+            <StemProjectsLibraryView
+              currentLang={stemProjectsProps.currentLang}
+              onOpenProject={stemProjectsProps.onOpenProject}
+              onOpenCreateProject={stemProjectsProps.onOpenCreateProject}
+            />
+          )}
+          {activeTab === 'radio' && <RadioView {...radioProps} />}
+          {activeTab === 'stats' && statsProps && <StatsDashboardView {...statsProps} />}
         </div>
       )}
     </main>

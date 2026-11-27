@@ -54,7 +54,7 @@ export const PeqBandRack: React.FC<PeqBandRackProps> = ({
               key={band.id}
               onClick={() => setSelectedBandId(band.id)}
               className={cn(
-                'flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-all duration-150',
+                'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2 transition-all duration-150',
                 isSelected ? 'bg-white/8' : 'bg-white/2',
               )}
               style={{

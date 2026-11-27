@@ -60,7 +60,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   ];
 
   return (
-    <ModalShell onClose={onClose} size="2xl" labelledBy="settings-title" className="h-[86vh] max-h-215">
+    <ModalShell onClose={onClose} size="2xl" labelledBy="settings-title" className="h-[min(88vh,53.75rem)] max-h-[90vh]">
       <ModalHeader
         titleId="settings-title"
         title={loc.settings.title}
@@ -72,7 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       />
 
       {/* Settings tab bar. Below 3xl (narrow windows, large UI scale) the icon stacks above the label so six tabs still fit. */}
-      <div className="@container shrink-0 border-b border-line px-6 py-2.5">
+      <div className="@container shrink-0 border-b border-line px-4 py-2 sm:px-6 sm:py-2.5">
         <SegmentedControl
           label={loc.settings.title}
           tone="purple"
@@ -85,7 +85,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       </div>
 
       {/* Content of the selected settings sub-tab */}
-      <ModalBody className="p-6">{children}</ModalBody>
+      <ModalBody className="p-4 sm:p-6">{children}</ModalBody>
     </ModalShell>
   );
 };

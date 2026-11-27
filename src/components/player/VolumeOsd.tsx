@@ -6,7 +6,7 @@ import { VolumeIcon } from './VolumeSlider';
 
 export type VolumeOsdPosition = 'center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'off';
 
-/** Default spot: horizontally centred, just above the dock (`bottom-36.5`) so it clears the tempo controls. */
+/** Default spot: horizontally centred, just above the dock (`bottom-32.5`) so it clears the tempo controls. */
 export const DEFAULT_VOLUME_OSD_POSITION: VolumeOsdPosition = 'bottom-center';
 
 /** How long the OSD stays after the last volume change. */
@@ -19,14 +19,14 @@ interface VolumeOsdProps {
   unit?: 'percent' | 'db';
 }
 
-/** Screen position of the OSD (`left-1/2 -translate-x-1/2` centres horizontally). `bottom-36.5` clears the `h-25.5` dock. */
+/** Screen position of the OSD (`left-1/2 -translate-x-1/2` centres horizontally). `bottom-32.5` clears the `h-21.5` dock. */
 const OSD_POSITIONS: Record<string, string> = {
   center: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
   'top-right': 'top-8 right-8',
   'top-left': 'top-8 left-8',
-  'bottom-center': 'bottom-36.5 left-1/2 -translate-x-1/2',
-  'bottom-right': 'bottom-36.5 right-8',
-  'bottom-left': 'bottom-36.5 left-8',
+  'bottom-center': 'bottom-32.5 left-1/2 -translate-x-1/2',
+  'bottom-right': 'bottom-32.5 right-8',
+  'bottom-left': 'bottom-32.5 left-8',
 };
 
 export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume, position, unit = 'percent' }) => {

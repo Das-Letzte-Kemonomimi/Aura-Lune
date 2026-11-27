@@ -119,7 +119,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                 {status.current_track?.title || loc.audioPath.noTrack}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-2.5 text-ui">
+            <div className="grid grid-cols-2 gap-2.5 text-ui sm:grid-cols-4">
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.format}</span>
                 <strong className="text-fg">{format}</strong>
@@ -160,7 +160,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                 {isBypass ? loc.audioPath.directBypassZeroCpu : `${status.engine} Engine`}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-2.5 text-ui">
+            <div className="grid grid-cols-2 gap-2.5 text-ui sm:grid-cols-4">
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.tempo}</span>
                 <strong className={cn(isDefaultTempo ? 'text-fg' : 'text-accent-pink')}>
@@ -200,7 +200,7 @@ export const AudioPathInspectorModal: React.FC<AudioPathInspectorModalProps> = (
                 PipeWire Pro Audio Low-Latency
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-2.5 text-ui">
+            <div className="grid grid-cols-2 gap-2.5 text-ui sm:grid-cols-4">
               <div>
                 <span className="block text-fg-muted">{loc.audioPath.outputFormat}</span>
                 <strong className="text-fg">F32LE (Float32)</strong>

@@ -362,7 +362,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
           checked={state.compressor.enabled}
           onChange={(on) => setCompressor({ enabled: on })}
         >
-          <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
+          <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[1fr_--spacing(70)]">
             <div className="flex flex-col gap-3">
               <SliderRow
                 label={loc.dynamicsStudio.threshold}
@@ -397,7 +397,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-[--spacing(30)_1fr] items-end gap-4">
+              <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-[--spacing(30)_1fr]">
                 <div>
                   <span id={`${titleId}-knee`} className="mb-1 block text-xs font-semibold text-fg-secondary">
                     {loc.dynamicsStudio.knee}
@@ -448,7 +448,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
             setSaturator({ enabled: on, mode: on && state.saturator.mode === 'Off' ? 'TubeWarmth' : state.saturator.mode })
           }
         >
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             {saturatorModes.map((m) => (
               <OptionCard
                 key={m.id}
@@ -463,7 +463,7 @@ export const DynamicsStudioModal: React.FC<DynamicsStudioModalProps> = ({
             ))}
           </div>
 
-          <div className="grid grid-cols-[1fr_--spacing(70)] items-center gap-5">
+          <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[1fr_--spacing(70)]">
             <div className="flex flex-col gap-3">
               <SliderRow
                 label={loc.dynamicsStudio.drive}

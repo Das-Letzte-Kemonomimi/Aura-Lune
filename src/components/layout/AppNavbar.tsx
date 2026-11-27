@@ -92,7 +92,7 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
             key={tab.id}
             onClick={() => onSelectTab(tab.id)}
             aria-current={isActive ? 'page' : undefined}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-ui font-semibold text-fg-secondary hover:text-fg aria-[current=page]:bg-accent-purple aria-[current=page]:text-fg aria-[current=page]:shadow-halo-sm aria-[current=page]:shadow-accent-purple/40"
+            className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-ui font-semibold text-fg-secondary hover:text-fg aria-[current=page]:bg-accent-purple aria-[current=page]:text-fg aria-[current=page]:shadow-halo-sm aria-[current=page]:shadow-accent-purple/40"
             title={tab.title}
           >
             {tab.icon}

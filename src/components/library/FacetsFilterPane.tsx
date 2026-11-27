@@ -226,7 +226,7 @@ export const FacetsFilterPane: React.FC<FacetsFilterPaneProps> = ({
         )}
       </div>
 
-      <div className="grid h-52.5 grid-cols-[minmax(--spacing(35),--spacing(45))_1fr_1fr] gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5 md:h-52.5 md:grid-cols-[minmax(--spacing(34),--spacing(44))_1fr_1fr]">
         <FacetColumn
           heading={loc.facetsFilter.formatHeader}
           total={formatCounts.length}

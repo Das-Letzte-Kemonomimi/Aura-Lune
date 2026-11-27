@@ -60,15 +60,15 @@ describe('PageHeader', () => {
   it('uses the medium tile and title by default', () => {
     render(<PageHeader title="Library" icon={<svg data-testid="icon" />} />);
     const tile = screen.getByTestId('icon').parentElement as HTMLElement;
-    expect(tile.className).toContain('size-9');
+    expect(tile.className).toContain('size-10');
     expect(screen.getByRole('heading', { level: 2, name: 'Library' }).className).toContain('text-lg');
   });
 
   it('grows the tile and title for size="lg"', () => {
     render(<PageHeader size="lg" title="Themes" icon={<svg data-testid="icon" />} />);
     const tile = screen.getByTestId('icon').parentElement as HTMLElement;
-    expect(tile.className).toContain('size-10');
-    expect(tile.className).not.toContain('size-9');
+    expect(tile.className).toContain('size-11');
+    expect(tile.className).not.toContain('size-10');
     expect(screen.getByRole('heading', { level: 2, name: 'Themes' }).className).toContain('text-xl');
   });
 });

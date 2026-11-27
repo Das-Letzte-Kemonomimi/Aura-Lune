@@ -21,7 +21,7 @@ export const PlayerDspMiniBar: React.FC<PlayerDspMiniBarProps> = React.memo(({
 }) => {
   const bypass = status.engine === 'Bypass';
   return (
-    <Card variant="inset" padding="none" className="flex items-center justify-between px-4 py-2.5">
+    <Card variant="inset" padding="none" className="flex flex-wrap items-center justify-between gap-2.5 px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-2.5">
         <span className="label-caps text-fg-muted">DSP</span>
 

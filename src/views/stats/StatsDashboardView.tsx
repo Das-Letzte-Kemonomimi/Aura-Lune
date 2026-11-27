@@ -106,9 +106,9 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
   };
 
   return (
-    <div className="mx-auto flex max-w-[min(100rem,98vw)] flex-col gap-5.5">
+    <div className="flex flex-col gap-5">
       {/* Title banner */}
-      <Card variant="panel" padding="none" className="border-line-accent bg-linear-135 from-accent-purple/20 to-accent-pink/15 px-7 py-6">
+      <Card variant="panel" padding="md" className="border-line-accent bg-linear-135 from-accent-purple/20 to-accent-pink/15">
         <PageHeader
           icon={<BarChart3 size={20} />}
           title={loc.stats.title}
@@ -148,7 +148,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
       </div>
 
       {/* Middle section: top tracks & top artists */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(90),1fr))] gap-4.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(76),1fr))] gap-4.5">
         <StatsPanel icon={<Flame size={16} />} tone="amber" title={loc.stats.topTracks} aside={<Badge>TOP 5</Badge>}>
           {stats.topTracks.length === 0 ? (
             <PanelEmpty>{loc.stats.topTracksEmpty}</PanelEmpty>

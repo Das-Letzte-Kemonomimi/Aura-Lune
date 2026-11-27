@@ -1,5 +1,5 @@
 import type { useLibraryManager } from '../../hooks/useLibraryManager';
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Clock,
   Disc,
@@ -152,7 +152,6 @@ function LibraryStat({ icon, label, value }: { icon: React.ReactNode; label: str
 
 export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   const {
-    layoutMaxWidth,
     currentLang: _currentLang,
     language: _language = _currentLang,
     loc,
@@ -172,6 +171,9 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
     formatTime,
   } = props;
   const t = loc;
+  const [artistSortField, setArtistSortField] = useState<'name' | 'tracks' | 'albums' | 'plays'>('name');
+  const [artistSortOrder, setArtistSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [selectedArtistName, setSelectedArtistName] = useState<string | null>(null);
 
   const formatAlbumDuration = useCallback((ms: number) => {
     if (!ms || ms <= 0) return "";
@@ -186,88 +188,102 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
   }, []);
 
   return (
-            <Card variant="panel" padding="none" className="relative mx-auto p-7" style={{ maxWidth: layoutMaxWidth }}>
-              {props.coverSyncProgress.running && (
-                <div role="status" aria-live="polite" className="-mt-2 mb-3 flex justify-end">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-accent-pink/40 bg-accent-pink/12 px-3 py-1 text-xs font-semibold text-accent-pink">
-                    <Loader2 size={13} className="shrink-0 animate-spin" />
-                    <span>{loc.library.syncingMissingCovers}</span>
-                    {props.coverSyncProgress.total > 0 && (
-                      <span className="font-mono font-bold tabular-nums">
-                        {props.coverSyncProgress.processed}/{props.coverSyncProgress.total}
-                      </span>
-                    )}
-                  </div>
-                </div>
+    <div className="flex flex-col gap-4">
+      <Card variant="panel" padding="md" className="relative flex flex-col gap-4">
+        {props.coverSyncProgress.running && (
+          <div role="status" aria-live="polite" className="flex justify-end">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent-pink/40 bg-accent-pink/12 px-3 py-1 text-xs font-semibold text-accent-pink">
+              <Loader2 size={13} className="shrink-0 animate-spin" />
+              <span>{loc.library.syncingMissingCovers}</span>
+              {props.coverSyncProgress.total > 0 && (
+                <span className="font-mono font-bold tabular-nums">
+                  {props.coverSyncProgress.processed}/{props.coverSyncProgress.total}
+                </span>
               )}
+            </div>
+          </div>
+        )}
 
-              {/* Library header: title, stats and action buttons */}
-              <LibraryHeader {...props} />
+        {/* Library header: title and consolidated action buttons */}
+        <LibraryHeader {...props} />
 
-              {/* Collapsible folder scanner panel (hidden by default, so it takes no space) */}
-              {isScanFolderOpen && (
-                <LibraryScanPanel {...props} />
-              )}
+        {/* Collapsible folder scanner panel (hidden by default, so it takes no space) */}
+        {isScanFolderOpen && <LibraryScanPanel {...props} />}
 
-              {/* Compact library stats */}
-              <div className="mb-4.5 grid grid-cols-3 gap-3">
-                <LibraryStat icon={<Music size={22} className="text-accent-pink" />} label={loc.library.tracks} value={tracks.length} />
-                <LibraryStat icon={<Disc size={22} className="text-accent-purple" />} label={loc.library.albums} value={albums.length} />
-                <LibraryStat
-                  icon={<Clock size={22} className="text-accent-cyan" />}
-                  label={loc.library.totalDuration}
-                  value={formatTime(tracks.reduce((acc, track) => acc + track.duration_ms, 0))}
-                />
-              </div>
+        {/* Compact library stats */}
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          <LibraryStat icon={<Music size={20} className="text-accent-pink" />} label={loc.library.tracks} value={tracks.length} />
+          <LibraryStat icon={<Disc size={20} className="text-accent-purple" />} label={loc.library.albums} value={albums.length} />
+          <LibraryStat
+            icon={<Clock size={20} className="text-accent-cyan" />}
+            label={loc.library.totalDuration}
+            value={formatTime(tracks.reduce((acc, track) => acc + track.duration_ms, 0))}
+          />
+        </div>
 
-              {/* 3-column faceted filter panel (foobar2000 Facets) */}
-              {isFacetsFilterEnabled && (
-                <div className="mb-4.5">
-                  <FacetsFilterPane
-                    loc={loc}
-                    tracks={tracks}
-                    albums={albums}
-                    selectedFormat={facetSelectedFormat}
-                    selectedArtist={facetSelectedArtist}
-                    selectedAlbumId={facetSelectedAlbumId}
-                    onSelectFormat={setFacetSelectedFormat}
-                    onSelectArtist={setFacetSelectedArtist}
-                    onSelectAlbumId={setFacetSelectedAlbumId}
-                    onResetAll={() => {
-                      setFacetSelectedFormat(null);
-                      setFacetSelectedArtist(null);
-                      setFacetSelectedAlbumId(null);
-                    }}
-                  />
-                </div>
-              )}
+        {/* 3-column faceted filter panel (foobar2000 Facets) */}
+        {isFacetsFilterEnabled && (
+          <FacetsFilterPane
+            loc={loc}
+            tracks={tracks}
+            albums={albums}
+            selectedFormat={facetSelectedFormat}
+            selectedArtist={facetSelectedArtist}
+            selectedAlbumId={facetSelectedAlbumId}
+            onSelectFormat={setFacetSelectedFormat}
+            onSelectArtist={setFacetSelectedArtist}
+            onSelectAlbumId={setFacetSelectedAlbumId}
+            onResetAll={() => {
+              setFacetSelectedFormat(null);
+              setFacetSelectedArtist(null);
+              setFacetSelectedAlbumId(null);
+            }}
+          />
+        )}
+      </Card>
 
-              {/* Toolbar: Tracks/Albums views, live search and format filters */}
-              <LibraryToolbar {...props} />
+      {/* Toolbar: Tracks/Albums/Artists views, live search and context-aware filters */}
+      <LibraryToolbar
+        {...props}
+        artistSortField={artistSortField}
+        setArtistSortField={setArtistSortField}
+        artistSortOrder={artistSortOrder}
+        setArtistSortOrder={setArtistSortOrder}
+        onBackFromArtistDetail={() => setSelectedArtistName(null)}
+      />
 
-              {/* View 1: track table */}
-              {librarySubView === 'tracks' && (
-                <LibraryTracksView {...props} t={t} />
-              )}
+      {/* View 1: track table */}
+      {librarySubView === 'tracks' && (
+        <Card variant="panel" padding="md">
+          <LibraryTracksView {...props} t={t} />
+        </Card>
+      )}
 
-              {/* View 2: album and cover grid, or the detail view of the selected album */}
-              {librarySubView === 'albums' && (
-                selectedAlbumDetail ? (
-                  <LibraryAlbumDetail {...props} selectedAlbumDetail={selectedAlbumDetail} t={t} />
-                ) : (
-                  <LibraryAlbumGrid {...props} formatAlbumDuration={formatAlbumDuration} />
-                )
-              )}
+      {/* View 2: album and cover grid, or the detail view of the selected album */}
+      {librarySubView === 'albums' && (
+        selectedAlbumDetail ? (
+          <LibraryAlbumDetail {...props} selectedAlbumDetail={selectedAlbumDetail} t={t} />
+        ) : (
+          <Card variant="panel" padding="md">
+            <LibraryAlbumGrid {...props} formatAlbumDuration={formatAlbumDuration} />
+          </Card>
+        )
+      )}
 
-              {/* View 3: artists */}
-              {librarySubView === 'artists' && (
-                <LibraryArtistsView {...props} t={t} />
-              )}
+      {/* View 3: artists */}
+      {librarySubView === 'artists' && (
+        <LibraryArtistsView
+          {...props}
+          t={t}
+          artistSortField={artistSortField}
+          artistSortOrder={artistSortOrder}
+          selectedArtistName={selectedArtistName}
+          setSelectedArtistName={setSelectedArtistName}
+        />
+      )}
 
-              {/* MusicBrainz release matching modal */}
-              {selectedAlbumForMb && (
-                <LibraryMusicBrainzMatchPanel {...props} />
-              )}
-            </Card>
+      {/* MusicBrainz release matching modal */}
+      {selectedAlbumForMb && <LibraryMusicBrainzMatchPanel {...props} />}
+    </div>
   );
 });

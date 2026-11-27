@@ -481,7 +481,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
         </div>
 
         {/* Progress bar */}
-        <div className="mx-6 my-0 flex-1">
+        <div className="my-0 min-w-40 flex-1 sm:mx-4">
           <input
             type="range"
             min="0"
@@ -502,7 +502,7 @@ export const StemProjectStudioModal: React.FC<StemProjectStudioModalProps> = (pr
       {/* Save mix modal */}
       {isSavingMix && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/65">
-          <Card variant="panel" padding="md" className="w-90">
+          <Card variant="panel" padding="md" className="mx-4 w-full max-w-90">
             <h3 className="mb-3 text-base font-bold text-fg">{t.stems.saveMixTitle}</h3>
             <TextField
               autoFocus

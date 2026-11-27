@@ -1,10 +1,10 @@
-import React from 'react';
-import { Clock, Disc, Plus, Search, Sparkles } from '../../../components/ui/icons';
+import React, { useState } from 'react';
+import { Clock, Disc, MoreVertical, Play, Plus, Search, Sparkles } from '../../../components/ui/icons';
 import type { AlbumRecord } from '../../../types/library';
 import type { Translations } from '../../../i18n';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
-import { Badge, Button, Card, IconButton, ProgressBar } from '../../../components/ui';
+import { Badge, Button, Card, IconButton, MenuItem, Popover, ProgressBar } from '../../../components/ui';
 import { MIXED_FORMAT, type AlbumStats } from './albumModel';
 import { NowPlayingMark } from './trackRowParts';
 
@@ -29,8 +29,6 @@ export interface AlbumTileProps {
   actions: AlbumActions;
 }
 
-const TILE_MAX_WIDTH = { compact: 'max-w-50', medium: 'max-w-61.5', large: 'max-w-75' } as const;
-
 /**
  * Hundreds of tiles: the browser skips layout and paint of the ones outside the viewport and keeps
  * the size it measured last (`auto`) so the scrollbar stays steady.
@@ -38,9 +36,9 @@ const TILE_MAX_WIDTH = { compact: 'max-w-50', medium: 'max-w-61.5', large: 'max-
 const OFFSCREEN_SKIP = '[content-visibility:auto] [contain-intrinsic-size:auto_18rem]';
 const ROW_OFFSCREEN_SKIP = '[content-visibility:auto] [contain-intrinsic-size:auto_4.5rem]';
 
-/** Border and tint of the card of the album that is playing or paused (same look as the queue drawer). */
+/** Border and gradient highlight of the active playing/paused album (matches Playing Now queue). */
 const PLAYING_CARD =
-  'aria-[current=true]:border-accent-pink aria-[current=true]:bg-accent-pink/15 aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25';
+  'aria-[current=true]:border-accent-pink aria-[current=true]:bg-linear-to-r aria-[current=true]:from-accent-pink/25 aria-[current=true]:via-accent-purple/10 aria-[current=true]:to-transparent aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25';
 
 /** Format of an album as a corner badge: cyan for hi-res, grey otherwise, "Mixed" for several formats. */
 function AlbumFormatBadge({ stats, mixedLabel, className }: { stats: AlbumStats; mixedLabel: string; className?: string }) {
@@ -110,7 +108,7 @@ function sameTile(a: AlbumTileProps, b: AlbumTileProps): boolean {
   );
 }
 
-/** Tile of the album grid: cover with format badge and cover matching, details, progress and actions. */
+/** Tile of the album grid: artwork-first stage with hover actions, details, progress and overflow menu. */
 export const AlbumTile = React.memo(function AlbumTile({
   album,
   stats,
@@ -120,6 +118,7 @@ export const AlbumTile = React.memo(function AlbumTile({
   actions,
   size,
 }: AlbumTileProps & { size: AlbumTileSize }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const compact = size === 'compact';
   const current = playback !== null;
   return (
@@ -129,41 +128,107 @@ export const AlbumTile = React.memo(function AlbumTile({
       aria-current={current ? 'true' : undefined}
       title={progressLabelOf(loc, stats)}
       className={cn(
-        'flex cursor-pointer flex-col rounded-2xl',
-        compact ? 'gap-2 p-2.5' : 'gap-2.5 p-3.5',
-        TILE_MAX_WIDTH[size],
+        'group flex cursor-pointer flex-col rounded-2xl',
+        compact ? 'gap-2 p-2.5' : 'gap-2.5 p-3',
         OFFSCREEN_SKIP,
         PLAYING_CARD,
       )}
       onClick={() => actions.open(album)}
     >
       <AlbumCover album={album} iconSize={compact ? 36 : 46} className="aspect-square w-full overflow-hidden rounded-xl">
-        <AlbumFormatBadge stats={stats} mixedLabel={loc.library.albumFormatMixed} className="absolute top-1.5 left-1.5 bg-black/75" />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            actions.coverPicker(album);
-          }}
-          title={loc.covers.matchCoverTitle}
-          className="absolute right-1.5 bottom-1.5 flex items-center gap-1 rounded-sm bg-black/75 px-1.5 py-0.5 text-2xs font-semibold text-accent-pink"
+        <AlbumFormatBadge stats={stats} mixedLabel={loc.library.albumFormatMixed} className="absolute top-2 left-2 bg-black/75 backdrop-blur-xs" />
+        {current && (
+          <div className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-black/75 backdrop-blur-xs">
+            <NowPlayingMark playing={playback === 'playing'} />
+          </div>
+        )}
+        {/* Hover / focus artwork overlay */}
+        <div
+          className="absolute inset-0 flex items-end justify-between gap-1.5 bg-linear-to-t from-black/80 via-black/30 to-transparent p-2.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Sparkles size={10} /> {loc.covers.matchCover}
-        </button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="primary"
+              size="sm"
+              aria-label={`${loc.player.play} ${album.title}`}
+              onClick={() => actions.play(album)}
+              className="size-8 rounded-full p-0 shadow-halo shadow-accent-pink/40"
+            >
+              <Play size={14} fill="currentColor" className="ml-0.5" />
+            </Button>
+            <IconButton
+              variant="secondary"
+              size="sm"
+              label={loc.library.addToQueue}
+              onClick={() => actions.queue(album)}
+              className="size-8 rounded-full bg-black/70 text-accent-cyan"
+            >
+              <Plus size={14} />
+            </IconButton>
+          </div>
+          <IconButton
+            variant="secondary"
+            size="sm"
+            label={loc.covers.matchCoverTitle}
+            onClick={() => actions.coverPicker(album)}
+            className="size-8 rounded-full bg-black/70 text-accent-pink"
+          >
+            <Sparkles size={13} />
+          </IconButton>
+        </div>
       </AlbumCover>
 
-      <div className="flex-1">
-        <h4 className={cn('line-clamp-2 leading-tight font-bold text-fg', compact ? 'text-ui' : 'text-sm')} title={album.title}>
-          {current && <NowPlayingMark playing={playback === 'playing'} />} {album.title}
-        </h4>
-        <p className="mt-1 truncate text-xs text-fg-secondary">
-          {album.album_artist} {album.year ? `(${album.year})` : ''}
-        </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <Badge tone="cyan">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-1.5">
+          <div className="min-w-0 flex-1">
+            <h4 className={cn('line-clamp-2 leading-tight font-bold text-fg', compact ? 'text-ui' : 'text-sm')} title={album.title}>
+              {album.title}
+            </h4>
+            <p className="mt-1 truncate text-xs text-fg-secondary">
+              {album.album_artist} {album.year ? `• ${album.year}` : ''}
+            </p>
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Popover
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              side="top"
+              align="end"
+              label={loc.library.moreActions}
+              trigger={
+                <IconButton
+                  variant="ghost"
+                  size="sm"
+                  label={loc.library.moreActions}
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                  className="size-7 text-fg-muted hover:text-fg"
+                >
+                  <MoreVertical size={14} />
+                </IconButton>
+              }
+            >
+              <MenuItem icon={<Play size={14} className="text-accent-pink" />} onClick={() => { setMenuOpen(false); actions.play(album); }}>
+                {loc.player.play}
+              </MenuItem>
+              <MenuItem icon={<Plus size={14} className="text-accent-cyan" />} onClick={() => { setMenuOpen(false); actions.queue(album); }}>
+                {loc.library.addToQueue}
+              </MenuItem>
+              <MenuItem icon={<Sparkles size={14} className="text-accent-pink" />} onClick={() => { setMenuOpen(false); actions.coverPicker(album); }}>
+                {loc.covers.matchCover}
+              </MenuItem>
+              <MenuItem icon={<Search size={14} className="text-accent-purple" />} onClick={() => { setMenuOpen(false); actions.musicBrainz(album); }}>
+                MusicBrainz
+              </MenuItem>
+            </Popover>
+          </div>
+        </div>
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 font-mono text-xxs text-fg-muted tabular-nums">
+          <Badge tone="cyan" size="xs">
             {stats.trackCount} {loc.library.tracks}
           </Badge>
-          {durText && <span className="text-xxs text-fg-muted">{durText}</span>}
+          {durText && <span>• {durText}</span>}
           {album.release_mbid && (
             <Badge size="xs" mono>
               MBID
@@ -171,19 +236,6 @@ export const AlbumTile = React.memo(function AlbumTile({
           )}
         </div>
         <AlbumProgress stats={stats} label={progressLabelOf(loc, stats)} className="mt-2" />
-      </div>
-
-      {/* Actions; clicks here do not open the album */}
-      <div className="mt-auto flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <Button variant="tinted" tone="pink" size="sm" onClick={() => actions.play(album)} className="min-w-0 flex-1">
-          {loc.player.play}
-        </Button>
-        <IconButton variant="secondary" size="sm" label={loc.library.addToQueue} onClick={() => actions.queue(album)} className="text-accent-cyan">
-          <Plus size={13} />
-        </IconButton>
-        <IconButton variant="secondary" size="sm" label="MusicBrainz" onClick={() => actions.musicBrainz(album)}>
-          <Search size={12} />
-        </IconButton>
       </div>
     </Card>
   );

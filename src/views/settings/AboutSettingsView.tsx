@@ -97,7 +97,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
       </Card>
 
       {/* Creator section: Bandcamp & the Sorta app for AuDHD / ADHD */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(68),1fr))] gap-3.5">
         <Card highlight="purple" className="flex flex-col justify-between gap-3.5">
           <SectionHeader
             icon={<Music size={20} />}
@@ -138,7 +138,7 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         {techCards.map((card) => (
           <Card key={card.label} padding="sm">
             <span className="label-caps">{card.label}</span>

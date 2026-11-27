@@ -232,7 +232,7 @@ export const DownloadHubModal: React.FC<DownloadHubModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-[1.2fr_0.8fr] gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.2fr_0.8fr]">
             <div>
               <FieldLabel htmlFor={`${titleId}-dest`}>{loc.downloadHub.destinationFolder}</FieldLabel>
               <div className="flex gap-2">

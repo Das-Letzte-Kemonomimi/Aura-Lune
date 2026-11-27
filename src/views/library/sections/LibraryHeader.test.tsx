@@ -43,11 +43,12 @@ describe('LibraryHeader', () => {
       />,
     );
 
-    const btn = screen.getByRole('button', { name: /Sync Missing Covers/i });
-    expect(btn).toBeTruthy();
-    expect(btn.textContent).toContain('7');
+    fireEvent.click(screen.getByRole('button', { name: /More actions/i }));
+    const item = screen.getByRole('menuitem', { name: /Sync Missing Covers/i });
+    expect(item).toBeTruthy();
+    expect(item.textContent).toContain('7');
 
-    fireEvent.click(btn);
+    fireEvent.click(item);
     expect(handleTriggerBackgroundCoverFetch).toHaveBeenCalledTimes(1);
   });
 
@@ -62,14 +63,17 @@ describe('LibraryHeader', () => {
       />,
     );
 
-    const btn = screen.getByRole('button', { name: 'Sync Missing Covers' });
-    expect(btn.textContent?.trim()).toBe('Sync Missing Covers');
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    expect(trigger.textContent?.trim()).toBe('More actions');
+    fireEvent.click(trigger);
+    const item = screen.getByRole('menuitem', { name: 'Sync Missing Covers' });
+    expect(item.textContent?.trim()).toBe('Sync Missing Covers');
 
-    fireEvent.click(btn);
+    fireEvent.click(item);
     expect(handleTriggerBackgroundCoverFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('shows processed/total progress and disables the button while sync is running', () => {
+  it('shows processed/total progress and disables the item while sync is running', () => {
     const handleTriggerBackgroundCoverFetch = vi.fn(async () => {});
     render(
       <LibraryHeader
@@ -81,12 +85,12 @@ describe('LibraryHeader', () => {
       />,
     );
 
-    const btn = screen.getByRole('button', { name: /Syncing Covers/i }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
-    expect(btn.getAttribute('aria-busy')).toBe('true');
-    expect(btn.textContent).toContain('4/12');
+    fireEvent.click(screen.getByRole('button', { name: /More actions/i }));
+    const item = screen.getByRole('menuitem', { name: /Syncing Covers/i }) as HTMLButtonElement;
+    expect(item.disabled).toBe(true);
+    expect(item.textContent).toContain('4/12');
 
-    fireEvent.click(btn);
+    fireEvent.click(item);
     expect(handleTriggerBackgroundCoverFetch).not.toHaveBeenCalled();
   });
 });

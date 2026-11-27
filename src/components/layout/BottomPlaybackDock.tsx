@@ -124,34 +124,34 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   const t = loc;
 
   return (
-    // Height `h-25.5` (6.375rem / 102px) is coupled to clearances in MainContentRouter (`pb-28.5`), BackgroundExportBadge (`bottom-29`), and VolumeOsd (`bottom-36.5`).
+    // Height `h-21.5` (5.375rem / 86px) is coupled to clearances in MainContentRouter (`pb-24.5`), BackgroundExportBadge (`bottom-25`), and VolumeOsd (`bottom-32.5`).
     // Three zones: track, transport (always centred on the bar), tools. Below `lg` the tools shrink to the essentials.
-    <div className="fixed inset-x-0 bottom-0 z-40 grid h-25.5 items-center gap-4 border-t border-line-accent bg-ink/95 px-6 shadow-dock motion-safe:animate-fade-in lg:grid-cols-[minmax(0,1fr)_minmax(0,39rem)_minmax(0,1fr)] max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_auto] max-lg:gap-3 max-lg:px-4">
+    <div className="fixed inset-x-0 bottom-0 z-40 grid h-21.5 items-center gap-3 border-t border-line-accent bg-ink/95 px-4 shadow-dock motion-safe:animate-fade-in xl:grid-cols-[minmax(0,1fr)_minmax(0,37rem)_minmax(0,1fr)] xl:gap-4 xl:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)_minmax(0,1fr)] max-lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.5fr)_auto]">
       {/* Left: cover, title, artist */}
       <div
         onClick={onScrollToTopOrSwitchTab}
-        className="group flex min-w-0 cursor-pointer items-center gap-3.5 max-lg:gap-3"
+        className="group flex min-w-0 cursor-pointer items-center gap-3"
         title={activeTab === 'player' ? loc.bottomDock.scrollToTop : loc.bottomDock.openFullPlayer}
       >
         <div
           className={cn(
-            'flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-line shadow-lift shadow-black/40 transition-colors group-hover:border-line-accent max-md:size-13',
+            'flex size-13.5 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line shadow-lift shadow-black/40 transition-colors group-hover:border-line-accent max-md:size-11.5',
             !currentCover && 'bg-accent-gradient',
           )}
           style={currentCover ? { background: `url("${currentCover}") center/cover no-repeat` } : undefined}
         >
           {!currentCover && (
-            <Disc size={32} className={cn('text-on-accent', status.state === 'Playing' && 'motion-safe:animate-spin-slow')} />
+            <Disc size={26} className={cn('text-on-accent', status.state === 'Playing' && 'motion-safe:animate-spin-slow')} />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base leading-snug font-extrabold tracking-tight text-fg transition-colors group-hover:text-accent-pink" title={effectiveDisplayTitle}>
+          <p className="truncate text-sm leading-snug font-extrabold tracking-tight text-fg transition-colors group-hover:text-accent-pink xl:text-base" title={effectiveDisplayTitle}>
             {effectiveDisplayTitle}
           </p>
-          <p className="mt-0.5 truncate text-ui font-semibold text-accent-pink" title={effectiveDisplayArtist}>
+          <p className="mt-0.5 truncate text-xs font-semibold text-accent-pink xl:text-ui" title={effectiveDisplayArtist}>
             {effectiveDisplayArtist}
           </p>
-          <div className="mt-1.5 flex items-center gap-1.5 max-md:hidden">
+          <div className="mt-1 flex items-center gap-1.5 max-md:hidden">
             {currentPlayingTrack?.format && (
               <Badge tone="cyan" size="xs" mono>
                 {currentPlayingTrack.format}
@@ -178,8 +178,8 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
       </div>
 
       {/* Centre: transport and the position bar */}
-      <div className="flex min-w-0 flex-col items-center gap-2">
-        <div className="flex items-center gap-2.5 max-md:gap-1.5">
+      <div className="flex min-w-0 flex-col items-center gap-1.5">
+        <div className="flex items-center gap-2 max-md:gap-1.5">
           <Chip
             tone="cyan"
             pressed={queue.shuffle}
@@ -188,16 +188,16 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             title={queue.shuffle ? loc.player.shuffleOn : loc.player.shuffleOff}
             className={ROUND_TOGGLE}
           >
-            <Shuffle size={17} />
+            <Shuffle size={16} />
           </Chip>
 
           <IconButton
             size="md"
             label={t.bottomDock.prevTooltip}
             onClick={onPrevious}
-            className="size-10 rounded-full border-transparent bg-white/8 text-fg"
+            className="size-9 rounded-full border-transparent bg-white/8 text-fg"
           >
-            <SkipBack size={20} />
+            <SkipBack size={18} />
           </IconButton>
 
           <Button
@@ -205,12 +205,12 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             onClick={onPlayPause}
             aria-label={status.state === 'Playing' ? t.bottomDock.pauseTooltip : t.bottomDock.playTooltip}
             title={status.state === 'Playing' ? t.bottomDock.pauseTooltip : t.bottomDock.playTooltip}
-            className="size-12 rounded-full p-0 shadow-halo-lg shadow-accent-pink/45"
+            className="size-10.5 rounded-full p-0 shadow-halo-lg shadow-accent-pink/45"
           >
             {status.state === 'Playing' ? (
-              <Pause size={22} fill="currentColor" />
+              <Pause size={19} fill="currentColor" />
             ) : (
-              <Play size={22} fill="currentColor" className="ml-0.5" />
+              <Play size={19} fill="currentColor" className="ml-0.5" />
             )}
           </Button>
 
@@ -218,9 +218,9 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             size="md"
             label={t.bottomDock.nextTooltip}
             onClick={onNext}
-            className="size-10 rounded-full border-transparent bg-white/8 text-fg"
+            className="size-9 rounded-full border-transparent bg-white/8 text-fg"
           >
-            <SkipForward size={20} />
+            <SkipForward size={18} />
           </IconButton>
 
           <Chip
@@ -231,7 +231,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             title={loopTitle}
             className={ROUND_TOGGLE}
           >
-            {queue.loop_mode === 'Track' ? <Repeat1 size={17} /> : <Repeat size={17} />}
+            {queue.loop_mode === 'Track' ? <Repeat1 size={16} /> : <Repeat size={16} />}
             {queue.loop_mode === 'Queue' && (
               <span aria-hidden="true" className="absolute right-1 bottom-1 size-1 rounded-full bg-accent-pink" />
             )}
@@ -364,7 +364,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             gain={status.volume}
             onGainChange={onVolumeChange}
             title={`${loc.player.volume}: ${formatVolumeValue(status.volume)}`}
-            className="mr-2 h-1.5 w-24 max-xl:w-16 max-lg:hidden"
+            className="mr-2 h-1.5 w-20 max-xl:w-14 max-lg:hidden"
           />
         </div>
 

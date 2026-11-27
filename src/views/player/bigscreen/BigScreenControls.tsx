@@ -161,24 +161,27 @@ export const BigScreenControls: React.FC<BigScreenControlsProps> = ({
       </div>
 
       {/* Control buttons */}
-      <div className="flex items-center justify-center gap-5">
-        <IconButton label={t.player.previous} onClick={onPrev} className={transportClass}>
-          <SkipBack size={22} />
-        </IconButton>
-        <Button
-          variant="primary"
-          onClick={onPlayPause}
-          aria-label={isPlaying ? t.player.pause : t.player.play}
-          title={isPlaying ? t.player.pause : t.player.play}
-          className="size-16 rounded-full p-0 shadow-halo-xl shadow-accent-pink/55"
-        >
-          {isPlaying ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
-        </Button>
-        <IconButton label={t.player.next} onClick={onNext} className={transportClass}>
-          <SkipForward size={22} />
-        </IconButton>
+      <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
+        <div aria-hidden="true" className="hidden sm:block" />
+        <div className="flex items-center justify-center gap-5">
+          <IconButton label={t.player.previous} onClick={onPrev} className={transportClass}>
+            <SkipBack size={22} />
+          </IconButton>
+          <Button
+            variant="primary"
+            onClick={onPlayPause}
+            aria-label={isPlaying ? t.player.pause : t.player.play}
+            title={isPlaying ? t.player.pause : t.player.play}
+            className="size-16 rounded-full p-0 shadow-halo-xl shadow-accent-pink/55"
+          >
+            {isPlaying ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
+          </Button>
+          <IconButton label={t.player.next} onClick={onNext} className={transportClass}>
+            <SkipForward size={22} />
+          </IconButton>
+        </div>
 
-        <div className="absolute right-12 flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2 sm:justify-end">
           <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={onToggleMute}>
             <VolumeIcon gain={volume} size={18} />
           </IconButton>

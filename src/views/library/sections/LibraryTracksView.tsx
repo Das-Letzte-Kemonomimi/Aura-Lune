@@ -238,15 +238,15 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
           <table className="w-full table-fixed border-collapse text-left text-sm">
             <thead className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md">
               <tr className="h-10.5 border-b border-line text-fg-muted">
-                <SortableTh field="default" {...sortProps} title={loc.library.sortDefaultTooltip} className="w-12 px-1.5 text-center">#</SortableTh>
+                <SortableTh field="default" {...sortProps} title={loc.library.sortDefaultTooltip} className="w-11 px-1.5 text-center">#</SortableTh>
                 <SortableTh field="title" {...sortProps} title={loc.library.sortTitleTooltip} className="px-2.5">{loc.library.sortTitle}</SortableTh>
-                <SortableTh field="artist" {...sortProps} title={loc.library.sortArtistTooltip} className="w-[16%] px-2.5">{loc.library.sortArtist}</SortableTh>
+                <SortableTh field="artist" {...sortProps} title={loc.library.sortArtistTooltip} className="hidden w-[18%] px-2.5 md:table-cell">{loc.library.sortArtist}</SortableTh>
                 <SortableTh field="year" {...sortProps} title={loc.library.sortYearTooltip} className={cn(wide, 'w-16 px-2')}>{loc.library.sortYear}</SortableTh>
-                <SortableTh field="added" {...sortProps} title={loc.library.sortAddedTooltip} className={cn(wide, 'w-28 px-2')}>{loc.library.colAdded}</SortableTh>
-                <SortableTh field="format" {...sortProps} title={loc.library.sortFormatTooltip} className="w-36 px-2">{loc.library.quality}</SortableTh>
-                <SortableTh field="duration" {...sortProps} title={loc.library.sortDurationTooltip} className="w-18 px-2 text-right">{loc.queue.duration}</SortableTh>
-                <SortableTh field="plays" {...sortProps} title={loc.library.sortPlaysTooltip} className="w-18 px-1.5 text-center">{loc.library.playsCol}</SortableTh>
-                <th className="w-28 px-1.5 text-center text-xs font-semibold tracking-wide uppercase">{loc.library.rating}</th>
+                <SortableTh field="added" {...sortProps} title={loc.library.sortAddedTooltip} className={cn(wide, 'w-26 px-2')}>{loc.library.colAdded}</SortableTh>
+                <SortableTh field="format" {...sortProps} title={loc.library.sortFormatTooltip} className="hidden w-32 px-2 lg:table-cell">{loc.library.quality}</SortableTh>
+                <SortableTh field="duration" {...sortProps} title={loc.library.sortDurationTooltip} className="w-17 px-2 text-right">{loc.queue.duration}</SortableTh>
+                <SortableTh field="plays" {...sortProps} title={loc.library.sortPlaysTooltip} className="hidden w-16 px-1.5 text-center lg:table-cell">{loc.library.playsCol}</SortableTh>
+                <th className="hidden w-26 px-1.5 text-center text-xs font-semibold tracking-wide uppercase lg:table-cell">{loc.library.rating}</th>
                 <th className="w-26 px-1.5 text-center text-xs font-semibold tracking-wide uppercase">{loc.library.actions}</th>
               </tr>
             </thead>
@@ -290,7 +290,10 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                     <tr
                       key={track.id}
                       onClick={() => handlePlayLibraryTrack(track)}
-                      className={cn('glass-card h-14 scroll-mt-11 cursor-pointer border-b border-white/3', isCurrent && 'bg-accent-purple/20')}
+                      className={cn(
+                        'glass-card h-14 scroll-mt-11 cursor-pointer border-b border-white/3',
+                        isCurrent && 'bg-linear-to-r from-accent-pink/25 via-accent-purple/10 to-transparent',
+                      )}
                     >
                       <td className={cn(cell, 'px-1.5 text-center font-mono text-fg-muted')} title={track.track_no ? `#${idx + 1} (Track ${track.track_no})` : `#${idx + 1}`}>
                         {isCurrent ? <NowPlayingMark playing={status.state === 'Playing'} /> : idx + 1}
@@ -303,14 +306,17 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                               {track.is_favorite && <Heart size={12} fill="currentColor" className="shrink-0 text-accent-pink" />}
                               <span className="truncate" title={track.title}>{track.title}</span>
                             </div>
-                            <div className="truncate text-xs text-fg-muted" title={album?.title}>{album?.title ?? loc.library.unknownAlbum}</div>
+                            <div className="truncate text-xs text-fg-muted" title={album?.title}>
+                              <span className="md:hidden">{track.artist} • </span>
+                              {album?.title ?? loc.library.unknownAlbum}
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td className={cn(cell, 'px-2.5 text-fg-secondary')} title={track.artist}>{track.artist}</td>
+                      <td className={cn(cell, 'hidden px-2.5 text-fg-secondary md:table-cell')} title={track.artist}>{track.artist}</td>
                       <td className={cn(cell, wide, 'px-2 font-mono text-xs text-fg-muted')}>{album?.year ?? '—'}</td>
                       <td className={cn(cell, wide, 'px-2 text-xs text-fg-muted')}>{formatAddedDate(track.added_at) || '—'}</td>
-                      <td className={cn(cell, 'px-2')}>
+                      <td className={cn(cell, 'hidden px-2 lg:table-cell')}>
                         <div className="flex items-center gap-1.5">
                           <TrackFormatBadge track={track} suffix={isHiRes(track) ? ' Hi-Res' : undefined} />
                           {gain !== null && gain !== undefined && (
@@ -327,8 +333,8 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                           {Math.round(track.sample_rate / 1000)} kHz{track.bit_depth ? ` / ${track.bit_depth}-bit` : ''}
                         </div>
                       </td>
-                      <td className={cn(cell, 'px-2 text-right font-mono')}>{formatTime(track.duration_ms)}</td>
-                      <td className={cn(cell, 'px-1.5 text-center')}>
+                      <td className={cn(cell, 'px-2 text-right font-mono tabular-nums')}>{formatTime(track.duration_ms)}</td>
+                      <td className={cn(cell, 'hidden px-1.5 text-center lg:table-cell')}>
                         <Button
                           variant={track.play_count ? 'tinted' : 'ghost'}
                           tone="amber"
@@ -344,7 +350,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                           {track.play_count || 0}
                         </Button>
                       </td>
-                      <td className={cn(cell, 'px-1 text-center')}>
+                      <td className={cn(cell, 'hidden px-1 text-center lg:table-cell')}>
                         <StarRating rating={track.rating} onRate={(stars) => handleSetTrackRating(track.id, stars)} loc={loc} />
                       </td>
                       <td className="h-14 px-1.5 text-center align-middle">

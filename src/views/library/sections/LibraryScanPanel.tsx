@@ -19,21 +19,21 @@ export const LibraryScanPanel: React.FC<LibraryScanPanelProps> = ({
 }) => {
   const fieldId = useId();
   return (
-    <Card highlight="cyan" className="mb-5">
+    <Card highlight="cyan">
       <div className="mb-2 flex items-center justify-between">
         <FieldLabel htmlFor={fieldId} className="mb-0">{loc.library.scanPathLabel}</FieldLabel>
         <IconButton size="sm" label={loc.common.close} onClick={() => setIsScanFolderOpen(false)}>
           <X size={14} />
         </IconButton>
       </div>
-      <div className="flex gap-2.5">
+      <div className="flex flex-wrap gap-2.5">
         <TextField
           id={fieldId}
           mono
           value={scanFolder}
           onChange={(e) => setScanFolder(e.target.value)}
           placeholder={loc.library.scanPathPlaceholder}
-          className="flex-1"
+          className="min-w-52 flex-1"
         />
         <Button onClick={handlePickFolder} title={loc.library.browseDolphinTooltip}>
           <FolderOpen size={15} className="text-accent-cyan" /> {loc.library.browseDolphin}

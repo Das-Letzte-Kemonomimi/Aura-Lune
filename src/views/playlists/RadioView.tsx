@@ -190,9 +190,9 @@ export const RadioView: React.FC<RadioViewProps> = ({
   );
 
   return (
-    <div className="flex flex-col gap-6 px-0 pt-2 pb-10 motion-safe:animate-fade-in">
+    <div className="flex flex-col gap-5 pb-6 motion-safe:animate-fade-in">
       {/* Radio tab header */}
-      <Card variant="panel" padding="lg">
+      <Card variant="panel" padding="md">
         <PageHeader
           icon={<Radio size={20} />}
           title={
@@ -263,7 +263,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
           icon={<Sparkles size={16} />}
           title={`${loc.radio.featuredStations} (${FEATURED_RADIO_STATIONS.length})`}
         />
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(64),1fr))] gap-4">
           {FEATURED_RADIO_STATIONS.map((station) => {
             const playing = isStationPlaying(station);
             return (
@@ -324,7 +324,7 @@ export const RadioView: React.FC<RadioViewProps> = ({
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(80),1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(64),1fr))] gap-4">
             {customStations.map((station) => (
               <StationCard
                 key={station.id}
