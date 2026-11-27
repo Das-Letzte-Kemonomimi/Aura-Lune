@@ -21,7 +21,6 @@ import { useAudioMasteringEffects } from './hooks/useAudioMasteringEffects';
 import { useVolumeUnit } from './hooks/useVolumeUnit';
 import { useAppBootstrap } from './hooks/useAppBootstrap';
 import { useMainRouterProps } from './hooks/useMainRouterProps';
-import { AppSettingsModal } from './views/settings/AppSettingsModal';
 import { useAppSettingsModalProps } from './views/settings/useAppSettingsModalProps';
 import { AppModalsContainer } from './components/modals/AppModalsContainer';
 import { useAppModalsProps } from './components/modals/useAppModalsProps';
@@ -34,7 +33,11 @@ import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { StartupSplash } from './components/layout/StartupSplash';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+
+const AppSettingsModal = lazy(() =>
+  import('./views/settings/AppSettingsModal').then((m) => ({ default: m.AppSettingsModal })),
+);
 import { currentPositionMs } from './state/livePlayback';
 import { errorMessage, invoke } from './api/ipc';
 import { setSetting } from './api/settings';
@@ -1283,20 +1286,22 @@ export default function App() {
       )}
 
       {isSettingsOpen && (
-        <AppSettingsModal
-          isOpen={isSettingsOpen}
-          onClose={closeSettings}
-          activeTab={settingsTab}
-          onSelectTab={setSettingsTab}
-          loc={loc}
-          devicesProps={settingsModalProps.devicesProps}
-          transcodeProps={settingsModalProps.transcodeProps}
-          themesProps={settingsModalProps.themesProps}
-          updatesProps={settingsModalProps.updatesProps}
-          aboutProps={settingsModalProps.aboutProps}
-          backupProps={settingsModalProps.backupProps}
-          updateAvailable={updateManager.hasUpdate}
-        />
+        <Suspense fallback={null}>
+          <AppSettingsModal
+            isOpen={isSettingsOpen}
+            onClose={closeSettings}
+            activeTab={settingsTab}
+            onSelectTab={setSettingsTab}
+            loc={loc}
+            devicesProps={settingsModalProps.devicesProps}
+            transcodeProps={settingsModalProps.transcodeProps}
+            themesProps={settingsModalProps.themesProps}
+            updatesProps={settingsModalProps.updatesProps}
+            aboutProps={settingsModalProps.aboutProps}
+            backupProps={settingsModalProps.backupProps}
+            updateAvailable={updateManager.hasUpdate}
+          />
+        </Suspense>
       )}
 
       <AppModalsContainer {...appModalsProps} />

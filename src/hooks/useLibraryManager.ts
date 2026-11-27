@@ -449,9 +449,11 @@ export function useLibraryManager({
   // 8. Library Loader & Scanner Handlers
   const loadLibrary = useCallback(async () => {
     try {
-      const t = await invoke<TrackRecord[]>('get_library_tracks');
+      const [t, a] = await Promise.all([
+        invoke<TrackRecord[]>('get_library_tracks'),
+        invoke<AlbumRecord[]>('get_library_albums'),
+      ]);
       setTracks(t);
-      const a = await invoke<AlbumRecord[]>('get_library_albums');
       setAlbums(a);
 
       if (t.length === 0) {

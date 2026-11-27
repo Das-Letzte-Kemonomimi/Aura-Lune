@@ -160,7 +160,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               v{appVersion}
             </span>
             <img
-              src={appIconStyle === 'classic' ? '/icon_classic.png' : '/icon_lineout.png'}
+              src={appIconStyle === 'classic' ? '/icon_classic_128.png' : '/icon_lineout_128.png'}
               alt="Auralune Logo"
               className={cn(
                 'size-9 shrink-0 rounded-xl border border-line-accent bg-black/25 object-contain shadow-halo-lg',

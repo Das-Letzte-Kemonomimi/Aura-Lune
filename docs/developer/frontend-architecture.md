@@ -91,7 +91,7 @@ Builders merge domain-hook results ("managers") with values from `App`. Managers
    - `SpectrumVisualizer` and `AnimeAmbienceFX` listen for `document.hidden` and pause animation loops when minimized or hidden.
 
 ## UI Components & Lazy Loaded Modals (`src/components`)
-- **Modals**: All modal dialogs in `AppModalsContainer.tsx` (and `AppSettingsModal` in `App.tsx`) are conditionally mounted only while open (`{isOpen && <Modal ... />}`) and loaded via `React.lazy()` + `<React.Suspense fallback={null}>` so closed dialogs neither run hooks nor load lazy JS chunks at startup.
+- **Modals & Views**: All modal dialogs in `AppModalsContainer.tsx` and `AppSettingsModal` in `App.tsx` are conditionally mounted only while open (`{isOpen && <Modal ... />}`) and loaded via `React.lazy()` + `<React.Suspense fallback={null}>` so closed dialogs (and the embedded changelog) neither run hooks nor load lazy JS chunks at startup. In [`MainContentRouter.tsx`](../../src/components/layout/MainContentRouter.tsx), `PlayerView` stays eager while `LibraryView`, `DspStudioView`, `PlaylistsView`, `StemProjectsLibraryView`, `RadioView`, and `StatsDashboardView` are lazy-loaded under `<Suspense fallback={null}>`.
 - **Layout & Player Components**: `AppModalsContainer`, `QueueDrawer`, `MainContentRouter`, `BottomPlaybackDock`, `LibraryView`, and `PlayerView` are wrapped with `React.memo` and fed stabilized handlers + shallow-memoized props.
 
 ## Styling (Tailwind CSS v4)
@@ -133,13 +133,13 @@ Builders merge domain-hook results ("managers") with values from `App`. Managers
 
 ## Internationalization (`src/locales` & `src/i18n.ts`)
 Standalone JSON translation dictionaries in `src/locales/`:
-- 🇬🇧 English (`en.json`)
-- 🇵🇱 Polish (`pl.json`)
-- 🇩🇪 German (`de.json`)
-- 🇫🇮 Finnish (`fi.json`)
-- 🏛️ Latin (`la.json`)
+- 🇬🇧 English (`en.json`) — statically bundled as the startup default and fallback
+- 🇵🇱 Polish (`pl.json`) — loaded lazily via `loadLocale('pl')`
+- 🇩🇪 German (`de.json`) — loaded lazily via `loadLocale('de')`
+- 🇫🇮 Finnish (`fi.json`) — loaded lazily via `loadLocale('fi')`
+- 🏛️ Latin (`la.json`) — loaded lazily via `loadLocale('la')`
 
-`i18n.test.ts` checks that every English key exists in every language; `i18n.parity.test.ts` checks the reverse (no stale keys) and that each message has the same `{n}` placeholders as English (required by `fmt`).
+`useAppBootstrap` and `LanguageSelector` await `loadLocale(lang)` before committing the selected language so only the active language dictionary is fetched and parsed into memory. `i18n.test.ts` checks that every English key exists in every language and verifies `loadLocale` caching/fallback; `i18n.parity.test.ts` checks the reverse (no stale keys) and that each message has the same `{n}` placeholders as English (required by `fmt`).
 
 ## Adding a new modal dialog
 

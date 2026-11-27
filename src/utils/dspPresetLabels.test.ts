@@ -1,10 +1,14 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
-import { getTranslations, supportedLanguages } from '../i18n';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { getTranslations, loadLocale, supportedLanguages, type Translations } from '../i18n';
 import { CUSTOM_EQ_PRESET_ID, presetDescription, presetLabel } from './dspPresetLabels';
 
 const en = getTranslations('en');
-const pl = getTranslations('pl');
+let pl: Translations = en;
+
+beforeAll(async () => {
+  pl = await loadLocale('pl');
+});
 
 describe('presetLabel', () => {
   it('returns the localised name for a known id', () => {
@@ -54,8 +58,8 @@ describe('locale coverage of the built-in preset ids', () => {
   const peqIds = ['flat', 'harman', 'vocal-clarity', 'sub-bass-punch', 'de-esser'];
   const dynamicsIds = ['vintage-tube', 'analog-tape', 'vocal-broadcast', 'lofi-crunch', 'ear-safe', 'bypass'];
 
-  it.each(supportedLanguages.map((l) => l.code))('%s localises every built-in preset id', (code) => {
-    const loc = getTranslations(code);
+  it.each(supportedLanguages.map((l) => l.code))('%s localises every built-in preset id', async (code) => {
+    const loc = await loadLocale(code);
     const missing = [
       ...eqIds.filter((id) => !presetLabel(loc, 'eq', id, '')),
       ...peqIds.filter((id) => !presetLabel(loc, 'peq', id, '') || !presetDescription(loc, 'peq', id)),

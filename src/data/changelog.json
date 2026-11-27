@@ -225,6 +225,13 @@
         "de": "Das Einlesen großer Musikbibliotheken wurde deutlich beschleunigt, unnötige Schreibvorgänge beim erneuten Scannen und im Hörverlauf wurden reduziert und abgerufene Songtexte werden nun lokal zwischengespeichert.",
         "fi": "Suurten musiikkikirjastojen skannausta nopeutettiin huomattavasti, uudelleenskannauksen ja kuunteluhistorian turhia tallennuksia vähennettiin sekä haetut sanoitukset tallennetaan nyt välimuistiin.",
         "la": "Bibliothecarum musicarum magnarum inspectio multo celerior facta est, scripturae supervacuae in recensione et historia auscultandi imminutae sunt, atque verba carminum quaesita nunc in memoria temporaria servantur."
+      },
+      {
+        "en": "Faster startup and fully offline fonts: the app now opens quickly even without internet, loads extra tabs, Settings, and other languages only when you need them, and uses crisp lightweight header icons.",
+        "pl": "Szybsze uruchamianie i czcionki w pełni offline: odtwarzacz otwiera się sprawnie nawet bez internetu, wczytuje dodatkowe zakładki, Ustawienia oraz inne języki dopiero wtedy, gdy ich używasz, i korzysta z lżejszych ikon w nagłówku.",
+        "de": "Schnellerer Start und komplett offline verfügbare Schriften: Die App startet auch ohne Internetverbindung zügig, lädt weitere Tabs, Einstellungen und andere Sprachen erst bei Bedarf und nutzt leichtere Header-Symbole.",
+        "fi": "Nopeampi käynnistys ja täysin ilman verkkoa toimivat fontit: sovellus avautuu nopeasti myös ilman verkkoyhteyttä, lataa muut välilehdet, asetukset ja kielet vasta tarvittaessa ja käyttää kevyempiä otsikkokuvakkeita.",
+        "la": "Initium velocius et litterae sine rete semper paratae: programma celeriter aperitur etiam sine interreti, tabulas additas, optionum fenestram et alias linguas tantum cum opus est onerat, et iconibus levioribus in capite utitur."
       }
     ],
     "fixed": [

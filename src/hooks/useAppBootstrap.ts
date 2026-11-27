@@ -5,7 +5,7 @@ import { clampPreampDb, parseFiniteSetting } from '../utils/preamp';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
-import type { Language } from '../i18n';
+import { isSupportedLanguage, loadLocale, type Language } from '../i18n';
 
 export interface UseAppBootstrapOptions {
   refreshDevices: () => Promise<unknown> | unknown;
@@ -125,9 +125,10 @@ export function useAppBootstrap({
           .catch((e) => console.warn('Failed to read eq_enabled_on_startup:', e)),
 
         getSetting('app_language')
-          .then((val) => {
-            if (!disposed && val && (val === 'en' || val === 'pl' || val === 'de' || val === 'fi' || val === 'la')) {
-              setLanguage(val as Language);
+          .then(async (val) => {
+            if (val && isSupportedLanguage(val)) {
+              await loadLocale(val);
+              if (!disposed) setLanguage(val);
             }
           })
           .catch((e) => console.warn('Failed to read app_language:', e)),

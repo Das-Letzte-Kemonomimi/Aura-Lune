@@ -1,6 +1,13 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { translations, supportedLanguages, getTranslations, type Language } from './i18n';
+import en from './locales/en.json';
+import pl from './locales/pl.json';
+import de from './locales/de.json';
+import fi from './locales/fi.json';
+import la from './locales/la.json';
+import { supportedLanguages, getTranslations, loadLocale, hasLoadedLocale, type Language, type Translations } from './i18n';
+
+const translations: Record<Language, Translations> = { en, pl, de, fi, la };
 
 describe('i18n Localization & Translation Parity', () => {
   it('supports all declared languages with valid labels and flags', () => {
@@ -67,8 +74,22 @@ describe('i18n Localization & Translation Parity', () => {
     }
   });
 
-  it('falls back to English when an unknown language is requested', () => {
+  it('falls back to English when an unknown or unloaded language is requested', () => {
     const fallback = getTranslations('unknown' as any);
-    expect(fallback).toBe(translations.en);
+    expect(fallback).toBe(en);
+  });
+
+  it('lazily loads and caches non-English locales on demand', async () => {
+    expect(hasLoadedLocale('en')).toBe(true);
+    expect(hasLoadedLocale('fi')).toBe(false);
+    expect(getTranslations('fi')).toBe(en);
+
+    const loadedFi = await loadLocale('fi');
+    expect(loadedFi).toEqual(fi);
+    expect(hasLoadedLocale('fi')).toBe(true);
+    expect(getTranslations('fi')).toEqual(fi);
+
+    const cachedFi = await loadLocale('fi');
+    expect(cachedFi).toBe(loadedFi);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { StemProjectStudioModal } from './StemProjectStudioModal';
+import { loadLocale } from '../../i18n';
 
 describe('StemProjectStudioModal seek slider', () => {
   afterEach(() => {
@@ -34,7 +35,8 @@ describe('StemProjectStudioModal seek slider', () => {
     expect(onSeek).toHaveBeenCalledWith(90000);
   });
 
-  it('uses the label of the selected language', () => {
+  it('uses the label of the selected language', async () => {
+    await loadLocale('pl');
     render(<StemProjectStudioModal {...defaultProps} currentLang="pl" />);
 
     expect(screen.getByRole('slider', { name: 'Pozycja projektu' })).toBeTruthy();

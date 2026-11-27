@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Globe, ChevronDown } from '../ui/icons';
-import { type Language, supportedLanguages, getTranslations } from '../../i18n';
+import { type Language, supportedLanguages, getTranslations, hasLoadedLocale, loadLocale } from '../../i18n';
 import { cn } from '../../utils/cn';
 import { Button, MenuItem, Popover } from '../ui';
 
@@ -20,8 +20,25 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   variant = 'default',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const pendingLangRef = useRef<Language | null>(null);
   const loc = getTranslations(currentLang);
   const close = () => setIsOpen(false);
+
+  const handleSelectLanguage = (lang: Language) => {
+    close();
+    if (hasLoadedLocale(lang)) {
+      pendingLangRef.current = null;
+      onLanguageChange(lang);
+      return;
+    }
+    pendingLangRef.current = lang;
+    void loadLocale(lang).then(() => {
+      if (pendingLangRef.current === lang) {
+        pendingLangRef.current = null;
+        onLanguageChange(lang);
+      }
+    });
+  };
 
   const activeOption =
     supportedLanguages.find((l) => l.code === currentLang) || supportedLanguages[0];
@@ -56,10 +73,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             key={lang.code}
             selected={lang.code === currentLang}
             icon={<span aria-hidden="true">{lang.flag}</span>}
-            onClick={() => {
-              onLanguageChange(lang.code);
-              close();
-            }}
+            onClick={() => handleSelectLanguage(lang.code)}
           >
             {lang.label}
           </MenuItem>

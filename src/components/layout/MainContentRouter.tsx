@@ -1,22 +1,20 @@
 import type { AppTab } from '../../types/navigation';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { cn } from '../../utils/cn';
 import type { Language } from '../../i18n';
-import {
-  PlayerView,
-  type PlayerViewProps,
-  LibraryView,
-  type LibraryViewProps,
-  DspStudioView,
-  type DspStudioViewProps,
-  PlaylistsView,
-  type PlaylistsViewProps,
-  StemProjectsLibraryView,
-  RadioView,
-  type RadioStation,
-  StatsDashboardView,
-  type StatsDashboardViewProps,
-} from '../../views';
+import { PlayerView, type PlayerViewProps } from '../../views/player/PlayerView';
+import type { LibraryViewProps } from '../../views/library/LibraryView';
+import type { DspStudioViewProps } from '../../views/dsp/DspStudioView';
+import type { PlaylistsViewProps } from '../../views/playlists/PlaylistsView';
+import type { RadioStation } from '../../views/playlists/RadioView';
+import type { StatsDashboardViewProps } from '../../views/stats/StatsDashboardView';
+
+const LibraryView = React.lazy(() => import('../../views/library/LibraryView').then((m) => ({ default: m.LibraryView })));
+const DspStudioView = React.lazy(() => import('../../views/dsp/DspStudioView').then((m) => ({ default: m.DspStudioView })));
+const PlaylistsView = React.lazy(() => import('../../views/playlists/PlaylistsView').then((m) => ({ default: m.PlaylistsView })));
+const StemProjectsLibraryView = React.lazy(() => import('../../views/stems/StemProjectsLibraryView').then((m) => ({ default: m.StemProjectsLibraryView })));
+const RadioView = React.lazy(() => import('../../views/playlists/RadioView').then((m) => ({ default: m.RadioView })));
+const StatsDashboardView = React.lazy(() => import('../../views/stats/StatsDashboardView').then((m) => ({ default: m.StatsDashboardView })));
 
 export interface StemProjectsRouterProps {
   currentLang: Language;
@@ -75,18 +73,20 @@ export const MainContentRouter: React.FC<MainContentRouterProps> = React.memo(({
       {/* Tabs 2–7 share a unified container aligned to layoutMaxWidth */}
       {activeTab !== 'player' && (
         <div className="mx-auto w-full px-1 py-2 sm:px-2" style={{ maxWidth: layoutMaxWidth }}>
-          {activeTab === 'library' && <LibraryView {...libraryProps} />}
-          {activeTab === 'dsp' && <DspStudioView {...dspProps} />}
-          {activeTab === 'playlists' && <PlaylistsView {...playlistsProps} />}
-          {activeTab === 'stem-projects' && (
-            <StemProjectsLibraryView
-              currentLang={stemProjectsProps.currentLang}
-              onOpenProject={stemProjectsProps.onOpenProject}
-              onOpenCreateProject={stemProjectsProps.onOpenCreateProject}
-            />
-          )}
-          {activeTab === 'radio' && <RadioView {...radioProps} />}
-          {activeTab === 'stats' && statsProps && <StatsDashboardView {...statsProps} />}
+          <Suspense fallback={null}>
+            {activeTab === 'library' && <LibraryView {...libraryProps} />}
+            {activeTab === 'dsp' && <DspStudioView {...dspProps} />}
+            {activeTab === 'playlists' && <PlaylistsView {...playlistsProps} />}
+            {activeTab === 'stem-projects' && (
+              <StemProjectsLibraryView
+                currentLang={stemProjectsProps.currentLang}
+                onOpenProject={stemProjectsProps.onOpenProject}
+                onOpenCreateProject={stemProjectsProps.onOpenCreateProject}
+              />
+            )}
+            {activeTab === 'radio' && <RadioView {...radioProps} />}
+            {activeTab === 'stats' && statsProps && <StatsDashboardView {...statsProps} />}
+          </Suspense>
         </div>
       )}
     </main>
