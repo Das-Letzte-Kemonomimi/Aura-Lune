@@ -121,7 +121,6 @@ describe('useMainRouterProps', () => {
       sortedTracks: [],
       filteredAlbums: [],
       sortedAlbums: [],
-      filteredArtists: [],
       librarySubView: 'all',
       setLibrarySubView: vi.fn(),
       librarySearch: '',

@@ -35,6 +35,7 @@ import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { StartupSplash } from './components/layout/StartupSplash';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { currentPositionMs } from './state/livePlayback';
 import { errorMessage, invoke } from './api/ipc';
 import { setSetting } from './api/settings';
 import { useTauriEvent } from './hooks/useTauriEvent';
@@ -1140,7 +1141,7 @@ export default function App() {
         artist={effectiveDisplayArtist}
         coverUrl={currentCover}
         isPlaying={status.state === 'Playing'}
-        positionMs={status.position_ms}
+        positionMs={currentPositionMs(status.position_ms)}
         durationMs={status.duration_ms}
         volume={status.volume}
         pitchSemitones={status.pitch_semitones}
@@ -1253,7 +1254,7 @@ export default function App() {
           coverUrl={currentCover}
           trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
           isPlaying={status.state === 'Playing'}
-          positionMs={status.position_ms}
+          positionMs={currentPositionMs(status.position_ms)}
           durationMs={status.duration_ms}
           volume={status.volume}
           pitchSemitones={status.pitch_semitones}

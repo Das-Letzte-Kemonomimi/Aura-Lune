@@ -10,12 +10,13 @@ import type { TrackBookmarkDto } from '../../types/player';
 import type { DspCombinationInfo } from '../dsp/DspStudioView';
 import { type Language, getTranslations } from '../../i18n';
 import { PlayerQueuePanel } from './sections/PlayerQueuePanel';
-import { resolveQueueTrackMeta } from './queueTrackMeta';
+import { buildQueueTrackLookup, resolveQueueTrackMetaFromLookup } from './queueTrackMeta';
 import { PlayerDspMiniBar } from './sections/PlayerDspMiniBar';
 import { PlayerTransportControls } from './sections/PlayerTransportControls';
 import { PlayerProgressSection } from './sections/PlayerProgressSection';
 import { PlayerQuickDspVibes } from './sections/PlayerQuickDspVibes';
 import { PlayerVisualColumn } from './sections/PlayerVisualColumn';
+import { currentPositionMs } from '../../state/livePlayback';
 import { PlayerToolbar } from './sections/PlayerToolbar';
 import { PlayerTrackHeader } from './sections/PlayerTrackHeader';
 import { Card } from '../../components/ui';
@@ -148,9 +149,14 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
   } = props;
   const t = loc;
 
+  const queueLookup = React.useMemo(
+    () => buildQueueTrackLookup(tracks, albums),
+    [tracks, albums],
+  );
+
   const getQueueTrackMeta = useCallback(
-    (item: QueueItem) => resolveQueueTrackMeta(item, tracks, albums),
-    [tracks, albums]
+    (item: QueueItem) => resolveQueueTrackMetaFromLookup(item, queueLookup),
+    [queueLookup],
   );
 
   return (
@@ -198,7 +204,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                     trackAlbum={currentAlbum?.title || status.current_track?.album || null}
                     trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
                     durationSec={status.duration_ms ? status.duration_ms / 1000 : null}
-                    currentPositionMs={status.position_ms}
+                    currentPositionMs={currentPositionMs(status.position_ms)}
                     currentLang={language}
                     onSeek={handleSeek}
                     onClose={() => setShowLyrics(false)}

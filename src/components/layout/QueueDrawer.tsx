@@ -14,7 +14,10 @@ import {
 import { type Translations } from '../../i18n';
 import { type PlaybackQueue, type QueueItem } from '../../types/queue';
 import { type AlbumRecord, type PlaybackStatus, type TrackRecord } from '../../types/player';
-import { resolveQueueTrackMeta } from '../../views/player/queueTrackMeta';
+import {
+  buildQueueTrackLookup,
+  resolveQueueTrackMetaFromLookup,
+} from '../../views/player/queueTrackMeta';
 import { cn } from '../../utils/cn';
 import { Badge, Button, Chip, EmptyState, IconButton } from '../ui';
 
@@ -35,19 +38,17 @@ export interface QueueDrawerProps {
   loc: Translations;
 }
 
-/** Library data (cover, format) of every queue item; only the queued tracks are searched, so it stays cheap for big libraries. */
+/** Library data (cover, format) of every queue item, indexed once per tracks/albums change while open. */
 function useQueueMetas(queue: PlaybackQueue, tracks: TrackRecord[], albums: AlbumRecord[], enabled: boolean) {
+  const lookup = useMemo(() => {
+    if (!enabled) return null;
+    return buildQueueTrackLookup(tracks, albums);
+  }, [enabled, tracks, albums]);
+
   return useMemo(() => {
-    if (!enabled) return [];
-    const ids = new Set<number>();
-    const uris = new Set<string>();
-    for (const item of queue.items) {
-      if (item.track_id != null) ids.add(item.track_id);
-      uris.add(item.uri);
-    }
-    const queued = tracks.filter((t) => ids.has(t.id) || uris.has(t.path));
-    return queue.items.map((item) => resolveQueueTrackMeta(item, queued, albums));
-  }, [enabled, queue.items, tracks, albums]);
+    if (!enabled || !lookup) return [];
+    return queue.items.map((item) => resolveQueueTrackMetaFromLookup(item, lookup));
+  }, [enabled, queue.items, lookup]);
 }
 
 export const QueueDrawer: React.FC<QueueDrawerProps> = React.memo(({

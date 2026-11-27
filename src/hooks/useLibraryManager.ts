@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useLayoutEffect, useDeferredValue } from 'react';
+import { useState, useMemo, useRef, useCallback, useLayoutEffect, useEffect, useDeferredValue } from 'react';
 import { invoke } from '../api/ipc';
 import type {
   TrackRecord,
@@ -27,6 +27,41 @@ const parseAlbumGridSize = (raw: string): AlbumGridSize | undefined =>
   raw === 'compact' || raw === 'medium' || raw === 'large' ? raw : undefined;
 
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
+const COVER_BATCH_INTERVAL_MS = 500;
+
+interface AlbumTextMeta {
+  title: string;
+  titleNorm: string;
+  albumArtist: string;
+  albumArtistNorm: string;
+  year: number;
+}
+
+interface TrackSearchEntry {
+  title: string;
+  artist: string;
+  albumArtist: string;
+  albumTitle: string;
+  path: string;
+  formatLower: string;
+  combined: string;
+}
+
+function parseAlbumTextMap(signature: string): Map<number, AlbumTextMeta> {
+  const rows = JSON.parse(signature) as Array<[number, string, string, number]>;
+  const map = new Map<number, AlbumTextMeta>();
+  for (const [id, title, albumArtist, year] of rows) {
+    map.set(id, {
+      title,
+      titleNorm: normalizeStr(title),
+      albumArtist,
+      albumArtistNorm: normalizeStr(albumArtist),
+      year,
+    });
+  }
+  return map;
+}
 
 export interface UseLibraryManagerOptions {
   mainContentRef: React.RefObject<HTMLElement | null>;
@@ -85,22 +120,52 @@ export function useLibraryManager({
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanResult, setScanResult] = useState<ScanSummaryDto | null>(null);
 
-  // 5. Album detail drilldown
+  // 5. Album detail drilldown & batched background cover updates
   const [selectedAlbumDetail, setSelectedAlbumDetail] = useState<AlbumRecord | null>(null);
+  const pendingCoverUpdatesRef = useRef<Map<number, AlbumCoverUpdatedPayload>>(new Map());
+  const coverBatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushCoverUpdates = useCallback(() => {
+    coverBatchTimerRef.current = null;
+    const pending = pendingCoverUpdatesRef.current;
+    if (pending.size === 0) return;
+    const updates = new Map(pending);
+    pending.clear();
+
+    setAlbums((prev) =>
+      prev.map((a) => {
+        const patch = updates.get(a.id);
+        return patch
+          ? { ...a, cover_path: patch.cover_path, release_mbid: patch.release_mbid ?? a.release_mbid }
+          : a;
+      }),
+    );
+    setSelectedAlbumDetail((prev) => {
+      if (!prev) return prev;
+      const patch = updates.get(prev.id);
+      return patch
+        ? { ...prev, cover_path: patch.cover_path, release_mbid: patch.release_mbid ?? prev.release_mbid }
+        : prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    const pendingRef = pendingCoverUpdatesRef;
+    const timerRef = coverBatchTimerRef;
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      pendingRef.current.clear();
+    };
+  }, []);
 
   useTauriEvent<AlbumCoverUpdatedPayload>('auralune://album-cover-updated', (payload) => {
-    setAlbums((prev) =>
-      prev.map((a) =>
-        a.id === payload.album_id
-          ? { ...a, cover_path: payload.cover_path, release_mbid: payload.release_mbid ?? a.release_mbid }
-          : a
-      )
-    );
-    setSelectedAlbumDetail((prev) =>
-      prev && prev.id === payload.album_id
-        ? { ...prev, cover_path: payload.cover_path, release_mbid: payload.release_mbid ?? prev.release_mbid }
-        : prev
-    );
+    pendingCoverUpdatesRef.current.set(payload.album_id, payload);
+    if (coverBatchTimerRef.current === null) {
+      coverBatchTimerRef.current = setTimeout(flushCoverUpdates, COVER_BATCH_INTERVAL_MS);
+    }
   });
   const albumListScrollPosRef = useRef<number>(0);
   const isRestoringAlbumScrollRef = useRef<boolean>(false);
@@ -136,25 +201,58 @@ export function useLibraryManager({
     }
   }, [mainContentRef, selectedAlbumDetail]);
 
-  // 6. Filtered & Sorted Memos
+  // 6. Indexed search, cover-stable album metadata, & sorted memos
   const deferredSearch = useDeferredValue(librarySearch);
+
+  // Changes only when album id/title/artist/year changes, so `album-cover-updated` skips re-filtering/re-sorting tracks.
+  const albumTextSignature = useMemo(
+    () => JSON.stringify(albums.map((a) => [a.id, a.title, a.album_artist, a.year ?? 0])),
+    [albums],
+  );
+  const albumTextById = useMemo(() => parseAlbumTextMap(albumTextSignature), [albumTextSignature]);
+
+  const searchIndex = useMemo<TrackSearchEntry[]>(() => {
+    return tracks.map((t) => {
+      const albumMeta = t.album_id != null ? albumTextById.get(t.album_id) : undefined;
+      const title = normalizeStr(t.title);
+      const artist = normalizeStr(t.artist);
+      const albumArtist = normalizeStr(t.album_artist || albumMeta?.albumArtist);
+      const albumTitle = albumMeta?.titleNorm ?? '';
+      const path = normalizeStr(t.path);
+      const formatLower = (t.format || '').toLowerCase();
+      return {
+        title,
+        artist,
+        albumArtist,
+        albumTitle,
+        path,
+        formatLower,
+        combined: `${title}\0${artist}\0${albumArtist}\0${albumTitle}\0${path}\0${formatLower}`,
+      };
+    });
+  }, [tracks, albumTextById]);
 
   const filteredTracks = useMemo(() => {
     const rawQ = deferredSearch.trim();
     const q = normalizeStr(rawQ);
-    const seenTrackKeys = new Set<string>();
+    const seenTrackKeys = hideDuplicates ? new Set<string>() : null;
+    const isFieldQuery = Boolean(q && rawQ.includes(':'));
+    const tokens = isFieldQuery ? rawQ.split(/\s+/).filter(Boolean) : null;
+    const result: TrackRecord[] = [];
 
-    return tracks.filter((t) => {
-      if (hideDuplicates) {
+    for (let i = 0; i < tracks.length; i++) {
+      const t = tracks[i];
+      if (seenTrackKeys) {
         const normTitle = (t.title || '').trim().toLowerCase();
         const normArtist = (t.artist || '').trim().toLowerCase();
         const durSec = Math.round((t.duration_ms || 0) / 1000);
         const dupKey = t.path ? `path:${t.path}` : `meta:${normTitle}:${normArtist}:${durSec}`;
-        if (seenTrackKeys.has(dupKey)) return false;
+        if (seenTrackKeys.has(dupKey)) continue;
         seenTrackKeys.add(dupKey);
       }
 
-      const formatLower = (t.format || '').toLowerCase();
+      const indexed = searchIndex[i];
+      const formatLower = indexed.formatLower;
 
       if (libraryFormatFilter !== 'all') {
         if (libraryFormatFilter === 'lossless') {
@@ -163,96 +261,93 @@ export function useLibraryManager({
             formatLower.includes('wav') ||
             formatLower.includes('alac') ||
             (t.bit_depth != null && t.bit_depth >= 16);
-          if (!isLossless) return false;
+          if (!isLossless) continue;
         } else if (!formatLower.includes(libraryFormatFilter)) {
-          return false;
+          continue;
         }
       }
 
       if (smartPlaylistFilter === 'favorites') {
-        if (!t.is_favorite) return false;
+        if (!t.is_favorite) continue;
       } else if (smartPlaylistFilter === 'history') {
-        if (!t.last_played_at) return false;
+        if (!t.last_played_at) continue;
       } else if (smartPlaylistFilter === 'top_played') {
-        if (!t.play_count || t.play_count <= 0) return false;
+        if (!t.play_count || t.play_count <= 0) continue;
       } else if (smartPlaylistFilter === 'hires') {
         const isHires = (t.bit_depth != null && t.bit_depth >= 24) || (t.sample_rate != null && t.sample_rate > 48000);
-        if (!isHires) return false;
+        if (!isHires) continue;
       } else if (smartPlaylistFilter === 'forgotten') {
-        if (t.play_count != null && t.play_count > 0) return false;
+        if (t.play_count != null && t.play_count > 0) continue;
       } else if (smartPlaylistFilter === 'high_bpm') {
-        if (!t.bpm || t.bpm < 130) return false;
+        if (!t.bpm || t.bpm < 130) continue;
       } else if (smartPlaylistFilter === 'top_rated') {
-        if (!t.rating || t.rating < 4) return false;
+        if (!t.rating || t.rating < 4) continue;
       }
 
-      if (!q) return true;
-
-      const album = t.album_id != null ? albums.find((a) => a.id === t.album_id) : null;
-      const albumTitle = normalizeStr(album?.title);
-      const title = normalizeStr(t.title);
-      const artist = normalizeStr(t.artist);
-      const albumArtist = normalizeStr(t.album_artist || album?.album_artist);
-      const path = normalizeStr(t.path);
-
-      if (rawQ.includes(':')) {
-        const tokens = rawQ.split(/\s+/).filter(Boolean);
+      if (tokens) {
+        let matchedAll = true;
         for (const token of tokens) {
           if (token.startsWith('artist:')) {
             const val = normalizeStr(token.slice(7));
-            if (!artist.includes(val) && !albumArtist.includes(val)) return false;
+            if (!indexed.artist.includes(val) && !indexed.albumArtist.includes(val)) {
+              matchedAll = false;
+              break;
+            }
           } else if (token.startsWith('album:')) {
             const val = normalizeStr(token.slice(6));
-            if (!albumTitle.includes(val)) return false;
+            if (!indexed.albumTitle.includes(val)) {
+              matchedAll = false;
+              break;
+            }
           } else if (token.startsWith('title:')) {
             const val = normalizeStr(token.slice(6));
-            if (!title.includes(val)) return false;
+            if (!indexed.title.includes(val)) {
+              matchedAll = false;
+              break;
+            }
           } else if (token.startsWith('format:')) {
             const val = normalizeStr(token.slice(7));
-            if (!formatLower.includes(val)) return false;
+            if (!indexed.formatLower.includes(val)) {
+              matchedAll = false;
+              break;
+            }
           } else if (token.startsWith('path:')) {
             const val = normalizeStr(token.slice(5));
-            if (!path.includes(val)) return false;
+            if (!indexed.path.includes(val)) {
+              matchedAll = false;
+              break;
+            }
           } else {
             const val = normalizeStr(token);
-            if (
-              !title.includes(val) &&
-              !artist.includes(val) &&
-              !albumArtist.includes(val) &&
-              !albumTitle.includes(val) &&
-              !path.includes(val) &&
-              !formatLower.includes(val)
-            ) {
-              return false;
+            if (!indexed.combined.includes(val)) {
+              matchedAll = false;
+              break;
             }
           }
         }
-        return true;
+        if (!matchedAll) continue;
+        result.push(t);
+        continue;
       }
 
       if (isFacetsFilterEnabled) {
         if (facetSelectedFormat && t.format.toUpperCase() !== facetSelectedFormat) {
-          return false;
+          continue;
         }
         if (facetSelectedArtist && t.artist.trim() !== facetSelectedArtist) {
-          return false;
+          continue;
         }
         if (facetSelectedAlbumId !== null && t.album_id !== facetSelectedAlbumId) {
-          return false;
+          continue;
         }
       }
 
-      return (
-        title.includes(q) ||
-        artist.includes(q) ||
-        albumArtist.includes(q) ||
-        albumTitle.includes(q) ||
-        path.includes(q) ||
-        formatLower.includes(q)
-      );
-    });
+      if (q && !indexed.combined.includes(q)) continue;
+      result.push(t);
+    }
+
+    return result;
   }, [
-    albums,
     deferredSearch,
     facetSelectedAlbumId,
     facetSelectedArtist,
@@ -260,6 +355,7 @@ export function useLibraryManager({
     hideDuplicates,
     isFacetsFilterEnabled,
     libraryFormatFilter,
+    searchIndex,
     smartPlaylistFilter,
     tracks,
   ]);
@@ -280,32 +376,36 @@ export function useLibraryManager({
     }
     const albumYears = new Map<number, number>();
     if (sortField === 'year') {
-      for (const a of albums) if (a.year) albumYears.set(a.id, a.year);
+      for (const [id, meta] of albumTextById) {
+        if (meta.year) albumYears.set(id, meta.year);
+      }
     }
     return [...filteredTracks].sort(trackComparator(sortField, sortOrder, albumYears));
-  }, [albums, filteredTracks, smartPlaylistFilter, sortField, sortOrder]);
+  }, [albumTextById, filteredTracks, smartPlaylistFilter, sortField, sortOrder]);
 
   const filteredAlbums = useMemo(() => {
     const q = normalizeStr(deferredSearch.trim());
     if (!q) return albums;
     return albums.filter((a) => {
-      const title = normalizeStr(a.title);
-      const artist = normalizeStr(a.album_artist);
+      const meta = albumTextById.get(a.id);
+      const title = meta?.titleNorm ?? normalizeStr(a.title);
+      const artist = meta?.albumArtistNorm ?? normalizeStr(a.album_artist);
       return title.includes(q) || artist.includes(q);
     });
-  }, [albums, deferredSearch]);
+  }, [albumTextById, albums, deferredSearch]);
 
   const albumsWithCoverCount = useMemo(() => albums.filter((a) => !!a.cover_path).length, [albums]);
   const albumsWithoutCoverCount = useMemo(() => albums.length - albumsWithCoverCount, [albums, albumsWithCoverCount]);
 
   const sortedAlbums = useMemo(() => {
+    const q = normalizeStr(deferredSearch.trim());
     const list = albums.filter((a) => {
       if (albumCoverFilter === 'with-cover' && !a.cover_path) return false;
       if (albumCoverFilter === 'missing-cover' && a.cover_path) return false;
-      const q = normalizeStr(deferredSearch.trim());
       if (!q) return true;
-      const title = normalizeStr(a.title);
-      const artist = normalizeStr(a.album_artist);
+      const meta = albumTextById.get(a.id);
+      const title = meta?.titleNorm ?? normalizeStr(a.title);
+      const artist = meta?.albumArtistNorm ?? normalizeStr(a.album_artist);
       return title.includes(q) || artist.includes(q);
     });
 
@@ -341,47 +441,7 @@ export function useLibraryManager({
       return albumSortOrder === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [albumCoverFilter, albumSortField, albumSortOrder, albums, deferredSearch, tracks]);
-
-  const filteredArtists = useMemo(() => {
-    const map = new Map<string, {
-      name: string;
-      tracks: TrackRecord[];
-      albumIds: Set<number>;
-      totalDurationMs: number;
-      totalPlays: number;
-      sampleCover: string | null;
-    }>();
-
-    tracks.forEach((t) => {
-      const name = t.artist || loc.stats.unknownArtist;
-      const existing = map.get(name) || {
-        name,
-        tracks: [],
-        albumIds: new Set<number>(),
-        totalDurationMs: 0,
-        totalPlays: 0,
-        sampleCover: null,
-      };
-      existing.tracks.push(t);
-      if (t.album_id) existing.albumIds.add(t.album_id);
-      existing.totalDurationMs += t.duration_ms || 0;
-      existing.totalPlays += t.play_count || 0;
-      if (!existing.sampleCover && t.album_id) {
-        const alb = albums.find((a) => a.id === t.album_id);
-        if (alb?.cover_path) existing.sampleCover = alb.cover_path;
-      }
-      map.set(name, existing);
-    });
-
-    let list = Array.from(map.values());
-    if (deferredSearch.trim()) {
-      const q = normalizeStr(deferredSearch);
-      list = list.filter((a) => normalizeStr(a.name).includes(q));
-    }
-    list.sort((a, b) => collator.compare(a.name, b.name));
-    return list;
-  }, [albums, deferredSearch, loc.stats.unknownArtist, tracks]);
+  }, [albumCoverFilter, albumSortField, albumSortOrder, albumTextById, albums, deferredSearch, tracks]);
 
   // 7. Search input ref
   const librarySearchInputRef = useRef<HTMLInputElement>(null);
@@ -596,7 +656,6 @@ export function useLibraryManager({
     sortedTracks,
     filteredAlbums,
     sortedAlbums,
-    filteredArtists,
     isScanFolderOpen,
     setIsScanFolderOpen,
     scanFolder,

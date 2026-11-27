@@ -6,7 +6,9 @@ import {
   useLiveSpectrum,
   useLiveStatus,
   useLiveSelector,
+  useLiveVolume,
   currentPositionMs,
+  currentVolume,
 } from './livePlayback';
 
 describe('livePlayback store', () => {
@@ -14,9 +16,33 @@ describe('livePlayback store', () => {
     const { result } = renderHook(() => ({
       pos: useLivePositionMs(1234),
       spec: useLiveSpectrum([0.5]),
+      vol: useLiveVolume(0.42),
     }));
-    expect(result.current).toEqual({ pos: 1234, spec: [0.5] });
+    expect(result.current).toEqual({ pos: 1234, spec: [0.5], vol: 0.42 });
     expect(currentPositionMs(99)).toBe(99);
+    expect(currentVolume(0.42)).toBe(0.42);
+  });
+
+  it('tracks live volume independently from position and spectrum', () => {
+    let posRenders = 0;
+    const { result } = renderHook(() => {
+      posRenders++;
+      return {
+        pos: useLivePositionMs(100),
+        vol: useLiveVolume(0.5),
+      };
+    });
+    expect(result.current).toEqual({ pos: 100, vol: 0.5 });
+
+    act(() => livePlayback.publish({ volume: 0.75 }));
+    expect(result.current).toEqual({ pos: 100, vol: 0.75 });
+    expect(currentVolume(0.5)).toBe(0.75);
+    expect(currentPositionMs(100)).toBe(100);
+    expect(posRenders).toBe(2);
+
+    const beforeRepeat = posRenders;
+    act(() => livePlayback.publish({ volume: 0.75 }));
+    expect(posRenders).toBe(beforeRepeat);
   });
 
   it('pushes new frames to subscribers', () => {

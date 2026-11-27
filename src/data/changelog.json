@@ -197,6 +197,13 @@
         "de": "Flüssigere Wiedergabesteuerung und geringere Prozessorlast beim Hören, da während der Wiedergabe nur Fortschrittsbalken, Liedtexte und die untere Leiste statt des gesamten Fensters neu gezeichnet werden.",
         "fi": "Sulavammat toistosäätimet ja pienempi suoritinkäyttö kuuntelun aikana, kun vain liikkuvat edistymispalkit, sanoitukset ja alapalkki päivittyvät koko ikkunan uudelleenpiirtämisen sijaan.",
         "la": "Moderatio cantus lenior et minor labor processoris, cum solum indices progressus, verba et vectis inferior dum canitur renoventur."
+      },
+      {
+        "en": "Library search responds much more smoothly while browsing large music collections, and volume changes feel smoother during playback.",
+        "pl": "Wyszukiwanie w bibliotece działa znacznie płynniej przy przeglądaniu dużych kolekcji muzycznych, a regulacja głośności podczas odtwarzania jest łagodniejsza.",
+        "de": "Die Bibliothekssuche reagiert beim Durchsuchen großer Musiksammlungen deutlich flüssiger, und Lautstärkeänderungen während der Wiedergabe laufen geschmeidiger.",
+        "fi": "Kirjastohaku reagoi paljon sujuvammin suuria musiikkikokoelmia selatessa, ja äänenvoimakkuuden säätö toiston aikana tuntuu pehmeämmältä.",
+        "la": "Inquisitio bibliothecae multo lenius respondet dum magnae collectiones musicae lustrantur, et mutationes soni inter cantum suavius fluunt."
       }
     ],
     "fixed": [

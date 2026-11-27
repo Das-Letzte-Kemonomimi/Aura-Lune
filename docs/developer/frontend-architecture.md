@@ -49,34 +49,37 @@ Reference for the React 19 + TypeScript frontend in `src/`. Rules agents must fo
 - **`useToasts`**: In-app notification queue (`showMessage(text, isError)` is stable; per-toast timers, max 3 visible, duplicates collapsed; info messages hidden unless `showInfo`).
 - **`usePersistedState`**: `localStorage`-backed state where read and write share one key (`parse` validator, `legacyKeys` migration). Every mounted instance on a key stays in sync (a module-level subscriber registry plus the `storage` event), so a setting shown in several places, such as the lyrics romaji mode or the visualizer mode, changes everywhere at once. `parseBoolean` and `parseOneOf` cover the common parsers. Use it for new UI preferences instead of hand-written `getItem`/`setItem` pairs.
 - **`useSleepTimer`**: Sleep timer countdown/fade-out; interval reads latest values via refs so frequent host re-renders do not reset it.
+- **`useStableCallback` & `useShallowMemo`**: Keep prop-builder handler identities and view-prop objects `Object.is`-stable across unrelated parent renders without manual dependency lists.
+- **`useArtistsIndex`**: Lazily groups and filters library artists only while the Artists sub-view is open, avoiding background artist grouping when browsing Tracks or Albums.
 - **`useVirtualScroll` & `useQueueVirtualScroll`**: Windowed rendering for the playback queue (mounted inside `PlayerQueuePanel` so the scroll listener is only attached while the player tab is active). The library track table is paginated instead (`views/library/sections/paginationModel.ts`, page size persisted, 100 by default).
 
 ## Prop Builder Hooks
 Builders merge domain-hook results ("managers") with values from `App`. Managers are typed as `ReturnType<typeof useXManager>`; merged values are asserted to the intersection of their sources, so every value's **type** is checked, but **completeness** is not. After changing a view's props, check that every value is still provided by a manager or by `App`; missing values are silently `undefined` at runtime (that bug class broke crossfeed, add-to-queue and restore-session before Phase 5).
-- **`useAppHeaderProps`**: Assembles props for `AppHeader`.
-- **`useBottomPlaybackDockProps`**: Assembles props for `BottomPlaybackDock`.
+- **`useAppHeaderProps`**: Assembles props for `AppHeader` (destructured manager setters + `useShallowMemo`).
+- **`useBottomPlaybackDockProps`**: Assembles props for `BottomPlaybackDock` (`useShallowMemo`).
 - **`useMainContentRouterProps`**: Assembles view routing parameters for `MainContentRouter` (including `statsProps`).
-- **`useMainRouterProps`**: Bundles child view props (`playerProps`, `libraryProps`, `dspProps`, `playlistsProps`, `statsProps`).
-- **`useAppModalsProps`**: Bundles props required by all modals in `AppModalsContainer`.
+- **`useMainRouterProps`**: Bundles child view props (`playerProps`, `libraryProps`, `dspProps`, `playlistsProps`, `stemProjectsProps`, `radioProps`, `statsProps`), each stabilized with `useShallowMemo`.
+- **`useAppModalsProps`**: Bundles props required by all modals in `AppModalsContainer` (`useShallowMemo`).
 - **`useAppSettingsModalProps`**: Bundles settings tabs into `AppSettingsModal`.
 
 ## Performance & Responsiveness Principles
 0. **Live Playback Store (`src/state/livePlayback.ts`)**:
    - Status arrives via the `auralune://playback-status` event (watchdog falls back to `get_status` once per second if events stop).
-   - Every frame publishes `position_ms` + `spectrum` to `livePlayback`; React state in `App` is only updated when `shouldCommitStatus` (`src/state/statusCommit.ts`) reports a structural change or a ≥1 s position step.
-   - Leaf components that draw progress/visualizers read live values with `useLiveStatus(status)`, `useLivePositionMs(fallback)`, `useLiveSpectrum(fallback)`, or `useLiveSelector(...)` (`PlayerProgressSection`, `LyricsView`, `PlayerVisualColumn`, `SpectrumVisualizer`, `DockProgress` inside `BottomPlaybackDock`, `BigScreenView`, `MiniPlayerWidget`, `DesktopLyricsOverlay` when open, `LoopEditorModal` when open, `TrackBookmarksModal`, `MusicAnalysisModal`, `StemProjectStudioModal`). Event handlers needing the exact position call `currentPositionMs(fallback)`. Never read `status.position_ms` for display — it is up to 1 s stale.
+   - Every frame publishes `position_ms`, `spectrum`, and `volume` to `livePlayback`; React state in `App` is only updated when `shouldCommitStatus` (`src/state/statusCommit.ts`) reports a structural change (state, track, DSP, EQ, committed volume), keeping `App` idle during continuous playback and volume gestures.
+   - Leaf components that draw progress/visualizers/volume read live values with `useLiveStatus(status)`, `useLivePositionMs(fallback)`, `useLiveSpectrum(fallback)`, `useLiveVolume(fallback)`, or `useLiveSelector(...)` (`PlayerProgressSection`, `PlayerVolumeCluster`, `LyricsView`, `PlayerVisualColumn`, `SpectrumVisualizer`, `DockProgress` and `DockVolumeCluster` inside `BottomPlaybackDock`, `VolumeOsd`, `BigScreenView`, `MiniPlayerWidget`, `DesktopLyricsOverlay` when open, `LoopEditorModal` when open, `TrackBookmarksModal`, `MusicAnalysisModal`, `StemProjectStudioModal`). Event handlers needing the exact position or volume call `currentPositionMs(fallback)` / `currentVolume(fallback)`. Never read `status.position_ms` for display.
    - Per-frame logic (A-B loop) runs inside the status handler in `usePlaybackController`, not in effects on `status`.
+   - **`useLibraryManager` indexing & batching**: A pre-normalized `searchIndex` + `albumTextById` map (whose reference is preserved across cover-only updates) keeps search keystrokes free of per-track string normalization and `albums.find`, while incoming `auralune://album-cover-updated` events are batched every 500 ms.
 1. **Two-Phase Seeking**:
    - `handleSeekPreview(pos)`: Instant 60/120 FPS UI feedback without IPC traffic while dragging (writes only to `livePlayback`, no `App` re-render). Supported across all progress sliders (`<input type="range">`) and animated `WaveformCanvas` visual styles (`smooth`, `bars`, `scrolling`, `mirror`) with pointer capture (`setPointerCapture`) and real-time hover/drag timestamp badges.
    - `handleSeekCommit(pos)`: Dispatched once on pointer/mouse/key up with `seek_with_fade` (20-48ms anti-pop micro-fade).
 2. **Dual-Mode Zero-Latency & Smooth Fade Volume Control**:
    - **Post-Queue Pipeline Placement**: In GStreamer, the `volume` element is linked downstream of `queue_sink` (`... -> queue_sink -> volume -> sink`), eliminating 600ms buffer latency so volume adjustments take effect at the hardware sink within < 15ms.
    - **Instant Response Mode (`instantVolume: true`)**:
-     - Slider dragging dispatches immediate 0ms initial IPC followed by display-synchronized `requestAnimationFrame` coalesced updates with trailing-edge delivery.
+     - Slider dragging dispatches immediate 0ms initial IPC followed by display-synchronized `requestAnimationFrame` coalesced updates with trailing-edge delivery; live slider/`VolumeOsd` updates flow through `livePlayback`, committing to `App` on pointer release or backend status.
      - Backend `set_volume` operates directly on an atomic value (`< 1 µs`) and sets GStreamer property immediately.
    - **Smooth Fade Mode (`instantVolume: false`)**:
      - Backend `set_volume_smooth` runs an 8ms micro-step S-curve cosine interpolation ramp (default 120ms for jumps/mute, 60ms for slider drag) on a dedicated lightweight thread with instant generation-based cancellation.
-     - Frontend animates the visual slider thumb synchronously via `requestAnimationFrame` for silky smooth, click-free audio and UI transitions.
+     - Frontend animates the visual slider thumb synchronously via `requestAnimationFrame` through `livePlayback` without re-rendering `App` on intermediate frames, committing `App` state once at the end.
    - **Toggle Mute (`handleToggleMute`)**:
      - In instant mode: snaps immediately to 0 or restores previous level.
      - In smooth mode: smoothly eases out to 0 or eases in from 0 over 120ms.
@@ -88,8 +91,8 @@ Builders merge domain-hook results ("managers") with values from `App`. Managers
    - `SpectrumVisualizer` and `AnimeAmbienceFX` listen for `document.hidden` and pause animation loops when minimized or hidden.
 
 ## UI Components & Lazy Loaded Modals (`src/components`)
-- **Modals**: All modal dialogs in `AppModalsContainer.tsx` use `React.lazy()` and `<React.Suspense fallback={null}>` to keep the initial JavaScript bundle small and fast to load.
-- **Layout & Player Components**: Extensively wrapped with `React.memo` to prevent unnecessary rerenders during playback time ticks.
+- **Modals**: All modal dialogs in `AppModalsContainer.tsx` (and `AppSettingsModal` in `App.tsx`) are conditionally mounted only while open (`{isOpen && <Modal ... />}`) and loaded via `React.lazy()` + `<React.Suspense fallback={null}>` so closed dialogs neither run hooks nor load lazy JS chunks at startup.
+- **Layout & Player Components**: `AppModalsContainer`, `QueueDrawer`, `MainContentRouter`, `BottomPlaybackDock`, `LibraryView`, and `PlayerView` are wrapped with `React.memo` and fed stabilized handlers + shallow-memoized props.
 
 ## Styling (Tailwind CSS v4)
 

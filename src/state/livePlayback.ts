@@ -12,15 +12,24 @@ import { useSyncExternalStore } from 'react';
 import type { PlaybackStatus } from '../types/playback';
 
 export interface LivePlaybackSnapshot {
-  /** `false` until the first status arrives; until then the hooks return the prop values. */
+  /** `false` until the first status/seek arrives; until then the hooks return the prop values. */
   ready: boolean;
   positionMs: number;
   spectrum: number[];
+  /** `false` until the first volume frame or gesture arrives. */
+  volumeReady: boolean;
+  volume: number;
 }
 
 type Listener = () => void;
 
-let snapshot: LivePlaybackSnapshot = { ready: false, positionMs: 0, spectrum: [] };
+let snapshot: LivePlaybackSnapshot = {
+  ready: false,
+  positionMs: 0,
+  spectrum: [],
+  volumeReady: false,
+  volume: 1.0,
+};
 const listeners = new Set<Listener>();
 
 function emit() {
@@ -37,8 +46,8 @@ export const livePlayback = {
     return () => listeners.delete(listener);
   },
 
-  /** Publishes a new position and/or spectrum. No change → no notifications. */
-  publish(update: { positionMs?: number; spectrum?: number[] }) {
+  /** Publishes a new position, spectrum, and/or volume. No change → no notifications. */
+  publish(update: { positionMs?: number; spectrum?: number[]; volume?: number }) {
     const positionMs = update.positionMs ?? snapshot.positionMs;
     const incomingSpectrum = update.spectrum;
     let spectrum = snapshot.spectrum;
@@ -56,14 +65,25 @@ export const livePlayback = {
         spectrum = incomingSpectrum;
       }
     }
-    if (snapshot.ready && positionMs === snapshot.positionMs && spectrum === snapshot.spectrum) return;
-    snapshot = { ready: true, positionMs, spectrum };
+    const ready = snapshot.ready || update.positionMs !== undefined || update.spectrum !== undefined;
+    const volume = update.volume ?? snapshot.volume;
+    const volumeReady = snapshot.volumeReady || update.volume !== undefined;
+    if (
+      ready === snapshot.ready &&
+      volumeReady === snapshot.volumeReady &&
+      positionMs === snapshot.positionMs &&
+      spectrum === snapshot.spectrum &&
+      Object.is(volume, snapshot.volume)
+    ) {
+      return;
+    }
+    snapshot = { ready, positionMs, spectrum, volumeReady, volume };
     emit();
   },
 
   /** Tests only: restores the initial state. */
   reset() {
-    snapshot = { ready: false, positionMs: 0, spectrum: [] };
+    snapshot = { ready: false, positionMs: 0, spectrum: [], volumeReady: false, volume: 1.0 };
     emit();
   },
 };
@@ -76,6 +96,17 @@ function useSnapshot(): LivePlaybackSnapshot {
 export function useLivePositionMs(fallback: number): number {
   const s = useSnapshot();
   return s.ready ? s.positionMs : fallback;
+}
+
+/** Current linear gain (0..1); `fallback` until the first volume frame or gesture. */
+export function useLiveVolume(fallback: number): number {
+  return useLiveSelector((s) => (s.volumeReady ? s.volume : fallback));
+}
+
+/** Non-hook helper returning the latest volume outside React renders. */
+export function currentVolume(fallback: number): number {
+  const s = livePlayback.getSnapshot();
+  return s.volumeReady ? s.volume : fallback;
 }
 
 /** Current spectrum; `fallback` before the first backend status. */

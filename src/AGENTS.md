@@ -76,8 +76,8 @@ Always go through `src/api/ipc.ts`. Its `invoke` accepts only `CommandName` (the
 
 The backend playback ticker is the clock. The frontend never polls; a watchdog falls back to `get_status` once per second only if events stop.
 
-- Each status event publishes `position_ms` + `spectrum` to `state/livePlayback.ts`. React state in `App` updates only when `shouldCommitStatus` (`state/statusCommit.ts`) reports a structural change or a ≥ 1 s position step.
-- Anything that draws progress or visualizers reads `useLiveStatus(status)`, `useLivePositionMs(fallback)` or `useLiveSpectrum(fallback)`. Event handlers that need the exact position call `currentPositionMs(fallback)`. **Never read `status.position_ms` for display**: it can be up to 1 s stale.
+- Each status event publishes `position_ms`, `spectrum`, and settled `volume` to `state/livePlayback.ts`. React state in `App` updates only when `shouldCommitStatus` (`state/statusCommit.ts`) reports a structural change (state, track, DSP, EQ, committed volume), so `App` stays idle while playing uninterrupted.
+- Anything that draws progress, visualizers, or volume controls reads `useLiveStatus(status)`, `useLivePositionMs(fallback)`, `useLiveSpectrum(fallback)`, `useLiveVolume(fallback)`, or `useLiveSelector(...)`. Event handlers that need the exact position or volume call `currentPositionMs(fallback)` / `currentVolume(fallback)`. **Never read `status.position_ms` for display**: `App` does not tick on time alone.
 - Seeking is two-phase: `handleSeekPreview` writes only to `livePlayback` while dragging (no IPC, no re-render), and `handleSeekCommit` sends one `seek` on release. `isSeekingRef` / `isVolumeInteractingRef` guard against rubber-banding.
 - Per-frame logic (A-B loop) runs inside the status handler in `usePlaybackController`, not in effects on `status`. Canvas loops (`useCanvasLoop`, `useFrameLoop`) sleep when paused or when `document.hidden`.
 

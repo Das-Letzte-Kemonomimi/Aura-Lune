@@ -264,14 +264,21 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('seek', { positionMs: 42000, fade: false });
   });
 
-  it('handleVolumeChange clamps volume and sends set_volume', async () => {
+  it('handleVolumeChange updates livePlayback while dragging and commits to App when immediate', async () => {
     const { result } = setupHook();
+    setStatus.mockClear();
     act(() => {
       result.current.handleVolumeChange(0.65);
     });
-    expect(setStatus).toHaveBeenCalled();
+    expect(livePlayback.getSnapshot()).toMatchObject({ volumeReady: true, volume: 0.65 });
+    expect(setStatus).not.toHaveBeenCalled();
     // Instant mode still ramps for a few ms in the engine, so a jump never clicks.
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.65, smooth: true, fadeMs: 15 });
+
+    act(() => {
+      result.current.handleVolumeChange(0.65, true);
+    });
+    expect(setStatus).toHaveBeenCalledTimes(1);
   });
 
   it('handleToggleMute mutes and restores last non-zero volume', async () => {
@@ -313,12 +320,14 @@ describe('usePlaybackController', () => {
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.8, smooth: true, fadeMs: 15 });
   });
 
-  it('handleVolumeChange in smooth fade mode sends smooth flag and fadeMs', async () => {
+  it('handleVolumeChange in smooth fade mode sends smooth flag and fadeMs via livePlayback', async () => {
     const { result } = setupHook({ instantVolume: false });
+    setStatus.mockClear();
     act(() => {
       result.current.handleVolumeChange(0.45);
     });
-    expect(setStatus).toHaveBeenCalled();
+    expect(livePlayback.getSnapshot()).toMatchObject({ volumeReady: true, volume: 0.45 });
+    expect(setStatus).not.toHaveBeenCalled();
     expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.45, smooth: true, fadeMs: 60 });
   });
 

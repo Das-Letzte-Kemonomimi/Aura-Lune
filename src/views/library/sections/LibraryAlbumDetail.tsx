@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Clock,
@@ -52,14 +52,26 @@ export const LibraryAlbumDetail: React.FC<LibraryAlbumDetailProps> = ({
   tracks,
 }) => {
   const [moreOpen, setMoreOpen] = useState(false);
-  const albumTracks = tracks
-    .filter((track) => track.album_id === selectedAlbumDetail.id)
-    .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0));
-  const totalDurationMs = albumTracks.reduce((acc, track) => acc + (track.duration_ms || 0), 0);
-  const uniqueFormats = Array.from(new Set(albumTracks.map((track) => track.format).filter(Boolean)));
-  const hasHiRes = albumTracks.some(isHiRes);
+  const albumTracks = useMemo(
+    () =>
+      tracks
+        .filter((track) => track.album_id === selectedAlbumDetail.id)
+        .sort((a, b) => (a.disc_no || 1) - (b.disc_no || 1) || (a.track_no || 0) - (b.track_no || 0)),
+    [selectedAlbumDetail.id, tracks],
+  );
+  const { totalDurationMs, uniqueFormats, hasHiRes, hasMultiDisc } = useMemo(() => {
+    const duration = albumTracks.reduce((acc, track) => acc + (track.duration_ms || 0), 0);
+    const formats = Array.from(new Set(albumTracks.map((track) => track.format).filter(Boolean)));
+    const hiRes = albumTracks.some(isHiRes);
+    const multiDisc = new Set(albumTracks.map((t) => t.disc_no || 1)).size > 1;
+    return {
+      totalDurationMs: duration,
+      uniqueFormats: formats,
+      hasHiRes: hiRes,
+      hasMultiDisc: multiDisc,
+    };
+  }, [albumTracks]);
   const empty = albumTracks.length === 0;
-  const hasMultiDisc = new Set(albumTracks.map((t) => t.disc_no || 1)).size > 1;
 
   const menuEntries = (track: (typeof albumTracks)[number]): TrackMenuEntry[] => [
     { label: loc.library.tagEditorTooltip, icon: <TagIcon size={15} className="text-accent-cyan" />, onSelect: () => setTagEditorTrack(track) },

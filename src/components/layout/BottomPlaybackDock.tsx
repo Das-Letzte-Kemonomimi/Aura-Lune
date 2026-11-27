@@ -19,7 +19,7 @@ import {
 import { type Language, type Translations } from '../../i18n';
 import { type PlaybackStatus, type TrackRecord, type DspEngineType } from '../../types/player';
 import { type PlaybackQueue } from '../../types/queue';
-import { useLiveStatus } from '../../state/livePlayback';
+import { useLiveStatus, useLiveVolume } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
 import { cssVars } from '../../utils/cssVars';
 import { fmt } from '../../utils/fmt';
@@ -75,6 +75,56 @@ const DSP_ENGINES: readonly { id: DspEngineType; name: string; desc: (loc: Trans
   { id: 'RubberBand', name: 'Rubber Band', desc: () => 'Hi-Fi R3' },
   { id: 'SoundTouch', name: 'SoundTouch', desc: (loc) => loc.bottomDock.fastEngine },
 ];
+
+/** Volume + mute controls: reads `livePlayback` volume so drag/smooth fades avoid dock re-renders. */
+const DockVolumeCluster: React.FC<{
+  stopAfterCurrent: boolean | undefined;
+  volumeFallback: number;
+  loc: Translations;
+  onToggleStopAfterCurrent: () => void;
+  onToggleMute: () => void;
+  onVolumeChange: (val: number, immediate?: boolean) => void;
+  formatVolumeValue: (gain: number) => string;
+}> = React.memo(({
+  stopAfterCurrent,
+  volumeFallback,
+  loc,
+  onToggleStopAfterCurrent,
+  onToggleMute,
+  onVolumeChange,
+  formatVolumeValue,
+}) => {
+  const volume = useLiveVolume(volumeFallback);
+  return (
+    <div className="flex items-center gap-1 rounded-2xl border border-line bg-black/25 p-1">
+      <Chip
+        tone="amber"
+        pressed={Boolean(stopAfterCurrent)}
+        onClick={onToggleStopAfterCurrent}
+        aria-label={stopAfterCurrent ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
+        title={stopAfterCurrent ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
+        className="size-8 rounded-xl p-0 max-md:hidden"
+      >
+        <Square size={14} fill={stopAfterCurrent ? 'currentColor' : 'none'} />
+      </Chip>
+      <IconButton
+        size="md"
+        label={volume === 0 ? loc.bottomDock.mutedTooltip : loc.bottomDock.volumeTooltip}
+        onClick={onToggleMute}
+        className="size-8 rounded-xl"
+      >
+        <VolumeIcon gain={volume} size={18} />
+      </IconButton>
+      <VolumeSlider
+        ariaLabel={loc.player.volume}
+        gain={volume}
+        onGainChange={onVolumeChange}
+        title={`${loc.player.volume}: ${formatVolumeValue(volume)}`}
+        className="mr-2 h-1.5 w-20 max-xl:w-14 max-lg:hidden"
+      />
+    </div>
+  );
+});
 
 interface DockProgressProps {
   status: PlaybackStatus;
@@ -370,33 +420,15 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
           )}
         </div>
 
-        <div className="flex items-center gap-1 rounded-2xl border border-line bg-black/25 p-1">
-          <Chip
-            tone="amber"
-            pressed={Boolean(status.stop_after_current)}
-            onClick={onToggleStopAfterCurrent}
-            aria-label={status.stop_after_current ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
-            title={status.stop_after_current ? loc.bottomDock.stopAfterCurrentOn : loc.bottomDock.stopAfterCurrentOff}
-            className="size-8 rounded-xl p-0 max-md:hidden"
-          >
-            <Square size={14} fill={status.stop_after_current ? 'currentColor' : 'none'} />
-          </Chip>
-          <IconButton
-            size="md"
-            label={status.volume === 0 ? t.bottomDock.mutedTooltip : t.bottomDock.volumeTooltip}
-            onClick={onToggleMute}
-            className="size-8 rounded-xl"
-          >
-            <VolumeIcon gain={status.volume} size={18} />
-          </IconButton>
-          <VolumeSlider
-            ariaLabel={loc.player.volume}
-            gain={status.volume}
-            onGainChange={onVolumeChange}
-            title={`${loc.player.volume}: ${formatVolumeValue(status.volume)}`}
-            className="mr-2 h-1.5 w-20 max-xl:w-14 max-lg:hidden"
-          />
-        </div>
+        <DockVolumeCluster
+          stopAfterCurrent={status.stop_after_current}
+          volumeFallback={status.volume}
+          loc={loc}
+          onToggleStopAfterCurrent={onToggleStopAfterCurrent}
+          onToggleMute={onToggleMute}
+          onVolumeChange={onVolumeChange}
+          formatVolumeValue={formatVolumeValue}
+        />
 
         <div className="flex items-center gap-1 rounded-2xl border border-line bg-black/25 p-1">
           <IconButton

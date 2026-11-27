@@ -9,7 +9,7 @@ import {
 } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
 import { formatTime } from '../../utils/timeFormat';
-import { useLivePositionMs } from '../../state/livePlayback';
+import { useLivePositionMs, useLiveVolume } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
 import { Badge, Button, IconButton } from '../ui';
 import { useVolumeCurve } from '../../hooks/useVolumeCurve';
@@ -63,6 +63,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
   const [volumeCurve] = useVolumeCurve();
   // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const positionMs = useLivePositionMs(positionMsProp);
+  const liveVolume = useLiveVolume(volume);
   const t = getTranslations(currentLang);
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const isDspActive = Math.abs(pitchSemitones) > 0.05 || Math.abs(tempoRatio - 1.0) > 0.02;
@@ -144,10 +145,10 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
       {/* Control buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <IconButton size="sm" label={volume === 0 ? t.player.unmute : t.player.mute} onClick={onToggleMute} className="size-6">
-            <VolumeIcon gain={volume} size={14} />
+          <IconButton size="sm" label={liveVolume === 0 ? t.player.unmute : t.player.mute} onClick={onToggleMute} className="size-6">
+            <VolumeIcon gain={liveVolume} size={14} />
           </IconButton>
-          <VolumeSlider ariaLabel={t.player.volume} gain={volume} onGainChange={onVolumeChange} className="h-1 w-12.5" />
+          <VolumeSlider ariaLabel={t.player.volume} gain={liveVolume} onGainChange={onVolumeChange} className="h-1 w-12.5" />
           <Button
             variant="ghost"
             size="sm"
@@ -156,7 +157,7 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
             title={t.player.volumeToggleUnitTooltip}
             className={cn('px-0.5 py-0 font-mono text-xxs', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
           >
-            {formatVolume(volume, volumeUnit, volumeCurve, { compact: true })}
+            {formatVolume(liveVolume, volumeUnit, volumeCurve, { compact: true })}
           </Button>
         </div>
 

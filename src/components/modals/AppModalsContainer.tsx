@@ -1,6 +1,7 @@
 import type { AppTab } from '../../types/navigation';
 import React from 'react';
 import { invoke } from '../../api/ipc';
+import { currentPositionMs } from '../../state/livePlayback';
 import { type Language, type Translations } from '../../i18n';
 import {
   type TrackRecord,
@@ -460,7 +461,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
           trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || null}
           coverUrl={currentCover}
           durationMs={status.duration_ms}
-          positionMs={status.position_ms}
+          positionMs={currentPositionMs(status.position_ms)}
           isPlaying={status.state === 'Playing'}
           currentLang={language}
           onPlayPause={handlePlayPause}
@@ -713,7 +714,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
           onClose={() => setIsLoopEditorOpen(false)}
           loopPointA={loopPointA}
           loopPointB={loopPointB}
-          currentPositionMs={status.position_ms}
+          currentPositionMs={currentPositionMs(status.position_ms)}
           durationMs={status.duration_ms}
           onApplyLoop={(a, b) => {
             setLoopPointA(a);
@@ -791,7 +792,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
           trackPath={currentPlayingTrack?.path || status.current_track?.uri || filePath || undefined}
           trackTitle={currentPlayingTrack?.title || status.current_track?.title || undefined}
           trackArtist={currentPlayingTrack?.artist || status.current_track?.artist || undefined}
-          currentTimeMs={status.position_ms}
+          currentTimeMs={currentPositionMs(status.position_ms)}
           durationMs={status.duration_ms ?? undefined}
           isPlaying={status.state === 'Playing'}
           playbackSpeed={playbackSpeed({
@@ -827,7 +828,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
           isOpen={isStemStudioOpen}
           onClose={() => setIsStemStudioOpen(false)}
           projectId={activeStemProjectId}
-          currentTimeMs={status.position_ms}
+          currentTimeMs={currentPositionMs(status.position_ms)}
           durationMs={status.duration_ms ?? undefined}
           isPlaying={status.state === 'Playing'}
           onPlayPause={handlePlayPause}
@@ -1000,7 +1001,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
         <TrackBookmarksModal
           trackId={activeTrackId}
           trackTitle={status.current_track?.title || filePath || loc.player.track}
-          currentPositionMs={status.position_ms}
+          currentPositionMs={currentPositionMs(status.position_ms)}
           durationMs={status.duration_ms}
           onSeek={(posMs) => handleSeek(posMs)}
           onClose={() => setIsBookmarksModalOpen(false)}

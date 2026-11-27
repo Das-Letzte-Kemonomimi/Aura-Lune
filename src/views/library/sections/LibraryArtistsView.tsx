@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ArrowLeft, Clock, Disc, Flame, Heart, Mic2, Play, Plus, Shuffle } from '../../../components/ui/icons';
 import { invoke } from '../../../api/ipc';
-import type { LibraryViewProps } from '../LibraryView';
+import type { ArtistLibraryItem, LibraryViewProps } from '../LibraryView';
 import { fmt } from '../../../utils/fmt';
 import { cn } from '../../../utils/cn';
 import type { TrackRecord } from '../../../types/library';
@@ -14,7 +14,6 @@ export type LibraryArtistsViewProps = Pick<
   | 'albums'
   | 'activeTrackId'
   | 'currentPlayingTrack'
-  | 'filteredArtists'
   | 'formatTime'
   | 'handleAddTrackToQueue'
   | 'handleOpenAlbumDetail'
@@ -30,6 +29,7 @@ export type LibraryArtistsViewProps = Pick<
   | 'status'
 > & {
   t: LibraryViewProps['loc'];
+  filteredArtists: ArtistLibraryItem[];
   artistSortField: ArtistSortField;
   artistSortOrder: 'asc' | 'desc';
   selectedArtistName: string | null;

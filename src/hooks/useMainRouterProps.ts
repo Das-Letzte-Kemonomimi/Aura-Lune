@@ -239,7 +239,6 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     sortedTracks: p.sortedTracks,
     filteredAlbums: p.filteredAlbums,
     sortedAlbums: p.sortedAlbums,
-    filteredArtists: p.filteredArtists,
     activeTrackId: p.activeTrackId,
     currentPlayingTrack: p.currentPlayingTrack,
     status: p.status,

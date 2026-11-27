@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { Scissors, Repeat, Bookmark, AlertTriangle } from '../../../components/ui/icons';
+import { currentPositionMs } from '../../../state/livePlayback';
 import { Badge, Button, Card, TextField, ToggleCard, type Tone } from '../../../components/ui';
 import { textTones } from '../../../components/ui/tones';
 import { formatTimeMs } from '../../../utils/timeFormat';
@@ -185,7 +186,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
               value={transcodeRangeA}
               placeholder="e.g. 0:00.000, 0:22.449, 860ms"
               onChange={onTranscodeRangeAChange}
-              onSetCurrent={() => onTranscodeRangeAChange(formatTimeMs(status.position_ms))}
+              onSetCurrent={() => onTranscodeRangeAChange(formatTimeMs(currentPositionMs(status.position_ms)))}
               setCurrentLabel={loc.settings.transcodeSetCurrentTime}
               setCurrentTitle={loc.settings.transcodeSetCurrentPos}
               loopPoint={loopPointA}
@@ -199,7 +200,7 @@ export const TranscodeRangeOption: React.FC<TranscodeRangeOptionProps> = ({
               value={transcodeRangeB}
               placeholder={loc.settings.transcodeTimePlaceholder}
               onChange={onTranscodeRangeBChange}
-              onSetCurrent={() => onTranscodeRangeBChange(formatTimeMs(status.position_ms))}
+              onSetCurrent={() => onTranscodeRangeBChange(formatTimeMs(currentPositionMs(status.position_ms)))}
               setCurrentLabel={loc.settings.transcodeSetCurrentTime}
               setCurrentTitle={loc.settings.transcodeSetCurrentPos}
               loopPoint={loopPointB}
