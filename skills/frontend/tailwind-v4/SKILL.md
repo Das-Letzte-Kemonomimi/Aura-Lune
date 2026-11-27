@@ -70,7 +70,7 @@ Colours outside the theme come from Tailwind's default palette (`text-slate-300`
   | 130 | volume OSD | |
   | 140 | fatal error screen | |
 
-- **Breakpoints**: header collapse points `max-nav:` (84.375rem) and `max-actions:` (113.75rem).
+- **Breakpoints**: header collapse points `max-nav:` (62.5rem) and `max-actions:` (113.75rem).
 - **Grid tracks** in arbitrary templates use `--spacing(n)`, never px: `grid-cols-[repeat(auto-fit,minmax(--spacing(70),1fr))]`.
 - `px` only where nothing else makes sense: 1–2px borders/hairlines, shadow and blur offsets inside tokens, canvas maths in TS.
 
@@ -110,7 +110,10 @@ All primitives live in `components/ui/` (import from `components/ui`). Each take
 | Large choice with a description | `OptionCard` | `pressed`, `tone`; the card-sized `Chip` (UI scale, icon style) |
 | One of many / tab bar | `SegmentedControl` | `items`, `value`, `onChange`, `label`, `tone`, `size`, `fullWidth`; arrow keys, Home, End |
 | Surface | `Card` | `variant` panel·card·inset, `padding` none·sm·md·lg, `interactive`, `highlight` (tone while its feature is on) |
-| Section / setting | `SectionHeader`, `SettingRow` | `icon`, `title`, `description`, `actions` / `control` |
+| Section / setting | `SectionHeader`, `SettingRow` | `icon`, `title`, `description`, `actions` / `control`; row `compact` (flat, `px-4 py-3`, for a `SettingsGroup`), `htmlFor` (title becomes the control's `<label>`); the control wraps under the text in narrow containers; sub-controls go in `children` and render only while relevant |
+| Grouped settings | `SettingsGroup` | `label` (uppercase eyebrow), `description`, `actions`; an inset list whose children (`SettingRow compact`, `views/settings/ToggleRow`) are divided by hairlines, with no border of their own |
+| Control cluster | `ToolGroup` | `label`, `size` md·sm, `role`; the dark `rounded-2xl border border-line bg-black/25 p-1` container for nav items and toolbar buttons |
+| Side navigation | `SettingsNav` | `groups` (`id`, `label`, `items` with `icon`/`badge`), `value`, `onChange`, `orientation` vertical·horizontal·responsive; a `tablist` with a solid purple active item; the `badge` floats over the item's top-right corner; `responsive` is a strip that becomes the rail at `@3xl` inside an `@container` ancestor |
 | Field | `TextField`, `TextArea`, `Select`, `FieldLabel` | `size` sm·md, `mono`, `icon` |
 | Readout / status | `Badge`, `StatusDot` | `tone` (+ neutral), `size` xs·sm, `mono`; dot `pulse` |
 | Key / shortcut | `Kbd` | `size` sm (shortcut lists) · xs (inline hints) |
@@ -122,7 +125,7 @@ All primitives live in `components/ui/` (import from `components/ui`). Each take
 | Switch | `common/ToggleSwitch` | the only switch; style comes from the checkbox (`peer-checked:`) |
 | Page heading | `PageHeader` | `title`, `description`, `icon`, `tone`, `actions` (the h2 of a view or settings tab) |
 | Switchable feature | `ToggleCard` | `title`, `icon`, `tone`, `checked`, `onChange`, `badges`; dependent controls as children (settings options, DSP modules) |
-| Settings tab | `views/settings/SettingsPage` | page `title`, `icon`, `actions`, cards as children |
+| Settings tab | `views/settings/SettingsPage` | page `title`, `icon`, `tone`, `actions`, `SettingsGroup`s as children; at most one `primary` button per page |
 
 **States belong to the base layer.** `styles/base.css` gives every button its hover lift, focus outline, press scale, transition and disabled look (opacity .45, no pointer events), and every text field and select its pink focus ring. Never add `transition-*`, `cursor-*`, a disabled opacity, `outline-none`, or `border-0` / `m-0` resets to a button or field.
 

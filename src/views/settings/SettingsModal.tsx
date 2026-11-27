@@ -101,27 +101,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       />
 
       {/* Rail on wide windows, a scrollable strip below 3xl. Only the content column scrolls. */}
-      <div className="@container flex min-h-0 flex-1 flex-col @3xl:flex-row">
-        <div className="shrink-0 border-b border-line p-2 @3xl:w-56 @3xl:overflow-y-auto @3xl:border-r @3xl:border-b-0 @3xl:p-4">
-          <SettingsNav
-            groups={groups}
-            value={activeTab}
-            onChange={onSelectTab}
-            label={loc.settings.title}
-            orientation="responsive"
-            tabId={tabElementId}
-            panelId={TAB_PANEL_ID}
-          />
+      <div className="@container flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col @3xl:flex-row">
+          <div className="shrink-0 border-b border-line p-2 @3xl:w-56 @3xl:overflow-y-auto @3xl:border-r @3xl:border-b-0 @3xl:p-4">
+            <SettingsNav
+              groups={groups}
+              value={activeTab}
+              onChange={onSelectTab}
+              label={loc.settings.title}
+              orientation="responsive"
+              tabId={tabElementId}
+              panelId={TAB_PANEL_ID}
+            />
+          </div>
+          <ModalBody
+            ref={contentRef}
+            role="tabpanel"
+            id={TAB_PANEL_ID}
+            aria-labelledby={tabElementId(activeTab)}
+            className="min-w-0 flex-1 p-4 sm:p-6"
+          >
+            {children}
+          </ModalBody>
         </div>
-        <ModalBody
-          ref={contentRef}
-          role="tabpanel"
-          id={TAB_PANEL_ID}
-          aria-labelledby={tabElementId(activeTab)}
-          className="min-w-0 flex-1 p-4 sm:p-6"
-        >
-          {children}
-        </ModalBody>
       </div>
     </ModalShell>
   );
