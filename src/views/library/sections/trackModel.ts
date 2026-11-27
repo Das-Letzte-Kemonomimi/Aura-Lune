@@ -4,6 +4,38 @@ import type { TrackRecord } from '../../../types/library';
 export const isHiRes = (t: Pick<TrackRecord, 'bit_depth' | 'sample_rate'>): boolean =>
   Boolean(t.bit_depth && t.bit_depth >= 24) || t.sample_rate >= 88200;
 
+export const FORGOTTEN_MIN_PLAYS = 3;
+export const FORGOTTEN_MIN_AGE_SECONDS = 30 * 24 * 60 * 60;
+
+/**
+ * Forgotten Gem: played enough times to prove it's a keeper (`>= 3` plays),
+ * but not heard recently (at least 30 days since `last_played_at`, or timestamp unknown).
+ */
+export function isForgottenGem(
+  t: Pick<TrackRecord, 'play_count' | 'last_played_at'>,
+  nowSeconds: number,
+): boolean {
+  if ((t.play_count || 0) < FORGOTTEN_MIN_PLAYS) return false;
+  if (t.last_played_at && nowSeconds - t.last_played_at < FORGOTTEN_MIN_AGE_SECONDS) return false;
+  return true;
+}
+
+/**
+ * Ranks forgotten gems highest when they have strong engagement (plays, favorite, 4–5★ rating)
+ * and haven't been played for a long time.
+ */
+export function forgottenGemScore(
+  t: Pick<TrackRecord, 'play_count' | 'last_played_at' | 'is_favorite' | 'rating'>,
+  nowSeconds: number,
+): number {
+  const daysSincePlayed = t.last_played_at ? Math.max(0, (nowSeconds - t.last_played_at) / 86400) : 365;
+  const gemWeight =
+    (t.play_count || 0) +
+    (t.is_favorite ? 5 : 0) +
+    (t.rating && t.rating >= 4 ? t.rating : 0);
+  return gemWeight * Math.log2(1 + daysSincePlayed);
+}
+
 export type TrackSortField = 'title' | 'artist' | 'duration' | 'format' | 'date' | 'plays' | 'year' | 'added';
 
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });

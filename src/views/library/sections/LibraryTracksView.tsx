@@ -140,7 +140,12 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
   const albumById = useMemo(() => new Map(albums.map((album) => [album.id, album])), [albums]);
 
   // A–Z rail: only while the list is ordered alphabetically by title or artist.
-  const reordersBySmartFilter = smartPlaylistFilter === 'history' || smartPlaylistFilter === 'top_played' || smartPlaylistFilter === 'top_rated' || smartPlaylistFilter === 'high_bpm';
+  const reordersBySmartFilter =
+    smartPlaylistFilter === 'history' ||
+    smartPlaylistFilter === 'top_played' ||
+    smartPlaylistFilter === 'top_rated' ||
+    smartPlaylistFilter === 'high_bpm' ||
+    smartPlaylistFilter === 'forgotten';
   const railField: 'title' | 'artist' | null =
     sortField === 'title' ? 'title' : sortField === 'artist' || (sortField === 'default' && !reordersBySmartFilter) ? 'artist' : null;
   const letterIndex = useMemo(
@@ -235,7 +240,8 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
 
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <table className="w-full table-fixed border-collapse text-left text-sm">
+          <div className="overflow-clip rounded-xl border border-line">
+            <table className="w-full table-fixed border-collapse text-left text-sm">
             <thead className="sticky top-0 z-10 bg-ink/95">
               <tr className="h-10.5 border-b border-line text-fg-muted">
                 <SortableTh field="default" {...sortProps} title={loc.library.sortDefaultTooltip} className="w-11 px-1.5 text-center">#</SortableTh>
@@ -291,7 +297,7 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                       key={track.id}
                       onClick={() => handlePlayLibraryTrack(track)}
                       className={cn(
-                        'glass-card h-14 scroll-mt-11 cursor-pointer border-b border-white/3',
+                        'glass-card h-14 scroll-mt-11 cursor-pointer border-b border-white/3 last:border-b-0',
                         isCurrent && 'bg-linear-to-r from-accent-pink/25 via-accent-purple/10 to-transparent',
                       )}
                     >
@@ -376,7 +382,8 @@ export const LibraryTracksView: React.FC<LibraryTracksViewProps> = ({
                 })
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
 
           {total > 0 && (
             <div className="mt-3">

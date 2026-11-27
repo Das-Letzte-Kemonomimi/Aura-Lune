@@ -202,7 +202,8 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
         )}
 
         <Card variant="panel" padding="md" className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
+          <div className="overflow-hidden rounded-lg border border-line">
+            <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-line text-fg-muted">
                 <th className="w-11 px-3 py-2 text-center">#</th>
@@ -262,7 +263,8 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         </Card>
       </div>
     );

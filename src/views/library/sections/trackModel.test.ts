@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAddedDate, isHiRes, trackComparator } from './trackModel';
+import { FORGOTTEN_MIN_AGE_SECONDS, FORGOTTEN_MIN_PLAYS, forgottenGemScore, formatAddedDate, isForgottenGem, isHiRes, trackComparator } from './trackModel';
 import type { TrackRecord } from '../../../types/library';
 
 describe('isHiRes', () => {
@@ -42,5 +42,23 @@ describe('formatAddedDate', () => {
   it('is empty when the date is unknown', () => {
     expect(formatAddedDate(null)).toBe('');
     expect(formatAddedDate(0)).toBe('');
+  });
+});
+
+describe('Forgotten Gems', () => {
+  const now = 1_750_000_000;
+
+  it('requires at least 3 plays and 30 days since last play (or unknown timestamp)', () => {
+    expect(isForgottenGem({ play_count: 0, last_played_at: null }, now)).toBe(false);
+    expect(isForgottenGem({ play_count: FORGOTTEN_MIN_PLAYS - 1, last_played_at: now - FORGOTTEN_MIN_AGE_SECONDS - 10 }, now)).toBe(false);
+    expect(isForgottenGem({ play_count: FORGOTTEN_MIN_PLAYS, last_played_at: now - FORGOTTEN_MIN_AGE_SECONDS + 60 }, now)).toBe(false);
+    expect(isForgottenGem({ play_count: FORGOTTEN_MIN_PLAYS, last_played_at: now - FORGOTTEN_MIN_AGE_SECONDS }, now)).toBe(true);
+    expect(isForgottenGem({ play_count: FORGOTTEN_MIN_PLAYS, last_played_at: null }, now)).toBe(true);
+  });
+
+  it('scores higher-engagement and older tracks above recent low-play tracks', () => {
+    const recentLow = forgottenGemScore({ play_count: 3, last_played_at: now - 31 * 86400, is_favorite: false, rating: 0 }, now);
+    const oldFavorite = forgottenGemScore({ play_count: 20, last_played_at: now - 120 * 86400, is_favorite: true, rating: 5 }, now);
+    expect(oldFavorite).toBeGreaterThan(recentLow);
   });
 });

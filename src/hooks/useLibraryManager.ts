@@ -11,7 +11,7 @@ import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
 import { normalizeStr } from '../utils/textNormalize';
 import { fmt } from '../utils/fmt';
-import { trackComparator, type TrackSortField } from '../views/library/sections/trackModel';
+import { forgottenGemScore, isForgottenGem, trackComparator, type TrackSortField } from '../views/library/sections/trackModel';
 import { parseBoolean, usePersistedState } from './usePersistedState';
 import { useTauriEvent } from './useTauriEvent';
 
@@ -93,7 +93,14 @@ export function useLibraryManager({
   const [facetSelectedArtist, setFacetSelectedArtist] = useState<string | null>(null);
   const [facetSelectedAlbumId, setFacetSelectedAlbumId] = useState<number | null>(null);
   const [facetSelectedFormat, setFacetSelectedFormat] = useState<string | null>(null);
-  const [smartPlaylistFilter, setSmartPlaylistFilter] = useState<SmartPlaylistFilter>('all');
+  const [smartPlaylistFilter, setSmartPlaylistFilterState] = useState<SmartPlaylistFilter>('all');
+  const [forgottenNowSeconds, setForgottenNowSeconds] = useState(() => Math.floor(Date.now() / 1000));
+  const setSmartPlaylistFilter = useCallback((next: SmartPlaylistFilter) => {
+    if (next === 'forgotten') {
+      setForgottenNowSeconds(Math.floor(Date.now() / 1000));
+    }
+    setSmartPlaylistFilterState(next);
+  }, []);
   const [hideDuplicates, setHideDuplicates] = usePersistedState('auralune_hide_duplicates', false, { parse: parseBoolean });
 
   // 3. Sorting state
@@ -277,7 +284,7 @@ export function useLibraryManager({
         const isHires = (t.bit_depth != null && t.bit_depth >= 24) || (t.sample_rate != null && t.sample_rate > 48000);
         if (!isHires) continue;
       } else if (smartPlaylistFilter === 'forgotten') {
-        if (t.play_count != null && t.play_count > 0) continue;
+        if (!isForgottenGem(t, forgottenNowSeconds)) continue;
       } else if (smartPlaylistFilter === 'high_bpm') {
         if (!t.bpm || t.bpm < 130) continue;
       } else if (smartPlaylistFilter === 'top_rated') {
@@ -352,6 +359,7 @@ export function useLibraryManager({
     facetSelectedAlbumId,
     facetSelectedArtist,
     facetSelectedFormat,
+    forgottenNowSeconds,
     hideDuplicates,
     isFacetsFilterEnabled,
     libraryFormatFilter,
@@ -371,6 +379,10 @@ export function useLibraryManager({
         baseList = [...filteredTracks].sort((a, b) => (b.rating || 0) - (a.rating || 0));
       } else if (smartPlaylistFilter === 'high_bpm') {
         baseList = [...filteredTracks].sort((a, b) => (b.bpm || 0) - (a.bpm || 0));
+      } else if (smartPlaylistFilter === 'forgotten') {
+        baseList = [...filteredTracks].sort(
+          (a, b) => forgottenGemScore(b, forgottenNowSeconds) - forgottenGemScore(a, forgottenNowSeconds),
+        );
       }
       return sortOrder === 'asc' ? baseList : [...baseList].reverse();
     }
@@ -381,7 +393,7 @@ export function useLibraryManager({
       }
     }
     return [...filteredTracks].sort(trackComparator(sortField, sortOrder, albumYears));
-  }, [albumTextById, filteredTracks, smartPlaylistFilter, sortField, sortOrder]);
+  }, [albumTextById, filteredTracks, forgottenNowSeconds, smartPlaylistFilter, sortField, sortOrder]);
 
   const filteredAlbums = useMemo(() => {
     const q = normalizeStr(deferredSearch.trim());

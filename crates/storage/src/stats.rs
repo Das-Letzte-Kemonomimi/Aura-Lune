@@ -361,14 +361,20 @@ impl Database {
         Ok(())
     }
 
-    /// Returns forgotten tracks (never played, or play_count = 0).
+    /// Returns forgotten gems (played at least 3 times, not played in the last 30 days).
     pub async fn list_forgotten_tracks(
         &self,
         limit: i64,
     ) -> Result<Vec<TrackRecord>, StorageError> {
+        let cutoff = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64
+            - 30 * 24 * 60 * 60;
         let res = sqlx::query_as::<_, TrackRecord>(
-            "SELECT * FROM tracks WHERE play_count IS NULL OR play_count = 0 ORDER BY RANDOM() LIMIT ?1;",
+            "SELECT * FROM tracks WHERE COALESCE(play_count, 0) >= 3 AND (last_played_at IS NULL OR last_played_at <= ?1) ORDER BY play_count DESC, last_played_at ASC LIMIT ?2;",
         )
+        .bind(cutoff)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
