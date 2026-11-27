@@ -156,10 +156,11 @@ function StationCard({ station, playing, tone, title, body, footerStart, onPlay,
   return (
     <Card highlight={playing && tone} padding="none" className="flex flex-col justify-between gap-3 rounded-2xl px-5 py-4.5">
       <div>
-        <div className="mb-1.5 flex items-start justify-between gap-2">
-          {title}
-          <Badge tone={tone === 'pink' ? 'purple' : 'cyan'}>{station.genre}</Badge>
-        </div>
+        {title}
+        {/* Own line under the title: a long genre ("Vaporwave / Future Funk / CityPop") must never push past the card. */}
+        <Badge tone={tone === 'pink' ? 'purple' : 'cyan'} className="mt-1.5 max-w-full whitespace-normal wrap-break-word">
+          {station.genre}
+        </Badge>
         {body}
       </div>
       <div className="flex items-center justify-between border-t border-line pt-2.5">
