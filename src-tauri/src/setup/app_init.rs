@@ -43,6 +43,7 @@ pub fn init_app(
     }
     let db_path = data_dir.join("auralune_library.db");
     let cache_dir = data_dir.join("cache");
+    crate::media_protocol::init_app_data_dir(data_dir.clone());
     crate::commands::library::init_thumbnail_cache_dir(cache_dir.join("thumbs"));
 
     let db = match rt.block_on(Database::open(&db_path)) {

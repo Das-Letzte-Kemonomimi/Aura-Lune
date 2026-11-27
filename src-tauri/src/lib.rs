@@ -15,6 +15,7 @@ use tauri::Manager;
 use tracing::info;
 
 pub mod commands;
+pub mod media_protocol;
 pub mod setup;
 pub mod updater;
 
@@ -106,6 +107,10 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol(
+            media_protocol::MEDIA_SCHEME,
+            media_protocol::handle_request,
+        )
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             info!(
                 "Another Auralune instance was started. Args: {:?}, Cwd: {}",

@@ -16,6 +16,7 @@ import { BigScreenTapeDeck } from './bigscreen/BigScreenTapeDeck';
 import { BigScreenVinyl } from './bigscreen/BigScreenVinyl';
 import { BigScreenHud } from './bigscreen/BigScreenHud';
 import { cn } from '../../utils/cn';
+import { coverUrlWithSize } from '../../utils/mediaUrl';
 import { Button, SegmentedControl } from '../../components/ui';
 import type { SpectralBandTriple } from '../../types/analysis';
 
@@ -85,6 +86,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
   const positionMs = useLivePositionMs(positionMsProp);
   // Live position/spectrum (livePlayback): this component renders, not the whole app.
   const spectrum = useLiveSpectrum(spectrumProp ?? []);
+  const largeCoverUrl = coverUrlWithSize(coverUrl, 768);
   const t = getTranslations(currentLang);
   const [showHud, setShowHud] = useState(true);
   const [showLyrics, setShowLyrics] = useState(true);
@@ -190,13 +192,13 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
               style={{
                 width: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
                 height: showLyrics ? 'min(340px, 36vh)' : 'min(440px, 44vh)',
-                background: coverUrl
-                  ? `url("${coverUrl}") center/cover no-repeat`
+                background: largeCoverUrl
+                  ? `url("${largeCoverUrl}") center/cover no-repeat`
                   : 'radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #030712 100%)',
                 transform: 'translateZ(0)',
               }}
             >
-              {!coverUrl && (
+              {!largeCoverUrl && (
                 <div
                   className={cn(
                     'flex h-4/5 w-4/5 items-center justify-center rounded-full border-3 border-line',
@@ -214,7 +216,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
           {/* MODE 2: spinning vinyl with grooves, a label and a tonearm */}
           {visualMode === 'vinyl' && (
-            <BigScreenVinyl {...props} showLyrics={showLyrics} progress={progress} />
+            <BigScreenVinyl {...props} coverUrl={largeCoverUrl} showLyrics={showLyrics} progress={progress} />
           )}
 
           {/* MODE 3: 90s retro cassette (spinning reels and tape) */}

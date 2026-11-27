@@ -65,7 +65,7 @@ describe('useMusicBrainzManager hook', () => {
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'pick_image_file') return Promise.resolve('/path/to/custom_cover.png');
-      if (cmd === 'apply_custom_cover_file') return Promise.resolve('data:image/png;base64,mock');
+      if (cmd === 'apply_custom_cover_file') return Promise.resolve('auralune-media://localhost/cover/album/1?s=256&v=mock');
       return Promise.resolve(null);
     });
 
@@ -85,14 +85,14 @@ describe('useMusicBrainzManager hook', () => {
       await result.current.handleUploadCustomCoverDirect(sampleAlbum);
     });
 
-    expect(setTrackDirectCover).toHaveBeenCalledWith('data:image/png;base64,mock');
+    expect(setTrackDirectCover).toHaveBeenCalledWith('auralune-media://localhost/cover/album/1?s=256&v=mock');
     expect(showMessage).toHaveBeenCalledWith(loc.covers.customCoverSaved.replace('{0}', 'Neon Genesis'));
     expect(loadLibrary).toHaveBeenCalled();
   });
 
   it('matches current track album by both title and artist instead of title alone', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue('data:image/jpeg;base64,ELISA_COVER');
+    (invoke as any).mockResolvedValue('auralune-media://localhost/cover/album/2?s=256&v=elisa');
 
     const otherElisaAlbum: AlbumRecord = {
       id: 1,

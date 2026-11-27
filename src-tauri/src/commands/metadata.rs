@@ -1,7 +1,6 @@
 //! Commands for fetching and editing metadata, album covers, lyrics (LRC) and audio fingerprinting.
 
 use super::error::CommandError;
-use crate::commands::library::{resolve_cover_thumbnail, resolve_cover_to_data_uri};
 use crate::AppState;
 use base64::Engine;
 use metadata::cover_query::{match_score_with_context, AlbumLookupContext, CandidateContext};
@@ -218,7 +217,11 @@ pub async fn apply_cover_url_internal(
         cover_url,
     );
 
-    cover_file_thumbnail_uri(&path).await
+    crate::media_protocol::bump_album_cover_version(actual_album_id);
+    Ok(crate::media_protocol::album_cover_url(
+        actual_album_id,
+        &path_str,
+    ))
 }
 
 /// Applies a local file as an album cover.
@@ -239,29 +242,22 @@ pub async fn apply_custom_cover_file_internal(
         return Err(CommandError::not_found("The given file does not exist"));
     }
 
+    let meta = tokio::fs::metadata(path)
+        .await
+        .map_err(|e| CommandError::from(e).context("Failed to read the file"))?;
+    if meta.len() > 25 * 1024 * 1024 {
+        return Err(CommandError::validation(
+            "The image file is too large (max. 25 MB)",
+        ));
+    }
     let ext = path
         .extension()
         .and_then(|s| s.to_str())
         .unwrap_or("jpg")
         .to_lowercase();
-    let mime = match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        _ => {
-            return Err(CommandError::validation(
-                "Only PNG, JPG, WebP or GIF image files are supported",
-            ))
-        }
-    };
-
-    let bytes = tokio::fs::read(path)
-        .await
-        .map_err(|e| CommandError::from(e).context("Failed to read the file"))?;
-    if bytes.len() > 25 * 1024 * 1024 {
+    if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "webp" | "gif") {
         return Err(CommandError::validation(
-            "The image file is too large (max. 25 MB)",
+            "Only PNG, JPG, WebP or GIF image files are supported",
         ));
     }
 
@@ -296,8 +292,11 @@ pub async fn apply_custom_cover_file_internal(
         album_title.as_deref(),
     );
 
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Ok(format!("data:{};base64,{}", mime, b64))
+    crate::media_protocol::bump_album_cover_version(actual_album_id);
+    Ok(crate::media_protocol::album_cover_url(
+        actual_album_id,
+        &path_str,
+    ))
 }
 
 /// Validates ListenBrainz user token.
@@ -588,7 +587,8 @@ pub async fn fetch_and_apply_cover(
         );
     }
 
-    cover_file_thumbnail_uri(&path).await
+    crate::media_protocol::bump_album_cover_version(album_id);
+    Ok(crate::media_protocol::album_cover_url(album_id, &path_str))
 }
 
 #[tauri::command]
@@ -651,7 +651,10 @@ pub async fn auto_fetch_album_cover(
                             Some(&album_title),
                             &caa_url,
                         );
-                        return Ok(Some(cover_file_thumbnail_uri(&path).await?));
+                        crate::media_protocol::bump_album_cover_version(album_id);
+                        return Ok(Some(crate::media_protocol::album_cover_url(
+                            album_id, &path_str,
+                        )));
                     }
                     Err(e) => {
                         tracing::warn!("Failed to fetch the cover for MBID {}: {}", best.mbid, e);
@@ -775,12 +778,6 @@ pub async fn apply_custom_cover_data(
         "gif" => "gif",
         _ => "jpg",
     };
-    let mime = match clean_ext {
-        "png" => "image/png",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        _ => "image/jpeg",
-    };
 
     let actual_album_id = if album_id > 0 {
         album_id
@@ -814,54 +811,64 @@ pub async fn apply_custom_cover_data(
         album_title.as_deref(),
     );
 
-    Ok(format!("data:{};base64,{}", mime, raw_b64))
+    crate::media_protocol::bump_album_cover_version(actual_album_id);
+    Ok(crate::media_protocol::album_cover_url(
+        actual_album_id,
+        &path_str,
+    ))
 }
 
 #[tauri::command]
-pub async fn get_track_cover(track_path: String) -> Result<Option<String>, CommandError> {
-    tokio::task::spawn_blocking(move || -> Result<Option<String>, CommandError> {
-        use lofty::file::TaggedFileExt;
-        let clean_path = if let Some(stripped) = track_path.strip_prefix("file://") {
-            stripped
-        } else {
-            &track_path
-        };
-        let path = std::path::Path::new(clean_path);
-        if !path.exists() {
-            return Ok(None);
-        }
-
-        if let Ok(probe) = lofty::probe::Probe::open(path) {
-            if let Ok(tagged_file) = probe.read() {
-                if let Some(tag) = tagged_file
-                    .primary_tag()
-                    .or_else(|| tagged_file.first_tag())
+pub async fn get_track_cover(
+    track_path: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, CommandError> {
+    if let Some(track) = state.db.find_track_by_path_or_uri(&track_path).await? {
+        if let Some(album_id) = track.album_id {
+            if let Some(album) = state.db.get_album_by_id(album_id).await? {
+                if let Some(url) = album
+                    .cover_path
+                    .as_deref()
+                    .and_then(|cp| crate::media_protocol::album_cover_url_opt(album.id, cp))
                 {
-                    if let Some(pic) = tag.pictures().first() {
-                        let data = pic.data();
-                        let mime = match pic.mime_type() {
-                            Some(lofty::picture::MimeType::Png) => "image/png",
-                            Some(lofty::picture::MimeType::Jpeg) => "image/jpeg",
-                            _ => "image/jpeg",
-                        };
-                        let b64 = base64::engine::general_purpose::STANDARD.encode(data);
-                        return Ok(Some(format!("data:{};base64,{}", mime, b64)));
-                    }
+                    return Ok(Some(url));
                 }
             }
         }
 
-        if let Some(parent) = path.parent() {
-            if let Some(cand_path) = library::find_folder_cover(parent, None) {
-                if let Some(data_uri) = resolve_cover_to_data_uri(&cand_path.to_string_lossy()) {
-                    return Ok(Some(data_uri));
-                }
-            }
-        }
+        let track_id = track.id;
+        let version = format!("{:016x}", crate::commands::library::fnv64(&track.path));
+        let path_buf = audio_engine::uri::local_path(&track.path);
+        let found = tokio::task::spawn_blocking(move || {
+            crate::commands::library::thumbnail_for_audio(
+                &path_buf,
+                crate::media_protocol::DEFAULT_COVER_SIZE,
+            )
+            .is_some()
+        })
+        .await?;
 
-        Ok(None)
+        return Ok(found.then(|| crate::media_protocol::track_cover_url(track_id, &version)));
+    }
+
+    // Outside library: never read arbitrary UI strings; serve only the engine's current local track.
+    let Some(engine_path) = crate::media_protocol::engine_local_track_path(&state.engine) else {
+        return Ok(None);
+    };
+    let version = format!(
+        "{:016x}",
+        crate::commands::library::fnv64(&engine_path.to_string_lossy())
+    );
+    let found = tokio::task::spawn_blocking(move || {
+        crate::commands::library::thumbnail_for_audio(
+            &engine_path,
+            crate::media_protocol::DEFAULT_COVER_SIZE,
+        )
+        .is_some()
     })
-    .await?
+    .await?;
+
+    Ok(found.then(|| crate::media_protocol::current_cover_url(&version)))
 }
 
 #[tauri::command]
@@ -883,19 +890,4 @@ pub async fn get_lyrics(
     )
     .await;
     Ok(lyrics)
-}
-
-/// Reads a cached cover and returns it as a compact 512px thumbnail `data:` URI,
-/// falling back to the raw file if thumbnail decoding fails.
-async fn cover_file_thumbnail_uri(path: &std::path::Path) -> Result<String, CommandError> {
-    let path_buf = path.to_path_buf();
-    let thumb =
-        tokio::task::spawn_blocking(move || resolve_cover_thumbnail(&path_buf.to_string_lossy()))
-            .await?;
-    if let Some(uri) = thumb {
-        return Ok(uri);
-    }
-    let bytes = tokio::fs::read(path).await?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
-    Ok(crate::commands::library::image_data_uri(ext, &bytes))
 }

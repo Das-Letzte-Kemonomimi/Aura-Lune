@@ -424,14 +424,14 @@ describe('useLibraryManager hook', () => {
       cb({
         payload: {
           album_id: 1,
-          cover_path: 'data:image/jpeg;base64,NEW_COVER',
+          cover_path: 'auralune-media://localhost/cover/album/1?s=256&v=new',
           release_mbid: 'd38b402a-ee1b-427a-b10c-b8127596d59c',
         },
       });
       cb({
         payload: {
           album_id: 2,
-          cover_path: 'data:image/jpeg;base64,SECOND_COVER',
+          cover_path: 'auralune-media://localhost/cover/album/2?s=256&v=second',
           release_mbid: null,
         },
       });
@@ -444,9 +444,9 @@ describe('useLibraryManager hook', () => {
       vi.advanceTimersByTime(500);
     });
 
-    expect(result.current.albums[0].cover_path).toBe('data:image/jpeg;base64,NEW_COVER');
+    expect(result.current.albums[0].cover_path).toBe('auralune-media://localhost/cover/album/1?s=256&v=new');
     expect(result.current.albums[0].release_mbid).toBe('d38b402a-ee1b-427a-b10c-b8127596d59c');
-    expect(result.current.albums[1].cover_path).toBe('data:image/jpeg;base64,SECOND_COVER');
+    expect(result.current.albums[1].cover_path).toBe('auralune-media://localhost/cover/album/2?s=256&v=second');
     // Cover-only updates preserve filteredTracks & sortedTracks identities via albumTextById.
     expect(result.current.filteredTracks).toBe(prevFilteredTracks);
     expect(result.current.sortedTracks).toBe(prevSortedTracks);

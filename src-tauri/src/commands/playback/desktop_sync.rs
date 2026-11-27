@@ -37,10 +37,10 @@ pub fn sync_desktop_playback_state(state: &AppState, new_state: PlaybackState) {
 
 pub fn normalize_art_url(art_url: Option<&str>) -> Option<String> {
     let url = art_url?.trim();
-    if url.is_empty() {
+    if url.is_empty() || url.starts_with("data:") {
         return None;
     }
-    if url.starts_with("http://") || url.starts_with("https://") || url.starts_with("data:image/") {
+    if url.starts_with("http://") || url.starts_with("https://") {
         return Some(url.to_string());
     }
     // The local cover goes to the desktop shell (MPRIS): existing image files only.
@@ -50,6 +50,26 @@ pub fn normalize_art_url(art_url: Option<&str>) -> Option<String> {
     )
     .ok()?;
     Some(audio_engine::uri::media_uri(&path.to_string_lossy()))
+}
+
+/// Resolves `auralune-media://localhost/cover/...` (at `768` px thumbnail resolution) or HTTP(S)/local paths
+/// to an MPRIS-compatible URI (`file://` or `http(s)://`), dropping `data:` URIs.
+pub async fn resolve_art_url_for_mpris(state: &AppState, art_url: Option<&str>) -> Option<String> {
+    let url = art_url?.trim();
+    if url.is_empty() || url.starts_with("data:") {
+        return None;
+    }
+    if url.starts_with("auralune-media://") {
+        let route = crate::media_protocol::parse_media_route(url)?;
+        let path = crate::media_protocol::resolve_cover_thumbnail_path(
+            state,
+            &route,
+            Some(crate::media_protocol::LARGE_COVER_SIZE),
+        )
+        .await?;
+        return Some(audio_engine::uri::media_uri(&path.to_string_lossy()));
+    }
+    normalize_art_url(Some(url))
 }
 
 struct ParsedMetadataKeys {
@@ -205,7 +225,7 @@ pub fn sync_mpris_from_queue_item(item: &QueueItem, state: &AppState) {
 }
 
 #[tauri::command]
-pub fn update_mpris_metadata(
+pub async fn update_mpris_metadata(
     title: String,
     artist: String,
     album: String,
@@ -213,7 +233,7 @@ pub fn update_mpris_metadata(
     art_url: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), CommandError> {
-    let normalized_art = normalize_art_url(art_url.as_deref());
+    let normalized_art = resolve_art_url_for_mpris(&state, art_url.as_deref()).await;
 
     if let Some(mpris) = &state.mpris {
         let m = mpris.clone();

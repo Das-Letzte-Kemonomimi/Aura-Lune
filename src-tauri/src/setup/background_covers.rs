@@ -5,8 +5,8 @@
 //! `BACKGROUND_AUTO_ACCEPT_SCORE` (90+) with homonym/tracklist safeguards, and never overwrites
 //! user-selected or locally discovered covers (`update_album_cover_if_missing`).
 
-use crate::commands::library::resolve_cover_thumbnail;
 use crate::commands::metadata::sync_cover_to_discord_cache;
+use crate::media_protocol::album_cover_url_opt;
 use crate::AppState;
 use metadata::cover_query::AlbumLookupContext;
 use serde::{Deserialize, Serialize};
@@ -371,11 +371,7 @@ async fn persist_and_emit(
         );
     }
 
-    let thumb_uri = tokio::task::spawn_blocking(move || resolve_cover_thumbnail(&path_str))
-        .await
-        .ok()
-        .flatten();
-    if let Some(cover_path) = thumb_uri {
+    if let Some(cover_path) = album_cover_url_opt(album_id, &path_str) {
         info!("Background cover fetched for album #{album_id} ('{album_title}')");
         let _ = app.emit(
             ALBUM_COVER_UPDATED_EVENT,
