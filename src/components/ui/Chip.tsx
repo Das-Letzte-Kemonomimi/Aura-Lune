@@ -52,7 +52,7 @@ export function OptionCard({ pressed, tone = 'pink', type = 'button', className,
       type={type}
       aria-pressed={pressed}
       className={cn(
-        'flex flex-col items-start gap-1 rounded-xl border border-line bg-card p-4 text-left text-fg hover:border-line-accent',
+        'flex min-w-0 flex-col items-start gap-1 rounded-xl border border-line bg-card p-4 text-left text-fg hover:border-line-accent',
         pressedTones[tone],
         className,
       )}

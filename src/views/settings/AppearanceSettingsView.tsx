@@ -133,15 +133,20 @@ export const AppearanceSettingsView: React.FC<AppearanceSettingsViewProps> = ({
                   tone="pink"
                   onClick={() => onSelectTheme(th.id)}
                   className={cn(
-                    'gap-2 px-3 py-2.5',
+                    'min-w-0 gap-2 overflow-hidden px-3 py-2.5',
                     isActive && 'shadow-halo shadow-accent-pink/25',
                   )}
                 >
-                  <span className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate text-sm font-bold text-fg">{th.name}</span>
+                  <span className="flex w-full min-w-0 items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-sm font-bold text-fg">{th.name}</span>
                     {isActive && <Badge tone="pink">{loc.settings.themeCurrent}</Badge>}
                   </span>
-                  <span className="truncate text-xs text-fg-muted">{th.attribution || 'Auralune Theme'}</span>
+                  <span
+                    title={th.attribution || 'Auralune Theme'}
+                    className="w-full truncate text-xs text-fg-muted"
+                  >
+                    {th.attribution || 'Auralune Theme'}
+                  </span>
                   {/* Token colour swatches (runtime theme colours) */}
                   <span className="flex items-center gap-1.5">
                     {swatches.map((sw) => (
