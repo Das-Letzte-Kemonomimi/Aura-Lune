@@ -137,22 +137,41 @@ export interface SettingRowProps {
   title: React.ReactNode;
   description?: React.ReactNode;
   icon?: React.ReactNode;
-  /** The control on the right (a `ToggleSwitch`, `Select`, `Button`…). */
+  /** The control on the right (a `ToggleSwitch`, `Select`, `Button`…). It wraps below the text in narrow containers. */
   control?: React.ReactNode;
-  /** Extra content below the row (sliders, hints). */
+  /** Id of the control: the title becomes its `<label>`, so clicking the title and screen readers reach it. */
+  htmlFor?: string;
+  /** Extra content below the row (sliders, chips). Render it only while it is relevant. */
   children?: React.ReactNode;
+  /** Flat row for a `SettingsGroup`: horizontal padding, no vertical rhythm of its own. */
+  compact?: boolean;
   className?: string;
 }
 
 /** One setting: title and description on the left, its control on the right. */
-export function SettingRow({ title, description, icon, control, children, className }: SettingRowProps) {
+export function SettingRow({
+  title,
+  description,
+  icon,
+  control,
+  htmlFor,
+  children,
+  compact,
+  className,
+}: SettingRowProps) {
   return (
-    <div className={cn('py-3', className)}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
+    <div className={cn(compact ? 'px-4 py-3' : 'py-3', className)}>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-1 basis-48 items-start gap-3">
           {icon && <span className="mt-0.5 shrink-0 text-fg-muted">{icon}</span>}
           <div className="min-w-0">
-            <div className="text-ui font-semibold text-fg">{title}</div>
+            {htmlFor ? (
+              <label htmlFor={htmlFor} className="block text-ui font-semibold text-fg">
+                {title}
+              </label>
+            ) : (
+              <div className="text-ui font-semibold text-fg">{title}</div>
+            )}
             {description && <p className="mt-0.5 text-xs text-fg-muted">{description}</p>}
           </div>
         </div>

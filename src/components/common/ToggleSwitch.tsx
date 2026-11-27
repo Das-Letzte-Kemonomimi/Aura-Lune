@@ -6,6 +6,8 @@ export interface ToggleSwitchProps {
   /** Accessible name for screen readers. */
   label: string;
   disabled?: boolean;
+  /** Id of the checkbox, so a `<label htmlFor>` (e.g. a `SettingRow` title) can target it. */
+  id?: string;
 }
 
 /**
@@ -13,11 +15,12 @@ export interface ToggleSwitchProps {
  * The track and knob are styled from the checkbox state (`peer-checked:`), so they can never
  * disagree with what assistive tech reads.
  */
-export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, label, disabled }) => (
+export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, label, disabled, id }) => (
   <label className="relative inline-block h-6.5 w-12 shrink-0 cursor-pointer has-disabled:cursor-not-allowed has-disabled:opacity-50">
     <input
       type="checkbox"
       role="switch"
+      id={id}
       aria-label={label}
       checked={checked}
       disabled={disabled}
