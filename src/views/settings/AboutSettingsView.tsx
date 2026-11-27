@@ -6,7 +6,17 @@ import { textTones } from '../../components/ui/tones';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo } from '../../types/updates';
 import { cn } from '../../utils/cn';
+import rawReleases from '../../data/changelog.json';
 import { SettingsPage } from './SettingsPage';
+
+const DEFAULT_AUTHOR = 'Das Letzte Kemonomimi';
+
+/** Byline for the running version, read from the changelog (the single source of truth for credits). */
+const resolveAuthor = (version: string): string => {
+  const releases: { version: string; author?: string }[] = rawReleases;
+  const release = releases.find((r) => r.version === version) ?? releases[0];
+  return release?.author || DEFAULT_AUTHOR;
+};
 
 export interface AboutSettingsViewProps {
   appIconStyle: 'lineout' | 'classic';
@@ -76,8 +86,8 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
           </h3>
           <p className="mt-1 text-sm font-bold text-accent-pink">
             {loc.settings.version} {appVersion}
-            {buildInfo ? ` (${buildInfo.channel} • ${buildInfo.commit_short})` : ''} • {loc.settings.author}: Das Letzte
-            Kemonomimi
+            {buildInfo ? ` (${buildInfo.channel} • ${buildInfo.commit_short})` : ''} • {loc.settings.author}:{' '}
+            {resolveAuthor(appVersion)}
           </p>
           <p className="mt-1.5 text-ui leading-normal text-fg-secondary">
             Linux High-Fidelity DSP & PipeWire Audio Engine • Extensible foobar2000-like flexibility, anime aesthetics &
