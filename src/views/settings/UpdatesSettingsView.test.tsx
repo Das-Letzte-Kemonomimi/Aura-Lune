@@ -1,5 +1,29 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
+
+vi.mock('../../data/changelog.json', () => ({
+  default: [
+    {
+      version: '2.0.0-dev',
+      codename: 'Development Channel',
+      date: '2026-11-27',
+      author: 'Test Author',
+      isDev: true,
+      isLatest: false,
+      added: [{ en: 'Dev feature', pl: 'Funkcja dev', de: 'Dev-Funktion', fi: 'Dev-ominaisuus', la: 'Res dev' }],
+    },
+    {
+      version: '1.1.5',
+      codename: 'Latest Stable',
+      date: '2026-11-20',
+      author: 'Test Author',
+      isDev: false,
+      isLatest: true,
+      added: [{ en: 'Stable feature', pl: 'Funkcja', de: 'Funktion', fi: 'Ominaisuus', la: 'Res' }],
+    },
+  ],
+}));
+
 import { UpdatesSettingsView, type UpdatesSettingsViewProps } from './UpdatesSettingsView';
 import { getTranslations } from '../../i18n';
 import type { BuildInfo, UpdateInfo } from '../../types/updates';
