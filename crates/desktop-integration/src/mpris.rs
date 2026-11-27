@@ -1,4 +1,4 @@
-//! Implementacja interfejsów D-Bus MPRIS 2.2 dla Auralune.
+//! MPRIS 2.2 D-Bus interfaces for Auralune.
 
 use audio_engine::AudioEngine;
 use domain::PlaybackState;
@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, info};
 
-/// Kontekst i stan pojedynczego utworu dla D-Bus MPRIS.
+/// Context and state of a single track for D-Bus MPRIS.
 #[derive(Debug, Clone, Default)]
 pub struct MprisTrackInfo {
     pub title: String,
@@ -21,7 +21,7 @@ pub struct MprisTrackInfo {
     pub art_url: Option<String>,
 }
 
-/// Obiekt obsługujący wywołania RPC ze środowiska graficznego (KDE/GNOME/Waybar/playerctl).
+/// Object handling RPC calls from the desktop environment (KDE/GNOME/Waybar/playerctl).
 #[derive(Clone)]
 pub struct AuraluneMprisHandler {
     engine: Arc<AudioEngine>,
@@ -37,7 +37,10 @@ impl AuraluneMprisHandler {
     }
 
     pub fn set_track_info(&self, info: MprisTrackInfo) {
-        let mut cur = self.current_track.lock().unwrap();
+        let mut cur = self
+            .current_track
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         *cur = Some(info);
     }
 }
@@ -103,10 +106,25 @@ impl RootInterface for AuraluneMprisHandler {
     }
 }
 
+impl AuraluneMprisHandler {
+    /// Runs an engine operation off the D-Bus executor thread.
+    ///
+    /// Methods that switch tracks or seek sleep for the micro-fades (up to ~150 ms);
+    /// called directly, they would block the Tokio thread serving MPRIS requests.
+    async fn on_engine<T, F>(&self, f: F) -> Option<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(&AudioEngine) -> T + Send + 'static,
+    {
+        let engine = Arc::clone(&self.engine);
+        tokio::task::spawn_blocking(move || f(&engine)).await.ok()
+    }
+}
+
 impl PlayerInterface for AuraluneMprisHandler {
     async fn next(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Next()");
-        if let Ok(Some(item)) = self.engine.play_next() {
+        if let Some(Ok(Some(item))) = self.on_engine(|e| e.play_next()).await {
             self.set_track_info(MprisTrackInfo {
                 title: item.title,
                 artist: item.artist,
@@ -120,7 +138,7 @@ impl PlayerInterface for AuraluneMprisHandler {
 
     async fn previous(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Previous()");
-        if let Ok(Some(item)) = self.engine.play_previous() {
+        if let Some(Ok(Some(item))) = self.on_engine(|e| e.play_previous()).await {
             self.set_track_info(MprisTrackInfo {
                 title: item.title,
                 artist: item.artist,
@@ -134,56 +152,64 @@ impl PlayerInterface for AuraluneMprisHandler {
 
     async fn pause(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Pause()");
-        let _ = self.engine.pause();
+        self.on_engine(|e| e.pause()).await;
         Ok(())
     }
 
     async fn play_pause(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: PlayPause()");
-        if self.engine.state() == PlaybackState::Playing {
-            let _ = self.engine.pause();
-        } else {
-            let _ = self.engine.play();
-        }
+        self.on_engine(|e| {
+            if e.state() == PlaybackState::Playing {
+                e.pause()
+            } else {
+                e.play()
+            }
+        })
+        .await;
         Ok(())
     }
 
     async fn stop(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Stop()");
-        let _ = self.engine.stop();
+        self.on_engine(|e| e.stop()).await;
         Ok(())
     }
 
     async fn play(&self) -> fdo::Result<()> {
         info!("MPRIS D-Bus: Play()");
-        let _ = self.engine.play();
+        self.on_engine(|e| e.play()).await;
         Ok(())
     }
 
     async fn seek(&self, offset: Time) -> fdo::Result<()> {
         let offset_ms = offset.as_millis();
         info!("MPRIS D-Bus: Seek({} ms)", offset_ms);
-        let cur = self
-            .engine
-            .position()
-            .map(|d| d.as_millis() as i64)
-            .unwrap_or(0);
-        let target = (cur + offset_ms).max(0) as u64;
-        let _ = self.engine.seek(Duration::from_millis(target));
+        self.on_engine(move |e| {
+            let cur = e.position().map(|d| d.as_millis() as i64).unwrap_or(0);
+            let target = (cur + offset_ms).max(0) as u64;
+            e.seek(Duration::from_millis(target))
+        })
+        .await;
         Ok(())
     }
 
     async fn set_position(&self, _track_id: TrackId, position: Time) -> fdo::Result<()> {
         let pos_ms = position.as_millis().max(0) as u64;
         info!("MPRIS D-Bus: SetPosition({} ms)", pos_ms);
-        let _ = self.engine.seek(Duration::from_millis(pos_ms));
+        self.on_engine(move |e| e.seek(Duration::from_millis(pos_ms)))
+            .await;
         Ok(())
     }
 
     async fn open_uri(&self, uri: String) -> fdo::Result<()> {
         info!("MPRIS D-Bus: OpenUri({})", uri);
-        let _ = self.engine.load_uri(&uri);
-        let _ = self.engine.play();
+        if !is_openable_uri(&uri) {
+            return Err(fdo::Error::InvalidArgs(format!(
+                "Unsupported URI (expected an existing local audio file or http(s) stream): {uri}"
+            )));
+        }
+        self.on_engine(move |e| e.load_uri(&uri).and_then(|_| e.play()))
+            .await;
         Ok(())
     }
 
@@ -220,7 +246,12 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn set_rate(&self, rate: PlaybackRate) -> mpris_server::zbus::Result<()> {
-        let _ = self.engine.set_rate_ratio(rate);
+        // MPRIS: a Rate of 0.0 means pause. A tempo change rebuilds the DSP, so off the D-Bus executor.
+        if rate <= 0.0 {
+            self.on_engine(|e| e.pause()).await;
+        } else {
+            self.on_engine(move |e| e.set_rate_ratio(rate)).await;
+        }
         Ok(())
     }
 
@@ -234,7 +265,10 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 
     async fn metadata(&self) -> fdo::Result<Metadata> {
-        let cur = self.current_track.lock().unwrap();
+        let cur = self
+            .current_track
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(track) = cur.as_ref() {
             let mut builder = Metadata::builder()
                 .title(&track.title)
@@ -331,23 +365,23 @@ impl PlayerInterface for AuraluneMprisHandler {
     }
 }
 
-/// Kontroler D-Bus MPRIS zarządzający serwerem i wysyłaniem sygnałów PropertiesChanged.
+/// D-Bus MPRIS controller that manages the server and sends PropertiesChanged signals.
 pub struct MprisController {
     server: Server<AuraluneMprisHandler>,
     handler: AuraluneMprisHandler,
 }
 
 impl MprisController {
-    /// Inicjalizuje i rejestruje odtwarzacz w sesyjnej magistrali D-Bus jako org.mpris.MediaPlayer2.auralune.
+    /// Initialises and registers the player on the D-Bus session bus as org.mpris.MediaPlayer2.auralune.
     pub async fn start(engine: Arc<AudioEngine>) -> Result<Self, mpris_server::zbus::Error> {
         let handler = AuraluneMprisHandler::new(engine);
         let server = Server::new("auralune", handler.clone()).await?;
 
-        info!("Zarejestrowano serwis MPRIS D-Bus: org.mpris.MediaPlayer2.auralune");
+        info!("Registered the MPRIS D-Bus service: org.mpris.MediaPlayer2.auralune");
         Ok(Self { server, handler })
     }
 
-    /// Aktualizuje metadane odtwarzanego utworu i emituje sygnał PropertiesChanged na magistrali D-Bus.
+    /// Updates the metadata of the playing track and emits PropertiesChanged on the D-Bus bus.
     pub async fn update_track(&self, info: MprisTrackInfo) {
         let mut builder = Metadata::builder()
             .title(&info.title)
@@ -367,11 +401,11 @@ impl MprisController {
             .properties_changed([Property::Metadata(metadata)])
             .await
         {
-            debug!("Błąd wysyłania PropertiesChanged(Metadata): {}", e);
+            debug!("Failed to send PropertiesChanged(Metadata): {}", e);
         }
     }
 
-    /// Aktualizuje status odtwarzania na magistrali D-Bus.
+    /// Updates the playback status on the D-Bus bus.
     pub async fn update_playback_status(&self, state: PlaybackState) {
         let mpris_status = match state {
             PlaybackState::Playing => PlaybackStatus::Playing,
@@ -384,26 +418,44 @@ impl MprisController {
             .properties_changed([Property::PlaybackStatus(mpris_status)])
             .await
         {
-            debug!("Błąd wysyłania PropertiesChanged(PlaybackStatus): {}", e);
+            debug!("Failed to send PropertiesChanged(PlaybackStatus): {}", e);
         }
     }
 
-    /// Informuje środowisko graficzne o wykonaniu skoku (Seeked signal).
+    /// Tells the desktop environment that a seek happened (Seeked signal).
     pub async fn emit_seeked(&self, position_ms: u64) {
         let time = Time::from_millis(position_ms as i64);
         if let Err(e) = self.server.emit(Signal::Seeked { position: time }).await {
-            debug!("Błąd wysyłania sygnału Seeked: {}", e);
+            debug!("Failed to send the Seeked signal: {}", e);
         }
     }
 
-    /// Aktualizuje głośność na magistrali D-Bus.
+    /// Updates the volume on the D-Bus bus.
     pub async fn update_volume(&self, volume: f64) {
         if let Err(e) = self
             .server
             .properties_changed([Property::Volume(volume)])
             .await
         {
-            debug!("Błąd wysyłania PropertiesChanged(Volume): {}", e);
+            debug!("Failed to send PropertiesChanged(Volume): {}", e);
         }
     }
+}
+
+/// Whether an `OpenUri` from the session bus may be played: an `http(s)` stream or an existing
+/// local audio file (`file://` or a path), so no other D-Bus client can pass an arbitrary
+/// file or GStreamer scheme through it.
+fn is_openable_uri(uri: &str) -> bool {
+    if uri.starts_with("http://") || uri.starts_with("https://") {
+        return true;
+    }
+    if uri.contains("://") && !uri.starts_with("file://") {
+        return false;
+    }
+    let path = audio_engine::uri::local_path(uri);
+    let Ok(resolved) = path.canonicalize() else {
+        return false;
+    };
+    resolved.is_file()
+        && domain::paths::has_allowed_extension(&resolved, domain::paths::AUDIO_EXTENSIONS)
 }

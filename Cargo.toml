@@ -12,18 +12,19 @@ members = [
     "crates/desktop-integration",
     "crates/metadata",
     "crates/downloads",
-    "apps/desktop/src-tauri",
+    "src-tauri",
 ]
 
 [workspace.package]
-version = "1.1.5"
+version = "2.0.0"
 
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors = ["Das Letzte Kemonomimi"]
-repository = "https://github.com/Auralune/Auralune"
 
 [workspace.dependencies]
+bytemuck = "1.25"
+crossbeam-utils = "0.8"
 gstreamer = "0.25"
 gstreamer-base = "0.25"
 gstreamer-audio = "0.25"
@@ -42,3 +43,11 @@ sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[profile.dev.package."*"]
+opt-level = 2

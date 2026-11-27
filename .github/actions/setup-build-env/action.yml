@@ -1,0 +1,67 @@
+name: Setup Auralune build environment
+description: >-
+  Node 22 + Rust stable + system libraries (GStreamer, WebKitGTK, RubberBand,
+  SoundTouch, FUSE, mold) + frontend dependencies. Shared by the rolling dev build
+  and the stable release build so both always compile with the same toolchain.
+
+inputs:
+  cache-key:
+    description: "Shared cache key for Swatinem/rust-cache"
+    required: false
+    default: "release"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js 22 LTS
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: package-lock.json
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ inputs.cache-key }}
+        cache-on-failure: true
+
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-apt-build-${{ hashFiles('.github/actions/setup-build-env/action.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-build-
+          ${{ runner.os }}-apt-
+
+    - name: Install system dependencies (GStreamer, WebKit, AppIndicator, FUSE, mold)
+      shell: bash
+      run: |
+        sudo rm -f /var/lib/man-db/auto-update
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          gstreamer1.0-plugins-base \
+          gstreamer1.0-plugins-good \
+          libasound2-dev \
+          libwebkit2gtk-4.1-dev \
+          libgtk-3-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          librubberband-dev \
+          libsoundtouch-dev \
+          mold
+        sudo apt-get install -y --no-install-recommends libfuse2t64 2>/dev/null || sudo apt-get install -y --no-install-recommends libfuse2 || true
+        sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
+        # The cache only needs read access to the downloaded packages.
+        sudo chmod -R a+rX /var/cache/apt/archives
+
+    - name: Install frontend dependencies
+      shell: bash
+      run: npm ci

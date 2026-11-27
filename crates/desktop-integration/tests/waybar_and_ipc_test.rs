@@ -1,5 +1,48 @@
-use desktop_integration::{write_waybar_status_to_path, ControlIpcServer, WaybarStatus};
+use desktop_integration::{
+    waybar_status_changed, write_waybar_status_to_path, ControlIpcServer, WaybarStatus,
+};
 use std::fs;
+
+#[test]
+fn test_waybar_change_detection_ignores_position_jitter() {
+    let base = WaybarStatus {
+        text: "A - B".into(),
+        alt: "playing".into(),
+        tooltip: "B".into(),
+        class: "playing".into(),
+        percentage: 25,
+        volume: 80,
+        art_url: None,
+        title: "B".into(),
+        artist: "A".into(),
+        album: String::new(),
+        state: "Playing".into(),
+        position_ms: 45_000,
+        duration_ms: 180_000,
+    };
+
+    assert!(waybar_status_changed(None, &base));
+
+    let same_pct_new_pos = WaybarStatus {
+        position_ms: 45_500,
+        ..base.clone()
+    };
+    assert!(!waybar_status_changed(Some(&base), &same_pct_new_pos));
+
+    let next_pct = WaybarStatus {
+        percentage: 26,
+        ..same_pct_new_pos.clone()
+    };
+    assert!(waybar_status_changed(Some(&base), &next_pct));
+
+    let paused = WaybarStatus {
+        state: "Paused".into(),
+        class: "paused".into(),
+        alt: "paused".into(),
+        ..same_pct_new_pos
+    };
+    assert!(waybar_status_changed(Some(&base), &paused));
+}
 
 #[test]
 fn test_waybar_status_serialization_and_write() {
@@ -21,9 +64,9 @@ fn test_waybar_status_serialization_and_write() {
     };
 
     let res = write_waybar_status_to_path(&status, &tmp_path);
-    assert!(res.is_ok(), "Zapis pliku statusu powiódł się");
+    assert!(res.is_ok(), "Writing the status file succeeded");
 
-    let read_back = fs::read_to_string(&tmp_path).expect("Odczyt pliku statusu");
+    let read_back = fs::read_to_string(&tmp_path).expect("Read the status file");
     assert!(read_back.contains("\"text\": \"Kitsune - Resonance\""));
     assert!(read_back.contains("\"class\": \"playing\""));
     assert!(read_back.contains("\"percentage\": 65"));
@@ -54,6 +97,30 @@ fn test_control_ipc_command_parsing() {
     // Test mute toggle
     let resp = ControlIpcServer::execute_command(&engine, "mute");
     assert!(resp.starts_with("OK:"));
+
+    // Test seek variations
+    let resp_seek_pos = ControlIpcServer::execute_command(&engine, "seek 15");
+    assert_eq!(resp_seek_pos, "OK: SEEK");
+
+    let resp_seek_neg = ControlIpcServer::execute_command(&engine, "seek -10");
+    assert_eq!(resp_seek_neg, "OK: SEEK");
+
+    let resp_seek_missing = ControlIpcServer::execute_command(&engine, "seek");
+    assert_eq!(resp_seek_missing, "ERR: MISSING_SEEK_ARG");
+
+    let resp_seek_invalid = ControlIpcServer::execute_command(&engine, "seek not_a_number");
+    assert_eq!(resp_seek_invalid, "ERR: INVALID_SEEK_ARG");
+
+    // Test volume boundaries via IPC
+    for _ in 0..25 {
+        ControlIpcServer::execute_command(&engine, "vol_up");
+    }
+    assert!(engine.volume() <= 1.0, "Volume should clamp at 1.0 via IPC");
+
+    for _ in 0..25 {
+        ControlIpcServer::execute_command(&engine, "vol_down");
+    }
+    assert!(engine.volume() >= 0.0, "Volume should clamp at 0.0 via IPC");
 
     // Test unknown command
     let resp = ControlIpcServer::execute_command(&engine, "unknown_cmd_xyz");

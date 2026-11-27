@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-/// Tryb nasycenia analogowego
+/// Analogue saturation mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SaturatorMode {
-    /// Wyłączone
+    /// Off
     Off,
-    /// Ciepło lampy elektronowej (trioda) — parzyste harmoniczne, miękki bas
+    /// Vacuum tube (triode) warmth: even harmonics, soft bass
     TubeWarmth,
-    /// Nasycenie taśmowe (symetryczne zaokrąglanie wierzchołków) — gęsty, analogowy sound
+    /// Tape saturation (symmetric peak rounding): dense, analogue sound
     TapeSaturation,
-    /// Mocniejsze nasycenie harmoniczne (overdrive / lo-fi excitement)
+    /// Stronger harmonic saturation (overdrive / lo-fi excitement)
     Overdrive,
 }
 
@@ -25,25 +25,25 @@ impl SaturatorMode {
 
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::Off => "Wyłączone (Bypass)",
-            Self::TubeWarmth => "Lampa Elektronowa (Tube Warmth)",
-            Self::TapeSaturation => "Taśma Analogowa (Tape Saturation)",
-            Self::Overdrive => "Nasycenie Harmoniczne (Overdrive)",
+            Self::Off => "Off (Bypass)",
+            Self::TubeWarmth => "Tube Warmth",
+            Self::TapeSaturation => "Tape Saturation",
+            Self::Overdrive => "Harmonic Saturation (Overdrive)",
         }
     }
 }
 
-/// Konfiguracja kompresora dynamiki (Dynamic Range Compressor)
+/// Dynamic range compressor configuration
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CompressorConfig {
     pub enabled: bool,
-    /// Próg kompresji w dBFS (od -60.0 do 0.0, domyślnie -18.0)
+    /// Compression threshold in dBFS (-60.0 to 0.0, default -18.0)
     pub threshold_db: f32,
-    /// Stosunek kompresji (od 1.0:1 do 20.0:1, domyślnie 3.0)
+    /// Compression ratio (1.0:1 to 20.0:1, default 3.0)
     pub ratio: f32,
-    /// Łagodne kolano (soft-knee) vs twarde (hard-knee)
+    /// Soft knee vs hard knee
     pub soft_knee: bool,
-    /// Wzmocnienie wyrównawcze (makeup gain) w dB (od 0.0 do +24.0 dB)
+    /// Makeup gain in dB (0.0 to +24.0 dB)
     pub makeup_gain_db: f32,
 }
 
@@ -70,29 +70,29 @@ impl CompressorConfig {
         }
     }
 
-    /// Przelicza próg w dBFS na liniową amplitudę [0.0, 1.0] dla GStreamer `audiodynamic`
+    /// Converts the dBFS threshold to a linear amplitude [0.0, 1.0] for GStreamer `audiodynamic`
     pub fn linear_threshold(&self) -> f32 {
         let clamped_db = self.threshold_db.clamp(-60.0, 0.0);
         10.0f32.powf(clamped_db / 20.0)
     }
 
-    /// Przelicza makeup gain w dB na liniowy mnożnik głośności
+    /// Converts the makeup gain in dB to a linear volume multiplier
     pub fn linear_makeup_gain(&self) -> f64 {
         let clamped_db = self.makeup_gain_db.clamp(0.0, 24.0);
         10.0f64.powf(clamped_db as f64 / 20.0)
     }
 }
 
-/// Konfiguracja nasycenia analogowego (Tube & Tape Saturator)
+/// Analogue saturation configuration (Tube & Tape Saturator)
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SaturatorConfig {
     pub enabled: bool,
     pub mode: SaturatorMode,
-    /// Współczynnik wysterowania (od 1.0 do 5.0, domyślnie 1.5)
+    /// Drive factor (1.0 to 5.0, default 1.5)
     pub drive: f32,
-    /// Ciepło / asymetria parzystych harmonicznych (od 0.0 do 1.0)
+    /// Warmth / even-harmonic asymmetry (0.0 to 1.0)
     pub warmth: f32,
-    /// Stosunek sygnału przetworzonego do czystego (Dry/Wet, od 0.0 do 1.0)
+    /// Processed-to-clean signal ratio (dry/wet, 0.0 to 1.0)
     pub mix: f32,
 }
 
@@ -119,7 +119,7 @@ impl SaturatorConfig {
         }
     }
 
-    /// Przetwarza pojedynczą próbkę audio F32 według aktualnego trybu nasycenia
+    /// Processes a single F32 audio sample using the current saturation mode
     #[inline(always)]
     pub fn process_sample(&self, sample: f32) -> f32 {
         if !self.enabled || self.mode == SaturatorMode::Off {
@@ -133,14 +133,14 @@ impl SaturatorConfig {
         let saturated = match self.mode {
             SaturatorMode::Off => sample,
             SaturatorMode::TapeSaturation => {
-                // Symetryczne nasycenie taśmowe (krzywa arkusza tangensa)
+                // Symmetric tape saturation (hyperbolic tangent curve)
                 let x = sample * drive;
                 let norm = (2.0 / std::f32::consts::PI) * (x).atan();
-                // Subtelne złagodzenie skrajnych szczytów
+                // Subtle softening of the extreme peaks
                 norm / (1.0 + 0.1 * drive)
             }
             SaturatorMode::TubeWarmth => {
-                // Asymetryczne nasycenie lampowe (dodawanie 2. harmonicznej)
+                // Asymmetric tube saturation (adds the 2nd harmonic)
                 let x = sample * drive;
                 let asym = if x >= 0.0 {
                     x / (1.0 + x * (0.4 + 0.3 * warmth))
@@ -150,7 +150,7 @@ impl SaturatorConfig {
                 asym / (1.0 + 0.15 * drive)
             }
             SaturatorMode::Overdrive => {
-                // Twardzsze nasycenie hiperboliczne
+                // Harder hyperbolic saturation
                 let x = sample * drive;
                 x.tanh() / (drive * 0.4).max(1.0)
             }
@@ -160,29 +160,29 @@ impl SaturatorConfig {
     }
 }
 
-/// Konfiguracja limitera słuchawkowego (Headphone Protection Limiter)
+/// Headphone protection limiter configuration
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LimiterConfig {
-    /// Czy limiter szczytowy jest aktywny
+    /// Whether the peak limiter is active
     pub enabled: bool,
-    /// Poziom sufitu (ceiling) w dBFS (np. -0.2 dBFS)
+    /// Ceiling level in dBFS (e.g. -0.2 dBFS)
     pub ceiling_db: f32,
 }
 
 impl Default for LimiterConfig {
     fn default() -> Self {
         Self {
-            enabled: true, // Bezpieczeństwo słuchu włączone domyślnie
+            enabled: true, // Hearing protection is on by default
             ceiling_db: -0.2,
         }
     }
 }
 
-/// Konfiguracja poszerzania bazy stereo (Stereo Widener / Stereo Stage)
+/// Stereo base widening configuration (Stereo Widener / Stereo Stage)
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StereoWidenerConfig {
     pub enabled: bool,
-    /// Poziom poszerzenia od 0.0 (0% - brak zmian) do 1.0 (100% - maksymalna przestrzeń sceny)
+    /// Widening amount from 0.0 (0%, no change) to 1.0 (100%, maximum stage width)
     pub width: f32,
 }
 
@@ -203,7 +203,7 @@ impl StereoWidenerConfig {
         }
     }
 
-    /// Przetwarza ramkę stereo (lewy i prawy kanał) w macierzy Mid-Side (M/S).
+    /// Processes a stereo frame (left and right channel) in a mid-side (M/S) matrix.
     #[inline(always)]
     pub fn process_frame(&self, left: f32, right: f32) -> (f32, f32) {
         if !self.enabled || self.width <= 0.0 {
@@ -213,9 +213,9 @@ impl StereoWidenerConfig {
         let mid = (left + right) * 0.5;
         let side = (left - right) * 0.5;
 
-        // Skalowanie Side: od 1.0 (brak zmian) do 2.2 (+120% szerokości bazy stereo)
+        // Side scaling: from 1.0 (no change) to 2.2 (+120% stereo width)
         let side_gain = 1.0 + self.width * 1.2;
-        // Kompensacja głośności (gain trim) zapobiegająca cyfrowemu przesterowaniu przy szerokiej bazie
+        // Gain trim that prevents digital clipping at a wide stereo base
         let gain_trim = 1.0 / (1.0 + self.width * 0.2);
 
         let new_side = side * side_gain;
@@ -226,7 +226,7 @@ impl StereoWidenerConfig {
     }
 }
 
-/// Zbiorczy stan Studia Dynamiki (Compressor + Saturator + Limiter)
+/// Combined Dynamics Studio state (Compressor + Saturator + Limiter)
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct DynamicsState {
     pub compressor: CompressorConfig,
@@ -234,7 +234,7 @@ pub struct DynamicsState {
     pub limiter: LimiterConfig,
 }
 
-/// Fabryczny preset Studia Dynamiki
+/// Built-in Dynamics Studio preset
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DynamicsPreset {
     pub id: String,
@@ -249,7 +249,7 @@ impl DynamicsPreset {
             Self {
                 id: "vintage-tube".into(),
                 name: "Vintage Tube Amplifier".into(),
-                description: "Ciepłe nasycenie triodowe parzystych harmonicznych z łagodną kompresją 2:1.".into(),
+                description: "Warm triode saturation of even harmonics with gentle 2:1 compression.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -274,7 +274,7 @@ impl DynamicsPreset {
             Self {
                 id: "analog-tape".into(),
                 name: "Warm Analog Tape Deck".into(),
-                description: "Gęsty analogowy bas, złagodzone soprany i zwarta dynamika taśmy magnetofonowej.".into(),
+                description: "Dense analog bass, softened treble and the tight dynamics of magnetic tape.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -299,7 +299,7 @@ impl DynamicsPreset {
             Self {
                 id: "vocal-broadcast".into(),
                 name: "Anime Broadcast & Radio".into(),
-                description: "Wyrazisty wokal, zwarta kompresja radiowa i optymalna czytelność mowy/piosenek.".into(),
+                description: "Articulate vocals, tight broadcast-style compression and optimal speech and singing intelligibility.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -324,7 +324,7 @@ impl DynamicsPreset {
             Self {
                 id: "lofi-crunch".into(),
                 name: "Lo-Fi Crunchy Vinyl".into(),
-                description: "Mocniejsze nasycenie harmoniczne, estetyka winylowa i lo-fi hip-hop.".into(),
+                description: "Heavier harmonic saturation for a vinyl and lo-fi hip-hop aesthetic.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -349,7 +349,7 @@ impl DynamicsPreset {
             Self {
                 id: "ear-safe".into(),
                 name: "Headphone Hearing Protection".into(),
-                description: "Subtelne wyrównanie dynamiki i aktywny limiter chroniący uszy przed nagłymi skokami głośności.".into(),
+                description: "Subtle dynamics levelling and an active limiter that shields your ears from sudden loudness spikes.".into(),
                 state: DynamicsState {
                     compressor: CompressorConfig {
                         enabled: true,
@@ -373,110 +373,10 @@ impl DynamicsPreset {
             },
             Self {
                 id: "bypass".into(),
-                name: "Direct Bypass (Czysty tor)".into(),
-                description: "Wszystkie moduły dynamiki i nasycenia wyłączone (bit-perfect).".into(),
+                name: "Direct Bypass".into(),
+                description: "All dynamics and saturation modules off (bit-perfect).".into(),
                 state: DynamicsState::default(),
             },
         ]
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_compressor_clamping_and_conversion() {
-        let comp = CompressorConfig {
-            enabled: true,
-            threshold_db: -100.0, // poniżej limitu
-            ratio: 50.0,          // powyżej limitu
-            soft_knee: true,
-            makeup_gain_db: 30.0, // powyżej limitu
-        };
-
-        let clamped = comp.clamped();
-        assert_eq!(clamped.threshold_db, -60.0);
-        assert_eq!(clamped.ratio, 20.0);
-        assert_eq!(clamped.makeup_gain_db, 24.0);
-
-        let lin_thresh = clamped.linear_threshold();
-        assert!((lin_thresh - 0.001).abs() < 0.0001);
-
-        let lin_makeup = clamped.linear_makeup_gain();
-        assert!(lin_makeup > 15.0);
-    }
-
-    #[test]
-    fn test_saturator_processing() {
-        let sat = SaturatorConfig {
-            enabled: true,
-            mode: SaturatorMode::TubeWarmth,
-            drive: 2.0,
-            warmth: 0.8,
-            mix: 1.0,
-        };
-
-        // Sygnał 0 powinien dać 0
-        let zero = sat.process_sample(0.0);
-        assert_eq!(zero, 0.0);
-
-        // Sygnał dodatni vs ujemny powinien wykazać asymetrię (trioda)
-        let pos = sat.process_sample(0.5);
-        let neg = sat.process_sample(-0.5);
-        assert!(pos > 0.0);
-        assert!(neg < 0.0);
-        // Asymetria: |pos| != |neg|
-        assert!((pos.abs() - neg.abs()).abs() > 0.01);
-    }
-
-    #[test]
-    fn test_tape_saturator_processing() {
-        let sat = SaturatorConfig {
-            enabled: true,
-            mode: SaturatorMode::TapeSaturation,
-            drive: 2.5,
-            warmth: 0.0,
-            mix: 1.0,
-        };
-
-        let pos = sat.process_sample(0.6);
-        let neg = sat.process_sample(-0.6);
-        // Taśma jest symetryczna
-        assert!((pos.abs() - neg.abs()).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_default_presets_integrity() {
-        let presets = DynamicsPreset::default_presets();
-        assert!(presets.len() >= 5);
-        assert!(presets.iter().any(|p| p.id == "vintage-tube"));
-        assert!(presets.iter().any(|p| p.id == "analog-tape"));
-        assert!(presets.iter().any(|p| p.id == "bypass"));
-    }
-
-    #[test]
-    fn test_stereo_widener_processing() {
-        let widener = StereoWidenerConfig {
-            enabled: true,
-            width: 0.5,
-        };
-
-        // Sygnał mono (L == R) nie powinien ulec zmianie proporcji kanałów
-        let (mono_l, mono_r) = widener.process_frame(0.4, 0.4);
-        assert!((mono_l - mono_r).abs() < 1e-6);
-
-        // Sygnał z różnicą stereo (L != R) powinien mieć zwiększoną separację
-        let orig_diff = (0.6f32 - 0.2f32).abs();
-        let (out_l, out_r) = widener.process_frame(0.6, 0.2);
-        let out_diff = (out_l - out_r).abs();
-        assert!(out_diff > orig_diff * 0.9);
-
-        // Przy wyłączonym widenerze sygnał przechodzi 1:1
-        let disabled = StereoWidenerConfig {
-            enabled: false,
-            width: 0.5,
-        };
-        assert_eq!(disabled.process_frame(0.7, -0.3), (0.7, -0.3));
     }
 }

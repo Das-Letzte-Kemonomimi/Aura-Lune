@@ -1,10 +1,11 @@
+use crate::TagError;
 use lofty::config::WriteOptions;
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::{Accessor, ItemKey, ItemValue, TagItem};
 use serde::{Deserialize, Serialize};
 
-/// Struktura DTO do odczytu i zapisu pełnych tagów audio utworu.
+/// DTO for reading and writing a track's full audio tags.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct TrackMetadataFullDto {
     pub title: String,
@@ -20,12 +21,15 @@ pub struct TrackMetadataFullDto {
     pub comment: Option<String>,
 }
 
-/// Odczytuje pełne metadane pliku audio za pomocą biblioteki lofty.
-pub fn read_track_metadata(path: &str) -> Result<TrackMetadataFullDto, String> {
+/// Reads a file's full metadata with lofty.
+pub fn read_track_metadata(path: &str) -> Result<TrackMetadataFullDto, TagError> {
     let tagged_file = Probe::open(path)
-        .map_err(|e| format!("Błąd otwarcia pliku {}: {}", path, e))?
+        .map_err(|e| TagError::Open {
+            path: path.to_string(),
+            message: e.to_string(),
+        })?
         .read()
-        .map_err(|e| format!("Błąd odczytu tagów: {}", e))?;
+        .map_err(|e| TagError::Read(e.to_string()))?;
 
     let tag = match tagged_file.primary_tag() {
         Some(primary) => primary,
@@ -67,12 +71,15 @@ pub fn read_track_metadata(path: &str) -> Result<TrackMetadataFullDto, String> {
     })
 }
 
-/// Zapisuje zmodyfikowane tagi bezpośrednio do pliku audio.
-pub fn write_track_metadata(path: &str, meta: &TrackMetadataFullDto) -> Result<(), String> {
+/// Writes the modified tags straight into the audio file.
+pub fn write_track_metadata(path: &str, meta: &TrackMetadataFullDto) -> Result<(), TagError> {
     let mut tagged_file = Probe::open(path)
-        .map_err(|e| format!("Błąd otwarcia pliku {}: {}", path, e))?
+        .map_err(|e| TagError::Open {
+            path: path.to_string(),
+            message: e.to_string(),
+        })?
         .read()
-        .map_err(|e| format!("Błąd odczytu tagów: {}", e))?;
+        .map_err(|e| TagError::Read(e.to_string()))?;
 
     let tag = match tagged_file.primary_tag_mut() {
         Some(primary) => primary,
@@ -80,7 +87,7 @@ pub fn write_track_metadata(path: &str, meta: &TrackMetadataFullDto) -> Result<(
             if let Some(first) = tagged_file.first_tag_mut() {
                 first
             } else {
-                return Err("Brak obsługiwanego kontenera tagów w pliku audio".to_string());
+                return Err(TagError::NoTagContainer);
             }
         }
     };
@@ -147,7 +154,10 @@ pub fn write_track_metadata(path: &str, meta: &TrackMetadataFullDto) -> Result<(
 
     tagged_file
         .save_to_path(path, WriteOptions::default())
-        .map_err(|e| format!("Błąd zapisu tagów do pliku {}: {}", path, e))?;
+        .map_err(|e| TagError::Write {
+            path: path.to_string(),
+            message: e.to_string(),
+        })?;
 
     Ok(())
 }

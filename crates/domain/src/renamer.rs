@@ -1,7 +1,8 @@
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
-/// Element podglądu zmiany nazwy pliku utworu.
+/// Preview item for renaming a track's file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RenamePreviewItem {
     pub track_id: i64,
@@ -12,7 +13,7 @@ pub struct RenamePreviewItem {
     pub error: Option<String>,
 }
 
-/// Zastępuje niedozwolone znaki w nazwach plików i folderów bezpiecznymi odpowiednikami.
+/// Replaces characters that are not allowed in file and folder names with safe equivalents.
 pub fn sanitize_filename_part(input: &str) -> String {
     let forbidden = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
     let mut out = String::with_capacity(input.len());
@@ -25,14 +26,31 @@ pub fn sanitize_filename_part(input: &str) -> String {
     }
     let trimmed = out.trim();
     if trimmed.is_empty() {
-        "Unknown".to_string()
-    } else {
-        trimmed.to_string()
+        return "Unknown".to_string();
     }
+    // Tag values "." and ".." must not turn into directory navigation.
+    if trimmed.chars().all(|c| c == '.') {
+        return "_".repeat(trimmed.chars().count());
+    }
+    truncate_to_bytes(trimmed, MAX_TAG_PART_BYTES).to_string()
 }
 
-/// Formatuje nową nazwę pliku utworu wg zadanego schematu tagów w stylu foobar2000.
-/// Dane metadanych utworu przekazywane do formatera nazw plików.
+/// Length limit of a single tag value in a file name (leaves room for the number and extension).
+const MAX_TAG_PART_BYTES: usize = 200;
+
+/// Truncates text to `max` bytes on a UTF-8 character boundary.
+fn truncate_to_bytes(s: &str, max: usize) -> &str {
+    if s.len() <= max {
+        return s;
+    }
+    let mut end = max;
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    s[..end].trim_end()
+}
+
+/// Track metadata passed to the file name formatter.
 #[derive(Debug, Clone, Default)]
 pub struct RenamerTrackInfo<'a> {
     pub title: &'a str,
@@ -44,16 +62,16 @@ pub struct RenamerTrackInfo<'a> {
     pub ext: &'a str,
 }
 
-/// Formatuje nową nazwę pliku utworu wg zadanego schematu tagów w stylu foobar2000.
+/// Formats a track's new file name from a foobar2000-style tag pattern.
 ///
-/// Dostępne tagi:
-/// - `%artist%`: Wykonawca
-/// - `%albumartist%`: Wykonawca albumu (lub wykonawca)
-/// - `%album%`: Tytuł albumu
-/// - `%title%`: Tytuł utworu
-/// - `%track%` / `%tracknumber%`: Numer utworu z zerem wiodącym (np. 01, 05)
-/// - `%disc%`: Numer płyty
-/// - `%ext%`: Rozszerzenie pliku
+/// Available tags:
+/// - `%artist%`: artist
+/// - `%albumartist%`: album artist (or artist)
+/// - `%album%`: album title
+/// - `%title%`: track title
+/// - `%track%` / `%tracknumber%`: track number with a leading zero (e.g. 01, 05)
+/// - `%disc%`: disc number
+/// - `%ext%`: file extension
 pub fn format_pattern_for_track(pattern: &str, info: &RenamerTrackInfo) -> String {
     let clean_title = sanitize_filename_part(info.title);
     let clean_artist = sanitize_filename_part(info.artist);
@@ -80,7 +98,7 @@ pub fn format_pattern_for_track(pattern: &str, info: &RenamerTrackInfo) -> Strin
     result = result.replace("%disc%", &disc_str);
     result = result.replace("%ext%", &clean_ext);
 
-    // Jeśli wzorzec nie zawierał rozszerzenia na końcu, dodajemy je automatycznie
+    // If the pattern did not end with the extension, add it automatically
     if !result.to_lowercase().ends_with(&format!(".{}", clean_ext)) {
         result.push('.');
         result.push_str(&clean_ext);
@@ -89,58 +107,73 @@ pub fn format_pattern_for_track(pattern: &str, info: &RenamerTrackInfo) -> Strin
     result
 }
 
-/// Buduje pełną nową ścieżkę dla pliku, zachowując katalog macierzysty lub budując strukturę folderów.
-pub fn resolve_renamed_path(old_path_str: &str, formatted_name: &str) -> Result<PathBuf, String> {
+/// Maximum length of a single path component in bytes (the limit of most file systems).
+pub const MAX_PATH_COMPONENT_BYTES: usize = 255;
+
+/// Builds the full new path of a file, keeping the parent directory or building a folder structure.
+///
+/// The formatted name may contain subfolders (e.g. `%artist%/%album%/%track% - %title%`), but
+/// the resulting path always lies inside the source file's directory: absolute paths,
+/// `..` / `.` components and components longer than [`MAX_PATH_COMPONENT_BYTES`] are rejected.
+pub fn resolve_renamed_path(
+    old_path_str: &str,
+    formatted_name: &str,
+) -> Result<PathBuf, DomainError> {
     let old_path = Path::new(old_path_str);
     let parent = old_path
         .parent()
-        .ok_or_else(|| "Brak katalogu nadrzędnego dla pliku".to_string())?;
+        .ok_or_else(|| DomainError::Validation("The file has no parent directory".to_string()))?;
 
-    // Jeśli sformatowana nazwa zawiera podfoldery (np. %artist%/%album%/%track% - %title%.flac)
-    let new_path = parent.join(formatted_name);
+    let relative = Path::new(formatted_name);
+    if formatted_name.trim().is_empty() {
+        return Err(DomainError::Validation("Empty file name".to_string()));
+    }
+    let mut new_path = parent.to_path_buf();
+    for component in relative.components() {
+        match component {
+            Component::Normal(part) => {
+                if part.len() > MAX_PATH_COMPONENT_BYTES {
+                    return Err(DomainError::Validation(format!(
+                        "Path component exceeds {} bytes",
+                        MAX_PATH_COMPONENT_BYTES
+                    )));
+                }
+                new_path.push(part);
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(DomainError::Validation(
+                    "The pattern must not create an absolute path".to_string(),
+                ));
+            }
+            Component::ParentDir | Component::CurDir => {
+                return Err(DomainError::Validation(
+                    "The pattern must not contain '.' or '..' components".to_string(),
+                ));
+            }
+        }
+    }
     Ok(new_path)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sanitize_filename() {
-        assert_eq!(sanitize_filename_part("AC/DC: Live?"), "AC_DC_ Live_");
-        assert_eq!(sanitize_filename_part("   "), "Unknown");
-        assert_eq!(sanitize_filename_part("YOASOBI"), "YOASOBI");
-    }
-
-    #[test]
-    fn test_format_pattern_for_track() {
-        let pattern = "%track% - %artist% - %title%";
-        let info = RenamerTrackInfo {
-            title: "Sparkle",
-            artist: "RADWIMPS",
-            album_artist: Some("RADWIMPS"),
-            album: Some("Your Name."),
-            track_no: Some(8),
-            disc_no: Some(1),
-            ext: "flac",
-        };
-        let res = format_pattern_for_track(pattern, &info);
-        assert_eq!(res, "08 - RADWIMPS - Sparkle.flac");
-    }
-
-    #[test]
-    fn test_format_pattern_with_extension_already() {
-        let pattern = "%artist% - %title%.%ext%";
-        let info = RenamerTrackInfo {
-            title: "Idol",
-            artist: "YOASOBI",
-            album_artist: None,
-            album: None,
-            track_no: Some(1),
-            disc_no: None,
-            ext: "mp3",
-        };
-        let res = format_pattern_for_track(pattern, &info);
-        assert_eq!(res, "YOASOBI - Idol.mp3");
-    }
+/// Checks whether the target path (e.g. passed from the frontend) is an allowed rename
+/// target for the file `old_path_str`: it must lie inside its directory and pass
+/// [`resolve_renamed_path`] validation.
+pub fn validate_rename_target(
+    old_path_str: &str,
+    target_path_str: &str,
+) -> Result<PathBuf, DomainError> {
+    let parent = Path::new(old_path_str)
+        .parent()
+        .ok_or_else(|| DomainError::Validation("The file has no parent directory".to_string()))?;
+    let relative = Path::new(target_path_str)
+        .strip_prefix(parent)
+        .map_err(|_| {
+            DomainError::Validation(
+                "The target path must lie in the source file's directory".to_string(),
+            )
+        })?;
+    let relative_str = relative
+        .to_str()
+        .ok_or_else(|| DomainError::Validation("The target path is not valid UTF-8".to_string()))?;
+    resolve_renamed_path(old_path_str, relative_str)
 }

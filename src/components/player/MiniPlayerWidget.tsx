@@ -1,0 +1,184 @@
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Maximize2,
+  Disc,
+  Zap,
+} from '../ui/icons';
+import { type Language, getTranslations } from '../../i18n';
+import { formatTime } from '../../utils/timeFormat';
+import { useLivePositionMs, useLiveVolume } from '../../state/livePlayback';
+import { cn } from '../../utils/cn';
+import { Badge, Button, IconButton } from '../ui';
+import { useVolumeCurve } from '../../hooks/useVolumeCurve';
+import { formatVolume } from '../../utils/volumeCurve';
+import { clientPointToLocal } from '../../utils/canvasDraw';
+import { VolumeIcon, VolumeSlider } from './VolumeSlider';
+
+interface MiniPlayerWidgetProps {
+  title: string;
+  artist: string;
+  coverUrl?: string | null;
+  isPlaying: boolean;
+  positionMs: number;
+  durationMs: number | null;
+  volume: number;
+  pitchSemitones: number;
+  tempoRatio: number;
+  currentLang?: Language;
+  volumeUnit?: 'percent' | 'db';
+  onPlayPause: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onSeek: (positionMs: number) => void;
+  onVolumeChange: (volume: number) => void;
+  /** Mute / unmute that remembers the last level (`usePlaybackController().handleToggleMute`). */
+  onToggleMute: () => void;
+  onToggleVolumeUnit?: () => void;
+  onRestore: () => void;
+}
+
+export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({
+  title,
+  artist,
+  coverUrl,
+  isPlaying,
+  positionMs: positionMsProp,
+  durationMs,
+  volume,
+  pitchSemitones,
+  tempoRatio,
+  currentLang = 'en',
+  volumeUnit = 'percent',
+  onPlayPause,
+  onPrev,
+  onNext,
+  onSeek,
+  onVolumeChange,
+  onToggleMute,
+  onToggleVolumeUnit,
+  onRestore,
+}) => {
+  const [volumeCurve] = useVolumeCurve();
+  // Live position/spectrum (livePlayback): this component renders, not the whole app.
+  const positionMs = useLivePositionMs(positionMsProp);
+  const liveVolume = useLiveVolume(volume);
+  const t = getTranslations(currentLang);
+  const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
+  const isDspActive = Math.abs(pitchSemitones) > 0.05 || Math.abs(tempoRatio - 1.0) > 0.02;
+
+  return (
+    <div
+      className="flex h-screen w-screen select-none flex-col justify-between overflow-hidden rounded-xl border border-line-accent bg-deep px-3.5 py-3 text-fg"
+    >
+      {/* Top bar: cover, title, DSP and the restore button */}
+      <div className="flex items-center gap-2.5">
+        {/* Cover */}
+        <div
+          className={cn(
+            'flex size-10.5 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-card transition-shadow duration-300',
+            isPlaying && 'shadow-accent-glow',
+          )}
+        >
+          {coverUrl ? (
+            <img
+              src={coverUrl}
+              alt="Cover"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <Disc
+              size={22}
+              className={cn('text-accent-purple', isPlaying && 'animate-spin')}
+            />
+          )}
+        </div>
+
+        {/* Title and artist */}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-bold text-fg">
+            {title || 'Auralune'}
+          </div>
+          <div className="truncate text-xs text-fg-secondary">
+            {artist || t.player.noTrack}
+          </div>
+        </div>
+
+        {/* Optional active DSP badge */}
+        {isDspActive && (
+          <Badge tone="pink" size="xs" className="shrink-0 gap-0.5">
+            <Zap size={10} />
+            {tempoRatio.toFixed(2)}x
+          </Badge>
+        )}
+
+        {/* Back to the full window */}
+        <IconButton variant="secondary" size="sm" label={`${t.nav.miniPlayer} (${t.common.close})`} onClick={onRestore}>
+          <Maximize2 size={13} />
+        </IconButton>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mx-0 my-1">
+        <div
+          onClick={(e) => {
+            if (!durationMs || durationMs <= 0) return;
+            const { x, width } = clientPointToLocal(e.currentTarget, e.clientX, e.clientY);
+            const pct = width > 0 ? Math.max(0, Math.min(1, x / width)) : 0;
+            onSeek(Math.floor(pct * durationMs));
+          }}
+          className="relative h-1 cursor-pointer overflow-hidden rounded-xs bg-white/10"
+        >
+          <div
+            className="h-full rounded-xs bg-linear-to-r from-accent-purple to-accent-pink shadow-halo-sm shadow-accent-pink"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="mt-1 flex justify-between text-xxs text-fg-muted">
+          <span>{formatTime(positionMs)}</span>
+          <span>{durationMs ? formatTime(durationMs) : '--:--'}</span>
+        </div>
+      </div>
+
+      {/* Control buttons */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <IconButton size="sm" label={liveVolume === 0 ? t.player.unmute : t.player.mute} onClick={onToggleMute} className="size-6">
+            <VolumeIcon gain={liveVolume} size={14} />
+          </IconButton>
+          <VolumeSlider ariaLabel={t.player.volume} gain={liveVolume} onGainChange={onVolumeChange} className="h-1 w-12.5" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleVolumeUnit}
+            disabled={!onToggleVolumeUnit}
+            title={t.player.volumeToggleUnitTooltip}
+            className={cn('px-0.5 py-0 font-mono text-xxs', volumeUnit === 'db' ? 'text-accent-cyan' : 'text-accent-pink')}
+          >
+            {formatVolume(liveVolume, volumeUnit, volumeCurve, { compact: true })}
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <IconButton size="sm" label={t.player.previous} onClick={onPrev} className="text-fg-secondary">
+            <SkipBack size={15} />
+          </IconButton>
+          <Button
+            variant="primary"
+            onClick={onPlayPause}
+            aria-label={isPlaying ? t.player.pause : t.player.play}
+            title={isPlaying ? t.player.pause : t.player.play}
+            className="size-7 rounded-full p-0 shadow-halo-sm"
+          >
+            {isPlaying ? <Pause size={14} /> : <Play size={14} className="ml-px" />}
+          </Button>
+          <IconButton size="sm" label={t.player.next} onClick={onNext} className="text-fg-secondary">
+            <SkipForward size={15} />
+          </IconButton>
+        </div>
+      </div>
+    </div>
+  );
+};

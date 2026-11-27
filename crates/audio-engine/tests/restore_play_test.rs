@@ -44,10 +44,26 @@ fn test_restore_track_and_play_starts_cleanly() {
     let load_res = engine.load_uri(&item.uri);
     assert!(load_res.is_ok());
 
-    let seek_res = engine.seek(Duration::from_millis(200));
+    let resume_pos = Duration::from_millis(400);
+    let seek_res = engine.seek(resume_pos);
     assert!(seek_res.is_ok());
 
     let play_res = engine.play_with_fade(true);
     assert!(play_res.is_ok());
     assert_eq!(engine.state(), domain::PlaybackState::Playing);
+
+    // Position must stay at or past the restored seek target immediately on start and after preroll,
+    // never resetting to 0:00/0:01.
+    let immediate_pos = engine.position().expect("position after play_with_fade");
+    assert!(
+        immediate_pos >= resume_pos,
+        "immediate position {immediate_pos:?} dropped below resume target {resume_pos:?}"
+    );
+    std::thread::sleep(Duration::from_millis(80));
+    let settled_pos = engine.position().expect("position after playback settles");
+    assert!(
+        settled_pos >= resume_pos,
+        "settled position {settled_pos:?} dropped below resume target {resume_pos:?}"
+    );
+    let _ = engine.stop();
 }

@@ -1,0 +1,313 @@
+/*
+ * Element defaults. Lives in `@layer base`, so any utility class on an element wins over
+ * these rules (the few `!important` exceptions below say why).
+ */
+
+@layer base {
+  /* Preflight sets 1.5; the UI was designed on the browser default. */
+  html,
+  :host {
+    line-height: normal;
+  }
+
+  * {
+    user-select: none;
+  }
+
+  /*
+   * Restore browser defaults that preflight resets but the existing markup relies on. Remove
+   * a rule once every element of that kind carries explicit utilities (end of migration).
+   */
+  h1 {
+    font-size: 2em;
+    font-weight: bold;
+  }
+
+  h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+
+  h3 {
+    font-size: 1.17em;
+    font-weight: bold;
+  }
+
+  h4 {
+    font-weight: bold;
+  }
+
+  h5 {
+    font-size: 0.83em;
+    font-weight: bold;
+  }
+
+  h6 {
+    font-size: 0.67em;
+    font-weight: bold;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    display: inline;
+    vertical-align: baseline;
+  }
+
+  img,
+  video {
+    max-width: none;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.12) 0%, transparent 45%),
+      radial-gradient(circle at 85% 75%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.05) 0%, transparent 60%);
+    background-attachment: fixed;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+
+  /* ── Range sliders (audio & DSP) ─────────────────────────────────────────── */
+  input[type='range'] {
+    appearance: none;
+    height: 0.375rem;
+    border-radius: calc(infinity * 1px);
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    cursor: pointer;
+    accent-color: var(--accent-pink);
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+    cursor: pointer;
+    transition: scale 0.1s ease;
+  }
+
+  input[type='range']::-webkit-slider-thumb:hover {
+    scale: 1.25;
+  }
+
+  /* A slider whose feature is off: dimmed and inert, like a disabled button. */
+  input[type='range']:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  input[type='range']:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+    scale: none;
+  }
+
+  input[type='range']::-moz-range-progress {
+    height: 0.375rem;
+    border-radius: calc(infinity * 1px);
+    background: linear-gradient(90deg, var(--accent-pink), var(--accent-purple));
+  }
+
+  input[type='range']::-moz-range-track {
+    height: 0.375rem;
+    border-radius: calc(infinity * 1px);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /*
+   * ── Selects ────────────────────────────────────────────────────────────
+   * Colours are `!important` on purpose: WebKitGTK paints selects with the system GTK theme,
+   * and a light theme would otherwise bleed through any per-component background.
+   */
+  select {
+    appearance: none;
+    padding: 0.375rem 1.875rem 0.375rem 0.75rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    background-color: rgba(22, 26, 46, 0.95) !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f43f5e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 0.8125rem 0.8125rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    color: #f8fafc !important;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      box-shadow 0.15s ease,
+      translate 0.15s ease;
+  }
+
+  select:hover {
+    translate: 0 -1px;
+    border-color: var(--border-accent);
+    background-color: rgba(32, 38, 66, 0.98) !important;
+    box-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.35),
+      0 0 10px var(--border-accent);
+  }
+
+  select:focus-visible {
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-pink) 25%, transparent);
+  }
+
+  select option {
+    padding: 0.5rem 0.75rem;
+    background-color: #121424 !important;
+    color: #f8fafc !important;
+  }
+
+  /* ── Text fields ─────────────────────────────────────────────────────────── */
+  input[type='text'],
+  input[type='search'],
+  input[type='number'],
+  input[type='password'],
+  textarea {
+    appearance: none;
+    color: #f8fafc;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /*
+   * One focus ring for every text field. It is a box-shadow rather than an outline, so a
+   * stray `outline-none` or a border utility on the field cannot hide it.
+   */
+  input[type='text']:focus-visible,
+  input[type='search']:focus-visible,
+  input[type='number']:focus-visible,
+  input[type='password']:focus-visible,
+  input[type='url']:focus-visible,
+  input[type='email']:focus-visible,
+  textarea:focus-visible {
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-pink) 25%, transparent);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.8;
+  }
+
+  /*
+   * ── Buttons ──────────────────────────────────────────────────────────────
+   * Hover lift and press use the individual `translate`/`scale` properties: Tailwind v4's
+   * `translate-*`/`scale-*` utilities set those same properties, so a utility on a button
+   * replaces the base motion instead of stacking on top of a `transform`.
+   */
+  button,
+  [role='button'] {
+    border-radius: 0.5rem;
+    cursor: pointer;
+    outline: none;
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.22s var(--ease-out-expo),
+      filter 0.22s var(--ease-out-expo),
+      translate 0.16s var(--ease-out-expo),
+      scale 0.16s var(--ease-out-expo);
+  }
+
+  button:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid var(--accent-purple);
+    outline-offset: 2px;
+  }
+
+  button:hover:not(:disabled),
+  [role='button']:hover:not([aria-disabled='true']) {
+    translate: 0 -1px;
+    filter: brightness(1.13);
+    box-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.4),
+      0 0 12px var(--border-accent);
+  }
+
+  button:active:not(:disabled),
+  [role='button']:active:not([aria-disabled='true']) {
+    translate: 0 0;
+    scale: 0.97;
+    filter: brightness(0.97);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+  }
+
+  /* Settings → "button glow" off. `!important` in the base layer still beats utility classes. */
+  body.disable-button-glow button:hover:not(:disabled),
+  body.disable-button-glow [role='button']:hover:not([aria-disabled='true']) {
+    translate: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+
+  button:disabled,
+  [role='button'][aria-disabled='true'] {
+    translate: none !important;
+    scale: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button,
+    [role='button'] {
+      transition: none;
+      translate: none;
+      scale: none;
+    }
+  }
+
+  /* ── Scrollbars ──────────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: calc(infinity * 1px);
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.4);
+  }
+}

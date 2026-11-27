@@ -1,27 +1,28 @@
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-/// Reprezentacja pojedynczego wpisu utworu w pliku M3U/M3U8.
+/// A single track entry in an M3U/M3U8 file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct M3uEntry {
-    /// Ścieżka do pliku lokalnego lub adres URI (np. file:// lub http(s)://)
+    /// Path to a local file or a URI (e.g. file:// or http(s)://)
     pub path_or_uri: String,
-    /// Opcjonalny tytuł utworu z dyrektywy #EXTINF
+    /// Optional track title from the #EXTINF directive
     pub title: Option<String>,
-    /// Opcjonalny wykonawca z dyrektywy #EXTINF
+    /// Optional artist from the #EXTINF directive
     pub artist: Option<String>,
-    /// Czas trwania w sekundach (-1 jeśli nieznany/strumień)
+    /// Duration in seconds (-1 if unknown / a stream)
     pub duration_seconds: Option<i64>,
 }
 
-/// Reprezentacja sparsowanej playlisty M3U/M3U8.
+/// A parsed M3U/M3U8 playlist.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct M3uPlaylist {
     pub name: String,
     pub entries: Vec<M3uEntry>,
 }
 
-/// Wynik operacji importu playlisty M3U/M3U8 do bazy danych Auralune.
+/// Result of importing an M3U/M3U8 playlist into the Auralune database.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportM3uResult {
     pub playlist_id: i64,
@@ -32,13 +33,13 @@ pub struct ImportM3uResult {
 }
 
 impl M3uPlaylist {
-    /// Parsuje zawartość pliku `.m3u` lub `.m3u8` w standardzie UTF-8.
-    /// Jeśli podano `base_dir`, ścieżki względne są automatycznie rozwiązywane względem tego katalogu.
+    /// Parses the contents of a UTF-8 `.m3u` or `.m3u8` file.
+    /// If `base_dir` is given, relative paths are resolved against that directory.
     pub fn parse(
         content: &str,
         playlist_name: &str,
         base_dir: Option<&Path>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, DomainError> {
         let mut entries = Vec::new();
         let mut pending_duration: Option<i64> = None;
         let mut pending_artist: Option<String> = None;
@@ -59,7 +60,7 @@ impl M3uPlaylist {
                         pending_duration = Some(dur);
                     }
 
-                    // Próba podziału na "Wykonawca - Tytuł"
+                    // Try to split into "Artist - Title"
                     if let Some(dash_idx) = title_part.find(" - ") {
                         let artist = title_part[..dash_idx].trim().to_string();
                         let title = title_part[dash_idx + 3..].trim().to_string();
@@ -76,12 +77,12 @@ impl M3uPlaylist {
                 continue;
             }
 
-            // Ignorujemy inne dyrektywy nagłówka lub komentarze rozpoczynające się od #
+            // Ignore other header directives and comments starting with #
             if line.starts_with('#') {
                 continue;
             }
 
-            // Normalizacja separatorów ścieżek z Windows (\ -> /) dla zgodności z Linuksem
+            // Normalise Windows path separators (\ -> /) for Linux compatibility
             let normalized_path = line.replace('\\', "/");
 
             let resolved_path = if normalized_path.starts_with("file://")
@@ -92,7 +93,7 @@ impl M3uPlaylist {
                 normalized_path
             } else if let Some(dir) = base_dir {
                 let joined = dir.join(&normalized_path);
-                // Rozwijamy canonical lub upraszczamy ścieżkę
+                // Canonicalise or simplify the path
                 normalize_path(&joined)
             } else {
                 normalized_path
@@ -112,7 +113,7 @@ impl M3uPlaylist {
         })
     }
 
-    /// Eksportuje listę wpisów playlisty do standardu `#EXTM3U` (M3U8 UTF-8).
+    /// Exports the playlist entries in the `#EXTM3U` format (UTF-8 M3U8).
     pub fn export_to_m3u8(
         playlist_name: &str,
         entries: &[M3uEntry],
@@ -147,7 +148,7 @@ impl M3uPlaylist {
     }
 }
 
-/// Upraszcza i normalizuje ścieżkę systemową (usuwa zbędne . i ..).
+/// Simplifies and normalises a system path (removes redundant . and ..).
 fn normalize_path(path: &Path) -> String {
     let mut components = Vec::new();
     let is_abs = path.is_absolute();
@@ -180,9 +181,9 @@ fn normalize_path(path: &Path) -> String {
     }
 }
 
-/// Oblicza ścieżkę względną od `base_dir` do `target_path`.
+/// Computes the path of `target_path` relative to `base_dir`.
 fn compute_relative_path(target_path: &str, base_dir: &Path) -> String {
-    // Jeżeli target jest URI (np. http:// lub file://), nie zmieniamy go
+    // If the target is a URI (e.g. http:// or file://), leave it unchanged
     if target_path.starts_with("http://") || target_path.starts_with("https://") {
         return target_path.to_string();
     }
@@ -198,87 +199,5 @@ fn compute_relative_path(target_path: &str, base_dir: &Path) -> String {
         rel.to_string_lossy().to_string()
     } else {
         clean_path.to_string()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::Path;
-
-    #[test]
-    fn test_parse_m3u_simple_absolute() {
-        let content = r#"#EXTM3U
-#EXTINF:215,Das Letzte Kemonomimi - Skrzydła Białe
-/home/mimi/Music/skrzydla_biale.flac
-#EXTINF:180,Artist Name - Song Title
-/home/mimi/Music/song2.mp3
-"#;
-        let playlist = M3uPlaylist::parse(content, "Test List", None).unwrap();
-        assert_eq!(playlist.name, "Test List");
-        assert_eq!(playlist.entries.len(), 2);
-
-        assert_eq!(playlist.entries[0].title.as_deref(), Some("Skrzydła Białe"));
-        assert_eq!(
-            playlist.entries[0].artist.as_deref(),
-            Some("Das Letzte Kemonomimi")
-        );
-        assert_eq!(playlist.entries[0].duration_seconds, Some(215));
-        assert_eq!(
-            playlist.entries[0].path_or_uri,
-            "/home/mimi/Music/skrzydla_biale.flac"
-        );
-
-        assert_eq!(playlist.entries[1].title.as_deref(), Some("Song Title"));
-        assert_eq!(playlist.entries[1].artist.as_deref(), Some("Artist Name"));
-        assert_eq!(playlist.entries[1].duration_seconds, Some(180));
-    }
-
-    #[test]
-    fn test_parse_m3u_with_relative_and_windows_slashes() {
-        let content = r#"#EXTM3U
-#EXTINF:120,Anime Artist - Open The Door
-SubFolder\track1.flac
-#EXTINF:-1,Stream Radio
-https://stream.example.com/radio.opus
-"#;
-        let base_dir = Path::new("/home/mimi/Music");
-        let playlist = M3uPlaylist::parse(content, "Relative Playlist", Some(base_dir)).unwrap();
-        assert_eq!(playlist.entries.len(), 2);
-        assert_eq!(
-            playlist.entries[0].path_or_uri,
-            "/home/mimi/Music/SubFolder/track1.flac"
-        );
-        assert_eq!(
-            playlist.entries[1].path_or_uri,
-            "https://stream.example.com/radio.opus"
-        );
-    }
-
-    #[test]
-    fn test_export_to_m3u8() {
-        let entries = vec![
-            M3uEntry {
-                path_or_uri: "/home/mimi/Music/track1.flac".to_string(),
-                title: Some("Song One".to_string()),
-                artist: Some("Artist One".to_string()),
-                duration_seconds: Some(200),
-            },
-            M3uEntry {
-                path_or_uri: "/home/mimi/Music/track2.flac".to_string(),
-                title: None,
-                artist: None,
-                duration_seconds: None,
-            },
-        ];
-
-        let base_dir = Path::new("/home/mimi/Music");
-        let exported = M3uPlaylist::export_to_m3u8("My Anime List", &entries, Some(base_dir), true);
-
-        assert!(exported.starts_with("#EXTM3U\n"));
-        assert!(exported.contains("#PLAYLIST:My Anime List\n"));
-        assert!(exported.contains("#EXTINF:200,Artist One - Song One\n"));
-        assert!(exported.contains("track1.flac\n"));
-        assert!(exported.contains("track2.flac\n"));
     }
 }

@@ -1,0 +1,110 @@
+// @vitest-environment node
+import { describe, it, expect } from 'vitest';
+import type { ChordSegment } from '../types/analysis';
+import {
+  chordTone,
+  findActiveCell,
+  findNextDistinctCell,
+  groupByBar,
+  mergeChordSegments,
+  transposeChordName,
+} from './chordChart';
+
+const seg = (chord: string, quality: string, start: number, end: number, bar: number): ChordSegment => ({
+  start_ms: start,
+  end_ms: end,
+  chord,
+  root_note: chord[0],
+  quality,
+  confidence: 0.9,
+  beat: 1,
+  bar,
+});
+
+describe('chordChart', () => {
+  const chords = [
+    seg('C', 'maj', 0, 500, 1),
+    seg('C', 'maj', 500, 1000, 1),
+    seg('Am', 'min', 1000, 2000, 1),
+    seg('Am', 'min', 2000, 3000, 2),
+    seg('G7', '7', 3000, 4000, 2),
+  ];
+
+  it('merges identical neighbours within a bar only and remembers original indices', () => {
+    const cells = mergeChordSegments(chords);
+    expect(cells.map((c) => [c.chord, c.bar, c.start_ms, c.end_ms])).toEqual([
+      ['C', 1, 0, 1000],
+      ['Am', 1, 1000, 2000],
+      ['Am', 2, 2000, 3000],
+      ['G7', 2, 3000, 4000],
+    ]);
+    expect(cells[0].idxs).toEqual([0, 1]);
+  });
+
+  it('keeps the lowest confidence of merged detections', () => {
+    const low = [seg('C', 'maj', 0, 500, 1), { ...seg('C', 'maj', 500, 1000, 1), confidence: 0.4 }];
+    expect(mergeChordSegments(low)[0].confidence).toBe(0.4);
+  });
+
+  it('groups cells by bar', () => {
+    const bars = groupByBar(mergeChordSegments(chords));
+    expect(bars.map((b) => [b.bar, b.cells.length, b.start_ms, b.end_ms])).toEqual([
+      [1, 2, 0, 2000],
+      [2, 2, 2000, 4000],
+    ]);
+  });
+
+  it('finds the active cell and the next different chord', () => {
+    const cells = mergeChordSegments(chords);
+    expect(findActiveCell(cells, 1500)).toBe(1);
+    expect(findActiveCell(cells, 9999)).toBe(-1);
+    expect(findNextDistinctCell(cells, 1)?.chord).toBe('G7');
+    expect(findNextDistinctCell(cells, 3)).toBeNull();
+    expect(findNextDistinctCell(cells, -1)).toBeNull();
+  });
+
+  it('classifies chord qualities', () => {
+    expect(['maj', 'min', 'min7', '7', 'maj7', 'sus4', 'N'].map(chordTone)).toEqual([
+      'major',
+      'minor',
+      'minor',
+      'seventh',
+      'seventh',
+      'other',
+      'none',
+    ]);
+  });
+});
+
+describe('groupByBar with long cells', () => {
+  it('splits a run spanning many bars into one bar per cell', () => {
+    const barMs = (60000 / 120) * 4;
+    const long = [seg('Dm7', 'min7', 34000, 34000 + 111 * barMs, 17)];
+    const bars = groupByBar(mergeChordSegments(long), 120);
+    expect(bars).toHaveLength(111);
+    expect(bars[0].bar).toBe(17);
+    expect(bars[110].bar).toBe(127);
+    expect(bars[110].end_ms).toBe(34000 + 111 * barMs);
+    expect(bars.every((b) => b.cells.length === 1 && b.end_ms > b.start_ms)).toBe(true);
+  });
+
+  it('leaves one-bar cells alone and ignores an unknown tempo', () => {
+    const cells = mergeChordSegments([seg('C', 'maj', 0, 2000, 1), seg('G', 'maj', 2000, 4000, 2)]);
+    expect(groupByBar(cells, 120).map((b) => b.bar)).toEqual([1, 2]);
+    const long = mergeChordSegments([seg('C', 'maj', 0, 20000, 1)]);
+    expect(groupByBar(long)).toHaveLength(1);
+    expect(groupByBar(long, 0)).toHaveLength(1);
+  });
+});
+
+describe('transposeChordName', () => {
+  it('transposes natural, sharp, flat, and slash chords', () => {
+    expect(transposeChordName('A', 5)).toBe('D');
+    expect(transposeChordName('Am7', 5)).toBe('Dm7');
+    expect(transposeChordName('Bb', 5)).toBe('D#');
+    expect(transposeChordName('Eb7', -2)).toBe('C#7');
+    expect(transposeChordName('G/B', 5)).toBe('C/E');
+    expect(transposeChordName('N', 5)).toBe('N');
+    expect(transposeChordName('C', 0)).toBe('C');
+  });
+});

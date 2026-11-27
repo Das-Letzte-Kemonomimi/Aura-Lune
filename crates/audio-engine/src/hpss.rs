@@ -1,10 +1,10 @@
-//! Zaawansowany silnik separacji spektralnej Harmonic-Percussive (HPSS)
-//! oraz dekompozycji panoramy stereo (Stereo Azimuth / Pan-based Separation).
+//! Spectral Harmonic-Percussive source separation (HPSS)
+//! combined with stereo panorama decomposition (stereo azimuth / pan-based separation).
 //!
-//! Zastępuje prymitywne filtry korektora (Biquad EQ Crossover) profesjonalną
-//! analizą w dziedzinie częstotliwości i czasu (Short-Time Fourier Transform).
-//! Gwarantuje zachowanie transjentów perkusyjnych (stopa, werbel, talerze)
-//! w pełnym paśmie częstotliwości oraz matematyczną sumę 100% z sygnałem wejściowym.
+//! Replaces simple crossover filters (biquad EQ crossover) with analysis
+//! in the time-frequency domain (short-time Fourier transform).
+//! Keeps percussive transients (kick, snare, cymbals) across the full
+//! frequency range, and the stems always sum to exactly 100% of the input.
 
 use std::f32::consts::PI;
 
@@ -15,12 +15,12 @@ pub struct StereoStems {
     pub other: (Vec<f32>, Vec<f32>),
 }
 
-/// Szybka transformata Fouriera Radix-2 (in-place Cooley-Tukey FFT / IFFT).
+/// Radix-2 fast Fourier transform (in-place Cooley-Tukey FFT / IFFT).
 pub fn fft_radix2(real: &mut [f32], imag: &mut [f32], inverse: bool) {
     let n = real.len();
     assert!(n.is_power_of_two());
 
-    // Permutacja bit-reversal
+    // Bit-reversal permutation
     let mut j = 0;
     for i in 0..n {
         if i < j {
@@ -35,7 +35,7 @@ pub fn fft_radix2(real: &mut [f32], imag: &mut [f32], inverse: bool) {
         j ^= bit;
     }
 
-    // Motylki Cooley-Tukey
+    // Cooley-Tukey butterflies
     let sign = if inverse { 1.0 } else { -1.0 };
     let mut len = 2;
     while len <= n {
@@ -78,7 +78,7 @@ pub fn fft_radix2(real: &mut [f32], imag: &mut [f32], inverse: bool) {
     }
 }
 
-/// Szybkie wyliczenie mediany dla małych wycinków.
+/// Fast median for small slices.
 #[inline]
 fn quick_median(values: &mut [f32]) -> f32 {
     let len = values.len();
@@ -95,408 +95,309 @@ fn quick_median(values: &mut [f32]) -> f32 {
     values[mid]
 }
 
-/// Wykonuje zaawansowaną separację spektralną HPSS i panoramy stereo na parze próbek L/R.
+/// Spectrum of one STFT channel: the complex bins and their magnitudes (`num_bins` each).
+struct ChannelSpectrum {
+    re: Vec<f32>,
+    im: Vec<f32>,
+    mag: Vec<f32>,
+}
+
+impl ChannelSpectrum {
+    fn new(num_bins: usize) -> Self {
+        Self {
+            re: vec![0.0; num_bins],
+            im: vec![0.0; num_bins],
+            mag: vec![0.0; num_bins],
+        }
+    }
+}
+
+/// Spectrum of one STFT frame for both channels.
+struct StftFrame {
+    l: ChannelSpectrum,
+    r: ChannelSpectrum,
+}
+
+impl StftFrame {
+    fn new(num_bins: usize) -> Self {
+        Self {
+            l: ChannelSpectrum::new(num_bins),
+            r: ChannelSpectrum::new(num_bins),
+        }
+    }
+}
+
+/// Reusable FFT buffers (no per-frame allocation).
+struct FftScratch {
+    re: Vec<f32>,
+    im: Vec<f32>,
+}
+
+/// Spectrum (complex bins and magnitudes) of the windowed slice `signal[offset..offset + fft_size]`.
+fn analyze_channel(
+    signal: &[f32],
+    offset: usize,
+    window: &[f32],
+    fft: &mut FftScratch,
+    out: &mut ChannelSpectrum,
+) {
+    for (i, &w) in window.iter().enumerate() {
+        fft.re[i] = signal[offset + i] * w;
+        fft.im[i] = 0.0;
+    }
+    fft_radix2(&mut fft.re, &mut fft.im, false);
+    let num_bins = out.mag.len();
+    out.re.copy_from_slice(&fft.re[..num_bins]);
+    out.im.copy_from_slice(&fft.im[..num_bins]);
+    for (mag, (&re, &im)) in out.mag.iter_mut().zip(out.re.iter().zip(&out.im)) {
+        *mag = (re * re + im * im).sqrt();
+    }
+}
+
+/// Runs the HPSS and stereo-panorama separation on a pair of L/R sample buffers.
+///
+/// Takes the input by value: "other" is computed in place in the input buffers, so the input is
+/// never held next to all eight output signals.
+///
+/// The harmonic median needs only ±`R_TIME` neighbouring frames, so the spectrum is computed
+/// into a ring buffer of `2·R_TIME + 1` frames, and every frame is masked and
+/// resynthesised right away (overlap-add). Memory beyond the output signals is constant; previously
+/// 16 full spectrogram matrices took about 1.7 GB for a 5-minute track.
+///
+/// Every stem is a real-valued mask applied to the mixture spectrum, so it is resynthesised as
+/// `gain · X` (no `atan2` / `sin` / `cos` round trip through polar form). "Other" is the exact
+/// residual `input − vocals − drums − bass` in the time domain, so it needs no ISTFT of its own
+/// and the four stems always sum to the input.
 pub fn separate_stereo_hpss<F>(
-    left: &[f32],
-    right: &[f32],
+    mut left: Vec<f32>,
+    mut right: Vec<f32>,
     sample_rate: u32,
     mut progress_cb: Option<&mut F>,
 ) -> StereoStems
 where
     F: FnMut(f32, &str) + ?Sized,
 {
-    let n_samples = left.len().min(right.len());
-    let fft_size = 2048;
-    let hop_size = 512; // 75% overlap dla Hann window
+    const FFT_SIZE: usize = 2048;
+    const HOP_SIZE: usize = 512; // 75% overlap for the Hann window
+                                 // Time radius (harmonics): 7 frames ≈ ±81 ms at hop 512 and 44.1 kHz.
+    const R_TIME: usize = 7;
+    // Frequency radius (percussion): 7 bins ≈ ±151 Hz at 21.5 Hz/bin.
+    const R_FREQ: usize = 7;
+    const RING: usize = 2 * R_TIME + 1;
+    const EPS: f32 = 1e-6;
 
-    if n_samples < fft_size {
-        // Fallback dla bardzo krótkich sygnałów
+    let n_samples = left.len().min(right.len());
+    if n_samples < FFT_SIZE {
+        // Fallback for very short signals
         return StereoStems {
-            vocals: (left.to_vec(), right.to_vec()),
+            vocals: (left, right),
             drums: (vec![0.0; n_samples], vec![0.0; n_samples]),
             bass: (vec![0.0; n_samples], vec![0.0; n_samples]),
             other: (vec![0.0; n_samples], vec![0.0; n_samples]),
         };
     }
 
-    if let Some(ref mut cb) = progress_cb {
-        cb(
-            0.35,
-            "STFT: Analiza czasowo-częstotliwościowa (Hann 2048/512)...",
-        );
-    }
-
-    // 1. Okno Hanna
-    let mut window = vec![0.0f32; fft_size];
-    for (i, w) in window.iter_mut().enumerate() {
-        *w = 0.5 * (1.0 - (2.0 * PI * (i as f32) / (fft_size as f32)).cos());
-    }
-
-    let num_frames = (n_samples - fft_size) / hop_size + 1;
-    let num_bins = fft_size / 2 + 1;
-
-    // Bufory STFT (magnitude i phase)
-    let mut mag_left = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut phase_left = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut mag_right = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut phase_right = vec![vec![0.0f32; num_bins]; num_frames];
-
-    let mut temp_re = vec![0.0f32; fft_size];
-    let mut temp_im = vec![0.0f32; fft_size];
-
-    for frame in 0..num_frames {
-        let offset = frame * hop_size;
-
-        // Kanał lewy
-        for i in 0..fft_size {
-            temp_re[i] = left[offset + i] * window[i];
-            temp_im[i] = 0.0;
+    let mut report = |p: f32, msg: &str| {
+        if let Some(cb) = progress_cb.as_mut() {
+            cb(p, msg);
         }
-        fft_radix2(&mut temp_re, &mut temp_im, false);
-        for k in 0..num_bins {
-            let re = temp_re[k];
-            let im = temp_im[k];
-            mag_left[frame][k] = (re * re + im * im).sqrt();
-            phase_left[frame][k] = im.atan2(re);
-        }
+    };
+    report(0.35, "STFT: time-frequency analysis (Hann 2048/512)...");
 
-        // Kanał prawy
-        for i in 0..fft_size {
-            temp_re[i] = right[offset + i] * window[i];
-            temp_im[i] = 0.0;
-        }
-        fft_radix2(&mut temp_re, &mut temp_im, false);
-        for k in 0..num_bins {
-            let re = temp_re[k];
-            let im = temp_im[k];
-            mag_right[frame][k] = (re * re + im * im).sqrt();
-            phase_right[frame][k] = im.atan2(re);
-        }
-    }
+    let window: Vec<f32> = (0..FFT_SIZE)
+        .map(|i| 0.5 * (1.0 - (2.0 * PI * (i as f32) / (FFT_SIZE as f32)).cos()))
+        .collect();
+    let num_frames = (n_samples - FFT_SIZE) / HOP_SIZE + 1;
+    let num_bins = FFT_SIZE / 2 + 1;
 
-    if let Some(ref mut cb) = progress_cb {
-        cb(
-            0.50,
-            "HPSS: Filtracja medianowa (Harmoniczne vs Transjenty)...",
-        );
-    }
-
-    // 2. Filtracja medianowa dla HPSS
-    // Promień w czasie (harmoniczne): ~15 ramek (~174 ms przy hop 512, 44.1 kHz)
-    // Promień w częstotliwości (perkusja): ~15 binów (~322 Hz przy 21.5 Hz/bin)
-    let r_time = 7usize;
-    let r_freq = 7usize;
-
-    let mut harm_left = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut perc_left = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut harm_right = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut perc_right = vec![vec![0.0f32; num_bins]; num_frames];
-
-    let mut scratch = Vec::with_capacity(32);
-
-    for f in 0..num_frames {
-        for k in 0..num_bins {
-            // Harmoniczna lewa: mediana w czasie (poziomo)
-            let f_start = f.saturating_sub(r_time);
-            let f_end = (f + r_time + 1).min(num_frames);
-            scratch.clear();
-            for row in mag_left.iter().take(f_end).skip(f_start) {
-                scratch.push(row[k]);
-            }
-            harm_left[f][k] = quick_median(&mut scratch);
-
-            // Percussive lewa: mediana w częstotliwości (pionowo)
-            let k_start = k.saturating_sub(r_freq);
-            let k_end = (k + r_freq + 1).min(num_bins);
-            scratch.clear();
-            scratch.extend_from_slice(&mag_left[f][k_start..k_end]);
-            perc_left[f][k] = quick_median(&mut scratch);
-
-            // Harmoniczna prawa
-            scratch.clear();
-            for row in mag_right.iter().take(f_end).skip(f_start) {
-                scratch.push(row[k]);
-            }
-            harm_right[f][k] = quick_median(&mut scratch);
-
-            // Percussive prawa
-            scratch.clear();
-            scratch.extend_from_slice(&mag_right[f][k_start..k_end]);
-            perc_right[f][k] = quick_median(&mut scratch);
-        }
-    }
-
-    if let Some(ref mut cb) = progress_cb {
-        cb(
-            0.65,
-            "Separacja źródeł: Dekompozycja panoramy stereo i masek...",
-        );
-    }
-
-    // 3. Rozdzielenie na 4 maski: Drums, Bass, Vocals, Other
-    // Częstotliwości graniczne
-    let hz_per_bin = (sample_rate as f32) / (fft_size as f32);
+    let hz_per_bin = (sample_rate as f32) / (FFT_SIZE as f32);
     let bass_cutoff_bin = ((220.0 / hz_per_bin).round() as usize).min(num_bins - 1);
     let vocal_low_bin = ((160.0 / hz_per_bin).round() as usize).min(num_bins - 1);
     let vocal_high_bin = ((7500.0 / hz_per_bin).round() as usize).min(num_bins - 1);
 
-    // Bufory wyjściowe w dziedzinie częstotliwości
-    let mut out_vocals_l = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_vocals_r = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_drums_l = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_drums_r = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_bass_l = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_bass_r = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_other_l = vec![vec![0.0f32; num_bins]; num_frames];
-    let mut out_other_r = vec![vec![0.0f32; num_bins]; num_frames];
+    let mut ring: Vec<StftFrame> = (0..RING.min(num_frames))
+        .map(|_| StftFrame::new(num_bins))
+        .collect();
+    let mut fft = FftScratch {
+        re: vec![0.0; FFT_SIZE],
+        im: vec![0.0; FFT_SIZE],
+    };
+    let mut computed = 0usize; // number of frames already analysed
+    let mut scratch = Vec::with_capacity(2 * R_TIME.max(R_FREQ) + 1);
 
+    // Per-bin spectral gains of the current frame: [vocals, drums, bass] × [L, R].
+    let mut stem_gain = vec![vec![0.0f32; num_bins]; 6];
+    let mut rec: Vec<Vec<f32>> = (0..6).map(|_| vec![0.0f32; n_samples]).collect();
+    let norm_factor = 1.5f32; // Sum of squares of the Hann window at 75% overlap
+
+    let mut next_report = 1usize;
     for f in 0..num_frames {
+        // Analyse frames up to f + R_TIME (overwrites the slots of frames < f - R_TIME, no longer needed).
+        let f_end = (f + R_TIME + 1).min(num_frames);
+        while computed < f_end {
+            let slot = &mut ring[computed % RING];
+            let offset = computed * HOP_SIZE;
+            analyze_channel(&left, offset, &window, &mut fft, &mut slot.l);
+            analyze_channel(&right, offset, &window, &mut fft, &mut slot.r);
+            computed += 1;
+        }
+        let f_start = f.saturating_sub(R_TIME);
+        let cur = &ring[f % RING];
+
         for k in 0..num_bins {
-            let m_l = mag_left[f][k];
-            let m_r = mag_right[f][k];
+            // Medians: harmonic along time (horizontal), percussive along frequency (vertical).
+            let k_start = k.saturating_sub(R_FREQ);
+            let k_end = (k + R_FREQ + 1).min(num_bins);
+            scratch.clear();
+            scratch.extend((f_start..f_end).map(|j| ring[j % RING].l.mag[k]));
+            let h_l = quick_median(&mut scratch);
+            scratch.clear();
+            scratch.extend_from_slice(&cur.l.mag[k_start..k_end]);
+            let p_l = quick_median(&mut scratch);
+            scratch.clear();
+            scratch.extend((f_start..f_end).map(|j| ring[j % RING].r.mag[k]));
+            let h_r = quick_median(&mut scratch);
+            scratch.clear();
+            scratch.extend_from_slice(&cur.r.mag[k_start..k_end]);
+            let p_r = quick_median(&mut scratch);
 
-            let h_l = harm_left[f][k];
-            let p_l = perc_left[f][k];
-            let h_r = harm_right[f][k];
-            let p_r = perc_right[f][k];
+            let m_l = cur.l.mag[k];
+            let m_r = cur.r.mag[k];
 
-            // Maski Wienera HPSS (kwadraty dla wyrazistej separacji)
-            let eps = 1e-6f32;
-            let mask_perc_l = (p_l * p_l) / (p_l * p_l + h_l * h_l + eps);
+            // HPSS Wiener masks (squared for a crisper separation)
+            let mask_perc_l = (p_l * p_l) / (p_l * p_l + h_l * h_l + EPS);
             let mask_harm_l = 1.0 - mask_perc_l;
-
-            let mask_perc_r = (p_r * p_r) / (p_r * p_r + h_r * h_r + eps);
+            let mask_perc_r = (p_r * p_r) / (p_r * p_r + h_r * h_r + EPS);
             let mask_harm_r = 1.0 - mask_perc_r;
 
-            // Pan-based Center vs Side extraction
+            // Panorama: 0.0 = dead centre, 1.0 = hard-panned
             let diff = (m_l - m_r).abs();
-            let sum = m_l + m_r + eps;
-            let pan_side = (diff / sum).min(1.0); // 0.0 = idealny środek, 1.0 = skrajna panorama
+            let sum = m_l + m_r + EPS;
+            let pan_side = (diff / sum).min(1.0);
             let pan_center = (1.0 - 1.6 * pan_side).clamp(0.0, 1.0);
 
-            // 1. DRUMS (Wszystkie transjenty i składowe perkusyjne w całym paśmie)
-            // Stopa (<120Hz), werbel (200-2000Hz), hi-haty (>4000Hz)
-            out_drums_l[f][k] = m_l * mask_perc_l;
-            out_drums_r[f][k] = m_r * mask_perc_r;
+            // Each stem's magnitude is `m × gain`; the gains below are those masks without `m`.
+            // 1. DRUMS: every percussive component across the full range
+            let (drums_l, drums_r) = (mask_perc_l, mask_perc_r);
 
-            // Pozostała energia harmoniczna
-            let rem_h_l = m_l * mask_harm_l;
-            let rem_h_r = m_r * mask_harm_r;
-
-            // 2. BASS (Harmoniczne w centrum poniżej 220 Hz)
-            if k <= bass_cutoff_bin {
+            // 2. BASS: centred harmonics below 220 Hz
+            let (bass_l, bass_r) = if k <= bass_cutoff_bin {
                 let bass_weight = (1.0 - (k as f32 / bass_cutoff_bin as f32).powi(2)).max(0.0);
                 let bass_mask = bass_weight * (0.3 + 0.7 * pan_center);
-                out_bass_l[f][k] = rem_h_l * bass_mask;
-                out_bass_r[f][k] = rem_h_r * bass_mask;
-            }
+                (mask_harm_l * bass_mask, mask_harm_r * bass_mask)
+            } else {
+                (0.0, 0.0)
+            };
 
-            // 3. VOCALS (Harmoniczne w centrum w paśmie wokalnym 160 Hz - 7.5 kHz)
-            let voc_candidate_l = rem_h_l - out_bass_l[f][k];
-            let voc_candidate_r = rem_h_r - out_bass_r[f][k];
-
-            if k >= vocal_low_bin && k <= vocal_high_bin {
-                // Wokal prowadzący dominuje w centrum panoramy
+            // 3. VOCALS: centred harmonics in the 160 Hz – 7.5 kHz band
+            let (vocals_l, vocals_r) = if k >= vocal_low_bin && k <= vocal_high_bin {
                 let vocal_mask = pan_center.powf(1.2);
-                out_vocals_l[f][k] = voc_candidate_l * vocal_mask;
-                out_vocals_r[f][k] = voc_candidate_r * vocal_mask;
-            }
+                (
+                    (mask_harm_l - bass_l) * vocal_mask,
+                    (mask_harm_r - bass_r) * vocal_mask,
+                )
+            } else {
+                (0.0, 0.0)
+            };
 
-            // 4. OTHER / RESIDUAL (Gitary, instrumenty klawiszowe, syntezatory, pogłosy, chórki w panoramie)
-            out_other_l[f][k] =
-                (m_l - (out_drums_l[f][k] + out_bass_l[f][k] + out_vocals_l[f][k])).max(0.0);
-            out_other_r[f][k] =
-                (m_r - (out_drums_r[f][k] + out_bass_r[f][k] + out_vocals_r[f][k])).max(0.0);
+            // 4. OTHER (guitars, keys, synths, reverb, panned backing vocals) is the time-domain
+            // residual below.
+            for (gain, v) in stem_gain
+                .iter_mut()
+                .zip([vocals_l, vocals_r, drums_l, drums_r, bass_l, bass_r])
+            {
+                gain[k] = v;
+            }
+        }
+
+        // Frame reconstruction (ISTFT + overlap-add) for every stem.
+        let offset = f * HOP_SIZE;
+        for (i, (gain, out)) in stem_gain.iter().zip(rec.iter_mut()).enumerate() {
+            let spectrum = if i % 2 == 0 { &cur.l } else { &cur.r };
+            synth_frame(
+                gain,
+                spectrum,
+                &window,
+                norm_factor,
+                &mut fft,
+                &mut out[offset..offset + FFT_SIZE],
+            );
+        }
+
+        // Progress uses the same stages as before (medians → masks → reconstruction).
+        if next_report <= 2 && f + 1 >= num_frames * next_report / 3 {
+            if next_report == 1 {
+                report(0.50, "HPSS: median filtering (harmonics vs transients)...");
+            } else {
+                report(
+                    0.65,
+                    "Source separation: stereo panorama and mask decomposition...",
+                );
+            }
+            next_report += 1;
         }
     }
 
-    if let Some(ref mut cb) = progress_cb {
-        cb(
-            0.80,
-            "ISTFT: Rekonstrukcja Overlap-Add sygnału w pełnym stereo...",
-        );
-    }
+    report(
+        0.80,
+        "ISTFT: overlap-add reconstruction of the full stereo signal...",
+    );
 
-    // 4. Rekonstrukcja sygnałów czasowych (ISTFT + Overlap-Add)
-    let mut rec_vocals_l = vec![0.0f32; n_samples];
-    let mut rec_vocals_r = vec![0.0f32; n_samples];
-    let mut rec_drums_l = vec![0.0f32; n_samples];
-    let mut rec_drums_r = vec![0.0f32; n_samples];
-    let mut rec_bass_l = vec![0.0f32; n_samples];
-    let mut rec_bass_r = vec![0.0f32; n_samples];
-    let mut rec_other_l = vec![0.0f32; n_samples];
-    let mut rec_other_r = vec![0.0f32; n_samples];
+    let mut rec = rec.into_iter();
+    let mut take = || rec.next().unwrap_or_default();
+    let (vocals_l, vocals_r) = (take(), take());
+    let (drums_l, drums_r) = (take(), take());
+    let (bass_l, bass_r) = (take(), take());
 
-    let norm_factor = 1.5f32; // Suma kwadratów okna Hanna przy 75% overlap
-
-    for frame in 0..num_frames {
-        let offset = frame * hop_size;
-
-        // Vocals L
-        synth_frame(
-            &out_vocals_l[frame],
-            &phase_left[frame],
-            &window,
-            norm_factor,
-            &mut rec_vocals_l[offset..offset + fft_size],
-        );
-        // Vocals R
-        synth_frame(
-            &out_vocals_r[frame],
-            &phase_right[frame],
-            &window,
-            norm_factor,
-            &mut rec_vocals_r[offset..offset + fft_size],
-        );
-
-        // Drums L
-        synth_frame(
-            &out_drums_l[frame],
-            &phase_left[frame],
-            &window,
-            norm_factor,
-            &mut rec_drums_l[offset..offset + fft_size],
-        );
-        // Drums R
-        synth_frame(
-            &out_drums_r[frame],
-            &phase_right[frame],
-            &window,
-            norm_factor,
-            &mut rec_drums_r[offset..offset + fft_size],
-        );
-
-        // Bass L
-        synth_frame(
-            &out_bass_l[frame],
-            &phase_left[frame],
-            &window,
-            norm_factor,
-            &mut rec_bass_l[offset..offset + fft_size],
-        );
-        // Bass R
-        synth_frame(
-            &out_bass_r[frame],
-            &phase_right[frame],
-            &window,
-            norm_factor,
-            &mut rec_bass_r[offset..offset + fft_size],
-        );
-
-        // Other L
-        synth_frame(
-            &out_other_l[frame],
-            &phase_left[frame],
-            &window,
-            norm_factor,
-            &mut rec_other_l[offset..offset + fft_size],
-        );
-        // Other R
-        synth_frame(
-            &out_other_r[frame],
-            &phase_right[frame],
-            &window,
-            norm_factor,
-            &mut rec_other_r[offset..offset + fft_size],
-        );
-    }
-
-    // 5. Dokładna korekta residualna: Suma stemów musi być w 100% równa oryginałowi
-    for i in 0..n_samples {
-        let sum_l = rec_vocals_l[i] + rec_drums_l[i] + rec_bass_l[i] + rec_other_l[i];
-        let diff_l = left[i] - sum_l;
-        rec_other_l[i] = (rec_other_l[i] + diff_l).clamp(-1.0, 1.0);
-
-        let sum_r = rec_vocals_r[i] + rec_drums_r[i] + rec_bass_r[i] + rec_other_r[i];
-        let diff_r = right[i] - sum_r;
-        rec_other_r[i] = (rec_other_r[i] + diff_r).clamp(-1.0, 1.0);
-    }
+    // 5. OTHER: the exact residual, so the stems sum to the original (in the input buffers).
+    let residual = |input: &mut Vec<f32>, v: &[f32], d: &[f32], b: &[f32]| {
+        input.truncate(n_samples);
+        for (i, s) in input.iter_mut().enumerate() {
+            *s = (*s - (v[i] + d[i] + b[i])).clamp(-1.0, 1.0);
+        }
+    };
+    residual(&mut left, &vocals_l, &drums_l, &bass_l);
+    residual(&mut right, &vocals_r, &drums_r, &bass_r);
+    let (other_l, other_r) = (left, right);
 
     StereoStems {
-        vocals: (rec_vocals_l, rec_vocals_r),
-        drums: (rec_drums_l, rec_drums_r),
-        bass: (rec_bass_l, rec_bass_r),
-        other: (rec_other_l, rec_other_r),
+        vocals: (vocals_l, vocals_r),
+        drums: (drums_l, drums_r),
+        bass: (bass_l, bass_r),
+        other: (other_l, other_r),
     }
 }
 
-/// Rekonstruuje pojedynczą ramkę FFT do dziedziny czasu z oknem syntezy.
+/// Reconstructs one masked FFT frame (`gain[k] · X[k]`) into the time domain with a synthesis
+/// window (overlap-add into `out`).
 #[inline]
-fn synth_frame(mag: &[f32], phase: &[f32], window: &[f32], norm_factor: f32, out: &mut [f32]) {
+fn synth_frame(
+    gain: &[f32],
+    spectrum: &ChannelSpectrum,
+    window: &[f32],
+    norm_factor: f32,
+    fft: &mut FftScratch,
+    out: &mut [f32],
+) {
     let fft_size = window.len();
-    let num_bins = mag.len();
-    let mut temp_re = vec![0.0f32; fft_size];
-    let mut temp_im = vec![0.0f32; fft_size];
-
-    for k in 0..num_bins {
-        let m = mag[k];
-        let p = phase[k];
-        let re = m * p.cos();
-        let im = m * p.sin();
-        temp_re[k] = re;
-        temp_im[k] = im;
+    let num_bins = gain.len();
+    fft.re.fill(0.0);
+    fft.im.fill(0.0);
+    for (k, ((&g, &x_re), &x_im)) in gain.iter().zip(&spectrum.re).zip(&spectrum.im).enumerate() {
+        let (re, im) = (g * x_re, g * x_im);
+        fft.re[k] = re;
+        fft.im[k] = im;
         if k > 0 && k < num_bins - 1 {
-            temp_re[fft_size - k] = re;
-            temp_im[fft_size - k] = -im;
+            fft.re[fft_size - k] = re;
+            fft.im[fft_size - k] = -im;
         }
     }
-
-    fft_radix2(&mut temp_re, &mut temp_im, true);
-
+    fft_radix2(&mut fft.re, &mut fft.im, true);
     for i in 0..fft_size {
-        out[i] += temp_re[i] * window[i] / norm_factor;
+        out[i] += fft.re[i] * window[i] / norm_factor;
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_fft_radix2_roundtrip() {
-        let n = 2048;
-        let mut re = vec![0.0f32; n];
-        let mut im = vec![0.0f32; n];
-        for (i, r) in re.iter_mut().enumerate() {
-            *r = ((i as f32) * 0.1).sin();
-        }
-        let orig = re.clone();
-
-        fft_radix2(&mut re, &mut im, false);
-        fft_radix2(&mut re, &mut im, true);
-
-        for (i, &val) in orig.iter().enumerate() {
-            assert!((re[i] - val).abs() < 1e-4);
-        }
-    }
-
-    #[test]
-    fn test_hpss_stereo_sum_reconstruction() {
-        let n = 8192;
-        let mut left = vec![0.0f32; n];
-        let mut right = vec![0.0f32; n];
-        for i in 0..n {
-            let t = i as f32 / 44100.0;
-            left[i] = (2.0 * PI * 100.0 * t).sin() * 0.5 + (2.0 * PI * 1000.0 * t).sin() * 0.3;
-            right[i] = (2.0 * PI * 100.0 * t).sin() * 0.5 + (2.0 * PI * 1200.0 * t).sin() * 0.3;
-        }
-
-        let stems = separate_stereo_hpss(&left, &right, 44100, None::<&mut fn(f32, &str)>);
-
-        // Weryfikacja dokładności sumy: Suma wszystkich stemów musi idealnie pokrywać wejście
-        for i in 2048..6144 {
-            let sum_l = stems.vocals.0[i] + stems.drums.0[i] + stems.bass.0[i] + stems.other.0[i];
-            let sum_r = stems.vocals.1[i] + stems.drums.1[i] + stems.bass.1[i] + stems.other.1[i];
-            assert!(
-                (sum_l - left[i]).abs() < 1e-3,
-                "Błąd rekonstrukcji L na próbce {}",
-                i
-            );
-            assert!(
-                (sum_r - right[i]).abs() < 1e-3,
-                "Błąd rekonstrukcji R na próbce {}",
-                i
-            );
-        }
-    }
-}
+#[path = "hpss_test.rs"]
+mod tests;

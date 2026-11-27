@@ -1,8 +1,8 @@
-//! Modele domenowe dla analizy muzycznej (akordy, transkrypcja nutowa, separacja ścieżek, modele AI).
+//! Domain models for music analysis (chords, note transcription, stem separation, AI models).
 
 use serde::{Deserialize, Serialize};
 
-/// Informacje o akordzie w zadanym przedziale czasowym.
+/// Chord information for a given time interval.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ChordSegment {
     pub start_ms: u64,
@@ -12,19 +12,19 @@ pub struct ChordSegment {
     pub quality: String,           // np. "maj", "min", "7", "maj7", "min7", "sus4", "dim", "aug"
     pub bass_note: Option<String>, // np. "G" w "C/G" (slash chords)
     pub confidence: f32,           // 0.0 .. 1.0
-    pub beat: u32,                 // numer uderzenia w takcie (1, 2, 3, 4)
-    pub bar: u32,                  // numer taktu (1, 2, 3...)
+    pub beat: u32,                 // beat number in the bar (1, 2, 3, 4)
+    pub bar: u32,                  // bar number (1, 2, 3...)
 }
 
-/// Pojedynczy punkt siatki taktowej (Beat Grid).
+/// A single beat grid point.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BeatPoint {
     pub time_ms: u64,
     pub beat_number: u32,  // 1, 2, 3, 4...
-    pub is_downbeat: bool, // true dla 1. uderzenia taktu
+    pub is_downbeat: bool, // true for the 1st beat of the bar
 }
 
-/// Zestaw danych harmonicznych i siatki rytmicznej dla utworu.
+/// Harmonic data and the beat grid of a track.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackChordsData {
     pub track_id: i64,
@@ -37,19 +37,19 @@ pub struct TrackChordsData {
     pub analyzer_version: String,
 }
 
-/// Pojedyncza nuta wykryta w procesie polifonicznej transkrypcji nutowej.
+/// A single note detected by polyphonic note transcription.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DetectedNote {
     pub onset_ms: u64,
     pub duration_ms: u64,
     pub midi_pitch: u8,       // 0 .. 127 (60 = C4)
     pub pitch_name: String,   // np. "C4", "A#3", "F5"
-    pub cents_offset: i8,     // odchylenie od stroju równomiernie temperowanego (-50 .. +50)
+    pub cents_offset: i8,     // deviation from equal temperament (-50 .. +50)
     pub velocity: u8,         // 1 .. 127
     pub stem: Option<String>, // np. "vocals", "bass", "piano", "guitar"
 }
 
-/// Zestaw nut transkrypcji utworu (dla Piano-Roll i eksportu MIDI).
+/// Note transcription of a track (for the piano roll and MIDI export).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackTranscriptionData {
     pub track_id: i64,
@@ -59,7 +59,19 @@ pub struct TrackTranscriptionData {
     pub analyzer_version: String,
 }
 
-/// Metadane rozdzielonych ścieżek audio (Stems) dla utworu.
+/// Spectral waveform profile for a track (amplitude envelope + 3-band FFT energy per bucket).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrackWaveformData {
+    pub track_id: Option<i64>,
+    pub sample_count: usize,
+    /// Normalised amplitude/energy envelope per bucket (`0.05..=1.0`).
+    pub peaks: Vec<f32>,
+    /// Normalised `[low, mid, high]` FFT band energies per bucket (`0.0..=1.0`).
+    pub bands: Vec<[f32; 3]>,
+    pub analyzer_version: String,
+}
+
+/// Metadata of a track's separated audio stems.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StemSeparationData {
     pub track_id: i64,
@@ -74,7 +86,7 @@ pub struct StemSeparationData {
     pub guitar_path: Option<String>,
 }
 
-/// Typ zadania modelu uczenia maszynowego.
+/// Machine learning model task type.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AiTaskType {
     StemSeparation,
@@ -101,11 +113,11 @@ impl AiTaskType {
     }
 }
 
-/// Informacje o modelu AI zarejestrowanym w menedżerze modeli.
+/// Information about an AI model registered in the model manager.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AiModelInfo {
-    pub id: String,   // unikalny identyfikator, np. "htdemucs_v4", "basic_pitch"
-    pub name: String, // czytelna nazwa, np. "HTDemucs v4 (4-Stem Studio)"
+    pub id: String,   // unique identifier, e.g. "htdemucs_v4", "basic_pitch"
+    pub name: String, // readable name, e.g. "HTDemucs v4 (4-Stem Studio)"
     pub task_type: AiTaskType,
     pub file_path: String,
     pub file_size: u64,
@@ -116,7 +128,7 @@ pub struct AiModelInfo {
     pub description: String,
 }
 
-/// Możliwości silnika analizy muzycznej raportowane frontendowi.
+/// Music analysis engine capabilities reported to the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AnalysisCapabilities {
     pub ml_enabled: bool,
@@ -126,7 +138,7 @@ pub struct AnalysisCapabilities {
     pub models: Vec<AiModelInfo>,
 }
 
-/// Stan miksera ścieżek (Stem Mixer).
+/// Stem mixer state.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StemMixerState {
     pub enabled: bool,
@@ -143,12 +155,12 @@ pub struct StemMixerState {
     pub piano_mute: bool,
     pub guitar_mute: bool,
     pub solo_stem: Option<String>, // np. Some("vocals")
-    pub karaoke_mode: bool,        // szybkie wyciszenie wokalu (vocals_mute = true)
+    pub karaoke_mode: bool,        // quick vocal mute (vocals_mute = true)
 }
 
 impl StemMixerState {
-    /// Oblicza efektywne wzmocnienie (liniowe 0.0 .. 2.0) dla danego stemu z uwzględnieniem
-    /// wyciszenia (mute), trybu solo oraz szybkiego trybu Karaoke.
+    /// Computes the effective gain (linear 0.0 .. 2.0) of a stem, taking mute,
+    /// solo and the quick karaoke mode into account.
     pub fn get_effective_volume(&self, stem: &str) -> f64 {
         if !self.enabled {
             return 1.0;

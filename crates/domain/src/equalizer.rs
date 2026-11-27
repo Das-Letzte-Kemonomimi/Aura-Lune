@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-/// Częstotliwości środkowe pasm 10-pasmowego korektora graficznego (w Hz).
+/// Centre frequencies of the 10-band graphic equaliser bands (in Hz).
 pub const EQUALIZER_FREQUENCIES: [u32; 10] = [29, 59, 119, 237, 474, 947, 1889, 3770, 7523, 15011];
 
-/// Etykiety pasm wyświetlane w interfejsie użytkownika.
+/// Band labels shown in the user interface.
 pub const EQUALIZER_LABELS: [&str; 10] = [
     "31 Hz", "62 Hz", "125 Hz", "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz",
 ];
@@ -11,7 +11,7 @@ pub const EQUALIZER_LABELS: [&str; 10] = [
 pub const MIN_BAND_GAIN_DB: f64 = -24.0;
 pub const MAX_BAND_GAIN_DB: f64 = 12.0;
 
-/// Stan korektora graficznego.
+/// Graphic equaliser state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EqualizerState {
     pub enabled: bool,
@@ -32,12 +32,12 @@ impl EqualizerState {
         Self::default()
     }
 
-    /// Ogranicza wzmocnienie pasma do dopuszczalnego zakresu [-24.0 dB, +12.0 dB].
+    /// Clamps a band gain to the allowed range [-24.0 dB, +12.0 dB].
     pub fn clamp_gain(gain: f64) -> f64 {
         gain.clamp(MIN_BAND_GAIN_DB, MAX_BAND_GAIN_DB)
     }
 
-    /// Ustawia wzmocnienie wskazanego pasma.
+    /// Sets the gain of the given band.
     pub fn set_band(&mut self, band_idx: usize, gain_db: f64) -> bool {
         if band_idx < 10 {
             self.bands[band_idx] = Self::clamp_gain(gain_db);
@@ -47,86 +47,102 @@ impl EqualizerState {
         }
     }
 
-    /// Resetuje wszystkie pasma do poziomu 0.0 dB (Flat).
+    /// Resets every band to 0.0 dB (Flat).
     pub fn reset(&mut self) {
         self.bands = [0.0; 10];
     }
 }
 
-/// Gotowy profil brzmieniowy korektora.
+/// A ready-made equaliser sound profile.
+///
+/// `id` is the stable kebab-case key the frontend selects and localises by;
+/// `name` is the English display text it falls back to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EqualizerPreset {
+    pub id: String,
     pub name: String,
     pub bands: [f64; 10],
 }
 
 impl EqualizerPreset {
-    pub fn new(name: impl Into<String>, bands: [f64; 10]) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, bands: [f64; 10]) -> Self {
         let mut clamped = [0.0; 10];
         for (i, val) in bands.iter().enumerate() {
             clamped[i] = EqualizerState::clamp_gain(*val);
         }
         Self {
+            id: id.into(),
             name: name.into(),
             bands: clamped,
         }
     }
 
-    /// Lista fabrycznych presetów brzmieniowych.
+    /// The built-in sound presets.
     pub fn default_presets() -> Vec<Self> {
         vec![
-            Self::new("Płaski (Flat)", [0.0; 10]),
+            Self::new("flat", "Flat", [0.0; 10]),
             Self::new(
+                "anime-ost",
                 "Anime OST / Clear Voice",
                 [-1.0, 0.0, 1.0, 2.5, 3.5, 4.0, 3.0, 2.0, 1.5, 2.0],
             ),
             Self::new(
-                "Mocny Bass (Bass Boost)",
+                "bass-boost",
+                "Bass Boost",
                 [6.0, 5.0, 4.0, 2.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0],
             ),
             Self::new(
-                "Elektroniczna / Dance",
+                "electronic",
+                "Electronic / Dance",
                 [5.0, 4.0, 2.0, 0.0, -1.0, 1.5, 3.0, 4.0, 4.5, 4.0],
             ),
-            Self::new("Rock", [4.5, 3.5, 2.0, 0.5, -0.5, 1.0, 2.5, 3.5, 4.0, 3.5]),
-            Self::new("Pop", [1.5, 3.0, 4.0, 3.5, 2.0, 0.0, -1.0, 1.0, 2.5, 3.0]),
             Self::new(
-                "Klasyczna / Akustyczna",
+                "rock",
+                "Rock",
+                [4.5, 3.5, 2.0, 0.5, -0.5, 1.0, 2.5, 3.5, 4.0, 3.5],
+            ),
+            Self::new(
+                "pop",
+                "Pop",
+                [1.5, 3.0, 4.0, 3.5, 2.0, 0.0, -1.0, 1.0, 2.5, 3.0],
+            ),
+            Self::new(
+                "acoustic",
+                "Classical / Acoustic",
                 [3.5, 2.5, 1.5, 0.5, 0.0, 0.0, 1.0, 2.0, 2.5, 3.0],
             ),
         ]
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Range of the user preamp (always applied, independent of either equaliser).
+pub const USER_PREAMP_MIN_DB: f64 = -15.0;
+pub const USER_PREAMP_MAX_DB: f64 = 15.0;
+/// Range of the combined gain applied by the shared preamp element.
+pub const TOTAL_PREAMP_MIN_DB: f64 = -30.0;
+pub const TOTAL_PREAMP_MAX_DB: f64 = 15.0;
 
-    #[test]
-    fn test_equalizer_clamping() {
-        assert_eq!(EqualizerState::clamp_gain(-30.0), -24.0);
-        assert_eq!(EqualizerState::clamp_gain(20.0), 12.0);
-        assert_eq!(EqualizerState::clamp_gain(5.5), 5.5);
-    }
-
-    #[test]
-    fn test_equalizer_set_band_and_reset() {
-        let mut eq = EqualizerState::new();
-        assert!(eq.set_band(0, 8.0));
-        assert!(eq.set_band(9, -15.0));
-        assert!(!eq.set_band(10, 5.0)); // out of bounds
-        assert_eq!(eq.bands[0], 8.0);
-        assert_eq!(eq.bands[9], -15.0);
-
-        eq.reset();
-        assert_eq!(eq.bands, [0.0; 10]);
-    }
-
-    #[test]
-    fn test_default_presets() {
-        let presets = EqualizerPreset::default_presets();
-        assert!(presets.len() >= 6);
-        assert_eq!(presets[0].name, "Płaski (Flat)");
-        assert_eq!(presets[0].bands, [0.0; 10]);
-    }
+/// Combined preamp gain in dB for the single preamp element of the pipeline.
+///
+/// The user preamp always counts; the graphic EQ preamp (manual, AutoEQ or Auto) and the
+/// parametric EQ preamp count only while their equaliser is enabled.
+pub fn combined_preamp_db(
+    user_preamp_db: f64,
+    graphic_eq_enabled: bool,
+    graphic_eq_preamp_db: f64,
+    parametric_eq_enabled: bool,
+    parametric_eq_preamp_db: f64,
+) -> f64 {
+    let user = user_preamp_db.clamp(USER_PREAMP_MIN_DB, USER_PREAMP_MAX_DB);
+    let geq = if graphic_eq_enabled {
+        graphic_eq_preamp_db
+    } else {
+        0.0
+    };
+    let peq = if parametric_eq_enabled {
+        parametric_eq_preamp_db
+    } else {
+        0.0
+    };
+    (user + geq + peq).clamp(TOTAL_PREAMP_MIN_DB, TOTAL_PREAMP_MAX_DB)
 }

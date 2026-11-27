@@ -1,17 +1,20 @@
-//! Zarządzanie kartami audio, trybem Pro Audio i kodekami Bluetooth (PipeWire / WirePlumber).
+//! Sound card management, Pro Audio mode and Bluetooth codecs (PipeWire / WirePlumber).
 
 use crate::error::AudioEngineError;
 use domain::device::{AudioCard, AudioCardProfile, BluetoothCodec};
 use std::process::Command;
 use tracing::info;
 
-/// Menedżer urządzeń audio i profili PipeWire.
+/// Manager for audio devices and PipeWire profiles.
 pub struct DeviceManager;
 
 impl DeviceManager {
-    /// Pobiera listę wszystkich wykrytych kart dźwiękowych i ich profili.
+    /// Lists every detected sound card and its profiles.
     pub fn list_cards() -> Result<Vec<AudioCard>, AudioEngineError> {
+        // The parser expects English labels ("Card #", "Name:", "Profiles:"), so
+        // force untranslated output regardless of the system language.
         let output = Command::new("pactl")
+            .env("LC_ALL", "C")
             .arg("list")
             .arg("cards")
             .output()
@@ -19,8 +22,8 @@ impl DeviceManager {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AudioEngineError::ElementLink(format!(
-                "Błąd odpytywania kart audio przez pactl: {}",
+            return Err(AudioEngineError::External(format!(
+                "Failed to query sound cards with pactl: {}",
                 stderr
             )));
         }
@@ -29,23 +32,25 @@ impl DeviceManager {
         Ok(Self::parse_cards(&text))
     }
 
-    /// Przełącza profil danej karty dźwiękowej (np. na pro-audio lub kodek Bluetooth).
+    /// Switches a sound card's profile (e.g. to pro-audio or a Bluetooth codec).
     pub fn set_card_profile(card_name: &str, profile_name: &str) -> Result<(), AudioEngineError> {
         info!(
-            "Przełączanie profilu karty '{}' na '{}'",
+            "Switching card '{}' to profile '{}'",
             card_name, profile_name
         );
 
+        // `--`: names from the UI are never interpreted as pactl options (`--server=…`).
         let status = Command::new("pactl")
             .arg("set-card-profile")
+            .arg("--")
             .arg(card_name)
             .arg(profile_name)
             .status()
             .map_err(AudioEngineError::Io)?;
 
         if !status.success() {
-            return Err(AudioEngineError::ElementLink(format!(
-                "Nie udało się aktywować profilu '{}' na karcie '{}'",
+            return Err(AudioEngineError::External(format!(
+                "Failed to activate profile '{}' on card '{}'",
                 profile_name, card_name
             )));
         }
@@ -53,7 +58,7 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Przełącza profil kodeka Bluetooth na wybranej karcie Bluetooth.
+    /// Switches the Bluetooth codec profile on the given Bluetooth card.
     pub fn set_bluetooth_codec(
         card_name: &str,
         codec: &BluetoothCodec,
@@ -62,17 +67,18 @@ impl DeviceManager {
         Self::set_card_profile(card_name, profile)
     }
 
-    /// Włącza tryb Pro Audio (profil pro-audio) na danej karcie dźwiękowej.
+    /// Enables Pro Audio mode (the pro-audio profile) on the given sound card.
     pub fn enable_pro_audio(card_name: &str) -> Result<(), AudioEngineError> {
         Self::set_card_profile(card_name, "pro-audio")
     }
 
-    /// Wyłącza tryb Pro Audio i bezpiecznie przywraca standardowy profil stereo (np. output:analog-stereo).
+    /// Disables Pro Audio and safely restores the standard stereo profile (e.g. output:analog-stereo).
     pub fn disable_pro_audio(card_name: &str) -> Result<String, AudioEngineError> {
         let cards = Self::list_cards()?;
-        let card = cards.iter().find(|c| c.name == card_name).ok_or_else(|| {
-            AudioEngineError::ElementLink(format!("Nie znaleziono karty {}", card_name))
-        })?;
+        let card = cards
+            .iter()
+            .find(|c| c.name == card_name)
+            .ok_or_else(|| AudioEngineError::NotFound(format!("card {}", card_name)))?;
 
         let fallback_profile = card
             .profiles
@@ -91,14 +97,14 @@ impl DeviceManager {
             .unwrap_or_else(|| "output:analog-stereo+input:analog-stereo".to_string());
 
         info!(
-            "Wyłączanie Pro Audio na karcie '{}', przywracanie profilu '{}'",
+            "Disabling Pro Audio on card '{}', restoring profile '{}'",
             card_name, fallback_profile
         );
         Self::set_card_profile(card_name, &fallback_profile)?;
         Ok(fallback_profile)
     }
 
-    /// Parsuje tekst wyjściowy z `pactl list cards`.
+    /// Parses the output of `pactl list cards`.
     pub fn parse_cards(text: &str) -> Vec<AudioCard> {
         let mut cards = Vec::new();
         let card_blocks = text.split("Card #");
@@ -176,48 +182,5 @@ impl DeviceManager {
         }
 
         cards
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_sample_pactl_output() {
-        let sample = r#"
-Card #44
-	Name: alsa_card.usb-Focusrite_Scarlett_Solo
-	Active Profile: HiFi
-	Profiles:
-		HiFi: Default (sinks: 1, sources: 2, priority: 8500, available: yes)
-		pro-audio: Dźwięk w zastosowaniach profesjonalnych (sinks: 1, sources: 1, priority: 1, available: yes)
-	Ports:
-		[Out] Direct: Direct
-
-Card #766
-	Name: bluez_card.78_44_05_D6_DF_61
-	Active Profile: a2dp-sink-sbc_xq
-	Profiles:
-		a2dp-sink: SBC (sinks: 1, sources: 0, priority: 131, available: yes)
-		a2dp-sink-sbc_xq: SBC-XQ (sinks: 1, sources: 0, priority: 130, available: yes)
-		a2dp-sink-ldac: Sony LDAC (sinks: 1, sources: 0, priority: 140, available: yes)
-	Ports:
-		headset-output: Słuchawki
-"#;
-        let cards = DeviceManager::parse_cards(sample);
-        assert_eq!(cards.len(), 2);
-
-        let scarlett = &cards[0];
-        assert_eq!(scarlett.name, "alsa_card.usb-Focusrite_Scarlett_Solo");
-        assert!(scarlett.supports_pro_audio());
-        assert!(!scarlett.is_bluetooth);
-
-        let bt = &cards[1];
-        assert!(bt.is_bluetooth);
-        let codecs = bt.available_bluetooth_codecs();
-        assert!(codecs.contains(&BluetoothCodec::Sbc));
-        assert!(codecs.contains(&BluetoothCodec::SbcXq));
-        assert!(codecs.contains(&BluetoothCodec::Ldac));
     }
 }

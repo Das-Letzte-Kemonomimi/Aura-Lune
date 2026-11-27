@@ -5,8 +5,10 @@ pub mod cue;
 pub mod device;
 pub mod dynamics;
 pub mod equalizer;
+pub mod error;
 pub mod m3u;
 pub mod parametric_eq;
+pub mod paths;
 pub mod playlist;
 pub mod queue;
 pub mod renamer;
@@ -15,6 +17,7 @@ pub mod silence;
 pub mod stem_project;
 pub mod theme;
 pub mod transcode;
+pub mod version;
 
 pub use analysis::{
     AiModelInfo, AiTaskType, AnalysisCapabilities, BeatPoint, ChordSegment, DetectedNote,
@@ -28,6 +31,7 @@ pub use dynamics::{
     StereoWidenerConfig,
 };
 pub use equalizer::{EqualizerPreset, EqualizerState, EQUALIZER_FREQUENCIES, EQUALIZER_LABELS};
+pub use error::DomainError;
 pub use m3u::{ImportM3uResult, M3uEntry, M3uPlaylist};
 pub use parametric_eq::{
     ParametricBand, ParametricEqPreset, ParametricEqState, ParametricFilterType,
@@ -41,11 +45,11 @@ pub use renamer::{
     RenamerTrackInfo,
 };
 pub use replaygain::{ReplayGainConfig, ReplayGainMode};
-pub use silence::SilenceTrimmingConfig;
+pub use silence::{SilenceBounds, SilenceScanner, SilenceTrimmingConfig, TrimAction};
 pub use stem_project::{
-    default_stem_color, default_stem_label, linear_gain_to_slider, slider_to_db,
-    slider_to_linear_gain, ChannelMixSetting, ModelPackInfo, StemChannel, StemProject,
-    StemProjectMix, StemProjectStatus, StemQualityTier,
+    default_stem_color, default_stem_label, effective_channel_gain, linear_gain_to_slider,
+    slider_to_db, slider_to_linear_gain, ChannelMixSetting, ModelPackInfo, StemChannel,
+    StemProject, StemProjectMix, StemProjectStatus, StemQualityTier,
 };
 pub use theme::{default_themes, Theme, ThemeTokens};
 pub use transcode::{DspExportSettings, ExportFormat, TimeRange};
@@ -53,7 +57,7 @@ pub use transcode::{DspExportSettings, ExportFormat, TimeRange};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Stan odtwarzacza audio.
+/// Audio player state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PlaybackState {
     #[default]
@@ -62,11 +66,11 @@ pub enum PlaybackState {
     Paused,
 }
 
-/// Identyfikator ścieżki w bibliotece.
+/// Track identifier in the library.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TrackId(pub String);
 
-/// Metadane ścieżki audio.
+/// Audio track metadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackMetadata {
     pub id: Option<TrackId>,

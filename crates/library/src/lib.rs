@@ -1,5 +1,5 @@
-//! Moduł zarządzania lokalną biblioteką muzyczną i skanerem.
+//! Local music library management and the scanner.
 
 pub mod scanner;
 
-pub use scanner::{LibraryError, LibraryScanner, ScanSummary};
+pub use scanner::{find_folder_cover, LibraryError, LibraryScanner, ScanSummary};

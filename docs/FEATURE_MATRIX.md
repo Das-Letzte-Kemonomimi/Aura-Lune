@@ -1,4 +1,4 @@
-# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v1.1.5)
+# FEATURE_MATRIX.md — Rejestr i macierz aktualnych funkcji Auralune (v2.0.0)
 
 > **OBOWIĄZKOWA INSTRUKCJA DLA KAŻDEGO AGENTA I PROGRAMISTY:**
 > 1. **ZAWSZE przed proponowaniem nowych funkcji, planowaniem roadmapy lub refaktoryzacją PRZECZYTAJ TEN PLIK**, aby nigdy nie sugerować i nie dublować funkcji, które są już wdrożone w kodzie.
@@ -12,7 +12,7 @@
 
 ## 1. 🔊 Silnik Audio, Wyjście & Sterowniki (PipeWire & GStreamer)
 - [x] **Architektura Hard Real-Time**: Całkowita izolacja wątku audio od webview, SQLite, operacji I/O i sieci (komunikacja przez atomiki i kanały zdarzeń).
-- [x] **GStreamer Pipeline**: Potok `uridecodebin -> audioconvert -> audioresample -> queue -> DSP -> volume/replaygain -> pipewiresink/autoaudiosink`.
+- [x] **GStreamer Pipeline**: `uridecodebin -> queue_in -> audioconvert -> audioresample -> capsfilter(F32LE) -> auralune_dsp -> queue_sink -> freeverb -> equalizer-10bands -> peq_preamp -> equalizer-nbands -> audiodynamic -> compressor_makeup -> saturator -> stereo_widener -> bs2b -> rgvolume -> rglimiter -> spectrum -> audioconvert -> audioresample -> volume (user) -> sink` (pulsesink, then pipewiresink, then autoaudiosink). Full map: `docs/architecture.md` §3.
 - [x] **Wyjście PipeWire z autodetekcją**: Wykrywanie obecności serwera PipeWire, bezpieczny fallback do PulseAudio/ALSA.
 - [x] **Pro Audio & Bluetooth Codec Switcher**: Zmiana profilu karty na `Pro Audio`, wybór kodeka Bluetooth wysokiej rozdzielczości (LDAC, aptX HD, AAC, SBC-XQ).
 - [x] **Konfigurowalny bufor audio**: Zmiana rozmiaru bufora `audio_buffer_duration_ms` (10 ms – 1000 ms) w Ustawieniach.
@@ -67,7 +67,7 @@
 - [x] **10-Pasmowy Korektor Graficzny (Graphic EQ)**:
   - 10 suwaków od 31 Hz do 16 kHz (-24 dB do +12 dB) z autostartem, dynamicznym bypassem i natychmiastową aktywacją w locie bez blokowania suwaków.
   - Presety fabryczne: *Flat*, *Anime OST / Clear Voice*, *Mocny Bass (Bass Boost)*, *Elektroniczna / Dance*, *Rock*, *Pop*, *Klasyczna / Akustyczna*.
-  - Zintegrowany przedwzmacniacz (Preamp Gain) chroniący przed przesterowaniem.
+  - Preamp (DSP Studio, -15..+15 dB): always applied, even with the EQ off. On the single `peq_preamp` element the engine applies `user preamp + (graphic EQ on ? EQ preamp) + (PEQ on ? PEQ preamp)`, clamped to -30..+15 dB (`domain::equalizer::combined_preamp_db`). The EQ preamp is written by AutoEQ profiles and by the "Auto" toggle, which sets it to `-max(0, largest band boost)` while the graphic EQ is on.
 - [x] **Wielopasmowy Korektor Parametryczny (PEQ Studio - `ParametricEqModal`)**:
   - Do 32 w pełni parametrycznych pasm (filtry Peak, Low Shelf, High Shelf z dobrocią $Q$).
   - Bezpieczny Headroom / Safe Preamp Protection chroniący przed przesterowaniem cyfrowym (clippingiem).
@@ -78,7 +78,7 @@
 - [x] **Studio Dynamiki (`DynamicsStudioModal`)**:
   - **Kompresor audio**: Próg (Threshold), Współczynnik (Ratio 1:1 do 20:1), Miękkie kolano (Soft Knee), Wzmocnienie wyjściowe (Makeup Gain) z wizualną krzywą transferu.
   - **Saturator lampowy/taśmowy**: Tryby *Tube Warmth*, *Tape Saturation*, *Overdrive* z regulacją Drive, Warmth i Dry/Wet mix.
-  - **True-Peak Limiter**: Sztywne ograniczenie ceilingu (np. -0.2 dB) zabezpieczające przetworniki DAC przed zniekształceniami międzypróbkowymi.
+  - **Clip protector (`rglimiter`)**: a soft limiter after ReplayGain that gently compresses samples above about -6 dBFS so they never pass 0 dBFS. It has no adjustable ceiling and does not detect true (inter-sample) peaks. It is active only while ReplayGain is on and "prevent clipping" is enabled.
 - [x] **Natywny Stereo Widener (Baza Stereo)**:
   - Bezalokacyjna 32-bitowa sonda buforowa `F32LE` bazująca na matrycy Mid-Side ($M/S$) z automatyczną kompensacją energii i ochroną mono (brak rwania dźwięku).
 - [x] **Efekt Pogłosu Przestrzennego (GStreamer Freeverb)**:
@@ -89,7 +89,7 @@
   - Wdrożona obsługa backendowa (`get_crossfeed_config` / `set_crossfeed_config`) redukująca zmęczenie odsłuchem na słuchawkach.
 - [x] **Zgodność z ReplayGain 2.0**:
   - Tryby: Track Gain, Album Gain, Off (natywny passthrough bez overheadu).
-  - Przedwzmacniacz (Pre-Amp) dla utworów z tagami RG i bez tagów RG.
+  - Two independent preamps, as in foobar2000: "files with RG tags" (-12..+12 dB, added to the tag gain) and "files without RG tags" (-15..+15 dB, the total gain of an untagged file). `rgvolume` adds `pre-amp` to untagged tracks too and caps their positive total at `headroom`, so `ReplayGainConfig::rgvolume_params` maps them as `pre-amp = tagged`, `fallback-gain = untagged - tagged`, `headroom = max(0, untagged)`. An untagged file therefore gets exactly the untagged preamp, boosts included; `rglimiter` still guards the peaks when "prevent clipping" is on. Verified in `crates/audio-engine/tests/replaygain_semantics_test.rs`.
   - Wbudowany skaner ReplayGain (`scan_track_replaygain`, `scan_library_replaygain`).
 
 ---
@@ -216,9 +216,9 @@
 - [x] **MPRIS v2 (D-Bus)**:
   - Pełna integracja z KDE Plasma, GNOME, Waybar, Polybar, klawiszami multimedialnymi laptopa i słuchawek.
   - Obsługa metadanych (tytuł, artysta, okładka, czas), Play, Pause, Next, Prev, Seek, Volume, Shuffle, LoopStatus.
-- [x] **Linux Ricing IPC Waybar Status (`/tmp/auralune.json`)**:
+- [x] **Linux Ricing IPC Waybar Status (`$XDG_RUNTIME_DIR/auralune/auralune.json`)**:
   - Atomowy eksport stanu odtwarzacza w standardzie modułów custom Waybara (`text`, `alt`, `tooltip`, `class`, `percentage`, `volume`, `art_url`, `position_ms`, `duration_ms`). Umożliwia natychmiastowe zintegrowanie odtwarzacza z Waybarem, Polybarem, Hyprlandem i skryptami środowiska bez odpytywania D-Bus.
-- [x] **Kanały sterowania FIFO & Unix Socket (`/tmp/auralune_ctl`, `/tmp/auralune.sock`)**:
+- [x] **Kanały sterowania FIFO & Unix Socket (`$XDG_RUNTIME_DIR/auralune/ctl`, `$XDG_RUNTIME_DIR/auralune/auralune.sock`)**:
   - Natywne, błyskawiczne sterowanie odtwarzaczem (polecenia: `play`, `pause`, `toggle`, `next`, `prev`, `stop`, `vol_up`, `vol_down`, `mute`, `seek`) z poziomu skrótów Hyprland `bind`, Sway, i3, sxhkd lub skryptów powłoki.
 - [x] **Discord Rich Presence (RPC)**:
   - Wyświetlanie aktualnie odtwarzanego utworu, okładki, upływającego czasu oraz własnego Client ID.
@@ -266,8 +266,8 @@
 - `crates/metadata`: Integracja MusicBrainz REST API, Cover Art Archive, scraping tekstów LRCLIB, Last.fm i ListenBrainz.
 - `crates/downloads`: Asynchroniczna kolejka pobierania legalnych plików ze sprawdzaniem sum kontrolnych.
 - `crates/desktop-integration`: Serwer MPRIS v2 na D-Bus, Discord RPC IPC socket, integracja z pulpitem.
-- `apps/desktop/src-tauri`: Ponad 100 typowanych komend Tauri v2 łączących frontend React z backendem Rust.
-- `apps/desktop`: Frontend React 19 + TypeScript + Vite ze ścisłą typizacją i zoptymalizowanymi widokami.
+- `src-tauri`: Ponad 100 typowanych komend Tauri v2 łączących frontend React z backendem Rust.
+- `src/` + `src-tauri/`: Frontend React 19 + TypeScript + Vite ze ścisłą typizacją i zoptymalizowanymi widokami.
 
 ---
 

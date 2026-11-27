@@ -1,0 +1,456 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import React from 'react';
+import { useLibraryManager } from './useLibraryManager';
+import { getTranslations } from '../i18n';
+import type { PlaybackStatus } from '../types/playback';
+import type { TrackRecord, AlbumRecord } from '../types/library';
+import { invokeMock as mockInvoke } from '../test/ipcMock';
+
+const eventListeners = vi.hoisted(() => new Map<string, (e: { payload: unknown }) => void>());
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn((eventName: string, cb: (e: { payload: unknown }) => void) => {
+    eventListeners.set(eventName, cb);
+    return Promise.resolve(() => eventListeners.delete(eventName));
+  }),
+}));
+
+
+describe('useLibraryManager hook', () => {
+  const loc = getTranslations('en');
+  const showMessage = vi.fn();
+
+  const mockStatus: PlaybackStatus = {
+    state: 'Stopped',
+    position_ms: 0,
+    duration_ms: null,
+    volume: 1.0,
+    pitch_semitones: 0,
+    tempo_ratio: 1,
+    rate_ratio: 1,
+    engine: 'Bypass',
+    capabilities: {
+      engine: 'Bypass',
+      name: 'Direct',
+      min_pitch_semitones: -24,
+      max_pitch_semitones: 24,
+      min_tempo_ratio: 0.15,
+      max_tempo_ratio: 4,
+      supports_formants: false,
+      description: 'Bit-perfect direct stream without DSP',
+    },
+    equalizer_enabled: false,
+    equalizer_bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    current_track: null,
+  };
+
+  const setStatus = vi.fn();
+  const setFilePath = vi.fn();
+  const setActiveTrackId = vi.fn();
+  const mainContentRef = React.createRef<HTMLElement>();
+
+  const defaultProps = {
+    mainContentRef,
+    status: mockStatus,
+    setStatus,
+    setFilePath,
+    setActiveTrackId,
+    showMessage,
+    loc,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockInvoke.mockResolvedValue(null);
+  });
+
+  it('initializes with empty tracks and albums', () => {
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+
+    expect(result.current.tracks).toEqual([]);
+    expect(result.current.albums).toEqual([]);
+    expect(result.current.librarySubView).toBe('tracks');
+    expect(result.current.librarySearch).toBe('');
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('asc');
+  });
+
+  it('loads library tracks and albums successfully', async () => {
+    const mockTracks: TrackRecord[] = [
+      {
+        id: 1,
+        title: 'Song A',
+        artist: 'Artist X',
+        album_artist: 'Artist X',
+        album_id: 10,
+        disc_no: 1,
+        track_no: 1,
+        path: '/music/song_a.flac',
+        duration_ms: 180000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 1000000,
+        bpm: 120,
+        initial_key: '8B',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: false,
+        rating: 5,
+        play_count: 3,
+        last_played_at: null,
+        modified_time: 1000,
+      },
+    ];
+
+    const mockAlbums: AlbumRecord[] = [
+      {
+        id: 10,
+        title: 'Album 1',
+        album_artist: 'Artist X',
+        year: 2024,
+        cover_path: '/covers/10.jpg',
+        release_mbid: null,
+      },
+    ];
+
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_library_tracks') return mockTracks;
+      if (cmd === 'get_library_albums') return mockAlbums;
+      return null;
+    });
+
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+
+    await act(async () => {
+      await result.current.loadLibrary();
+    });
+
+    expect(result.current.tracks).toEqual(mockTracks);
+    expect(result.current.albums).toEqual(mockAlbums);
+    expect(result.current.filteredTracks).toHaveLength(1);
+    expect(result.current.albumsWithCoverCount).toBe(1);
+    expect(result.current.albumsWithoutCoverCount).toBe(0);
+  });
+
+  it('filters tracks by search query and formats', () => {
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+
+    const sampleTracks: TrackRecord[] = [
+      {
+        id: 1,
+        title: 'Neon Light',
+        artist: 'CyberBand',
+        album_artist: 'CyberBand',
+        album_id: null,
+        disc_no: 1,
+        track_no: 1,
+        path: '/music/neon.flac',
+        duration_ms: 200000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 2000000,
+        bpm: 128,
+        initial_key: '5A',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: true,
+        rating: 5,
+        play_count: 10,
+        last_played_at: 12345,
+        modified_time: 2000,
+      },
+      {
+        id: 2,
+        title: 'Quiet Echoes',
+        artist: 'Acoustic Solo',
+        album_artist: 'Acoustic Solo',
+        album_id: null,
+        disc_no: 1,
+        track_no: 2,
+        path: '/music/quiet.mp3',
+        duration_ms: 150000,
+        format: 'mp3',
+        sample_rate: 44100,
+        bit_depth: null,
+        channels: 2,
+        file_size: 1500000,
+        bpm: 85,
+        initial_key: '3B',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: false,
+        rating: 3,
+        play_count: 0,
+        last_played_at: null,
+        modified_time: 1500,
+      },
+    ];
+
+    act(() => {
+      result.current.setTracks(sampleTracks);
+    });
+
+    expect(result.current.filteredTracks).toHaveLength(2);
+
+    // Search query filter
+    act(() => {
+      result.current.setLibrarySearch('neon');
+    });
+    expect(result.current.filteredTracks).toHaveLength(1);
+    expect(result.current.filteredTracks[0].title).toBe('Neon Light');
+
+    // Format filter
+    act(() => {
+      result.current.setLibrarySearch('');
+      result.current.setLibraryFormatFilter('mp3');
+    });
+    expect(result.current.filteredTracks).toHaveLength(1);
+    expect(result.current.filteredTracks[0].title).toBe('Quiet Echoes');
+  });
+
+  it('cycles track sort order and field', () => {
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+
+    act(() => {
+      result.current.handleSort('title');
+    });
+    expect(result.current.sortField).toBe('title');
+    expect(result.current.sortOrder).toBe('asc');
+
+    act(() => {
+      result.current.handleSort('title');
+    });
+    expect(result.current.sortOrder).toBe('desc');
+  });
+
+  it('supports ascending and descending sort on default (#) field', () => {
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+
+    const sampleTracks: TrackRecord[] = [
+      {
+        id: 1,
+        title: 'Alpha',
+        artist: 'Band',
+        album_artist: 'Band',
+        album_id: null,
+        disc_no: 1,
+        track_no: 1,
+        path: '/music/alpha.flac',
+        duration_ms: 100000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 1000000,
+        bpm: 120,
+        initial_key: '5A',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: false,
+        rating: 0,
+        play_count: 0,
+        last_played_at: null,
+        modified_time: 1000,
+      },
+      {
+        id: 2,
+        title: 'Beta',
+        artist: 'Band',
+        album_artist: 'Band',
+        album_id: null,
+        disc_no: 1,
+        track_no: 2,
+        path: '/music/beta.flac',
+        duration_ms: 200000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 2000000,
+        bpm: 130,
+        initial_key: '6A',
+        replaygain_track_gain: 0,
+        replaygain_track_peak: 1.0,
+        is_favorite: false,
+        rating: 0,
+        play_count: 0,
+        last_played_at: null,
+        modified_time: 2000,
+      },
+    ];
+
+    act(() => {
+      result.current.setTracks(sampleTracks);
+    });
+
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('asc');
+    expect(result.current.sortedTracks[0].title).toBe('Alpha');
+    expect(result.current.sortedTracks[1].title).toBe('Beta');
+
+    // Clicking '#' while already in default toggles to descending
+    act(() => {
+      result.current.handleSort('default');
+    });
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('desc');
+    expect(result.current.sortedTracks[0].title).toBe('Beta');
+    expect(result.current.sortedTracks[1].title).toBe('Alpha');
+
+    // Clicking '#' again toggles back to ascending
+    act(() => {
+      result.current.handleSort('default');
+    });
+    expect(result.current.sortField).toBe('default');
+    expect(result.current.sortOrder).toBe('asc');
+    expect(result.current.sortedTracks[0].title).toBe('Alpha');
+    expect(result.current.sortedTracks[1].title).toBe('Beta');
+  });
+
+  it('handleScanPaths returns updated tracks and respects skipAutoActivate', async () => {
+    const mockTracks: TrackRecord[] = [
+      {
+        id: 1,
+        title: 'Alphabetically First',
+        artist: 'Artist A',
+        album_artist: 'Artist A',
+        album_id: 10,
+        disc_no: 1,
+        track_no: 1,
+        path: '/music/first.flac',
+        duration_ms: 180000,
+        format: 'flac',
+        sample_rate: 44100,
+        bit_depth: 16,
+        channels: 2,
+        file_size: 1000000,
+        modified_time: 1000,
+      },
+    ];
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'scan_paths') {
+        return { total_files_found: 1, new_or_updated_tracks: 1, skipped_unchanged: 0, errors: 0 };
+      }
+      if (cmd === 'get_library_tracks') return mockTracks;
+      if (cmd === 'get_library_albums') return [];
+      return null;
+    });
+
+    const sampleStatus: PlaybackStatus = {
+      ...mockStatus,
+      current_track: {
+        id: 'default-sample-track-skrzydla-biale',
+        track_id: null,
+        uri: '/sample.flac',
+        title: 'Skrzydła Białe',
+        artist: 'Das Letzte Kemonomimi',
+        album: 'Skrzydła Białe',
+        duration_ms: 56820,
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useLibraryManager({
+        ...defaultProps,
+        status: sampleStatus,
+      }),
+    );
+
+    let scanned: Awaited<ReturnType<typeof result.current.handleScanPaths>> = null;
+    await act(async () => {
+      scanned = await result.current.handleScanPaths(['/music/first.flac'], { skipAutoActivate: true });
+    });
+
+    expect(scanned).toEqual({ tracks: mockTracks, albums: [] });
+    expect(mockInvoke).not.toHaveBeenCalledWith('set_active_track', expect.anything());
+  });
+
+  it('handleScanPaths surfaces indexing errors in toast when errors > 0', async () => {
+    const showMessage = vi.fn();
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'scan_paths') {
+        return { total_files_found: 10, new_or_updated_tracks: 0, skipped_unchanged: 0, errors: 10 };
+      }
+      if (cmd === 'get_library_tracks') return [];
+      if (cmd === 'get_library_albums') return [];
+      return null;
+    });
+
+    const { result } = renderHook(() =>
+      useLibraryManager({
+        ...defaultProps,
+        showMessage,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleScanPaths(['/music/ef']);
+    });
+
+    expect(showMessage).toHaveBeenCalledWith(
+      'Added to the library: 0 indexed (found: 10, failed: 10).',
+      true,
+    );
+  });
+
+  it('updates only the matching album when auralune://album-cover-updated fires', async () => {
+    vi.useFakeTimers();
+    eventListeners.clear();
+
+    const { result } = renderHook(() => useLibraryManager(defaultProps));
+    act(() => {
+      result.current.setAlbums([
+        { id: 1, title: 'espressivo', album_artist: 'TENMON', year: 2008, cover_path: null },
+        { id: 2, title: 'espressivo', album_artist: 'Other Artist', year: 2005, cover_path: null },
+      ]);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(eventListeners.has('auralune://album-cover-updated')).toBe(true);
+
+    const prevFilteredTracks = result.current.filteredTracks;
+    const prevSortedTracks = result.current.sortedTracks;
+
+    act(() => {
+      const cb = eventListeners.get('auralune://album-cover-updated')!;
+      cb({
+        payload: {
+          album_id: 1,
+          cover_path: 'auralune-media://localhost/cover/album/1?s=256&v=new',
+          release_mbid: 'd38b402a-ee1b-427a-b10c-b8127596d59c',
+        },
+      });
+      cb({
+        payload: {
+          album_id: 2,
+          cover_path: 'auralune-media://localhost/cover/album/2?s=256&v=second',
+          release_mbid: null,
+        },
+      });
+    });
+
+    // Not flushed before the 500 ms batch window elapses.
+    expect(result.current.albums[0].cover_path).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(result.current.albums[0].cover_path).toBe('auralune-media://localhost/cover/album/1?s=256&v=new');
+    expect(result.current.albums[0].release_mbid).toBe('d38b402a-ee1b-427a-b10c-b8127596d59c');
+    expect(result.current.albums[1].cover_path).toBe('auralune-media://localhost/cover/album/2?s=256&v=second');
+    // Cover-only updates preserve filteredTracks & sortedTracks identities via albumTextById.
+    expect(result.current.filteredTracks).toBe(prevFilteredTracks);
+    expect(result.current.sortedTracks).toBe(prevSortedTracks);
+    vi.useRealTimers();
+  });
+});
+

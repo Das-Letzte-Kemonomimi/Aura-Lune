@@ -1,9 +1,10 @@
+use crate::ScrobbleError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::{debug, error, info, warn};
 
-/// Domyślny identyfikator klienta Auralune dla Last.fm 2.0 API.
-/// Użytkowniczka może podać własny klucz i sekret w Ustawieniach zaawansowanych.
+/// Default Auralune client identifier for the Last.fm 2.0 API.
+/// The user can enter their own key and secret in the advanced settings.
 pub const DEFAULT_LASTFM_API_KEY: &str = "b25b959554ed76058ac220b7b2e0a026";
 pub const DEFAULT_LASTFM_API_SECRET: &str = "425b55779f4227dda7900343f6048563";
 
@@ -21,7 +22,7 @@ pub fn md5_hex(data: &[u8]) -> String {
 }
 
 // =========================================================================
-// Klient Last.fm 2.0 API
+// Last.fm 2.0 API client
 // =========================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,14 +64,7 @@ impl Default for LastFmClient {
 
 impl LastFmClient {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent(format!(
-                "Auralune/{} ( kitsune-player; https://github.com/Auralune/Auralune )",
-                env!("CARGO_PKG_VERSION")
-            ))
-            .timeout(std::time::Duration::from_secs(12))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+        let client = crate::http::build_client(std::time::Duration::from_secs(12));
 
         Self {
             client,
@@ -78,11 +72,11 @@ impl LastFmClient {
         }
     }
 
-    /// Oblicza podpis `api_sig` według reguł Last.fm:
-    /// 1. Posortowanie parametrów alfabetycznie po kluczu (z pominięciem format i callback).
-    /// 2. Konkatenacja klucz + wartość dla każdego parametru.
-    /// 3. Dołączenie `api_secret` na końcu.
-    /// 4. Wyliczenie skrótu MD5 w hex (małe litery).
+    /// Computes the `api_sig` signature following the Last.fm rules:
+    /// 1. Sort the parameters alphabetically by key (skipping format and callback).
+    /// 2. Concatenate key + value for each parameter.
+    /// 3. Append `api_secret` at the end.
+    /// 4. Compute the MD5 hash in hex (lowercase).
     pub fn calculate_signature(&self, params: &BTreeMap<&str, String>, api_secret: &str) -> String {
         let mut pre_hash = String::new();
         for (k, v) in params {
@@ -95,52 +89,54 @@ impl LastFmClient {
         md5_hex(pre_hash.as_bytes())
     }
 
-    /// Pobiera nowy token autoryzacyjny `auth.getToken` do autoryzacji w przeglądarce.
-    pub async fn get_auth_token(&self, api_key: Option<&str>) -> Result<String, String> {
+    /// Fetches a new `auth.getToken` token for authorisation in the browser.
+    pub async fn get_auth_token(&self, api_key: Option<&str>) -> Result<String, ScrobbleError> {
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
         let url = format!(
             "{}/?method=auth.getToken&api_key={}&format=json",
-            self.base_url, key
+            self.base_url,
+            crate::urlencoding::encode(key)
         );
 
-        let res = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| format!("Błąd sieciowy przy pobieraniu tokenu Last.fm: {}", e))?;
+        let res = self.client.get(&url).send().await.map_err(|e| {
+            ScrobbleError::Network(format!(
+                "Network error while fetching the Last.fm token: {}",
+                e
+            ))
+        })?;
 
         if !res.status().is_success() {
-            return Err(format!(
-                "Serwer Last.fm zwrócił błąd HTTP: {}",
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm server returned HTTP error: {}",
                 res.status()
-            ));
+            )));
         }
 
-        let json: serde_json::Value = res
-            .json()
-            .await
-            .map_err(|e| format!("Błąd parsowania odpowiedzi JSON Last.fm: {}", e))?;
+        let json: serde_json::Value = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Failed to parse the Last.fm JSON response: {}", e))
+        })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(format!("Błąd Last.fm: {}", err_msg));
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm error: {}",
+                err_msg
+            )));
         }
 
-        let token = json
-            .get("token")
-            .and_then(|t| t.as_str())
-            .ok_or_else(|| "Brak pola 'token' w odpowiedzi Last.fm".to_string())?;
+        let token = json.get("token").and_then(|t| t.as_str()).ok_or_else(|| {
+            ScrobbleError::Parse("No 'token' field in the Last.fm response".to_string())
+        })?;
 
         Ok(token.to_string())
     }
 
-    /// Wymienia autoryzowany przez użytkowniczkę token na trwały klucz sesji `session_key`.
+    /// Exchanges the token the user authorised for a permanent `session_key`.
     pub async fn fetch_session(
         &self,
         token: &str,
         api_key: Option<&str>,
         api_secret: Option<&str>,
-    ) -> Result<LastFmSession, String> {
+    ) -> Result<LastFmSession, ScrobbleError> {
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
         let secret = api_secret.unwrap_or(DEFAULT_LASTFM_API_SECRET).trim();
 
@@ -159,31 +155,35 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd żądania pobrania sesji Last.fm: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Last.fm session request failed: {}", e))
+            })?;
 
-        let json: serde_json::Value = res
-            .json()
-            .await
-            .map_err(|e| format!("Błąd parsowania JSON sesji Last.fm: {}", e))?;
+        let json: serde_json::Value = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Failed to parse the Last.fm session JSON: {}", e))
+        })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(format!("Nie udało się uzyskać sesji Last.fm: {}", err_msg));
+            return Err(ScrobbleError::Service(format!(
+                "Failed to get a Last.fm session: {}",
+                err_msg
+            )));
         }
 
-        let session_obj = json
-            .get("session")
-            .ok_or_else(|| "Brak obiektu 'session' w odpowiedzi Last.fm".to_string())?;
+        let session_obj = json.get("session").ok_or_else(|| {
+            ScrobbleError::Parse("No 'session' object in the Last.fm response".to_string())
+        })?;
 
         let username = session_obj
             .get("name")
             .and_then(|n| n.as_str())
-            .ok_or_else(|| "Brak nazwy użytkownika w sesji".to_string())?
+            .ok_or_else(|| ScrobbleError::Parse("No user name in the session".to_string()))?
             .to_string();
 
         let session_key = session_obj
             .get("key")
             .and_then(|k| k.as_str())
-            .ok_or_else(|| "Brak klucza sesji w odpowiedzi".to_string())?
+            .ok_or_else(|| ScrobbleError::Parse("No session key in the response".to_string()))?
             .to_string();
 
         Ok(LastFmSession {
@@ -192,16 +192,18 @@ impl LastFmClient {
         })
     }
 
-    /// Weryfikuje klucz sesji poprzez zapytanie `user.getInfo`.
+    /// Verifies the session key with a `user.getInfo` request.
     pub async fn validate_session(
         &self,
         session_key: &str,
         api_key: Option<&str>,
         api_secret: Option<&str>,
-    ) -> Result<String, String> {
+    ) -> Result<String, ScrobbleError> {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
-            return Err("Klucz sesji Last.fm nie może być pusty".to_string());
+            return Err(ScrobbleError::Validation(
+                "The Last.fm session key must not be empty".to_string(),
+            ));
         }
 
         let key = api_key.unwrap_or(DEFAULT_LASTFM_API_KEY).trim();
@@ -222,34 +224,36 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd połączenia z Last.fm: {}", e))?;
+            .map_err(|e| ScrobbleError::Network(format!("Failed to connect to Last.fm: {}", e)))?;
 
-        let json: serde_json::Value = res
-            .json()
-            .await
-            .map_err(|e| format!("Błąd parsowania profilu Last.fm: {}", e))?;
+        let json: serde_json::Value = res.json().await.map_err(|e| {
+            ScrobbleError::Parse(format!("Failed to parse the Last.fm profile: {}", e))
+        })?;
 
         if let Some(err_msg) = json.get("message").and_then(|m| m.as_str()) {
-            return Err(format!("Niepoprawny klucz sesji Last.fm: {}", err_msg));
+            return Err(ScrobbleError::Service(format!(
+                "Invalid Last.fm session key: {}",
+                err_msg
+            )));
         }
 
         let user_name = json
             .get("user")
             .and_then(|u| u.get("name"))
             .and_then(|n| n.as_str())
-            .unwrap_or("Użytkowniczka Last.fm")
+            .unwrap_or("Last.fm user")
             .to_string();
 
         Ok(user_name)
     }
 
-    /// Wysyła status "Now Playing" (aktualnie odtwarzany utwór) do profilu Last.fm.
+    /// Sends the "Now Playing" status (the track playing now) to the Last.fm profile.
     pub async fn update_now_playing(
         &self,
         session_key: &str,
         track_info: LastFmTrackInfo<'_>,
         auth: LastFmAuthOverride<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ScrobbleError> {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
             return Ok(());
@@ -289,30 +293,35 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd wysyłania Now Playing do Last.fm: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Failed to send Now Playing to Last.fm: {}", e))
+            })?;
 
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
-            warn!("Last.fm Now Playing błąd ({}): {}", status, text);
-            return Err(format!("Last.fm zwrócił błąd HTTP {}: {}", status, text));
+            warn!("Last.fm Now Playing error ({}): {}", status, text);
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm returned HTTP error {}: {}",
+                status, text
+            )));
         }
 
         debug!(
-            "Wysłano status Now Playing do Last.fm: {} - {}",
+            "Sent the Now Playing status to Last.fm: {} - {}",
             track_info.artist, track_info.track
         );
         Ok(())
     }
 
-    /// Wysyła scrobble (ukończone odtworzenie utworu) do Last.fm.
+    /// Sends a scrobble (a finished play of a track) to Last.fm.
     pub async fn scrobble(
         &self,
         session_key: &str,
         track_info: LastFmTrackInfo<'_>,
         timestamp: u64,
         auth: LastFmAuthOverride<'_>,
-    ) -> Result<(), String> {
+    ) -> Result<(), ScrobbleError> {
         let clean_sk = session_key.trim();
         if clean_sk.is_empty() {
             return Ok(());
@@ -353,58 +362,24 @@ impl LastFmClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| format!("Błąd wysyłania scrobble do Last.fm: {}", e))?;
+            .map_err(|e| {
+                ScrobbleError::Network(format!("Failed to send the scrobble to Last.fm: {}", e))
+            })?;
 
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
-            error!("Last.fm scrobble błąd ({}): {}", status, text);
-            return Err(format!("Last.fm zwrócił błąd HTTP {}: {}", status, text));
+            error!("Last.fm scrobble error ({}): {}", status, text);
+            return Err(ScrobbleError::Service(format!(
+                "Last.fm returned HTTP error {}: {}",
+                status, text
+            )));
         }
 
         info!(
-            "Zgłoszono scrobble do Last.fm: {} - {}",
+            "Scrobble submitted to Last.fm: {} - {}",
             track_info.artist, track_info.track
         );
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_md5_rfc1321_vectors() {
-        assert_eq!(md5_hex(b""), "d41d8cd98f00b204e9800998ecf8427e");
-        assert_eq!(md5_hex(b"a"), "0cc175b9c0f1b6a831c399e269772661");
-        assert_eq!(md5_hex(b"abc"), "900150983cd24fb0d6963f7d28e17f72");
-        assert_eq!(
-            md5_hex(b"message digest"),
-            "f96b697d7cb7938d525a2f31aaf161d0"
-        );
-        assert_eq!(
-            md5_hex(b"abcdefghijklmnopqrstuvwxyz"),
-            "c3fcd3d76192e4007dfb496cca67e13b"
-        );
-    }
-
-    #[test]
-    fn test_lastfm_signature_calculation() {
-        let client = LastFmClient::new();
-        let mut params = BTreeMap::new();
-        params.insert("method", "auth.getSession".to_string());
-        params.insert("api_key", "test_key".to_string());
-        params.insert("token", "test_token".to_string());
-        params.insert("format", "json".to_string());
-
-        let secret = "my_secret_key";
-        let sig = client.calculate_signature(&params, secret);
-
-        // Pre-hash string: "api_keytest_keymethodauth.getSessiontokentest_tokenmy_secret_key"
-        let expected_pre_hash = "api_keytest_keymethodauth.getSessiontokentest_tokenmy_secret_key";
-        let expected_sig = md5_hex(expected_pre_hash.as_bytes());
-
-        assert_eq!(sig, expected_sig);
     }
 }

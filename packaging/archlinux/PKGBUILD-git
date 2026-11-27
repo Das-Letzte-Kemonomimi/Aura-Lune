@@ -2,7 +2,7 @@
 pkgname=auralune-git
 pkgver=0.2.0.r0.g1
 pkgrel=1
-pkgdesc="Natywny odtwarzacz muzyki dla Linuksa (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - wersja rozwojowa git"
+pkgdesc="Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP) - git development version"
 arch=('x86_64')
 url="https://github.com/Das-Letzte-Kemonomimi/Aura-Lune"
 license=('GPL-3.0-or-later')
@@ -20,11 +20,11 @@ depends=(
     'openssl'
 )
 optdepends=(
-    'gst-plugins-bad: obsługa formatów Opus, AAC i zaawansowanych kontenerów'
-    'gst-plugin-pipewire: bezpośredni potok wyjściowy PipeWire o niskiej latencji'
-    'rubberband: silnik DSP time-stretching i pitch-shifting wysokiej jakości'
-    'soundtouch: silnik DSP o niskim narzucie CPU i niezależnej zmianie tempa/wysokości'
-    'bluez-utils: dynamiczny wybór kodeków Bluetooth (LDAC, aptX HD, AAC, SBC-XQ)'
+    'gst-plugins-bad: Support for Opus, AAC, and modern container formats'
+    'gst-plugin-pipewire: Direct low-latency PipeWire output sink'
+    'rubberband: High-quality studio time-stretching and pitch-shifting DSP engine'
+    'soundtouch: Low CPU overhead DSP engine with independent tempo/pitch shifting'
+    'bluez-utils: Dynamic pro-audio Bluetooth codec switching (LDAC, aptX HD, AAC, SBC-XQ)'
 )
 makedepends=(
     'git'
@@ -46,33 +46,33 @@ pkgver() {
 }
 
 prepare() {
-    cd "$srcdir/auralune/apps/desktop"
+    cd "$srcdir/auralune"
     npm ci
 }
 
 build() {
-    cd "$srcdir/auralune/apps/desktop"
+    cd "$srcdir/auralune"
     npx tauri build --no-bundle
 }
 
 package() {
     cd "$srcdir/auralune"
 
-    # Główna binarka
+    # Main binary
     install -Dm755 "target/release/auralune-desktop" "$pkgdir/usr/bin/auralune"
 
-    # Plik aktywatora pulpitu .desktop
+    # Desktop entry (.desktop)
     install -Dm644 "packaging/auralune.desktop" "$pkgdir/usr/share/applications/auralune.desktop"
 
-    # Ikony we wszystkich standardowych rozdzielczościach hicolor oraz pixmaps
-    install -Dm644 "apps/desktop/src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/64x64.png" "$pkgdir/usr/share/icons/hicolor/64x64/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/auralune.png"
-    install -Dm644 "apps/desktop/public/auralune_icon.png" "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/auralune.png"
-    install -Dm644 "apps/desktop/src-tauri/icons/128x128.png" "$pkgdir/usr/share/pixmaps/auralune.png"
+    # Icons in every standard hicolor size, plus pixmaps
+    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/64x64.png" "$pkgdir/usr/share/icons/hicolor/64x64/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/auralune.png"
+    install -Dm644 "public/auralune_icon.png" "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/auralune.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/pixmaps/auralune.png"
 
-    # Licencja
+    # License
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

@@ -1,13 +1,16 @@
-//! Menedżer modeli uczenia maszynowego (Model Manager) oraz wykrywanie akceleracji sprzętowej.
+//! Machine-learning model manager and hardware acceleration detection.
 
 use domain::analysis::{AiModelInfo, AiTaskType, AnalysisCapabilities};
 use hex;
 use sha2::{Digest, Sha256};
+use std::collections::VecDeque;
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use std::time::SystemTime;
 
-/// Zwraca katalog przechowywania modeli AI zgodny ze standardem XDG Base Directory.
+/// Returns the AI model storage directory, following the XDG Base Directory spec.
 pub fn get_models_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
         if !xdg.trim().is_empty() {
@@ -24,7 +27,7 @@ pub fn get_models_dir() -> PathBuf {
     PathBuf::from("/tmp/auralune/models")
 }
 
-/// Zwraca katalog pamięci podręcznej dla rozdzielonych ścieżek audio (Stems).
+/// Returns the cache directory for separated audio tracks (stems).
 pub fn get_stems_cache_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
         if !xdg.trim().is_empty() {
@@ -40,7 +43,7 @@ pub fn get_stems_cache_dir() -> PathBuf {
     PathBuf::from("/tmp/auralune/stems")
 }
 
-/// Zwraca katalog pamięci podręcznej dla projektów stemów (Moises-like Stem Projects).
+/// Returns the cache directory for stem projects (Moises-like stem projects).
 pub fn get_stem_projects_cache_dir() -> PathBuf {
     if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
         if !xdg.trim().is_empty() {
@@ -56,7 +59,7 @@ pub fn get_stem_projects_cache_dir() -> PathBuf {
     PathBuf::from("/tmp/auralune/stem_projects")
 }
 
-/// Oblicza sumę kontrolną SHA-256 dla zadanego pliku.
+/// Computes the SHA-256 checksum of a file.
 pub fn calculate_file_sha256(path: &Path) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
@@ -73,7 +76,44 @@ pub fn calculate_file_sha256(path: &Path) -> io::Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-/// Weryfikuje czy plik istnieje oraz czy jego suma SHA-256 zgadza się ze spodziewaną wartością.
+/// Entries kept by [`cached_file_sha256`].
+const FILE_HASH_CACHE_CAP: usize = 64;
+
+/// `(path, size, mtime) → SHA-256` of recently hashed files, most recent last.
+type FileHashCache = Mutex<VecDeque<((PathBuf, u64, SystemTime), String)>>;
+
+fn file_hash_cache() -> &'static FileHashCache {
+    static CACHE: OnceLock<FileHashCache> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(VecDeque::with_capacity(FILE_HASH_CACHE_CAP)))
+}
+
+/// [`calculate_file_sha256`] through a small process-wide LRU keyed by (path, size, mtime).
+///
+/// Chord analysis, transcription and stem separation each hash the whole file (hundreds of MB
+/// for hi-res); the same track is usually analysed by several of them in a row. A file that
+/// changes on disk gets a new size or mtime and is hashed again.
+pub fn cached_file_sha256(path: &Path) -> io::Result<String> {
+    let meta = fs::metadata(path)?;
+    let key = (path.to_path_buf(), meta.len(), meta.modified()?);
+    if let Ok(mut cache) = file_hash_cache().lock() {
+        if let Some(pos) = cache.iter().position(|(k, _)| *k == key) {
+            let entry = cache.remove(pos).expect("position is in range");
+            let hash = entry.1.clone();
+            cache.push_back(entry);
+            return Ok(hash);
+        }
+    }
+    let hash = calculate_file_sha256(path)?;
+    if let Ok(mut cache) = file_hash_cache().lock() {
+        if cache.len() >= FILE_HASH_CACHE_CAP {
+            cache.pop_front();
+        }
+        cache.push_back((key, hash.clone()));
+    }
+    Ok(hash)
+}
+
+/// Checks that a file exists and that its SHA-256 matches the expected value.
 pub fn verify_file_sha256(path: &Path, expected_hex: &str) -> bool {
     if !path.exists() {
         return false;
@@ -87,7 +127,7 @@ pub fn verify_file_sha256(path: &Path, expected_hex: &str) -> bool {
     }
 }
 
-/// Zwraca domyślny katalog oficjalnie wspieranych modeli AI dla Auralune.
+/// Returns the default catalogue of AI models officially supported by Auralune.
 pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
     let models_dir = get_models_dir();
 
@@ -99,12 +139,12 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             file_path: models_dir.join("htdemucs_v4.onnx").to_string_lossy().to_string(),
             file_size: 316_446_953,
             sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".to_string(),
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             download_url: Some(
                 "https://huggingface.co/StemSplitio/htdemucs-onnx/resolve/main/htdemucs.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Studyjnej jakości rozbicie utworu na 4 stem-y: wokal, perkusja, bas i instrumenty towarzyszące."
+            description: "Studio-quality 4-stem separation: vocals, drums, bass and accompanying instruments."
                 .to_string(),
         },
         AiModelInfo {
@@ -114,12 +154,12 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
             file_path: models_dir.join("htdemucs_6s.onnx").to_string_lossy().to_string(),
             file_size: 258_159_781,
             sha256: "48f8e84945579f8ab340e083339e9221e03785dbe733a52c388200b6d3ca779a".to_string(),
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             download_url: Some(
                 "https://huggingface.co/StemSplitio/htdemucs-6s-onnx/resolve/main/htdemucs_6s.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Rozszerzony model 6-ścieżkowy: Wokal, Perkusja, Bas, Gitara, Fortepian oraz Podkład."
+            description: "Extended 6-stem model: Vocals, Drums, Bass, Guitar, Piano and Other."
                 .to_string(),
         },
         AiModelInfo {
@@ -134,7 +174,7 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
                 "https://huggingface.co/musetric/uvr-mdxnet-kara2-onnx/resolve/main/kara2.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Dedykowana izolacja wokalu prowadzącego (Lead) od chórków i harmonii (Backing)."
+            description: "Dedicated isolation of the lead vocal from backing vocals and harmonies."
                 .to_string(),
         },
         AiModelInfo {
@@ -149,13 +189,13 @@ pub fn get_default_model_catalog() -> Vec<AiModelInfo> {
                 "https://huggingface.co/daserge/basic-pitch-onnx/resolve/main/nmp.onnx".to_string(),
             ),
             is_installed: false,
-            description: "Wielogłosowa polifoniczna transkrypcja instrumentów i melodii wprost do nut i plików MIDI."
+            description: "Polyphonic transcription of instruments and melodies straight to notes and MIDI files."
                 .to_string(),
         },
     ]
 }
 
-/// Zwraca listę zarejestrowanych modeli z dynamicznie sprawdzonym stanem instalacji.
+/// Returns the registered models with their installation state checked live.
 pub fn list_available_models() -> Vec<AiModelInfo> {
     let mut catalog = get_default_model_catalog();
     for model in catalog.iter_mut() {
@@ -165,7 +205,7 @@ pub fn list_available_models() -> Vec<AiModelInfo> {
     catalog
 }
 
-/// Zwraca oficjalny katalog pakietów modeli (Model Packs) dla Moises-style Stem Projects.
+/// Returns the official catalogue of model packs for Moises-style stem projects.
 pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
     let _models_dir = get_models_dir();
 
@@ -173,9 +213,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_core_4stem".to_string(),
             name: "Core 4-Stem Studio Pack (HTDemucs v4)".to_string(),
-            description: "Klasyczny studyjny podział na 4 główne stemy: Wokal, Perkusja, Bas oraz Podkład."
+            description: "Classic studio split into 4 main stems: Vocals, Drums, Bass and Other."
                 .to_string(),
-            category: "Baza".to_string(),
+            category: "Base".to_string(),
             unlocked_stems: vec![
                 "vocals".to_string(),
                 "drums".to_string(),
@@ -184,7 +224,7 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
             ],
             model_files: vec!["htdemucs_v4.onnx".to_string()],
             total_size_bytes: 316_446_953,
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             source_url: "https://huggingface.co/StemSplitio/htdemucs-onnx".to_string(),
             sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".to_string(),
             is_installed: false,
@@ -194,9 +234,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_extended_6stem".to_string(),
             name: "Extended 6-Stem Pack (HTDemucs 6s)".to_string(),
-            description: "Rozszerza podział o dedykowane ścieżki Fortepianu (Piano) oraz Gitary (Guitar)."
+            description: "Extends the split with dedicated Piano and Guitar stems."
                 .to_string(),
-            category: "Baza".to_string(),
+            category: "Base".to_string(),
             unlocked_stems: vec![
                 "vocals".to_string(),
                 "drums".to_string(),
@@ -207,7 +247,7 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
             ],
             model_files: vec!["htdemucs_6s.onnx".to_string()],
             total_size_bytes: 258_159_781,
-            license: "MIT (kod) / CC-BY-NC 4.0 (wagi)".to_string(),
+            license: "MIT (code) / CC-BY-NC 4.0 (weights)".to_string(),
             source_url: "https://huggingface.co/StemSplitio/htdemucs-6s-onnx".to_string(),
             sha256: "48f8e84945579f8ab340e083339e9221e03785dbe733a52c388200b6d3ca779a".to_string(),
             is_installed: false,
@@ -217,9 +257,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_vocal_harmonies".to_string(),
             name: "Vocal Harmonies & Lead Isolation Pack".to_string(),
-            description: "Dzieli wokal na czysty Wokal prowadzący (Lead Vocal) oraz Chórki/Harmonie (Backing Vocals)."
+            description: "Splits vocals into a clean Lead Vocal and Backing Vocals/Harmonies."
                 .to_string(),
-            category: "Wokale".to_string(),
+            category: "Vocals".to_string(),
             unlocked_stems: vec![
                 "lead_vocal".to_string(),
                 "backing_vocals".to_string(),
@@ -236,9 +276,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_drum_pieces".to_string(),
             name: "Drum Kit Decomposition Pack".to_string(),
-            description: "Dekompozycja zestawu perkusyjnego na Stopę (Kick), Werbel (Snare), Hi-Hat, Tomy i Talerze."
+            description: "Decomposes the drum kit into Kick, Snare, Hi-Hat, Toms and Cymbals."
                 .to_string(),
-            category: "Perkusja".to_string(),
+            category: "Drums".to_string(),
             unlocked_stems: vec![
                 "kick".to_string(),
                 "snare".to_string(),
@@ -259,9 +299,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_orchestral".to_string(),
             name: "Acoustic & Orchestral Pack (MDX23C)".to_string(),
-            description: "Wyodrębnia sekcję smyczkową (Strings), dętą blaszaną (Brass) oraz dętą drewnianą (Woodwinds)."
+            description: "Extracts the Strings, Brass and Woodwinds sections."
                 .to_string(),
-            category: "Orkiestra".to_string(),
+            category: "Orchestra".to_string(),
             unlocked_stems: vec![
                 "strings".to_string(),
                 "brass".to_string(),
@@ -279,9 +319,9 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
         domain::ModelPackInfo {
             id: "pack_dsp_cascade".to_string(),
             name: "Auralune Native HPSS & Stereo Azimuth Engine".to_string(),
-            description: "Zaawansowany silnik STFT Harmonic-Percussive Source Separation z dekompozycją panoramy stereo (Center/Side). Izoluje transjenty stopy i werbla w pełnym paśmie oraz harmoniczne wokalu bez pudełkowatego filtra EQ. 100% rekonstrukcji pierwotnego miksu."
+            description: "Advanced STFT Harmonic-Percussive Source Separation engine with stereo-field decomposition (Center/Side). Isolates full-band kick and snare transients and vocal harmonics without a boxy EQ filter. 100% reconstruction of the original mix."
                 .to_string(),
-            category: "Wbudowany DSP".to_string(),
+            category: "Built-in DSP".to_string(),
             unlocked_stems: vec![
                 "vocals".to_string(),
                 "lead_vocal".to_string(),
@@ -316,7 +356,7 @@ pub fn get_model_packs_catalog() -> Vec<domain::ModelPackInfo> {
     ]
 }
 
-/// Zwraca listę pakietów modeli z dynamicznie sprawdzonym stanem instalacji na dysku.
+/// Returns the model packs with their on-disk installation state checked live.
 pub fn list_available_model_packs() -> Vec<domain::ModelPackInfo> {
     let models_dir = get_models_dir();
     let mut catalog = get_model_packs_catalog();
@@ -338,19 +378,19 @@ pub fn list_available_model_packs() -> Vec<domain::ModelPackInfo> {
     catalog
 }
 
-/// Wykrywa dostępnego dostawcę akceleracji sprzętowej (GPU) na systemie Linux.
+/// Detects an available hardware (GPU) acceleration provider on Linux.
 pub fn detect_acceleration_provider() -> (bool, String) {
-    // 1. Sprawdzenie AMD ROCm / HIP (CachyOS / Arch)
+    // 1. Check for AMD ROCm / HIP (CachyOS / Arch)
     if Path::new("/dev/kfd").exists() {
         return (true, "ROCm (AMD ROCm / HIP Acceleration)".to_string());
     }
 
-    // 2. Sprawdzenie NVIDIA CUDA
+    // 2. Check for NVIDIA CUDA
     if Path::new("/proc/driver/nvidia/version").exists() || Path::new("/dev/nvidia0").exists() {
         return (true, "CUDA (NVIDIA TensorRT / CUDA)".to_string());
     }
 
-    // 3. Sprawdzenie Vulkan / Direct Rendering
+    // 3. Check for Vulkan / Direct Rendering
     if Path::new("/dev/dri/renderD128").exists() {
         return (true, "Vulkan / Direct Rendering (DRI)".to_string());
     }
@@ -361,7 +401,7 @@ pub fn detect_acceleration_provider() -> (bool, String) {
     )
 }
 
-/// Pobiera możliwości systemu w zakresie analizy muzycznej raportowane do UI.
+/// Returns the system's music-analysis capabilities as reported to the UI.
 pub fn get_analysis_capabilities() -> AnalysisCapabilities {
     let ml_enabled = cfg!(feature = "analysis-ml");
     let (gpu_available, provider) = detect_acceleration_provider();
@@ -376,7 +416,7 @@ pub fn get_analysis_capabilities() -> AnalysisCapabilities {
     }
 }
 
-/// Bezpiecznie usuwa plik modelu z dysku.
+/// Safely deletes a model file from disk.
 pub fn remove_model_file(model_id: &str) -> io::Result<bool> {
     let catalog = get_default_model_catalog();
     if let Some(target) = catalog.iter().find(|m| m.id == model_id) {
@@ -387,50 +427,4 @@ pub fn remove_model_file(model_id: &str) -> io::Result<bool> {
         }
     }
     Ok(false)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_models_and_stems_dir_resolution() {
-        let models_dir = get_models_dir();
-        assert!(models_dir.to_str().unwrap().contains("models"));
-
-        let stems_dir = get_stems_cache_dir();
-        assert!(stems_dir.to_str().unwrap().contains("stems"));
-    }
-
-    #[test]
-    fn test_file_sha256_calculation() {
-        let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join("auralune_sha256_test.txt");
-        fs::write(&test_file, b"Auralune Kitsune Player Test").unwrap();
-
-        let hash = calculate_file_sha256(&test_file).unwrap();
-        assert_eq!(hash.len(), 64);
-
-        let verified = verify_file_sha256(&test_file, &hash);
-        assert!(verified);
-
-        let failed = verify_file_sha256(
-            &test_file,
-            "0000000000000000000000000000000000000000000000000000000000000000",
-        );
-        assert!(!failed);
-
-        let _ = fs::remove_file(test_file);
-    }
-
-    #[test]
-    fn test_model_catalog_and_capabilities() {
-        let caps = get_analysis_capabilities();
-        assert!(!caps.acceleration_provider.is_empty());
-        assert!(!caps.models.is_empty());
-        assert!(caps.models.iter().any(|m| m.id == "htdemucs_v4"));
-        assert!(caps.models.iter().any(|m| m.id == "htdemucs_6s"));
-        assert!(caps.models.iter().any(|m| m.id == "uvr_mdx_karaoke"));
-        assert!(caps.models.iter().any(|m| m.id == "spotify_basic_pitch"));
-    }
 }

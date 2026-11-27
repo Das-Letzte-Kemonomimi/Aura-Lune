@@ -9,6 +9,8 @@ default = []
 analysis-ml = []
 
 [dependencies]
+bytemuck.workspace = true
+crossbeam-utils.workspace = true
 domain = { path = "../domain" }
 dsp-api = { path = "../dsp-api" }
 dsp-rubberband = { path = "../dsp-rubberband" }

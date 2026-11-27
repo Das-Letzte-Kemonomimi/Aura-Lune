@@ -1,0 +1,389 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { renderHook, cleanup } from '@testing-library/react';
+import { useMainRouterProps } from './useMainRouterProps';
+import { getTranslations } from '../i18n';
+import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
+
+describe('useMainRouterProps', () => {
+  afterEach(() => {
+    cleanup();
+  });
+  it('bundles playerProps, libraryProps, dspProps, playlistsProps, stemProjectsProps, and radioProps correctly', () => {
+    const loc = getTranslations('en');
+    const mockParams: any = {
+      layoutMaxWidth: '1200px',
+      language: 'en',
+      loc,
+      status: DEFAULT_PLAYBACK_STATUS,
+      activeTrackId: 1,
+      currentPlayingTrack: null,
+      tracks: [],
+      albums: [],
+      currentAlbum: null,
+      currentCover: null,
+      cleanLiveTitle: 'Title',
+      effectiveDisplayTitle: 'Title',
+      effectiveDisplayArtist: 'Artist',
+      filePath: '/path',
+      setFilePath: vi.fn(),
+      volumeUnit: 'percent',
+      formatVolumeValue: vi.fn(),
+      handleToggleVolumeUnit: vi.fn(),
+      seekFadeEnabled: false,
+      handleToggleSeekFade: vi.fn(),
+      infinityQueue: false,
+      handleToggleInfinityQueue: vi.fn(),
+      sleepTimerRemainingSec: null,
+      sleepTimerTargetMode: null,
+      setIsSleepTimerOpen: vi.fn(),
+      setIsAudioPathModalOpen: vi.fn(),
+      setIsLoFiModalOpen: vi.fn(),
+      setIsShortcutsModalOpen: vi.fn(),
+      setIsLoopEditorOpen: vi.fn(),
+      setIsBookmarksModalOpen: vi.fn(),
+      setIsSaveQueueModalOpen: vi.fn(),
+      setStatsModalTrack: vi.fn(),
+      setActiveTab: vi.fn(),
+      showLyrics: false,
+      setShowLyrics: vi.fn(),
+      nowPlayingVisualMode: 'cover',
+      handleSelectNowPlayingVisualMode: vi.fn(),
+      vinylRpm: 33,
+      handleSelectVinylRpm: vi.fn(),
+      tapeSpeed: '7.5',
+      handleSelectTapeSpeed: vi.fn(),
+      tapeType: 'type1',
+      handleSelectTapeType: vi.fn(),
+      activeDspVibe: null,
+      handleApplyDspVibe: vi.fn(),
+      dspBadgeText: '',
+      dspBadgeTitle: '',
+      dspCombination: {},
+      lastActiveDspEngineRef: { current: 'RubberBand' },
+      trackWaveformPeaks: null,
+      trackWaveformBands: null,
+      isWaveformLoading: false,
+      loopPointA: null,
+      setLoopPointA: vi.fn(),
+      loopPointB: null,
+      setLoopPointB: vi.fn(),
+      currentBookmark: null,
+      currentTrackBookmarks: [],
+      handleSaveBookmark: vi.fn(),
+      handleDeleteBookmark: vi.fn(),
+      handleJumpToBookmark: vi.fn(),
+      queue: { items: [], active_index: null },
+      queueSearchQuery: '',
+      setQueueSearchQuery: vi.fn(),
+      queueColumns: {},
+      isColumnConfigOpen: false,
+      setIsColumnConfigOpen: vi.fn(),
+      toggleQueueColumn: vi.fn(),
+      resetQueueColumns: vi.fn(),
+      isQuickLoadOpen: false,
+      setIsQuickLoadOpen: vi.fn(),
+      draggedQueueIdx: null,
+      dragOverQueueIdx: null,
+      handleQueueDragStart: vi.fn(),
+      handleQueueDragOver: vi.fn(),
+      handleQueueDrop: vi.fn(),
+      handleMoveQueueItem: vi.fn(),
+      handlePlayQueueIndex: vi.fn(),
+      handleRemoveFromQueue: vi.fn(),
+      handleClearQueue: vi.fn(),
+      mainContentRef: { current: null },
+      handleSeek: vi.fn(),
+      handlePlayPause: vi.fn(),
+      handleStop: vi.fn(),
+      handlePrevious: vi.fn(),
+      handleNext: vi.fn(),
+      handleToggleShuffle: vi.fn(),
+      handleCycleLoopMode: vi.fn(),
+      handleToggleStopAfterCurrent: vi.fn(),
+      handleToggleMute: vi.fn(),
+      handleVolumeChange: vi.fn(),
+      handlePitchChange: vi.fn(),
+      handleTempoChange: vi.fn(),
+      handleEngineChange: vi.fn(),
+      handleToggleFavorite: vi.fn(),
+      handleOpenContainingFolder: vi.fn(),
+      handleOpenCoverPicker: vi.fn(),
+      handleUploadCustomCoverDirect: vi.fn(),
+      handleRestoreOriginalTrack: vi.fn(),
+      handleLoadFile: vi.fn(),
+      handlePickFiles: vi.fn(),
+      formatTime: vi.fn(),
+      formatTimeMs: vi.fn(),
+      showMessage: vi.fn(),
+      // library:
+      filteredTracks: [],
+      sortedTracks: [],
+      filteredAlbums: [],
+      sortedAlbums: [],
+      librarySubView: 'all',
+      setLibrarySubView: vi.fn(),
+      librarySearch: '',
+      setLibrarySearch: vi.fn(),
+      librarySearchInputRef: { current: null },
+      libraryFormatFilter: 'all',
+      setLibraryFormatFilter: vi.fn(),
+      isFacetsFilterEnabled: false,
+      setIsFacetsFilterEnabled: vi.fn(),
+      facetSelectedArtist: null,
+      setFacetSelectedArtist: vi.fn(),
+      facetSelectedAlbumId: null,
+      setFacetSelectedAlbumId: vi.fn(),
+      facetSelectedFormat: null,
+      setFacetSelectedFormat: vi.fn(),
+      smartPlaylistFilter: 'all',
+      setSmartPlaylistFilter: vi.fn(),
+      hideDuplicates: false,
+      setHideDuplicates: vi.fn(),
+      sortField: 'title',
+      setSortField: vi.fn(),
+      sortOrder: 'asc',
+      setSortOrder: vi.fn(),
+      handleSort: vi.fn(),
+      albumSortField: 'title',
+      setAlbumSortField: vi.fn(),
+      albumSortOrder: 'asc',
+      setAlbumSortOrder: vi.fn(),
+      albumGridSize: 200,
+      setAlbumGridSize: vi.fn(),
+      albumViewMode: 'grid',
+      setAlbumViewMode: vi.fn(),
+      albumCoverFilter: 'all',
+      setAlbumCoverFilter: vi.fn(),
+      albumsWithCoverCount: 0,
+      albumsWithoutCoverCount: 0,
+      selectedAlbumDetail: null,
+      handleOpenAlbumDetail: vi.fn(),
+      handleBackFromAlbumDetail: vi.fn(),
+      selectedAlbumForMb: null,
+      setSelectedAlbumForMb: vi.fn(),
+      handleOpenMbModal: vi.fn(),
+      mbSearchTitle: '',
+      setMbSearchTitle: vi.fn(),
+      mbSearchArtist: '',
+      setMbSearchArtist: vi.fn(),
+      mbCandidates: [],
+      isSearchingMb: false,
+      isFetchingCover: false,
+      handleSearchMusicBrainz: vi.fn(),
+      handleSelectCandidateAndFetchCover: vi.fn(),
+      handleAddTrackToQueue: vi.fn(),
+      handleAddTrackNextToQueue: vi.fn(),
+      handlePlayAlbum: vi.fn(),
+      handleAddAlbumToQueue: vi.fn(),
+      handleSetTrackRating: vi.fn(),
+      handleScanTrackReplayGain: vi.fn(),
+      handleShuffleAll: vi.fn(),
+      setTagEditorTrack: vi.fn(),
+      setTrackToAddToPlaylist: vi.fn(),
+      setShowPlaylistModal: vi.fn(),
+      setCreateStemProjectTrack: vi.fn(),
+      setIsCreateStemProjectOpen: vi.fn(),
+      setIsCueModalOpen: vi.fn(),
+      setIsDuplicateFinderOpen: vi.fn(),
+      setIsFileRenamerOpen: vi.fn(),
+      setIsUrlImportModalOpen: vi.fn(),
+      setShowDownloadHub: vi.fn(),
+      isScanFolderOpen: false,
+      setIsScanFolderOpen: vi.fn(),
+      scanFolder: '',
+      setScanFolder: vi.fn(),
+      handlePickFolder: vi.fn(),
+      handleScanLibrary: vi.fn(),
+      isScanning: false,
+      scanResult: null,
+      refreshQueue: vi.fn(),
+      loadLibrary: vi.fn(),
+      handleTriggerBackgroundCoverFetch: vi.fn(),
+      coverSyncProgress: { running: false, processed: 0, total: 0 },
+      // dsp:
+      uiScale: 1,
+      activeTrackKeyBpm: null,
+      dspAutoStartup: false,
+      dspDefaultEngine: 'NativeGstreamer',
+      dspBlockSize: 512,
+      bassBoost: 0,
+      lastBassBoostRef: { current: 0 },
+      stereoWidenerActive: false,
+      stereoWidenerAmount: 0,
+      limiterEnabled: false,
+      crossfeedEnabled: false,
+      crossfeedPreset: 'standard',
+      crossfeedFcut: 700,
+      crossfeedFeed: 4.5,
+      reverbEnabled: false,
+      reverbRoomSize: 0,
+      reverbDamping: 0,
+      reverbWidth: 0,
+      reverbLevel: 0,
+      presets: [],
+      eqAutoStartup: false,
+      selectedEqPreset: null,
+      eqPresets: [],
+      newPresetName: '',
+      setNewPresetName: vi.fn(),
+      handleToggleDspAutoStartup: vi.fn(),
+      handleSaveDspStartupDefault: vi.fn(),
+      handleResetDsp: vi.fn(),
+      handleSetDspBlockSize: vi.fn(),
+      handleRateChange: vi.fn(),
+      handleBassBoostChange: vi.fn(),
+      handleToggleStereoWidener: vi.fn(),
+      handleStereoWidenerAmountChange: vi.fn(),
+      handleToggleLimiter: vi.fn(),
+      handleSetCrossfeed: vi.fn(),
+      handleUpdateReverb: vi.fn(),
+      handleLoadPreset: vi.fn(),
+      handleSavePreset: vi.fn(),
+      handleApplySignatureProfile: vi.fn(),
+      handleToggleEqAutoStartup: vi.fn(),
+      handleApplyEqPreset: vi.fn(),
+      handleResetEq: vi.fn(),
+      handleEqToggle: vi.fn(),
+      handleEqBandChange: vi.fn(),
+      preampDb: 0,
+      preampAuto: false,
+      autoPreampValue: 0,
+      handlePreampChange: vi.fn(),
+      handleTogglePreampAuto: vi.fn(),
+      handleResetClipIndicator: vi.fn(),
+      setIsParametricEqOpen: vi.fn(),
+      setIsAutoEqOpen: vi.fn(),
+      setIsDynamicsStudioOpen: vi.fn(),
+      // playlists:
+      playlists: [],
+      newPlaylistName: '',
+      setNewPlaylistName: vi.fn(),
+      handleCreatePlaylist: vi.fn(),
+      handleImportPlaylistM3u8: vi.fn(),
+      selectedPlaylist: null,
+      setSelectedPlaylist: vi.fn(),
+      playlistTracks: [],
+      setPlaylistTracks: vi.fn(),
+      handlePlayLibraryTrack: vi.fn(),
+      handleExportPlaylistM3u8: vi.fn(),
+      handleDeletePlaylist: vi.fn(),
+      handleRemoveTrackFromPlaylist: vi.fn(),
+      handleOpenPlaylist: vi.fn(),
+      // stem projects:
+      setActiveStemProjectId: vi.fn(),
+      setIsStemStudioOpen: vi.fn(),
+      // radio:
+      currentRadioStation: null,
+      customRadioStations: [],
+      handlePlayRadioStation: vi.fn(),
+      setIsAddStationModalOpen: vi.fn(),
+      handleDeleteCustomStation: vi.fn(),
+    };
+
+    const { result, rerender } = renderHook((params: any) => useMainRouterProps(params), {
+      initialProps: mockParams,
+    });
+
+    const firstResult = result.current;
+    expect(firstResult.playerProps.layoutMaxWidth).toBe('1200px');
+    expect(firstResult.libraryProps.language).toBe('en');
+    expect(firstResult.dspProps.uiScale).toBe(1);
+    expect(firstResult.playlistsProps.playlists).toEqual([]);
+    expect(typeof firstResult.stemProjectsProps.onOpenProject).toBe('function');
+    expect(typeof firstResult.radioProps.onPlayStation).toBe('function');
+
+    rerender({ ...mockParams });
+    expect(result.current.playerProps).toBe(firstResult.playerProps);
+    expect(result.current.libraryProps).toBe(firstResult.libraryProps);
+    expect(result.current.dspProps).toBe(firstResult.dspProps);
+    expect(result.current.playlistsProps).toBe(firstResult.playlistsProps);
+    expect(result.current.stemProjectsProps).toBe(firstResult.stemProjectsProps);
+    expect(result.current.radioProps).toBe(firstResult.radioProps);
+    expect(result.current.statsProps).toBe(firstResult.statsProps);
+    expect(result.current).toBe(firstResult);
+  });
+
+  it('unpacks bundled managers into their respective subprops', () => {
+    const loc = getTranslations('en');
+    const mockLibrary = {
+      filteredTracks: [{ id: 101, title: 'Bundle Track' }],
+      librarySearch: 'hello',
+    };
+    const mockModals = {
+      setIsSleepTimerOpen: vi.fn(),
+      isQuickLoadOpen: true,
+    };
+    const mockPlayback = {
+      handlePlayPause: vi.fn(),
+      currentBookmark: 42,
+    };
+    const mockDsp = {
+      presets: ['PresetA'],
+      dspBlockSize: 512,
+    };
+    const mockQueue = {
+      queue: { items: [], current_index: null },
+      playQueueIndex: vi.fn(),
+    };
+    const mockPlaylists = {
+      playlists: [{ id: 1, name: 'My Playlist', track_count: 5 }],
+      handleCreatePlaylist: vi.fn(),
+    };
+
+    const { result } = renderHook(() =>
+      useMainRouterProps({
+        language: 'en',
+        loc,
+        library: mockLibrary,
+        modals: mockModals,
+        playback: mockPlayback,
+        dsp: mockDsp,
+        queueManager: mockQueue,
+        playlistsManager: mockPlaylists,
+      } as any),
+    );
+
+    expect(result.current.libraryProps.filteredTracks).toEqual(mockLibrary.filteredTracks);
+    expect(result.current.playerProps.isQuickLoadOpen).toBe(true);
+    expect(result.current.playerProps.currentBookmark).toBe(42);
+    expect(result.current.dspProps.dspBlockSize).toBe(512);
+    expect(result.current.playlistsProps.playlists).toHaveLength(1);
+    expect(result.current.statsProps).toBeDefined();
+    expect(result.current.statsProps.currentLang).toBe('en');
+  });
+
+  it('switches to library albums detail when handleOpenAlbumInLibrary is called', () => {
+    const loc = getTranslations('en');
+    const setActiveTab = vi.fn();
+    const setLibrarySubView = vi.fn();
+    const handleOpenAlbumDetail = vi.fn();
+    const album = {
+      id: 9,
+      title: 'Mein rasend Herz',
+      album_artist: 'In Extremo',
+      year: 2005,
+      cover_path: null,
+      release_mbid: null,
+    };
+
+    const { result } = renderHook(() =>
+      useMainRouterProps({
+        language: 'en',
+        loc,
+        setActiveTab,
+        library: {
+          setLibrarySubView,
+          handleOpenAlbumDetail,
+        },
+      } as any),
+    );
+
+    result.current.playerProps.handleOpenAlbumInLibrary(album);
+
+    expect(setLibrarySubView).toHaveBeenCalledWith('albums');
+    expect(handleOpenAlbumDetail).toHaveBeenCalledWith(album);
+    expect(setActiveTab).toHaveBeenCalledWith('library');
+  });
+});
+

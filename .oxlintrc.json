@@ -1,0 +1,73 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "dist/**",
+    "target/**",
+    "crates/**",
+    "src-tauri/**",
+    ".claude/**",
+    ".agents/**",
+    "packaging/**"
+  ],
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc"
+  ],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
+    "react/set-state-in-effect": "off",
+    "react/preserve-manual-memoization": "off",
+    "react/immutability": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@tauri-apps/api/core",
+            "importNames": [
+              "invoke"
+            ],
+            "message": "Use `invoke` from src/api/ipc — it type-checks command names and normalizes backend errors to IpcError."
+          },
+          {
+            "name": "@tabler/icons-react",
+            "message": "Import icons from src/components/ui/icons — the single barrel that maps Tabler icons to app names."
+          }
+        ]
+      }
+    ],
+    "react-hooks/exhaustive-deps": "error",
+    "typescript/no-explicit-any": "warn"
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/api/**",
+        "src/components/ui/icons.ts",
+        "src/test/**",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "src/test/**"
+      ],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    }
+  ]
+}

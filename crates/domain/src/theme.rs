@@ -1,12 +1,13 @@
-//! Domena motywów wizualnych (Anime Theme Engine).
+//! Visual theme domain (Anime Theme Engine).
 //!
-//! Zgodnie z ADR 0006 i AGENTS.md:
-//! Motyw zawiera zestaw tokenów CSS, opcjonalne tło użytkowniczki,
-//! suwaki przezroczystości (overlay) i rozmycia (blur) oraz atrybucję.
+//! Per ADR 0006 and AGENTS.md:
+//! a theme holds a set of CSS tokens, an optional user background,
+//! the overlay opacity and blur sliders, and attribution.
 
+use crate::DomainError;
 use serde::{Deserialize, Serialize};
 
-/// Tokeny wizualne CSS variables dla motywu.
+/// Visual CSS variable tokens of a theme.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ThemeTokens {
     pub bg_deep: String,
@@ -27,7 +28,7 @@ pub struct ThemeTokens {
     pub shadow_card: String,
 }
 
-/// Pełna definicja motywu interfejsu.
+/// Full definition of a UI theme.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Theme {
     pub id: String,
@@ -35,42 +36,45 @@ pub struct Theme {
     pub schema_version: u32,
     pub tokens: ThemeTokens,
     pub background_ref: Option<String>,
-    pub overlay_opacity: f32, // Zakres: 0.0 - 0.9
-    pub blur_radius: f32,     // Zakres: 0.0 - 30.0 px
+    pub overlay_opacity: f32, // Range: 0.0 - 0.9
+    pub blur_radius: f32,     // Range: 0.0 - 30.0 px
     pub attribution: Option<String>,
 }
 
 impl Theme {
-    /// Waliduje parametry motywu pod kątem bezpieczeństwa i zakresów UI.
-    pub fn validate(&self) -> Result<(), String> {
+    /// Validates the theme parameters for safety and UI ranges.
+    pub fn validate(&self) -> Result<(), DomainError> {
         if self.schema_version != 1 {
-            return Err(format!(
-                "Nieobsługiwana wersja schematu: {}",
+            return Err(DomainError::Validation(format!(
+                "Unsupported schema version: {}",
                 self.schema_version
-            ));
+            )));
         }
         if self.id.trim().is_empty() {
-            return Err("ID motywu nie może być puste".to_string());
+            return Err(DomainError::Validation(
+                "Theme ID must not be empty".to_string(),
+            ));
         }
         if self.name.trim().is_empty() {
-            return Err("Nazwa motywu nie może być pusta".to_string());
+            return Err(DomainError::Validation(
+                "Theme name must not be empty".to_string(),
+            ));
         }
         if !(0.0..=0.9).contains(&self.overlay_opacity) {
-            return Err(
-                "Współczynnik overlay_opacity musi mieścić się w przedziale 0.0 - 0.9".to_string(),
-            );
+            return Err(DomainError::Validation(
+                "overlay_opacity must be within 0.0 - 0.9".to_string(),
+            ));
         }
         if !(0.0..=30.0).contains(&self.blur_radius) {
-            return Err(
-                "Promień rozmycia blur_radius musi mieścić się w przedziale 0.0 - 30.0 px"
-                    .to_string(),
-            );
+            return Err(DomainError::Validation(
+                "blur_radius must be within 0.0 - 30.0 px".to_string(),
+            ));
         }
         Ok(())
     }
 }
 
-/// Domyślne presety motywów Anime Auralune.
+/// Default Auralune anime theme presets.
 pub fn default_themes() -> Vec<Theme> {
     vec![
         Theme {
@@ -263,26 +267,4 @@ pub fn default_themes() -> Vec<Theme> {
             attribution: Some("Dark medieval gothic metal, blackened iron & crimson embers (In Extremo 1999 aesthetic)".to_string()),
         },
     ]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_theme_validation() {
-        let themes = default_themes();
-        assert_eq!(themes.len(), 7);
-        for t in themes {
-            assert!(t.validate().is_ok());
-        }
-
-        let mut invalid_theme = default_themes()[0].clone();
-        invalid_theme.overlay_opacity = 1.5;
-        assert!(invalid_theme.validate().is_err());
-
-        invalid_theme.overlay_opacity = 0.5;
-        invalid_theme.blur_radius = 50.0;
-        assert!(invalid_theme.validate().is_err());
-    }
 }

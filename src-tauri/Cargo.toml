@@ -1,0 +1,45 @@
+[package]
+name = "auralune-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "auralune_desktop"
+crate-type = ["rlib"]
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+analysis-ml = ["audio-engine/analysis-ml"]
+
+[dependencies]
+tauri = { version = "2", features = ["image-png", "tray-icon"] }
+tauri-plugin-single-instance = "2"
+audio-engine = { path = "../crates/audio-engine" }
+domain = { path = "../crates/domain" }
+dsp-api = { path = "../crates/dsp-api" }
+storage = { path = "../crates/storage" }
+library = { path = "../crates/library" }
+desktop-integration = { path = "../crates/desktop-integration" }
+metadata = { path = "../crates/metadata" }
+downloads = { path = "../crates/downloads" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+thiserror.workspace = true
+lofty.workspace = true
+base64 = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+gstreamer = { workspace = true }
+glib = { workspace = true }
+walkdir = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+url = "2"
+reqwest = { workspace = true }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

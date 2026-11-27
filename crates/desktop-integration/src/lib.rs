@@ -1,19 +1,22 @@
-//! Integracja odtwarzacza z pulpitem Linuksa przez specyfikację MPRIS 2.2 na magistrali D-Bus,
-//! Discord Rich Presence (RPC), eksport statusu do Waybar/Hyprland (/tmp/auralune.json)
-//! oraz kanały bezpośredniego sterowania IPC FIFO/Socket (/tmp/auralune_ctl, /tmp/auralune.sock).
+//! Desktop integration on Linux: MPRIS 2.2 over D-Bus,
+//! Discord Rich Presence (RPC), status export for Waybar/Hyprland
+//! (`$XDG_RUNTIME_DIR/auralune/auralune.json`) and the direct IPC control channels
+//! over FIFO/socket (`$XDG_RUNTIME_DIR/auralune/ctl`, `$XDG_RUNTIME_DIR/auralune/auralune.sock`).
 
 pub mod control_ipc;
 pub mod discord_rpc;
 pub mod mpris;
+pub mod runtime_dir;
 pub mod waybar;
 
-pub use control_ipc::{ControlIpcServer, DEFAULT_FIFO_PATH, DEFAULT_SOCKET_PATH};
+pub use control_ipc::ControlIpcServer;
 pub use discord_rpc::{
-    build_activity_payload, DiscordRpcController, DiscordRpcStatus, DiscordTrackInfo,
-    DEFAULT_DISCORD_CLIENT_ID,
+    build_activity_payload, next_reconnect_backoff, DiscordRpcController, DiscordRpcStatus,
+    DiscordTrackInfo, DEFAULT_DISCORD_CLIENT_ID,
 };
 pub use mpris::{MprisController, MprisTrackInfo};
+pub use runtime_dir::{control_fifo_path, control_socket_path, waybar_status_path};
 pub use waybar::{
-    cleanup_waybar_status, write_waybar_status, write_waybar_status_to_path, WaybarStatus,
-    DEFAULT_WAYBAR_STATUS_PATH,
+    cleanup_waybar_status, waybar_status_changed, write_waybar_status, write_waybar_status_to_path,
+    WaybarStatus,
 };

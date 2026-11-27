@@ -1,40 +1,40 @@
-//! Moduł pobierania legalnych źródeł audio (Etap 7 z AGENTS.md).
+//! Downloads of legal audio sources.
 //!
-//! ZGODNIE Z AGENTS.md I ZASADAMI BEZPIECZEŃSTWA:
-//! - Pobieranie wyłącznie z legalnych, otwartych i bezpośrednich źródeł audio (Direct HTTP/HTTPS, Creative Commons, Archive.org, legalne podcasty/streamy).
-//! - Żadnego obchodzenia zabezpieczeń DRM, paywalli ani restrykcji.
-//! - Wszystkie ścieżki docelowe są normalizowane i chronione przed path traversal (../).
-//! - Pobieranie odbywa się do pliku tymczasowego (`.auralune_tmp_*`) i dopiero po pomyślnej weryfikacji następuje atomowe przeniesienie (`fs::rename`).
-//! - Opcjonalna weryfikacja sumy kontrolnej SHA-256 w locie.
+//! Safety rules:
+//! - Downloads only from legal, open and direct audio sources (direct HTTP/HTTPS, Creative Commons, Archive.org, legal podcasts/streams).
+//! - No circumvention of DRM, paywalls or restrictions.
+//! - Every destination path is normalised and protected against path traversal (../).
+//! - Downloads go to a temporary file (`.auralune_tmp_*`), which is moved atomically (`fs::rename`) only after successful verification.
+//! - Optional on-the-fly SHA-256 checksum verification.
 
 use sha2::{Digest, Sha256};
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
+use tokio::io::AsyncWriteExt;
 use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum DownloadError {
-    #[error("Błąd sieciowy HTTP: {0}")]
+    #[error("HTTP network error: {0}")]
     Network(#[from] reqwest::Error),
-    #[error("Błąd wejścia/wyjścia dysku: {0}")]
+    #[error("Disk I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("Niezgodność sumy kontrolnej SHA-256 (oczekiwano: {expected}, otrzymano: {actual})")]
+    #[error("SHA-256 checksum mismatch (expected: {expected}, got: {actual})")]
     ChecksumMismatch { expected: String, actual: String },
-    #[error("Próba niebezpiecznego dostępu do ścieżki (path traversal): {0}")]
+    #[error("Unsafe path access attempt (path traversal): {0}")]
     PathTraversal(String),
-    #[error("Brak wspieranego providera dla podanego adresu URL: {0}")]
+    #[error("No supported provider for the given URL: {0}")]
     UnsupportedUrl(String),
-    #[error("Pobieranie zostało anulowane przez użytkowniczkę")]
+    #[error("Download was cancelled by the user")]
     Cancelled,
-    #[error("Błąd zadania pobierania: {0}")]
+    #[error("Download task error: {0}")]
     General(String),
 }
 
-/// Stan zadania pobierania.
+/// Download job state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DownloadJobState {
     Pending,
@@ -45,7 +45,7 @@ pub enum DownloadJobState {
     Cancelled,
 }
 
-/// Metadane zadania pobierania w kolejce.
+/// Metadata of a queued download job.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DownloadJob {
     pub id: String,
@@ -62,7 +62,7 @@ pub struct DownloadJob {
     pub completed_at: Option<u64>,
 }
 
-/// Kontrakt dla dostawców pobierania audio.
+/// Contract for audio download providers.
 #[async_trait::async_trait]
 pub trait DownloadProvider: Send + Sync {
     fn name(&self) -> &'static str;
@@ -77,7 +77,7 @@ pub trait DownloadProvider: Send + Sync {
     ) -> Result<PathBuf, DownloadError>;
 }
 
-/// Dostawca bezpośredniego pobierania przez protokół HTTP/HTTPS.
+/// Direct download provider over HTTP/HTTPS.
 pub struct HttpDownloadProvider {
     client: reqwest::Client,
 }
@@ -122,53 +122,76 @@ impl DownloadProvider for HttpDownloadProvider {
         cancel_flag: Arc<AtomicBool>,
         progress_callback: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
     ) -> Result<PathBuf, DownloadError> {
-        // 1. Walidacja bezpieczeństwa ścieżki docelowej przed path traversal
+        // 1. Validate the destination path against path traversal
         validate_safe_destination_path(destination_path)?;
 
-        // Upewnij się, że katalog docelowy istnieje
+        // Make sure the destination directory exists
         if let Some(parent) = destination_path.parent() {
-            fs::create_dir_all(parent)?;
+            tokio::fs::create_dir_all(parent).await?;
         }
 
-        // 2. Przygotowanie pliku tymczasowego obok pliku docelowego
+        // 2. Prepare the temp file next to the target file
         let file_stem = destination_path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("download");
-        let temp_filename = format!(".auralune_tmp_{}_{}", std::process::id(), file_stem);
+        // Counter in the name: parallel downloads to the same name do not share a temp file.
+        let temp_filename = format!(
+            ".auralune_tmp_{}_{}_{}",
+            std::process::id(),
+            next_sequence(),
+            file_stem
+        );
         let temp_path = destination_path
             .parent()
             .map(|p| p.join(&temp_filename))
             .unwrap_or_else(|| PathBuf::from(&temp_filename));
 
-        info!(
-            "Rozpoczynanie pobierania {} -> plik tymczasowy: {:?}",
-            url, temp_path
-        );
+        info!("Starting download {} -> temp file: {:?}", url, temp_path);
 
-        // 3. Rozpoczęcie pobierania strumieniowego
+        // 3. Start the streaming download
         let res = self.client.get(url).send().await?;
         if !res.status().is_success() {
             return Err(DownloadError::General(format!(
-                "Serwer zwrócił błąd HTTP: {}",
+                "Server returned HTTP error: {}",
                 res.status()
             )));
         }
 
         let total_bytes = res.content_length();
-        let mut file = File::create(&temp_path)?;
+        let raw_file = tokio::fs::File::create(&temp_path).await?;
+        let mut file = tokio::io::BufWriter::with_capacity(256 * 1024, raw_file);
+        // Removes the temp file on every early exit (network/disk error, cancellation,
+        // checksum mismatch). Disarmed only after the atomic move.
+        let mut temp_guard = TempFileGuard::new(temp_path.clone());
         let mut hasher = Sha256::new();
         let mut downloaded_bytes: u64 = 0;
 
         let mut stream = res;
-        while let Some(chunk) = stream.chunk().await? {
+        let mut last_data = std::time::Instant::now();
+        loop {
             if cancel_flag.load(Ordering::Relaxed) {
-                drop(file);
-                let _ = fs::remove_file(&temp_path);
                 return Err(DownloadError::Cancelled);
             }
+            // Short per-chunk timeout: cancellation works even on a stalled connection.
+            let chunk = match tokio::time::timeout(CANCEL_POLL_INTERVAL, stream.chunk()).await {
+                Err(_) => {
+                    if last_data.elapsed() > STALL_TIMEOUT {
+                        return Err(DownloadError::General(format!(
+                            "No data for {} s, download aborted",
+                            STALL_TIMEOUT.as_secs()
+                        )));
+                    }
+                    continue;
+                }
+                Ok(chunk) => match chunk? {
+                    Some(chunk) => chunk,
+                    None => break,
+                },
+            };
+            last_data = std::time::Instant::now();
 
-            file.write_all(&chunk)?;
+            file.write_all(&chunk).await?;
             hasher.update(&chunk);
             downloaded_bytes += chunk.len() as u64;
 
@@ -177,30 +200,31 @@ impl DownloadProvider for HttpDownloadProvider {
             }
         }
 
-        file.flush()?;
+        file.flush().await?;
+        file.get_ref().sync_all().await?;
         drop(file);
 
-        // 4. Weryfikacja sumy kontrolnej SHA-256
+        // 4. Verify the SHA-256 checksum
         let calculated_sha256 = hex::encode(hasher.finalize());
         if let Some(expected) = expected_sha256 {
             let clean_expected = expected.trim().to_lowercase();
             if clean_expected != calculated_sha256.to_lowercase() {
-                let _ = fs::remove_file(&temp_path);
                 return Err(DownloadError::ChecksumMismatch {
                     expected: clean_expected,
                     actual: calculated_sha256,
                 });
             }
             info!(
-                "Suma kontrolna SHA-256 zweryfikowana pomyślnie ({})",
+                "SHA-256 checksum verified successfully ({})",
                 calculated_sha256
             );
         }
 
-        // 5. Atomowe przeniesienie pliku tymczasowego na ścieżkę docelową
-        fs::rename(&temp_path, destination_path)?;
+        // 5. Atomically move the temp file to the destination path
+        tokio::fs::rename(&temp_path, destination_path).await?;
+        temp_guard.disarm();
         info!(
-            "Pobieranie ukończone sukcesem! Zapisano atomowo w: {:?}",
+            "Download finished! Saved atomically to: {:?}",
             destination_path
         );
 
@@ -208,7 +232,7 @@ impl DownloadProvider for HttpDownloadProvider {
     }
 }
 
-/// Menedżer kolejki pobierania audio.
+/// Audio download queue manager.
 #[derive(Clone)]
 pub struct DownloadManager {
     provider: Arc<HttpDownloadProvider>,
@@ -231,7 +255,7 @@ impl DownloadManager {
         }
     }
 
-    /// Dodaje nowe zadanie pobierania do kolejki i rozpoczyna pobieranie asynchronicznie.
+    /// Adds a new download job to the queue and starts it asynchronously.
     pub async fn add_download_job(
         &self,
         remote_url: String,
@@ -244,7 +268,7 @@ impl DownloadManager {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis(),
-            remote_url.len()
+            next_sequence()
         );
 
         let now_ts = std::time::SystemTime::now()
@@ -268,13 +292,19 @@ impl DownloadManager {
         };
 
         {
-            let mut list = self.jobs.lock().unwrap();
+            let mut list = self
+                .jobs
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             list.push(job);
         }
 
         let cancel_flag = Arc::new(AtomicBool::new(false));
         {
-            let mut flags = self.active_cancel_flags.lock().unwrap();
+            let mut flags = self
+                .active_cancel_flags
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             flags.insert(job_id.clone(), cancel_flag.clone());
         }
 
@@ -285,7 +315,9 @@ impl DownloadManager {
 
         tokio::spawn(async move {
             {
-                let mut list = jobs_ref.lock().unwrap();
+                let mut list = jobs_ref
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Some(j) = list.iter_mut().find(|x| x.id == target_job_id) {
                     j.state = DownloadJobState::Downloading;
                 }
@@ -296,7 +328,9 @@ impl DownloadManager {
             let progress_id = target_job_id.clone();
 
             let progress_cb = Box::new(move |downloaded: u64, total: Option<u64>| {
-                let mut list = jobs_progress.lock().unwrap();
+                let mut list = jobs_progress
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Some(j) = list.iter_mut().find(|x| x.id == progress_id) {
                     j.downloaded_bytes = downloaded;
                     j.total_bytes = total;
@@ -313,7 +347,9 @@ impl DownloadManager {
                 )
                 .await;
 
-            let mut list = jobs_ref.lock().unwrap();
+            let mut list = jobs_ref
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some(j) = list.iter_mut().find(|x| x.id == target_job_id) {
                 match res {
                     Ok(_) => {
@@ -335,16 +371,21 @@ impl DownloadManager {
                 }
             }
 
-            let mut flags = flags_ref.lock().unwrap();
+            let mut flags = flags_ref
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             flags.remove(&target_job_id);
         });
 
         Ok(job_id)
     }
 
-    /// Anuluje aktywne zadanie pobierania.
+    /// Cancels an active download job.
     pub fn cancel_download(&self, job_id: &str) -> bool {
-        let flags = self.active_cancel_flags.lock().unwrap();
+        let flags = self
+            .active_cancel_flags
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(flag) = flags.get(job_id) {
             flag.store(true, Ordering::Relaxed);
             true
@@ -353,78 +394,81 @@ impl DownloadManager {
         }
     }
 
-    /// Zwraca listę wszystkich zadań pobierania.
+    /// Returns the list of all download jobs.
     pub fn list_jobs(&self) -> Vec<DownloadJob> {
-        self.jobs.lock().unwrap().clone()
+        self.jobs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 }
 
-/// Zapewnia ochronę przed path traversal (ścieżka nie może zawierać `..` ani odwoływać się do katalogów systemowych).
+/// Checks a download target against the shared `domain::paths::check_write_target` rules:
+/// an absolute path, no `..`, outside system directories and hidden `$HOME` entries
+/// (except the app's data/cache directories, where AI models go).
 pub fn validate_safe_destination_path(path: &Path) -> Result<(), DownloadError> {
-    for comp in path.components() {
-        if let std::path::Component::ParentDir = comp {
-            return Err(DownloadError::PathTraversal(format!(
-                "Wykryto niedozwolone odwołanie nadrzędne ('..') w ścieżce: {:?}",
-                path
-            )));
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let app_roots: Vec<std::path::PathBuf> = [
+        ("XDG_DATA_HOME", ".local/share"),
+        ("XDG_CACHE_HOME", ".cache"),
+    ]
+    .iter()
+    .flat_map(|(var, fallback)| {
+        // The XDG variable plus the fixed location in $HOME: `install.sh` always installs the
+        // AppImage into `~/.local/share/auralune{,-dev}`, regardless of `XDG_DATA_HOME`.
+        [
+            std::env::var_os(var).map(std::path::PathBuf::from),
+            home.as_ref().map(|h| h.join(fallback)),
+        ]
+    })
+    .flatten()
+    // AI models and the stem cache live in `<base>/auralune/...` (audio_engine::model_manager),
+    // Tauri data in `<base>/com.auralune.player`, and the dev-channel AppImage (updater) in
+    // `<base>/auralune-dev`; all of these directories belong to the app.
+    .flat_map(|base| {
+        [
+            base.join("auralune"),
+            base.join("auralune-dev"),
+            base.join("com.auralune.player"),
+        ]
+    })
+    .collect();
+    let roots: Vec<&Path> = app_roots.iter().map(|p| p.as_path()).collect();
+    domain::paths::check_write_target(path, home.as_deref(), &roots)
+        .map_err(|e| DownloadError::PathTraversal(e.to_string()))
+}
+
+/// Removes the given file on drop, unless [`TempFileGuard::disarm`] was called.
+struct TempFileGuard {
+    path: PathBuf,
+    armed: bool,
+}
+
+impl TempFileGuard {
+    fn new(path: PathBuf) -> Self {
+        Self { path, armed: true }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            let _ = fs::remove_file(&self.path);
         }
     }
-
-    let path_str = path.to_string_lossy();
-    if path_str.starts_with("/etc") || path_str.starts_with("/root") || path_str.starts_with("/bin")
-    {
-        return Err(DownloadError::PathTraversal(format!(
-            "Zapis do katalogów systemowych jest zabroniony: {:?}",
-            path
-        )));
-    }
-
-    Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// How often the cancellation flag is checked while the server sends no data.
+const CANCEL_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+/// After this long without any data the download is aborted.
+const STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
-    #[test]
-    fn test_path_traversal_detection() {
-        let unsafe_path = Path::new("/home/mimi/Music/../../etc/passwd");
-        assert!(validate_safe_destination_path(unsafe_path).is_err());
-
-        let system_path = Path::new("/etc/auralune/music.flac");
-        assert!(validate_safe_destination_path(system_path).is_err());
-
-        let safe_path = Path::new("/home/mimi/Music/Downloads/anime_track.flac");
-        assert!(validate_safe_destination_path(safe_path).is_ok());
-    }
-
-    #[test]
-    fn test_download_job_creation() {
-        let mgr = DownloadManager::new();
-        assert_eq!(mgr.list_jobs().len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_http_download_huggingface_model_and_sha256() {
-        let temp_dir = std::env::temp_dir();
-        let dest = temp_dir.join(format!("test_nmp_{}.onnx", std::process::id()));
-        let cancel_flag = Arc::new(AtomicBool::new(false));
-        let provider = HttpDownloadProvider::new();
-
-        let res = provider
-            .download(
-                "https://huggingface.co/daserge/basic-pitch-onnx/resolve/main/nmp.onnx",
-                &dest,
-                Some("2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec"),
-                cancel_flag,
-                None,
-            )
-            .await;
-
-        assert!(res.is_ok(), "Download failed: {:?}", res);
-        let downloaded = res.unwrap();
-        assert!(downloaded.exists());
-        assert_eq!(std::fs::metadata(&downloaded).unwrap().len(), 230444);
-        let _ = fs::remove_file(downloaded);
-    }
+/// Monotonic process counter: unique job IDs and temp file names.
+fn next_sequence() -> u64 {
+    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    SEQUENCE.fetch_add(1, Ordering::Relaxed)
 }

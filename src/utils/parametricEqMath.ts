@@ -1,0 +1,223 @@
+export type ParametricFilterType =
+  | 'peak'
+  | 'low-shelf'
+  | 'high-shelf'
+  | 'low_shelf'
+  | 'high_shelf';
+
+export function normalizeFilterType(t: string | undefined): 'peak' | 'low-shelf' | 'high-shelf' {
+  if (!t) return 'peak';
+  const lower = t.toLowerCase();
+  if (lower === 'low-shelf' || lower === 'low_shelf' || lower === 'lsc' || lower === 'lsq' || lower === 'ls') {
+    return 'low-shelf';
+  }
+  if (lower === 'high-shelf' || lower === 'high_shelf' || lower === 'hsc' || lower === 'hsq' || lower === 'hs') {
+    return 'high-shelf';
+  }
+  return 'peak';
+}
+
+export interface ParametricBandDto {
+  id: string;
+  filter_type: ParametricFilterType;
+  freq: number;
+  gain_db: number;
+  q: number;
+  enabled: boolean;
+}
+
+export interface ParametricEqStateDto {
+  enabled: boolean;
+  preamp_db: number;
+  bands: ParametricBandDto[];
+}
+
+export interface ParametricEqPresetDto {
+  /** Stable kebab-case key: select and localise by this, never by `name`. */
+  id: string;
+  /** English fallback text from the backend. */
+  name: string;
+  description: string;
+  state: ParametricEqStateDto;
+}
+
+/**
+ * Accent colours for the successive parametric bands in the UI.
+ */
+export const PEQ_BAND_COLORS = [
+  '#f43f5e', // Rose
+  '#38bdf8', // Sky
+  '#a855f7', // Purple
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ec4899', // Pink
+  '#06b6d4', // Cyan
+  '#84cc16', // Lime
+  '#6366f1', // Indigo
+  '#fb923c', // Orange
+];
+
+/**
+ * Computes the frequency response (gain in dB) of a single biquad filter
+ * at frequency f (Hz) with sampling rate fs = 48000 Hz,
+ * using the standard formulas of Robert Bristow-Johnson's Audio EQ Cookbook.
+ */
+export function calculateBiquadResponseDb(
+  f: number,
+  filterType: ParametricFilterType,
+  f0: number,
+  gainDb: number,
+  q: number,
+  fs: number = 48000
+): number {
+  const normType = normalizeFilterType(filterType);
+  if (gainDb === 0 && normType === 'peak') return 0;
+
+  const w0 = (2 * Math.PI * f0) / fs;
+  const cosW0 = Math.cos(w0);
+  const sinW0 = Math.sin(w0);
+  const safeQ = Math.max(0.05, q);
+  const alpha = sinW0 / (2 * safeQ);
+  const A = Math.pow(10, gainDb / 40); // sqrt(10^(gainDb/20))
+
+  let b0 = 1;
+  let b1 = 0;
+  let b2 = 0;
+  let a0 = 1;
+  let a1 = 0;
+  let a2 = 0;
+
+  switch (normType) {
+    case 'peak': {
+      b0 = 1 + alpha * A;
+      b1 = -2 * cosW0;
+      b2 = 1 - alpha * A;
+      a0 = 1 + alpha / A;
+      a1 = -2 * cosW0;
+      a2 = 1 - alpha / A;
+      break;
+    }
+    case 'low-shelf': {
+      const sqrtA2 = 2 * Math.sqrt(A) * alpha;
+      b0 = A * (A + 1 - (A - 1) * cosW0 + sqrtA2);
+      b1 = 2 * A * (A - 1 - (A + 1) * cosW0);
+      b2 = A * (A + 1 - (A - 1) * cosW0 - sqrtA2);
+      a0 = A + 1 + (A - 1) * cosW0 + sqrtA2;
+      a1 = -2 * (A - 1 + (A + 1) * cosW0);
+      a2 = A + 1 + (A - 1) * cosW0 - sqrtA2;
+      break;
+    }
+    case 'high-shelf': {
+      const sqrtA2 = 2 * Math.sqrt(A) * alpha;
+      b0 = A * (A + 1 + (A - 1) * cosW0 + sqrtA2);
+      b1 = -2 * A * (A - 1 + (A + 1) * cosW0);
+      b2 = A * (A + 1 + (A - 1) * cosW0 - sqrtA2);
+      a0 = A + 1 - (A - 1) * cosW0 + sqrtA2;
+      a1 = 2 * (A - 1 - (A + 1) * cosW0);
+      a2 = A + 1 - (A - 1) * cosW0 - sqrtA2;
+      break;
+    }
+  }
+
+  // Normalise the coefficients by a0
+  const nb0 = b0 / a0;
+  const nb1 = b1 / a0;
+  const nb2 = b2 / a0;
+  const na1 = a1 / a0;
+  const na2 = a2 / a0;
+
+  // Compute the magnitude of the transfer function H(e^(j*w)) at frequency f
+  const w = (2 * Math.PI * f) / fs;
+  const cosW = Math.cos(w);
+  const sinW = Math.sin(w);
+  const cos2W = Math.cos(2 * w);
+  const sin2W = Math.sin(2 * w);
+
+  const numReal = nb0 + nb1 * cosW + nb2 * cos2W;
+  const numImag = -(nb1 * sinW + nb2 * sin2W);
+
+  const denReal = 1 + na1 * cosW + na2 * cos2W;
+  const denImag = -(na1 * sinW + na2 * sin2W);
+
+  const numMagSq = numReal * numReal + numImag * numImag;
+  const denMagSq = denReal * denReal + denImag * denImag;
+
+  if (denMagSq < 1e-12) return 0;
+  const magSq = numMagSq / denMagSq;
+  if (magSq <= 1e-12) return -60;
+
+  return 10 * Math.log10(magSq);
+}
+
+/**
+ * Generates a series of [x, y] points for the frequency curve chart (logarithmic X scale from 20 Hz to 20 kHz).
+ */
+export function generateFrequencyResponseCurve(
+  bands: ParametricBandDto[],
+  preampDb: number,
+  enabled: boolean = true,
+  numPoints: number = 180
+): Array<{ freq: number; db: number }> {
+  const points: Array<{ freq: number; db: number }> = [];
+  const minLog = Math.log10(20);
+  const maxLog = Math.log10(20000);
+
+  const activeBands = enabled ? bands.filter((b) => b.enabled) : [];
+  const effectivePreamp = enabled ? preampDb : 0;
+
+  for (let i = 0; i <= numPoints; i++) {
+    const logF = minLog + (i / numPoints) * (maxLog - minLog);
+    const freq = Math.pow(10, logF);
+
+    let totalDb = effectivePreamp;
+    for (const band of activeBands) {
+      totalDb += calculateBiquadResponseDb(
+        freq,
+        band.filter_type,
+        band.freq,
+        band.gain_db,
+        band.q
+      );
+    }
+
+    points.push({ freq, db: Math.max(-28, Math.min(16, totalDb)) });
+  }
+
+  return points;
+}
+
+/**
+ * Converts a frequency (Hz) to a normalised X position (0..1) on the logarithmic 20 Hz - 20 kHz scale.
+ */
+export function freqToNormX(freq: number): number {
+  const minLog = Math.log10(20);
+  const maxLog = Math.log10(20000);
+  const logF = Math.log10(Math.max(20, Math.min(20000, freq)));
+  return (logF - minLog) / (maxLog - minLog);
+}
+
+/**
+ * Converts a normalised X position (0..1) to a frequency in Hz.
+ */
+export function normXToFreq(normX: number): number {
+  const minLog = Math.log10(20);
+  const maxLog = Math.log10(20000);
+  const clampedX = Math.max(0, Math.min(1, normX));
+  return Math.pow(10, minLog + clampedX * (maxLog - minLog));
+}
+
+/**
+ * Converts a gain (dB in the -24..+12 range) to a normalised Y position (0..1, where 0 is the top +12dB and 1 the bottom -24dB).
+ */
+export function gainToNormY(gainDb: number, minDb: number = -24, maxDb: number = 12): number {
+  const clamped = Math.max(minDb, Math.min(maxDb, gainDb));
+  return 1 - (clamped - minDb) / (maxDb - minDb);
+}
+
+/**
+ * Converts a Y position (0..1) to a dB gain in the -24..+12 range.
+ */
+export function normYToGain(normY: number, minDb: number = -24, maxDb: number = 12): number {
+  const clamped = Math.max(0, Math.min(1, normY));
+  return minDb + (1 - clamped) * (maxDb - minDb);
+}

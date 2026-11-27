@@ -1,13 +1,57 @@
 {
-  "name": "auralune-root",
+  "name": "auralune",
   "private": true,
+  "version": "2.0.0",
   "author": "Das Letzte Kemonomimi",
-  "version": "1.1.5",
   "type": "module",
   "scripts": {
-    "dev": "npm --prefix apps/desktop run dev",
-    "build": "npm --prefix apps/desktop run build",
-    "lint": "npm --prefix apps/desktop run lint",
-    "tauri": "npm --prefix apps/desktop exec tauri --"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "typecheck": "tsc -b",
+    "gen:commands": "node scripts/generate-command-names.mjs",
+    "changelog:add": "node scripts/changelog.mjs add",
+    "changelog:validate": "node scripts/changelog.mjs validate",
+    "changelog:promote": "node scripts/changelog.mjs promote",
+    "release:prepare": "node scripts/release.mjs prepare",
+    "release:check": "node scripts/release.mjs check",
+    "release:aur": "node scripts/release.mjs aur",
+    "skills:check": "node scripts/skills.mjs check",
+    "skills:install": "node scripts/skills.mjs install",
+    "skills:update": "node scripts/skills.mjs update",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fontsource-variable/outfit": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@tabler/icons-react": "~3.53.0",
+    "@tauri-apps/api": "^2.12.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwind-merge": "^3.7.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "~4.3.5",
+    "@tauri-apps/cli": "^2.12.3",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^31.0.1",
+    "oxlint": "^1.81.0",
+    "tailwindcss": "~4.3.5",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   }
 }

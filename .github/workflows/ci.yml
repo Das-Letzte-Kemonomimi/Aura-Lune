@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD & Release Pipeline
 
 on:
   push:
@@ -6,27 +6,72 @@ on:
   pull_request:
     branches: [ "main", "dev", "develop" ]
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run on main: build release assets and leave GitHub Release as a DRAFT"
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    name: Tests & Quality Checks
+  frontend:
+    name: Frontend Quality & Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Validate shell scripts (bash -n)
+        run: |
+          find . -name '*.sh' -not -path '*/node_modules/*' -not -path './target/*' -print0 |
+            xargs -0 -n1 bash -n
+
+      - name: Lint frontend codebase (oxlint)
+        run: npm run lint
+
+      - name: Run unit, changelog & localization tests (vitest)
+        run: npm test
+
+      - name: Typecheck and build frontend (tsc -b && vite build)
+        run: npm run build
+
+  backend-desktop:
+    name: Rust Backend & Desktop Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUSTFLAGS: -C link-arg=-fuse-ld=mold
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -35,46 +80,360 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: backend-check
+          cache-on-failure: true
 
-      - name: Install system dependencies (Linux GStreamer, PipeWire, Rubber Band, SoundTouch, WebKit)
+      - name: Cache APT packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-backend-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-backend-
+            ${{ runner.os }}-apt-
+
+      - name: Install system dependencies (Linux GStreamer, Rubber Band, SoundTouch, WebKit, mold)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo rm -f /var/lib/man-db/auto-update
+          sudo rm -f /etc/apt/apt.conf.d/docker-clean
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             gstreamer1.0-plugins-base \
             gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad \
-            gstreamer1.0-tools \
-            libpipewire-0.3-dev \
             libasound2-dev \
-            libssl-dev \
-            libsqlite3-dev \
             libwebkit2gtk-4.1-dev \
             libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
             librubberband-dev \
             libsoundtouch-dev \
-            pkg-config \
-            build-essential \
-            pulseaudio
+            mold \
+            pulseaudio \
+            pulseaudio-utils \
+            libasound2-plugins
+          sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
+          sudo chmod -R a+rX /var/cache/apt/archives
 
-      - name: Install frontend dependencies
+      - name: Install frontend dependencies & build bundle
         run: |
-          cd apps/desktop
           npm ci
-
-      - name: Build frontend & verify TypeScript types (Vite + tsc)
-        run: |
-          cd apps/desktop
           npm run build
 
       - name: Check Rust formatting (cargo fmt)
-        run: cargo fmt --check
+        run: cargo fmt --all --check
 
       - name: Lint Rust codebase (cargo clippy)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run all Rust tests (cargo test)
+      - name: Setup headless audio daemon (PulseAudio + Null Sink)
         run: |
-          pulseaudio -D --exit-idle-time=-1 || true
-          cargo test --all-targets
+          pulseaudio -D --exit-idle-time=-1 || pulseaudio --start || true
+          pactl load-module module-null-sink sink_name=DummyOutput || true
+
+      - name: Run Rust workspace test suite (cargo test)
+        env:
+          GST_DEBUG: 2
+        run: cargo test --workspace --all-features -- --test-threads=1
+
+      - name: Dependency audit (cargo-deny, report only)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        continue-on-error: true
+        with:
+          command: check advisories licenses bans
+
+  build-dev-appimage:
+    name: Build Rolling Dev AppImage
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUSTFLAGS: -C link-arg=-fuse-ld=mold
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup build environment (toolchains, system libraries, frontend deps)
+        uses: ./.github/actions/setup-build-env
+        with:
+          cache-key: release-dev
+
+      - name: Verify dev version suffix
+        run: |
+          VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f 2)
+          if [[ "$VERSION" != *-dev ]]; then
+            echo "::warning::dev branch Cargo.toml version '$VERSION' does not end with -dev."
+          fi
+
+      - name: Build Tauri AppImage bundle
+        env:
+          AURALUNE_BUILD_CHANNEL: dev
+        run: npm run tauri build -- --bundles appimage
+
+      - name: Stage rolling dev AppImage
+        run: |
+          APPIMAGE_PATH=$(find target/release/bundle/appimage/ -name "*.AppImage" -type f | head -n 1)
+          if [ -z "$APPIMAGE_PATH" ]; then
+            echo "❌ Error: AppImage bundle was not generated."
+            exit 1
+          fi
+          echo "Found generated AppImage: $APPIMAGE_PATH"
+
+          mkdir -p staged-dev-release
+          cp "$APPIMAGE_PATH" "staged-dev-release/$(basename "$APPIMAGE_PATH")"
+          cp "$APPIMAGE_PATH" "staged-dev-release/Auralune-dev-x86_64.AppImage"
+          (cd staged-dev-release && sha256sum -- *.AppImage > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Upload rolling dev AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle-dev
+          path: staged-dev-release/*
+          if-no-files-found: error
+          retention-days: 3
+
+  publish-dev-release:
+    name: Publish Rolling Dev AppImage
+    needs: [frontend, backend-desktop, build-dev-appimage]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download built dev AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle-dev
+          path: dist
+
+      - name: Publish rolling dev release to GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DEV_NOTES="$(node scripts/changelog.mjs dev-notes || true)"
+
+          {
+            echo "### 🌸 Auralune — Rolling Development Build"
+            echo
+            echo "Automated development build compiled from commit [\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) on branch \`dev\`."
+            echo
+            echo "- **Tag**: \`dev-build\`"
+            echo "- **Commit**: \`${{ github.sha }}\`"
+            echo "- **Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- **Channel**: \`dev\` (Installs side-by-side with stable Auralune as \`auralune-dev\`)"
+            echo
+            echo "#### Quick One-Liner Install:"
+            echo "\`\`\`bash"
+            echo "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/dev/install.sh | bash -s -- --dev"
+            echo "\`\`\`"
+            if [ -n "$DEV_NOTES" ]; then
+              echo
+              echo "$DEV_NOTES"
+            fi
+          } > dist/DEV_NOTES.md
+
+          echo "Updating rolling 'dev-build' pre-release on GitHub..."
+          gh release delete dev-build --yes --cleanup-tag || true
+
+          gh release create dev-build \
+            dist/*.AppImage dist/SHA256SUMS \
+            --target "${{ github.sha }}" \
+            --title "Auralune (Development Build)" \
+            --notes-file dist/DEV_NOTES.md \
+            --prerelease
+
+  verify-stable-release:
+    name: Verify Stable Release Gate (main)
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_publish: ${{ steps.gate.outputs.should_publish }}
+      version: ${{ steps.gate.outputs.version }}
+      codename: ${{ steps.gate.outputs.codename }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate stable release state & tag idempotency
+        id: gate
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f 2)
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Refusing non-stable version '$VERSION' on main. Prepare releases via 'npm run release:prepare' on dev."
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "ℹ️ Tag v$VERSION already exists on GitHub: skipping stable publish cleanly."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//' | sort -V | tail -n1 || true)
+          if [[ -n "$LATEST" && "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -n1)" != "$VERSION" ]]; then
+            echo "::error::Version $VERSION is not newer than latest release tag v$LATEST."
+            exit 1
+          fi
+
+          packaging/check-release-content.sh "$VERSION" --strict-versions
+          CODENAME=$(packaging/release-notes.sh "$VERSION" codename)
+
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "codename=$CODENAME" >> "$GITHUB_OUTPUT"
+
+  build-stable-release:
+    name: Build Stable Bundles (AppImage & .deb)
+    needs: [verify-stable-release]
+    if: needs.verify-stable-release.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.verify-stable-release.outputs.version }}
+      RUSTFLAGS: -C link-arg=-fuse-ld=mold
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup build environment (toolchains, system libraries, frontend deps)
+        uses: ./.github/actions/setup-build-env
+        with:
+          cache-key: release-stable
+
+      - name: Build Tauri stable bundles (AppImage + deb)
+        env:
+          AURALUNE_BUILD_CHANNEL: stable
+        run: npm run tauri build -- --bundles appimage,deb
+
+      - name: Stage and verify release artifacts
+        run: |
+          set -euo pipefail
+          EXPECTED_APPIMAGE="target/release/bundle/appimage/Auralune_${VERSION}_amd64.AppImage"
+          if [[ ! -f "$EXPECTED_APPIMAGE" ]]; then
+            echo "::error::Missing $EXPECTED_APPIMAGE (install.sh, PKGBUILD-bin and the updater expect this exact name)."
+            ls -la target/release/bundle/appimage/ || true
+            exit 1
+          fi
+
+          mkdir -p staged-release
+          cp "$EXPECTED_APPIMAGE" staged-release/
+          find target/release/bundle/deb/ -name "*.deb" -type f -exec cp {} staged-release/ \; || true
+          ls -lh staged-release/
+
+      - name: Upload stable release bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundles-stable
+          path: staged-release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-stable-release:
+    name: Publish Stable GitHub Release
+    needs: [frontend, backend-desktop, verify-stable-release, build-stable-release]
+    if: ${{ !cancelled() && needs.frontend.result == 'success' && needs.backend-desktop.result == 'success' && needs.verify-stable-release.outputs.should_publish == 'true' && needs.build-stable-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.verify-stable-release.outputs.version }}
+      CODENAME: ${{ needs.verify-stable-release.outputs.codename }}
+      DRY_RUN: ${{ inputs.dry_run || false }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download built release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundles-stable
+          path: dist
+
+      - name: Generate SHA256SUMS and release notes
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+          packaging/release-notes.sh "$VERSION" notes > "$RUNNER_TEMP/notes.md"
+          test -s "$RUNNER_TEMP/notes.md"
+
+      - name: Create release draft with all assets and SHA256SUMS
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null | grep -qx true; then
+            echo "Deleting leftover draft $TAG..."
+            gh release delete "$TAG" --yes
+          fi
+
+          gh release create "$TAG" dist/* \
+            --draft \
+            --target "${{ github.sha }}" \
+            --title "Auralune $VERSION — $CODENAME" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Publish release
+        if: ${{ !inputs.dry_run }}
+        run: gh release edit "v$VERSION" --draft=false --latest
+
+      - name: Update repository description
+        if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "::warning::RELEASE_TOKEN secret missing: skipped updating the repository description."
+            exit 0
+          fi
+          GH_TOKEN="$RELEASE_TOKEN" gh repo edit "$GITHUB_REPOSITORY" \
+            --description "v${VERSION} | Native music player for Linux (Poweramp + foobar2000 + anime aesthetic + real-time DSP)"
+
+      - name: Summary
+        run: |
+          {
+            if [[ "$DRY_RUN" == "true" ]]; then
+              echo "### 🧪 Dry run — v$VERSION: left as a DRAFT"
+            else
+              echo "### 🎉 Published v$VERSION — „$CODENAME”"
+            fi
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+            echo
+            echo "**Optional post-publish (AUR):** \`npm run release:aur -- $VERSION\`"
+          } >> "$GITHUB_STEP_SUMMARY"

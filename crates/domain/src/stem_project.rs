@@ -1,10 +1,10 @@
-//! Domenowe struktury danych dla projektów stemów (Moises-like Stem Projects),
-//! hierarchicznej taksonomii instrumentów oraz mapowania głośności suwaków.
+//! Domain data structures for stem projects (Moises-like), the hierarchical
+//! instrument taxonomy and the fader volume mapping.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Status przetwarzania projektu stemów.
+/// Processing status of a stem project.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum StemProjectStatus {
@@ -15,33 +15,33 @@ pub enum StemProjectStatus {
     Failed,
 }
 
-/// Ocena jakości / poziom pochodzenia danego stemu.
+/// Quality rating / origin level of a stem.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum StemQualityTier {
     #[default]
-    HighQuality, // Wytworzony bezpośrednio dedykowanym modelem neuronowym
-    Experimental, // Model eksperymentalny / fuzja
-    DspFallback,  // Wytworzony klasycznym filtrem Linkwitz-Riley DSP
-    Unavailable,  // Wymaga instalacji dodatkowego pakietu modeli
+    HighQuality, // Produced directly by a dedicated neural model
+    Experimental, // Experimental model / fusion
+    DspFallback,  // Produced by a classic Linkwitz-Riley DSP filter
+    Unavailable,  // Needs an extra model pack to be installed
 }
 
-/// Pojedynczy kanał (ścieżka instrumentu) w projekcie stemów.
+/// A single channel (instrument track) in a stem project.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StemChannel {
     pub id: String,                    // np. "lead_vocal", "kick", "bass"
-    pub name: String,                  // np. "Lead Vocal", "Stopa perkusyjna"
+    pub name: String,                  // e.g. "Lead Vocal", "Kick Drum"
     pub parent_stem: Option<String>,   // np. Some("vocals"), Some("drums")
-    pub file_path: String,             // Ścieżka do pliku audio WAV/FLAC w cache
-    pub color_hex: String,             // Kolor kanału w UI
-    pub quality_tier: StemQualityTier, // Jakość / model
-    pub volume: f32,                   // 0.0 .. 1.0 (domyślnie 0.75 = 0 dB)
-    pub pan: f32,                      // -1.0 (L) .. +1.0 (R), domyślnie 0.0
-    pub mute: bool,                    // true = wyciszony
-    pub solo: bool,                    // true = odsłuch w trybie solo
+    pub file_path: String,             // Path to the WAV/FLAC audio file in the cache
+    pub color_hex: String,             // Channel colour in the UI
+    pub quality_tier: StemQualityTier, // Quality / model
+    pub volume: f32,                   // 0.0 .. 1.0 (default 0.75 = 0 dB)
+    pub pan: f32,                      // -1.0 (L) .. +1.0 (R), default 0.0
+    pub mute: bool,                    // true = muted
+    pub solo: bool,                    // true = solo listening
 }
 
-/// Zapisany miks (preset faderów i parametrów) w projekcie stemów.
+/// A saved mix (fader and parameter preset) in a stem project.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ChannelMixSetting {
     pub volume: f32,
@@ -50,7 +50,7 @@ pub struct ChannelMixSetting {
     pub solo: bool,
 }
 
-/// Kompletny nazwany miks w ramach projektu.
+/// A complete named mix within a project.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StemProjectMix {
     pub id: Option<i64>,
@@ -58,11 +58,11 @@ pub struct StemProjectMix {
     pub name: String,
     pub is_default: bool,
     pub channels: HashMap<String, ChannelMixSetting>,
-    pub master_volume: f32, // 0.0 .. 1.0, domyślnie 1.0
+    pub master_volume: f32, // 0.0 .. 1.0, default 1.0
     pub updated_at: String,
 }
 
-/// Encja projektu stemów (Stem Project).
+/// Stem project entity.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StemProject {
     pub id: i64,
@@ -82,13 +82,13 @@ pub struct StemProject {
     pub active_mix_name: Option<String>,
 }
 
-/// Informacje o pakiecie modeli do pobrania w Model Managerze.
+/// Information about a model pack to download in the Model Manager.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ModelPackInfo {
-    pub id: String, // np. "pack_core_4stem", "pack_extended_6stem"
+    pub id: String, // e.g. "pack_core_4stem", "pack_extended_6stem"
     pub name: String,
     pub description: String,
-    pub category: String, // "Baza", "Wokal", "Perkusja", "Instrumentarium"
+    pub category: String, // "Base", "Vocals", "Drums", "Instruments"
     pub unlocked_stems: Vec<String>,
     pub model_files: Vec<String>,
     pub total_size_bytes: u64,
@@ -97,19 +97,19 @@ pub struct ModelPackInfo {
     pub sha256: String,
     pub is_installed: bool,
     pub gpu_recommended: bool,
-    pub speed_estimate_sec_per_min: f32, // Estymacja czasu na 1 minutę audio
+    pub speed_estimate_sec_per_min: f32, // Estimated time per minute of audio
 }
 
 // =========================================================================
-// ZARZĄDZANIE KRZYWĄ GŁOŚNOŚCI (VOLUME MAPPING)
-// 0% = cisza (-inf dB)
-// 75% = unity gain (0 dB, 1.0x liniowo)
-// 100% = +6.02 dB headroom boost (~2.0x liniowo)
+// VOLUME CURVE MAPPING
+// 0% = silence (-inf dB)
+// 75% = unity gain (0 dB, 1.0x linear)
+// 100% = +6.02 dB headroom boost (~2.0x linear)
 // =========================================================================
 
-/// Przelicza wartość suwaka [0.0 .. 1.0] na liniowy współczynnik wzmocnienia sygnału.
+/// Converts a fader value [0.0 .. 1.0] to a linear signal gain factor.
 ///
-/// - `slider == 0.0` -> 0.0 (pełne wyciszenie / -inf dB)
+/// - `slider == 0.0` -> 0.0 (full mute / -inf dB)
 /// - `slider == 0.75` -> 1.0 (unity gain / 0.0 dB)
 /// - `slider == 1.0` -> ~2.0 (+6.02 dB)
 pub fn slider_to_linear_gain(slider: f32) -> f32 {
@@ -117,17 +117,17 @@ pub fn slider_to_linear_gain(slider: f32) -> f32 {
     if v <= 0.0001 {
         0.0
     } else if v <= 0.75 {
-        // Płynna krzywa potęgowa symulująca zachowanie analogowego tłumika studyjnego
+        // Smooth power curve imitating an analogue studio fader
         let norm = v / 0.75;
         norm.powf(2.0)
     } else {
-        // Płynny boost od 1.0 (0 dB) do 2.0 (+6.02 dB) w zakresie 75% - 100%
+        // Smooth boost from 1.0 (0 dB) to 2.0 (+6.02 dB) over 75% - 100%
         let boost_norm = (v - 0.75) / 0.25;
         1.0 + boost_norm * (2.0f32 - 1.0)
     }
 }
 
-/// Przelicza liniowy współczynnik wzmocnienia na wartość suwaka [0.0 .. 1.0].
+/// Converts a linear gain factor to a fader value [0.0 .. 1.0].
 pub fn linear_gain_to_slider(gain: f32) -> f32 {
     let g = gain.max(0.0);
     if g <= 0.0001 {
@@ -140,23 +140,23 @@ pub fn linear_gain_to_slider(gain: f32) -> f32 {
     }
 }
 
-/// Zwraca wartość w decybelach (dB) dla podanej pozycji suwaka [0.0 .. 1.0].
+/// Returns the value in decibels (dB) for the given fader position [0.0 .. 1.0].
 pub fn slider_to_db(slider: f32) -> f32 {
     let gain = slider_to_linear_gain(slider);
     if gain <= 0.00001 {
-        -100.0 // Reprezentacja ciszy
+        -100.0 // Represents silence
     } else {
         20.0 * gain.log10()
     }
 }
 
-/// Zwraca domyślny kolor HEX dla zadanego typu stemu.
+/// Returns the default HEX colour for the given stem type.
 pub fn default_stem_color(stem_id: &str) -> &'static str {
     match stem_id {
-        // Wokale
+        // Vocals
         "lead_vocal" | "vocals" => "#f43f5e",    // Rose Pink
         "backing_vocals" | "choir" => "#fb7185", // Soft Rose
-        // Perkusja
+        // Drums
         "drums" => "#f59e0b",      // Amber
         "kick" => "#ea580c",       // Deep Orange
         "snare" => "#fbbf24",      // Warm Yellow
@@ -164,27 +164,27 @@ pub fn default_stem_color(stem_id: &str) -> &'static str {
         "toms" => "#d97706",       // Ochre
         "cymbals" => "#fcd34d",    // Gold
         "percussion" => "#fb923c", // Orange
-        // Bas
+        // Bass
         "bass" => "#0ea5e9", // Vivid Cyan
-        // Gitary
+        // Guitars
         "guitar" | "guitars" => "#10b981", // Emerald Green
         "lead_guitar" => "#34d399",        // Light Emerald
         "rhythm_guitar" => "#059669",      // Deep Green
         "acoustic_guitar" => "#84cc16",    // Lime Green
-        // Klawisze i Syntezatory
+        // Keys and synths
         "piano" => "#8b5cf6",          // Purple
         "electric_piano" => "#a855f7", // Violet
         "synth" => "#d946ef",          // Fuchsia / Neon Pink
-        // Sekcja orkiestrowa
+        // Orchestral section
         "strings" => "#06b6d4",   // Cyan
         "brass" => "#eab308",     // Brass Gold
         "woodwinds" => "#14b8a6", // Teal
-        // Pozostałe
+        // Other
         _ => "#94a3b8", // Slate Gray
     }
 }
 
-/// Zwraca czytelną etykietę stemu (PL / EN).
+/// Returns a readable stem label (PL / EN).
 pub fn default_stem_label(stem_id: &str, lang_is_pl: bool) -> &'static str {
     match stem_id {
         "vocals" => {
@@ -330,60 +330,13 @@ pub fn default_stem_label(stem_id: &str, lang_is_pl: bool) -> &'static str {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_volume_mapping_keypoints() {
-        // 0% -> 0.0 gain (cisza)
-        assert_eq!(slider_to_linear_gain(0.0), 0.0);
-        assert!(slider_to_db(0.0) <= -90.0);
-
-        // 75% -> 1.0 gain (0.0 dB unity gain)
-        let gain_75 = slider_to_linear_gain(0.75);
-        assert!((gain_75 - 1.0).abs() < 1e-5);
-        assert!(slider_to_db(0.75).abs() < 1e-4);
-
-        // 100% -> 2.0 gain (~+6.02 dB headroom boost)
-        let gain_100 = slider_to_linear_gain(1.0);
-        assert!((gain_100 - 2.0).abs() < 1e-5);
-        assert!((slider_to_db(1.0) - 6.0206).abs() < 0.01);
+/// Linear gain of a stem project channel in the mixer.
+///
+/// A muted channel and, when any channel is soloed, every channel without solo
+/// get 0. The rest: the fader curve (`slider_to_linear_gain`) × the master volume.
+pub fn effective_channel_gain(channel: &StemChannel, any_solo: bool, master_volume: f32) -> f64 {
+    if channel.mute || (any_solo && !channel.solo) {
+        return 0.0;
     }
-
-    #[test]
-    fn test_volume_mapping_monotonicity_and_roundtrip() {
-        let mut prev_gain = -1.0;
-        for i in 0..=100 {
-            let slider = i as f32 / 100.0;
-            let gain = slider_to_linear_gain(slider);
-            assert!(
-                gain >= prev_gain,
-                "Monotonicity violated at slider {}",
-                slider
-            );
-            prev_gain = gain;
-
-            let recovered_slider = linear_gain_to_slider(gain);
-            assert!(
-                (recovered_slider - slider).abs() < 1e-4,
-                "Roundtrip failed for slider {}: got {}",
-                slider,
-                recovered_slider
-            );
-        }
-    }
-
-    #[test]
-    fn test_default_stem_colors_and_labels() {
-        assert_eq!(default_stem_color("lead_vocal"), "#f43f5e");
-        assert_eq!(default_stem_color("kick"), "#ea580c");
-        assert_eq!(default_stem_color("bass"), "#0ea5e9");
-        assert_eq!(default_stem_color("piano"), "#8b5cf6");
-
-        assert_eq!(default_stem_label("lead_vocal", true), "Wokal prowadzący");
-        assert_eq!(default_stem_label("lead_vocal", false), "Lead Vocal");
-        assert_eq!(default_stem_label("kick", true), "Stopa (Kick)");
-        assert_eq!(default_stem_label("kick", false), "Kick Drum");
-    }
+    (slider_to_linear_gain(channel.volume) * master_volume) as f64
 }

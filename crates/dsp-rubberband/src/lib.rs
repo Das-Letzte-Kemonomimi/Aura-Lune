@@ -1,4 +1,4 @@
-//! Adapter DSP dla silnika Rubber Band.
+//! DSP adapter for the Rubber Band engine.
 
 pub mod ffi;
 pub mod processor;

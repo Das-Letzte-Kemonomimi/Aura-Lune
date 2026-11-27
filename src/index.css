@@ -1,0 +1,5 @@
+/* Scan only the app sources: docs, skills and Rust code must not generate classes. */
+@import 'tailwindcss' source('.');
+@import './styles/theme.css';
+@import './styles/base.css';
+@import './styles/utilities.css';
