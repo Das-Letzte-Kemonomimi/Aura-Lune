@@ -360,6 +360,13 @@
         "de": "Das automatische Ausblenden der Steuerung im Großbildmodus während der Wiedergabe wurde behoben und das regelmäßige Speichern der Wiedergabeposition bei fortlaufender Wiedergabe wiederhergestellt.",
         "fi": "Korjattiin suuren näytön säätimien automaattinen piilotus toiston aikana ja palautettiin toistokohdan säännöllinen tallennus jatkuvan toiston aikana.",
         "la": "Emendata est occultatio spontanea moderationum in aspectu magno atque servatio periodica loci cantus inter continuam auditionem restituta."
+      },
+      {
+        "en": "The spectrum visualiser now moves in time with what you hear instead of about 0.8 s ahead, with finer bars in the bass, and EQ, dynamics, crossfeed and reverb changes are heard several times sooner.",
+        "pl": "Wizualizacja widma porusza się teraz w rytm tego, co słychać, zamiast ok. 0,8 s wcześniej, ma dokładniejsze słupki w basie, a zmiany EQ, dynamiki, crossfeedu i pogłosu słychać kilkukrotnie szybciej.",
+        "de": "Die Spektrumanzeige läuft jetzt synchron zum Gehörten statt etwa 0,8 s voraus, mit feineren Balken im Bass, und Änderungen an EQ, Dynamik, Crossfeed und Hall sind um ein Vielfaches schneller hörbar.",
+        "fi": "Spektrinäyttö liikkuu nyt kuullun tahdissa noin 0,8 s etuajassa olemisen sijaan, bassossa on tarkemmat palkit, ja EQ-, dynamiikka-, crossfeed- ja kaikumuutokset kuuluvat moninkertaisesti nopeammin.",
+        "la": "Spectrum nunc cum sono audito congruit neque fere 0,8 s praecedit, et mutationes aequatoris ac reverberationis multo citius audiuntur."
       }
     ]
   },

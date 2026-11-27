@@ -50,7 +50,7 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Sets the reverb parameters, dynamically linking or unlinking `freeverb` between `auralune_dsp`
+    /// Sets the reverb parameters, dynamically linking or unlinking `freeverb` between `queue_sink`
     /// and `equalizer_10bands` via an `IDLE` pad probe when enabled state changes.
     pub fn set_reverb_params(
         &self,
@@ -82,11 +82,11 @@ impl AudioEngine {
                 fv.set_property("damping", inner.reverb_damping as f32);
                 fv.set_property("width", inner.reverb_width as f32);
 
-                let linked = Self::is_fv_linked(inner.dsp.upcast_ref(), fv);
+                let linked = Self::is_fv_linked(inner.reverb_upstream(), fv);
                 if linked != enabled || self.reverb_probe_pending.load(Ordering::Acquire) {
                     Some((
                         inner.pipeline.clone(),
-                        inner.dsp.upcast_ref::<gst::Element>().clone(),
+                        inner.reverb_upstream().clone(),
                         fv.clone(),
                         inner.equalizer.clone(),
                     ))
@@ -98,13 +98,13 @@ impl AudioEngine {
             }
         };
 
-        if let Some((pipeline, dsp_elem, fv, equalizer)) = relink_targets {
-            self.relink_reverb(pipeline, dsp_elem, fv, equalizer, enabled);
+        if let Some((pipeline, upstream, fv, equalizer)) = relink_targets {
+            self.relink_reverb(pipeline, upstream, fv, equalizer, enabled);
         }
     }
 
-    pub(super) fn is_fv_linked(dsp_elem: &gst::Element, fv: &gst::Element) -> bool {
-        dsp_elem
+    pub(super) fn is_fv_linked(upstream: &gst::Element, fv: &gst::Element) -> bool {
+        upstream
             .static_pad("src")
             .and_then(|pad| pad.peer())
             .and_then(|peer| peer.parent_element())
@@ -114,7 +114,7 @@ impl AudioEngine {
     fn relink_reverb(
         &self,
         pipeline: gst::Pipeline,
-        dsp_elem: gst::Element,
+        upstream: gst::Element,
         fv: gst::Element,
         equalizer: gst::Element,
         enable: bool,
@@ -131,7 +131,7 @@ impl AudioEngine {
             return;
         }
 
-        let Some(dsp_src) = dsp_elem.static_pad("src") else {
+        let Some(upstream_src) = upstream.static_pad("src") else {
             self.reverb_probe_pending.store(false, Ordering::Release);
             return;
         };
@@ -141,25 +141,25 @@ impl AudioEngine {
         let done = Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
         let done_probe = Arc::clone(&done);
         let fv_probe = fv.clone();
-        let dsp_probe = dsp_elem.clone();
+        let upstream_probe = upstream.clone();
         let eq_probe = equalizer.clone();
 
-        dsp_src.add_probe(gst::PadProbeType::IDLE, move |_pad, _info| {
+        upstream_src.add_probe(gst::PadProbeType::IDLE, move |_pad, _info| {
             let want = target.load(Ordering::Acquire);
-            let linked = AudioEngine::is_fv_linked(&dsp_probe, &fv_probe);
+            let linked = AudioEngine::is_fv_linked(&upstream_probe, &fv_probe);
             if want && !linked {
-                dsp_probe.unlink(&eq_probe);
-                if dsp_probe.link(&fv_probe).is_err() || fv_probe.link(&eq_probe).is_err() {
-                    warn!("Failed to link freeverb dynamically; falling back to direct DSP->EQ");
-                    dsp_probe.unlink(&fv_probe);
+                upstream_probe.unlink(&eq_probe);
+                if upstream_probe.link(&fv_probe).is_err() || fv_probe.link(&eq_probe).is_err() {
+                    warn!("Failed to link freeverb dynamically; falling back to direct queue->EQ");
+                    upstream_probe.unlink(&fv_probe);
                     fv_probe.unlink(&eq_probe);
-                    let _ = dsp_probe.link(&eq_probe);
+                    let _ = upstream_probe.link(&eq_probe);
                 }
             } else if !want && linked {
-                dsp_probe.unlink(&fv_probe);
+                upstream_probe.unlink(&fv_probe);
                 fv_probe.unlink(&eq_probe);
-                if dsp_probe.link(&eq_probe).is_err() {
-                    warn!("Failed to relink DSP directly to equalizer after unlinking freeverb");
+                if upstream_probe.link(&eq_probe).is_err() {
+                    warn!("Failed to relink the output queue directly to equalizer after unlinking freeverb");
                 }
             }
             pending.store(false, Ordering::Release);
@@ -184,19 +184,19 @@ impl AudioEngine {
             .is_some_and(|(guard, _)| *guard);
 
         // Transition `freeverb` back to `Null` outside the streaming thread once unlinked.
-        if finished && !enable && !Self::is_fv_linked(&dsp_elem, &fv) {
+        if finished && !enable && !Self::is_fv_linked(&upstream, &fv) {
             fv.set_locked_state(true);
             let _ = fv.set_state(gst::State::Null);
         }
     }
 
-    /// Returns whether `freeverb` is currently linked between `auralune_dsp` and `equalizer_10bands`.
+    /// Returns whether `freeverb` is currently linked between `queue_sink` and `equalizer_10bands`.
     pub fn is_reverb_linked(&self) -> bool {
         let inner = self.inner.lock_safe();
         inner
             .freeverb
             .as_ref()
-            .is_some_and(|fv| Self::is_fv_linked(inner.dsp.upcast_ref(), fv))
+            .is_some_and(|fv| Self::is_fv_linked(inner.reverb_upstream(), fv))
     }
 
     /// Returns the current reverb parameters (enabled, room_size, damping, width, level).
