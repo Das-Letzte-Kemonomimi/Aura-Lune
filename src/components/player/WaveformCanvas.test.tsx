@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { WaveformCanvas } from './WaveformCanvas';
+import { installCanvasMock, installFakeRaf } from '../../test/canvasMock';
 
 describe('WaveformCanvas Component', () => {
   // A style picked in one test is saved, so every test starts from empty storage.
@@ -211,6 +212,103 @@ describe('WaveformCanvas Component', () => {
       // The container centre (x = 200) is the current position: 50% of 200 s = 1:40
       fireEvent.pointerMove(el, { clientX: 300, pointerId: 1 });
       expect(screen.getByText('1:40')).toBeTruthy();
+    });
+
+    it('hides the hover tooltip while dragging the scrolling wave', () => {
+      const { el } = setup();
+      fireEvent.pointerMove(el, { clientX: 300, pointerId: 1 });
+      expect(screen.getByText('1:40')).toBeTruthy();
+
+      fireEvent.pointerDown(el, { clientX: 300, button: 0, pointerId: 1 });
+      expect(screen.queryByText('1:40')).toBeNull();
+    });
+  });
+
+  describe('hover tooltip & canvas rendering', () => {
+    it('renders the hover tooltip outside .waveform-container, clamps near edges, and hides on leave/cancel', () => {
+      const { container } = render(
+        <WaveformCanvas
+          peaks={dummyPeaks}
+          progress={25}
+          durationMs={100000}
+          positionMs={25000}
+          currentLang="en"
+          initialStyle="mirror"
+          onSeek={vi.fn()}
+        />
+      );
+
+      const waveformContainer = container.querySelector('.waveform-container') as HTMLDivElement;
+      vi.spyOn(waveformContainer, 'getBoundingClientRect').mockReturnValue({
+        left: 100, top: 0, width: 400, height: 66, right: 500, bottom: 66, x: 100, y: 0, toJSON: () => {},
+      });
+
+      // Near left edge (x = 5 px) -> clamped to >= 30 px and placed outside .waveform-container
+      fireEvent.pointerMove(waveformContainer, { clientX: 105, pointerId: 1 });
+      const tip = screen.getByText('0:01');
+      expect(waveformContainer.contains(tip)).toBe(false);
+      expect(tip.style.display).toBe('block');
+      expect(tip.style.left).toBe('30px');
+
+      // Near right edge (x = 395 px) -> clamped to <= 370 px
+      fireEvent.pointerMove(waveformContainer, { clientX: 495, pointerId: 1 });
+      expect(tip.textContent).toBe('1:38');
+      expect(tip.style.left).toBe('370px');
+
+      // Pointer leave clears and hides the tooltip
+      fireEvent.pointerLeave(waveformContainer);
+      expect(tip.style.display).toBe('none');
+      expect(screen.queryByText('1:38')).toBeNull();
+
+      // Pointer cancel also clears and hides the tooltip
+      fireEvent.pointerMove(waveformContainer, { clientX: 300, pointerId: 1 });
+      expect(screen.getByText('0:50')).toBeTruthy();
+      fireEvent.pointerCancel(waveformContainer, { pointerId: 1 });
+      expect(tip.style.display).toBe('none');
+    });
+
+    it('redraws mirror waveform and hover line on fractional DPR without reallocating the canvas buffer', () => {
+      const canvasMock = installCanvasMock({ width: 400, height: 66 });
+      const raf = installFakeRaf();
+      canvasMock.setDpr(1.5);
+
+      try {
+        const { container } = render(
+          <WaveformCanvas
+            peaks={dummyPeaks}
+            progress={50}
+            durationMs={120000}
+            positionMs={60000}
+            currentLang="en"
+            initialStyle="mirror"
+            onSeek={vi.fn()}
+          />
+        );
+
+        const waveformContainer = container.querySelector('.waveform-container') as HTMLDivElement;
+        const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+        vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+          left: 0, top: 0, width: 400, height: 66, right: 400, bottom: 66, x: 0, y: 0, toJSON: () => {},
+        });
+
+        raf.step();
+        const initialWidthSets = canvasMock.widthAssignments();
+        const initialHeightSets = canvasMock.heightAssignments();
+        expect(initialWidthSets).toBe(1);
+        expect(initialHeightSets).toBe(1);
+
+        canvasMock.calls.length = 0;
+        fireEvent.pointerMove(waveformContainer, { clientX: 200, pointerId: 1 });
+        expect(screen.getByText('1:00')).toBeTruthy();
+        raf.step();
+
+        expect(canvasMock.calls).toContain('setLineDash');
+        expect(canvasMock.widthAssignments()).toBe(initialWidthSets);
+        expect(canvasMock.heightAssignments()).toBe(initialHeightSets);
+      } finally {
+        raf.restore();
+        canvasMock.restore();
+      }
     });
   });
 });
