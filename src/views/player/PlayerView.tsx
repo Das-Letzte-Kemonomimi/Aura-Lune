@@ -9,7 +9,6 @@ import { type QueueItem, type PlaybackQueue, type QueueColumnConfig } from '../.
 import type { TrackBookmarkDto } from '../../types/player';
 import type { DspCombinationInfo } from '../dsp/DspStudioView';
 import { type Language, getTranslations } from '../../i18n';
-import { useLiveStatus } from '../../state/livePlayback';
 import { PlayerQueuePanel } from './sections/PlayerQueuePanel';
 import { resolveQueueTrackMeta } from './queueTrackMeta';
 import { PlayerDspMiniBar } from './sections/PlayerDspMiniBar';
@@ -84,7 +83,6 @@ export interface PlayerViewProps {
   handleDeleteBookmark: (e?: React.MouseEvent) => void | Promise<void>;
   handleJumpToBookmark: (pos: number) => void | Promise<void>;
   queue: PlaybackQueue;
-  filteredQueueItems: { it: QueueItem; originalIdx: number }[];
   queueSearchQuery: string;
   setQueueSearchQuery: (q: string) => void;
   queueColumns: QueueColumnConfig;
@@ -103,13 +101,7 @@ export interface PlayerViewProps {
   handlePlayQueueIndex: (idx: number, item?: QueueItem) => void;
   handleRemoveFromQueue: (id: string, e?: React.MouseEvent) => void | Promise<void>;
   handleClearQueue: () => void;
-  totalQueueDurationMs: number;
-  formatTotalDuration: (ms: number) => string;
-  queueListRef: React.RefObject<HTMLDivElement | null>;
-  queueStartIndex: number;
-  queueEndIndex: number;
-  queueTopSpacer: number;
-  queueBottomSpacer: number;
+  mainContentRef: React.RefObject<HTMLElement | null>;
   handleSeek: (ms: number) => void;
   handleSeekPreview?: (ms: number) => void;
   handleSeekCommit?: (ms: number) => void;
@@ -142,7 +134,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
     layoutMaxWidth,
     language,
     loc,
-    status: statusProp,
+    status,
     currentPlayingTrack,
     tracks,
     albums,
@@ -154,12 +146,6 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
     setShowLyrics,
     handleSeek,
   } = props;
-  // Live position/spectrum (livePlayback): this component renders, not the whole app.
-  const status = useLiveStatus(statusProp);
-  const seekProgressPercent =
-    status.duration_ms && status.duration_ms > 0
-      ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
-      : 0;
   const t = loc;
 
   const getQueueTrackMeta = useCallback(
@@ -171,7 +157,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
             <div className="mx-auto my-0 flex flex-col gap-5 pb-6" style={{ maxWidth: layoutMaxWidth }}>
               <Card variant="panel" padding="lg" className="@container flex flex-col gap-5">
                 {/* Top toolbar: audio engine and a discreet open-file button */}
-                <PlayerToolbar {...props} status={statusProp} />
+                <PlayerToolbar {...props} status={status} />
 
                 {/* Main player deck: container-aware 2-column layout */}
                 <div className="grid grid-cols-1 items-center gap-5 @3xl:grid-cols-[--spacing(64)_minmax(0,1fr)] @5xl:grid-cols-[--spacing(69)_minmax(0,1fr)] @5xl:gap-6.5">
@@ -180,7 +166,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
 
                   {/* Right column: title, artist, spectrogram, seeker and buttons */}
                   <div className="flex min-w-0 flex-col gap-3.5">
-                    <PlayerTrackHeader {...props} status={statusProp} />
+                    <PlayerTrackHeader {...props} status={status} />
 
                     {/* Live animated canvas spectrum visualizer */}
                     <SpectrumVisualizer
@@ -192,15 +178,15 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
                     <PlayerQuickDspVibes {...props} t={t} />
 
                     {/* Progress bar with the A-B loop and the track waveform */}
-                    <PlayerProgressSection {...props} status={status} seekProgressPercent={seekProgressPercent} />
+                    <PlayerProgressSection {...props} status={status} />
 
                     {/* Playback control buttons */}
-                    <PlayerTransportControls {...props} status={statusProp} />
+                    <PlayerTransportControls {...props} status={status} />
                   </div>
                 </div>
 
                 {/* Integrated DSP mini bar */}
-                <PlayerDspMiniBar {...props} status={statusProp} />
+                <PlayerDspMiniBar {...props} status={status} />
               </Card>
 
               {/* Synced lyrics section (LRC & LRCLIB) */}
@@ -221,7 +207,7 @@ export const PlayerView: React.FC<PlayerViewProps> = React.memo((props) => {
               )}
 
               {/* Playback queue section with column configuration */}
-              <PlayerQueuePanel {...props} status={statusProp} t={t} getQueueTrackMeta={getQueueTrackMeta} />
+              <PlayerQueuePanel {...props} status={status} t={t} getQueueTrackMeta={getQueueTrackMeta} />
             </div>
   );
 });

@@ -255,13 +255,14 @@ export function usePlaybackController({
       const targetVolume = isVolumeInteractingRef.current ? prev.volume : res.volume;
 
       if (res.state === 'Stopped' && curInitialStartupPositionRef.current !== null && prev.current_track) {
-        return {
+        const candidate = {
           ...res,
           position_ms: curInitialStartupPositionRef.current,
           duration_ms: prev.duration_ms || res.duration_ms,
           current_track: prev.current_track,
           volume: targetVolume,
         };
+        return shouldCommitStatus(prev, candidate) ? candidate : prev;
       }
       const merged = {
         ...res,
@@ -271,8 +272,11 @@ export function usePlaybackController({
       return shouldCommitStatus(prev, merged) ? merged : prev;
     });
 
-    if (res.replaygain_status) {
-      curSetReplaygainStatus(res.replaygain_status);
+    const rg = res.replaygain_status;
+    if (rg) {
+      curSetReplaygainStatus((prev) =>
+        prev[0] === rg[0] && prev[1] === rg[1] && prev[2] === rg[2] ? prev : rg,
+      );
     }
 
     if (res.current_track) {

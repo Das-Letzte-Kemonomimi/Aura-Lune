@@ -40,7 +40,22 @@ export const livePlayback = {
   /** Publishes a new position and/or spectrum. No change → no notifications. */
   publish(update: { positionMs?: number; spectrum?: number[] }) {
     const positionMs = update.positionMs ?? snapshot.positionMs;
-    const spectrum = update.spectrum ?? snapshot.spectrum;
+    const incomingSpectrum = update.spectrum;
+    let spectrum = snapshot.spectrum;
+    if (incomingSpectrum !== undefined && incomingSpectrum !== snapshot.spectrum) {
+      let unchanged = incomingSpectrum.length === snapshot.spectrum.length;
+      if (unchanged) {
+        for (let i = 0; i < incomingSpectrum.length; i++) {
+          if (incomingSpectrum[i] !== snapshot.spectrum[i]) {
+            unchanged = false;
+            break;
+          }
+        }
+      }
+      if (!unchanged) {
+        spectrum = incomingSpectrum;
+      }
+    }
     if (snapshot.ready && positionMs === snapshot.positionMs && spectrum === snapshot.spectrum) return;
     snapshot = { ready: true, positionMs, spectrum };
     emit();

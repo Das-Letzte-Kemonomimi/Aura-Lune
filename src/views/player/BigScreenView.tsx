@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   Disc,
   Download,
@@ -95,6 +95,15 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
     { parse: parseOneOf(BIG_SCREEN_VISUAL_MODES) },
   );
   const hideTimerRef = useRef<number | null>(null);
+  const isPlayingRef = useRef(isPlaying);
+  const onCloseRef = useRef(onClose);
+  const onPlayPauseRef = useRef(onPlayPause);
+
+  useLayoutEffect(() => {
+    isPlayingRef.current = isPlaying;
+    onCloseRef.current = onClose;
+    onPlayPauseRef.current = onPlayPause;
+  });
 
   const resetHideTimer = useCallback(() => {
     setShowHud(true);
@@ -102,24 +111,27 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       window.clearTimeout(hideTimerRef.current);
     }
     hideTimerRef.current = window.setTimeout(() => {
-      if (isPlaying) {
+      if (isPlayingRef.current) {
         setShowHud(false);
       }
     }, 3500);
-  }, [isPlaying]);
+  }, []);
 
   useEffect(() => {
     resetHideTimer();
+  }, [isPlaying, resetHideTimer]);
+
+  useEffect(() => {
     const handleMouseMove = () => resetHideTimer();
     window.addEventListener('mousemove', handleMouseMove);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'F11') {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
       } else if (e.code === 'Space') {
         e.preventDefault();
-        onPlayPause();
+        onPlayPauseRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -129,7 +141,7 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
       window.removeEventListener('keydown', handleKeyDown);
       if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
-  }, [isPlaying, onClose, onPlayPause, resetHideTimer]);
+  }, [resetHideTimer]);
 
   const progress = durationMs && durationMs > 0 ? (positionMs / durationMs) * 100 : 0;
   const waveformPeaks = waveformPeaksProp ?? [];
@@ -137,7 +149,6 @@ export const BigScreenView: React.FC<BigScreenViewProps> = (props) => {
 
   return (
     <div
-      onMouseMove={resetHideTimer}
       className={cn(
         'fixed inset-0 z-90 flex transform-gpu select-none flex-col justify-between overflow-x-hidden overflow-y-auto px-[clamp(1rem,3vw,3rem)] py-[clamp(0.875rem,3vh,2.25rem)] text-fg will-change-transform',
         showHud ? 'cursor-default' : 'cursor-none',

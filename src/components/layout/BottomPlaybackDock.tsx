@@ -76,12 +76,64 @@ const DSP_ENGINES: readonly { id: DspEngineType; name: string; desc: (loc: Trans
   { id: 'SoundTouch', name: 'SoundTouch', desc: (loc) => loc.bottomDock.fastEngine },
 ];
 
+interface DockProgressProps {
+  status: PlaybackStatus;
+  seekLabel: string;
+  formatTime: (ms: number) => string;
+  onSeek: (ms: number) => void;
+  onSeekPreview?: (ms: number) => void;
+  onSeekCommit?: (ms: number) => void;
+}
+
+/** Progress slider and timestamps: owns the live position subscription so the dock itself does not tick 10×/s. */
+const DockProgress: React.FC<DockProgressProps> = ({
+  status: statusProp,
+  seekLabel,
+  formatTime,
+  onSeek,
+  onSeekPreview,
+  onSeekCommit,
+}) => {
+  const status = useLiveStatus(statusProp);
+  const seekProgressPercent =
+    status.duration_ms && status.duration_ms > 0
+      ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
+      : 0;
+
+  return (
+    <div className="flex w-full items-center gap-2.5">
+      <span className="min-w-11 rounded-md bg-black/30 px-1.5 py-px text-center font-mono text-xs tabular-nums text-fg">{formatTime(status.position_ms)}</span>
+      <input
+        type="range"
+        aria-label={seekLabel}
+        min={0}
+        max={status.duration_ms || 100}
+        value={status.position_ms}
+        onChange={(e) => {
+          const val = Number(e.target.value);
+          if (onSeekPreview) onSeekPreview(val);
+          else onSeek(val);
+        }}
+        onPointerUp={(e) => onSeekCommit?.(Number(e.currentTarget.value))}
+        onKeyUp={(e) => {
+          if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+            onSeekCommit?.(Number(e.currentTarget.value));
+          }
+        }}
+        className="h-1.5 flex-1 range-fill"
+        style={cssVars({ '--fill': `${seekProgressPercent}%` })}
+      />
+      <span className="min-w-11 rounded-md bg-black/30 px-1.5 py-px text-center font-mono text-xs tabular-nums text-fg-muted">{formatTime(status.duration_ms || 0)}</span>
+    </div>
+  );
+};
+
 export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(({
   isVisible,
   activeTab,
   language: _language,
   loc,
-  status: statusProp,
+  status,
   currentPlayingTrack,
   effectiveDisplayTitle,
   effectiveDisplayArtist,
@@ -107,12 +159,6 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   formatVolumeValue,
   onToggleMiniPlayer,
 }) => {
-  // Live position/spectrum (livePlayback): this component renders, not the whole app.
-  const status = useLiveStatus(statusProp);
-  const seekProgressPercent =
-    status.duration_ms && status.duration_ms > 0
-      ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
-      : 0;
   const [isDspQuickMenuOpen, setIsDspQuickMenuOpen] = useState(false);
 
   if (!isVisible) return null;
@@ -239,30 +285,14 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
         </div>
 
         {/* Position slider: preview while dragging, one seek on release */}
-        <div className="flex w-full items-center gap-2.5">
-          <span className="min-w-11 rounded-md bg-black/30 px-1.5 py-px text-center font-mono text-xs tabular-nums text-fg">{formatTime(status.position_ms)}</span>
-          <input
-            type="range"
-            aria-label={loc.bottomDock.seekLabel}
-            min={0}
-            max={status.duration_ms || 100}
-            value={status.position_ms}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              if (onSeekPreview) onSeekPreview(val);
-              else onSeek(val);
-            }}
-            onPointerUp={(e) => onSeekCommit?.(Number(e.currentTarget.value))}
-            onKeyUp={(e) => {
-              if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
-                onSeekCommit?.(Number(e.currentTarget.value));
-              }
-            }}
-            className="h-1.5 flex-1 range-fill"
-            style={cssVars({ '--fill': `${seekProgressPercent}%` })}
-          />
-          <span className="min-w-11 rounded-md bg-black/30 px-1.5 py-px text-center font-mono text-xs tabular-nums text-fg-muted">{formatTime(status.duration_ms || 0)}</span>
-        </div>
+        <DockProgress
+          status={status}
+          seekLabel={loc.bottomDock.seekLabel}
+          formatTime={formatTime}
+          onSeek={onSeek}
+          onSeekPreview={onSeekPreview}
+          onSeekCommit={onSeekCommit}
+        />
       </div>
 
       {/* Right: DSP engine, volume and window controls, each in its own rail */}

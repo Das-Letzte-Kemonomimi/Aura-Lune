@@ -6,12 +6,24 @@ import { VuMeterWidget } from '../../../components/player/VuMeterWidget';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
+import { useLiveSelector } from '../../../state/livePlayback';
 import { arePlayerVisualColumnPropsEqual } from './playerVisualColumnMemo';
 import { cn } from '../../../utils/cn';
 import { Button, SegmentedControl, StatusDot } from '../../../components/ui';
 
 export type PlayerVisualColumnProps = Pick<PlayerViewProps, 'nowPlayingVisualMode' | 'handleSelectNowPlayingVisualMode' | 'loc' | 'language' | 'currentCover' | 'currentPlayingTrack' | 'tracks' | 'handlePlayPause' | 'vinylRpm' | 'handleSelectVinylRpm' | 'setIsLoFiModalOpen' | 'tapeType' | 'handleSelectTapeType' | 'tapeSpeed' | 'handleSelectTapeSpeed' | 'currentAlbum' | 'handleOpenCoverPicker' | 'albums' | 'handleUploadCustomCoverDirect' | 'dspBadgeTitle' | 'dspBadgeText'> & {
   status: PlaybackStatus;
+};
+
+type LiveTapeDeckProps = Omit<React.ComponentProps<typeof TapeDeckWidget>, 'positionMs'> & {
+  fallbackPositionMs: number;
+};
+
+const LiveTapeDeck: React.FC<LiveTapeDeckProps> = ({ fallbackPositionMs, ...tapeProps }) => {
+  // Updates at most 1 Hz (per-second counter / reel radii) while Tape mode is visible.
+  const liveSecond = useLiveSelector((s) => (s.ready ? Math.floor(s.positionMs / 1000) : null));
+  const positionMs = liveSecond !== null ? liveSecond * 1000 : fallbackPositionMs;
+  return <TapeDeckWidget {...tapeProps} positionMs={positionMs} />;
 };
 
 const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
@@ -90,10 +102,10 @@ const PlayerVisualColumnBase: React.FC<PlayerVisualColumnProps> = ({
             size={265}
           />
         ) : nowPlayingVisualMode === 'tape' ? (
-          <TapeDeckWidget
+          <LiveTapeDeck
             currentLang={language}
             isPlaying={status.state === 'Playing'}
-            positionMs={status.position_ms ?? 0}
+            fallbackPositionMs={status.position_ms ?? 0}
             durationMs={status.current_track?.duration_ms ?? 180000}
             tempo={status.tempo_ratio ?? 1.0}
             rate={status.rate_ratio ?? 1.0}

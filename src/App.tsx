@@ -49,7 +49,6 @@ import {
 } from './components/player';
 import { BigScreenView } from './views/player/BigScreenView';
 
-import { useQueueVirtualScroll } from './hooks/useQueueVirtualScroll';
 import { useAmbienceMode, useAmbienceOpacity } from './hooks/useAmbienceMode';
 import { type Language, getTranslations } from './i18n';
 import type {
@@ -353,8 +352,6 @@ export default function App() {
     queue,
     isQueueOpen,
     setIsQueueOpen,
-    queueSearchQuery,
-    queueColumns,
     refreshQueue,
     playQueueIndex: handlePlayQueueIndex,
     removeFromQueue: handleRemoveFromQueue,
@@ -504,24 +501,6 @@ export default function App() {
     true,
     { parse: parseBoolean, legacyKeys: ['auralune_notifications_enabled'] },
   );
-
-
-  const {
-    queueListRef,
-    totalQueueDurationMs,
-    formatTotalDuration,
-    filteredQueueItems,
-    queueStartIndex,
-    queueEndIndex,
-    queueTopSpacer,
-    queueBottomSpacer,
-  } = useQueueVirtualScroll({
-    items: queue.items,
-    searchQuery: queueSearchQuery,
-    compactMode: queueColumns.compactMode,
-    containerRef: mainContentRef,
-    loc: t,
-  });
 
   // Detects scrolling below the top player panel
   const [isPlayerScrolledDown, setIsPlayerScrolledDown] = useState(false);
@@ -986,14 +965,7 @@ export default function App() {
     trackWaveformPeaks,
     trackWaveformBands,
     isWaveformLoading,
-    filteredQueueItems,
-    totalQueueDurationMs,
-    formatTotalDuration,
-    queueListRef,
-    queueStartIndex,
-    queueEndIndex,
-    queueTopSpacer,
-    queueBottomSpacer,
+    mainContentRef,
     handleOpenCoverPicker,
     handleUploadCustomCoverDirect,
     handlePickFiles,

@@ -5,8 +5,9 @@ import { type QueueItem, type QueueColumnConfig, getQueueGridTemplate } from '..
 import type { PlayerViewProps } from '../PlayerView';
 import type { QueueTrackMeta } from '../queueTrackMeta';
 import { cn } from '../../../utils/cn';
+import { useQueueVirtualScroll } from '../../../hooks/useQueueVirtualScroll';
 import { Badge, Button, Card, Chip, EmptyState, IconButton, Popover, SectionHeader, TextField } from '../../../components/ui';
-export type PlayerQueuePanelProps = Pick<PlayerViewProps, 'loc' | 'queue' | 'formatTotalDuration' | 'totalQueueDurationMs' | 'handleCycleLoopMode' | 'handleToggleShuffle' | 'handleToggleInfinityQueue' | 'infinityQueue' | 'handleToggleStopAfterCurrent' | 'queueSearchQuery' | 'setQueueSearchQuery' | 'setIsColumnConfigOpen' | 'isColumnConfigOpen' | 'queueColumns' | 'toggleQueueColumn' | 'resetQueueColumns' | 'handlePickFiles' | 'setIsSaveQueueModalOpen' | 'handleClearQueue' | 'setActiveTab' | 'queueListRef' | 'filteredQueueItems' | 'queueTopSpacer' | 'queueStartIndex' | 'queueEndIndex' | 'dragOverQueueIdx' | 'handleQueueDragStart' | 'handleQueueDragOver' | 'handleQueueDrop' | 'handlePlayQueueIndex' | 'draggedQueueIdx' | 'handleOpenCoverPicker' | 'handleUploadCustomCoverDirect' | 'handleOpenContainingFolder' | 'formatTime' | 'handleMoveQueueItem' | 'handleRemoveFromQueue' | 'queueBottomSpacer'> & {
+export type PlayerQueuePanelProps = Pick<PlayerViewProps, 'loc' | 'queue' | 'handleCycleLoopMode' | 'handleToggleShuffle' | 'handleToggleInfinityQueue' | 'infinityQueue' | 'handleToggleStopAfterCurrent' | 'queueSearchQuery' | 'setQueueSearchQuery' | 'setIsColumnConfigOpen' | 'isColumnConfigOpen' | 'queueColumns' | 'toggleQueueColumn' | 'resetQueueColumns' | 'handlePickFiles' | 'setIsSaveQueueModalOpen' | 'handleClearQueue' | 'setActiveTab' | 'dragOverQueueIdx' | 'handleQueueDragStart' | 'handleQueueDragOver' | 'handleQueueDrop' | 'handlePlayQueueIndex' | 'draggedQueueIdx' | 'handleOpenCoverPicker' | 'handleUploadCustomCoverDirect' | 'handleOpenContainingFolder' | 'formatTime' | 'handleMoveQueueItem' | 'handleRemoveFromQueue' | 'mainContentRef'> & {
   status: PlaybackStatus;
   t: PlayerViewProps['loc'];
   getQueueTrackMeta: (item: QueueItem) => QueueTrackMeta;
@@ -30,9 +31,7 @@ const QUEUE_COLUMN_OPTIONS: readonly { key: keyof QueueColumnConfig; label: (t: 
 export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
   dragOverQueueIdx,
   draggedQueueIdx,
-  filteredQueueItems,
   formatTime,
-  formatTotalDuration,
   getQueueTrackMeta,
   handleClearQueue,
   handleCycleLoopMode,
@@ -52,14 +51,10 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
   infinityQueue,
   isColumnConfigOpen,
   loc,
+  mainContentRef,
   queue,
-  queueBottomSpacer,
   queueColumns,
-  queueEndIndex,
-  queueListRef,
   queueSearchQuery,
-  queueStartIndex,
-  queueTopSpacer,
   resetQueueColumns,
   setActiveTab,
   setIsColumnConfigOpen,
@@ -68,8 +63,24 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
   status,
   t,
   toggleQueueColumn,
-  totalQueueDurationMs,
 }) => {
+  const {
+    queueListRef,
+    totalQueueDurationMs,
+    formatTotalDuration,
+    filteredQueueItems,
+    queueStartIndex,
+    queueEndIndex,
+    queueTopSpacer,
+    queueBottomSpacer,
+  } = useQueueVirtualScroll({
+    items: queue.items,
+    searchQuery: queueSearchQuery,
+    compactMode: queueColumns.compactMode,
+    containerRef: mainContentRef,
+    loc,
+  });
+
   const closeColumnConfig = () => setIsColumnConfigOpen(false);
   const loopLabel = queue.loop_mode === 'None' ? loc.queue.loopNone : queue.loop_mode === 'Track' ? loc.queue.loopTrack : loc.queue.loopQueue;
   const countLabel = queue.items.length === 1

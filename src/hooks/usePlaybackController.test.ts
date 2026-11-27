@@ -1,4 +1,5 @@
-import { renderHook, act } from '@testing-library/react';
+import { useState, useEffect } from 'react';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePlaybackController } from './usePlaybackController';
 import { livePlayback } from '../state/livePlayback';
@@ -100,6 +101,7 @@ describe('usePlaybackController', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -406,6 +408,126 @@ describe('usePlaybackController', () => {
       const seeks = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'seek');
       expect(seeks).toHaveLength(1);
       expect(seeks[0][1]).toMatchObject({ positionMs: 5_000 });
+    });
+
+    it('two identical status events cause no second App state commit (including replaygain_status)', async () => {
+      const settledStatus: PlaybackStatus = {
+        ...mockStatus,
+        state: 'Stopped',
+        replaygain_status: [-3.5, 0.9, true],
+      };
+      mockInvoke.mockImplementation(async (cmd: string) => {
+        if (cmd === 'get_status') return settledStatus;
+        if (cmd === 'get_bookmark') return null;
+        if (cmd === 'get_track_bookmarks') return [];
+        return null;
+      });
+      let commits = 0;
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders++;
+        const [st, setSt] = useState<PlaybackStatus>(settledStatus);
+        const [rg, setRg] = useState<[number, number, boolean]>([-3.5, 0.9, true]);
+        useEffect(() => {
+          commits++;
+        });
+        usePlaybackController({
+          status: st,
+          setStatus: setSt,
+          filePath: '/music/song.flac',
+          setFilePath: setFilePath as any,
+          activeTrackId: 10,
+          setActiveTrackId: setActiveTrackId as any,
+          queue: mockQueue,
+          refreshQueue: refreshQueue as any,
+          seekFadeEnabled: true,
+          initialStartupPositionRef,
+          tracks: [],
+          setTracks: setTracks as any,
+          albums: [],
+          setReplaygainStatus: setRg,
+          showMessage: showMessage as any,
+          loc,
+        });
+        return { st, rg };
+      });
+      await act(async () => {});
+
+      const settledCommits = commits;
+      act(() => emitStatus({ ...settledStatus, replaygain_status: [-3.5, 0.9, true] }));
+      act(() => emitStatus({ ...settledStatus, replaygain_status: [-3.5, 0.9, true] }));
+      expect(commits).toBe(settledCommits);
+
+      // Genuine transition commits once; subsequent identical events cause zero additional commits
+      const nextStatus: PlaybackStatus = {
+        ...settledStatus,
+        replaygain_status: [-1.2, 0.85, false],
+      };
+      act(() => emitStatus(nextStatus));
+      expect(commits).toBe(settledCommits + 1);
+      const commitsAfterTransition = commits;
+      act(() => emitStatus({ ...nextStatus, replaygain_status: [-1.2, 0.85, false] }));
+      const rendersAfterFirstDuplicate = renders;
+      act(() => emitStatus({ ...nextStatus, replaygain_status: [-1.2, 0.85, false] }));
+      expect(result.current.rg).toEqual([-1.2, 0.85, false]);
+      expect(commits).toBe(commitsAfterTransition);
+      expect(renders).toBe(rendersAfterFirstDuplicate);
+    });
+
+    it('does not commit repeatedly while stopped on a restored session tick', async () => {
+      initialStartupPositionRef.current = 45_000;
+      const restoredTrack = {
+        id: 'restored-1',
+        uri: '/music/song.flac',
+        track_id: 10,
+        title: 'Song',
+        artist: 'Artist',
+        album: null,
+        duration_ms: 200_000,
+      };
+      let renders = 0;
+      renderHook(() => {
+        renders++;
+        const [st, setSt] = useState<PlaybackStatus>({
+          ...mockStatus,
+          state: 'Stopped',
+          position_ms: 45_000,
+          current_track: restoredTrack,
+        });
+        const [, setRg] = useState<[number, number, boolean]>([0, 0, false]);
+        return usePlaybackController({
+          status: st,
+          setStatus: setSt,
+          filePath: '/music/song.flac',
+          setFilePath: setFilePath as any,
+          activeTrackId: 10,
+          setActiveTrackId: setActiveTrackId as any,
+          queue: mockQueue,
+          refreshQueue: refreshQueue as any,
+          seekFadeEnabled: true,
+          initialStartupPositionRef,
+          tracks: [],
+          setTracks: setTracks as any,
+          albums: [],
+          setReplaygainStatus: setRg,
+          showMessage: showMessage as any,
+          loc,
+        });
+      });
+      await act(async () => {});
+
+      const stoppedTick: PlaybackStatus = {
+        ...mockStatus,
+        state: 'Stopped',
+        position_ms: 0,
+        current_track: null,
+      };
+
+      act(() => emitStatus(stoppedTick));
+      const rendersAfterFirst = renders;
+
+      act(() => emitStatus({ ...stoppedTick }));
+      expect(renders).toBe(rendersAfterFirst);
     });
   });
 });

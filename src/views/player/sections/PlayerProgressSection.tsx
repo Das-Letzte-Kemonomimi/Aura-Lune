@@ -5,11 +5,11 @@ import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { fmt } from '../../../utils/fmt';
 import { cssVars } from '../../../utils/cssVars';
+import { useLiveStatus } from '../../../state/livePlayback';
 import { Badge, Button, Chip } from '../../../components/ui';
 
 export type PlayerProgressSectionProps = Pick<PlayerViewProps, 'formatTime' | 'dspCombination' | 'loopPointA' | 'loopPointB' | 'setIsLoopEditorOpen' | 'loc' | 'formatTimeMs' | 'setLoopPointA' | 'setLoopPointB' | 'showMessage' | 'handleToggleSeekFade' | 'seekFadeEnabled' | 'trackWaveformPeaks' | 'trackWaveformBands' | 'isWaveformLoading' | 'language' | 'handleSeek' | 'handleSeekPreview' | 'handleSeekCommit' | 'currentBookmark' | 'currentTrackBookmarks'> & {
   status: PlaybackStatus;
-  seekProgressPercent: number;
 };
 
 export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
@@ -28,15 +28,22 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
   loopPointA,
   loopPointB,
   seekFadeEnabled,
-  seekProgressPercent,
   setIsLoopEditorOpen,
   setLoopPointA,
   setLoopPointB,
   showMessage,
-  status,
+  status: statusProp,
   trackWaveformBands,
   trackWaveformPeaks,
-}) => (
+}) => {
+  // Live position/spectrum (livePlayback): only this progress section renders ~10×/s, not PlayerView.
+  const status = useLiveStatus(statusProp);
+  const seekProgressPercent =
+    status.duration_ms && status.duration_ms > 0
+      ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
+      : 0;
+
+  return (
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 font-mono text-ui text-fg-secondary">
         <div className="flex flex-wrap items-center gap-2">
@@ -264,4 +271,5 @@ export const PlayerProgressSection: React.FC<PlayerProgressSectionProps> = ({
         />
       </div>
     </div>
-);
+  );
+};

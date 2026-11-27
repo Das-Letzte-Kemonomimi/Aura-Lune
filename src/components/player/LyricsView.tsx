@@ -28,6 +28,7 @@ import {
   type RomajiMode,
 } from './lyricsModel';
 import { cn } from '../../utils/cn';
+import { useLivePositionMs } from '../../state/livePlayback';
 import { Badge, Button, Chip, IconButton, Spinner } from '../ui';
 
 export interface LyricLineDto {
@@ -60,11 +61,13 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
   trackAlbum,
   trackPath,
   durationSec,
-  currentPositionMs,
+  currentPositionMs: currentPositionMsProp,
   currentLang = 'en',
   onSeek,
   onClose,
 }) => {
+  // Live position/spectrum (livePlayback): this lyrics view renders, not PlayerView.
+  const currentPositionMs = useLivePositionMs(currentPositionMsProp);
   const loc = getTranslations(currentLang);
   const [lyrics, setLyrics] = useState<LyricsDto | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

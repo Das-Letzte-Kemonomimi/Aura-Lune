@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { invoke } from '../api/ipc';
 import { getSetting, setSetting } from '../api/settings';
+import { currentPositionMs } from '../state/livePlayback';
 import type { PlaybackStatus } from '../types/playback';
 import { isNowPlayingVisualMode, type NowPlayingVisualMode } from '../types/navigation';
 import type { TrackRecord, AlbumRecord } from '../types/library';
@@ -23,6 +24,8 @@ export interface UseSessionManagerOptions {
   showMessage: (msg: string, isError?: boolean) => void;
   loc: Translations;
 }
+
+const SESSION_SAVE_THROTTLE_MS = 5_000;
 
 export function useSessionManager({
   status,
@@ -153,130 +156,184 @@ export function useSessionManager({
     }
   }, [initialStartupPositionRef, setActiveTrackId, setFilePath, setNowPlayingVisualMode, setStatus, setVolumeUnit]);
 
-  // Periodic debounced saving of current playback state
+  // Throttled persistence of playback state (at most every 5 s while playing, immediate on transitions)
   const lastSavedSessionRef = useRef<string>('');
-  useEffect(() => {
-    if (!restoreSessionOnStartup) return;
+  const lastWriteAtRef = useRef<number>(0);
+  const trailingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoreSessionRef = useRef(restoreSessionOnStartup);
+  const latestArgsRef = useRef({
+    status,
+    filePath,
+    currentPlayingTrack,
+    activeTrackId,
+    volumeUnit,
+    nowPlayingVisualMode,
+    currentAlbum,
+  });
 
-    const currentTrack = currentPlayingTrack;
-    const currentUri = status.current_track?.uri || filePath || currentTrack?.path || '';
-    const currentPos = status.position_ms;
-    const currentVol = status.volume ?? 1.0;
-
-    const sessionPayload = {
-      volume: currentVol,
-      volume_unit: volumeUnit,
-      track_id: status.current_track?.track_id || activeTrackId || currentTrack?.id || null,
-      uri: currentUri,
-      title: status.current_track?.title || currentTrack?.title || null,
-      artist: status.current_track?.artist || currentTrack?.artist || null,
-      album: status.current_track?.album || currentAlbum?.title || null,
-      position_ms: currentPos,
-      duration_ms: status.duration_ms || currentTrack?.duration_ms || null,
-      pitch_semitones: status.pitch_semitones,
-      tempo_ratio: status.tempo_ratio,
-      rate_ratio: status.rate_ratio,
-      engine: status.engine,
-      equalizer_enabled: status.equalizer_enabled,
-      equalizer_bands: status.equalizer_bands,
-      nowplaying_visual_mode: nowPlayingVisualMode,
+  useLayoutEffect(() => {
+    restoreSessionRef.current = restoreSessionOnStartup;
+    latestArgsRef.current = {
+      status,
+      filePath,
+      currentPlayingTrack,
+      activeTrackId,
+      volumeUnit,
+      nowPlayingVisualMode,
+      currentAlbum,
     };
+  });
 
-    const serialized = JSON.stringify(sessionPayload);
+  const buildSerializedSession = useCallback(() => {
+    const {
+      status: s,
+      filePath: fp,
+      currentPlayingTrack: curTrack,
+      activeTrackId: trackId,
+      volumeUnit: volUnit,
+      nowPlayingVisualMode: visualMode,
+      currentAlbum: album,
+    } = latestArgsRef.current;
+
+    const currentUri = s.current_track?.uri || fp || curTrack?.path || '';
+    const currentPos = currentPositionMs(s.position_ms);
+    const currentVol = s.volume ?? 1.0;
+
+    return JSON.stringify({
+      volume: currentVol,
+      volume_unit: volUnit,
+      track_id: s.current_track?.track_id || trackId || curTrack?.id || null,
+      uri: currentUri,
+      title: s.current_track?.title || curTrack?.title || null,
+      artist: s.current_track?.artist || curTrack?.artist || null,
+      album: s.current_track?.album || album?.title || null,
+      position_ms: currentPos,
+      duration_ms: s.duration_ms || curTrack?.duration_ms || null,
+      pitch_semitones: s.pitch_semitones,
+      tempo_ratio: s.tempo_ratio,
+      rate_ratio: s.rate_ratio,
+      engine: s.engine,
+      equalizer_enabled: s.equalizer_enabled,
+      equalizer_bands: s.equalizer_bands,
+      nowplaying_visual_mode: visualMode,
+    });
+  }, []);
+
+  const writeSessionNow = useCallback(() => {
+    if (!restoreSessionRef.current) return;
+    if (trailingTimerRef.current !== null) {
+      clearTimeout(trailingTimerRef.current);
+      trailingTimerRef.current = null;
+    }
+    const serialized = buildSerializedSession();
+    if (serialized === lastSavedSessionRef.current) return;
+    lastSavedSessionRef.current = serialized;
+    lastWriteAtRef.current = Date.now();
     try {
       localStorage.setItem('auralune_playback_session', serialized);
     } catch {
       // ignore
     }
+    setSetting('playback_session_state', serialized).catch(() => {});
+  }, [buildSerializedSession]);
 
-    const timer = setTimeout(() => {
-      if (serialized !== lastSavedSessionRef.current) {
-        lastSavedSessionRef.current = serialized;
-        setSetting('playback_session_state', serialized).catch(() => {});
-      }
-    }, 1500);
+  const trackKey = `${activeTrackId ?? ''}|${status.current_track?.track_id ?? ''}|${
+    status.current_track?.uri || filePath || currentPlayingTrack?.path || ''
+  }`;
+  const prevTrackKeyRef = useRef<string | null>(null);
+  const prevStateRef = useRef<PlaybackStatus['state'] | null>(null);
 
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    const prevTrackKey = prevTrackKeyRef.current;
+    const prevState = prevStateRef.current;
+    prevTrackKeyRef.current = trackKey;
+    prevStateRef.current = status.state;
+
+    if (!restoreSessionOnStartup) return;
+
+    const trackChanged = prevTrackKey !== null && prevTrackKey !== trackKey;
+    const pausedOrStopped =
+      prevState === 'Playing' && (status.state === 'Paused' || status.state === 'Stopped');
+
+    if (trackChanged || pausedOrStopped) {
+      writeSessionNow();
+      return;
+    }
+
+    if (prevTrackKey === null) {
+      lastWriteAtRef.current = Date.now();
+      return;
+    }
+
+    const elapsed = Date.now() - lastWriteAtRef.current;
+    if (elapsed >= SESSION_SAVE_THROTTLE_MS) {
+      writeSessionNow();
+      return;
+    }
+
+    if (trailingTimerRef.current === null) {
+      trailingTimerRef.current = setTimeout(() => {
+        trailingTimerRef.current = null;
+        writeSessionNow();
+      }, SESSION_SAVE_THROTTLE_MS - elapsed);
+    }
   }, [
-    activeTrackId,
-    currentAlbum?.title,
-    currentPlayingTrack,
-    filePath,
-    nowPlayingVisualMode,
     restoreSessionOnStartup,
-    status.current_track?.album,
-    status.current_track?.artist,
-    status.current_track?.title,
-    status.current_track?.track_id,
-    status.current_track?.uri,
-    status.duration_ms,
-    status.engine,
-    status.equalizer_bands,
-    status.equalizer_enabled,
-    status.pitch_semitones,
-    status.position_ms,
-    status.rate_ratio,
-    status.tempo_ratio,
+    trackKey,
+    status.state,
     status.volume,
     volumeUnit,
+    status.current_track?.title,
+    status.current_track?.artist,
+    status.current_track?.album,
+    status.duration_ms,
+    currentPlayingTrack?.title,
+    currentPlayingTrack?.artist,
+    currentPlayingTrack?.duration_ms,
+    currentAlbum?.title,
+    status.pitch_semitones,
+    status.tempo_ratio,
+    status.rate_ratio,
+    status.engine,
+    status.equalizer_enabled,
+    status.equalizer_bands,
+    nowPlayingVisualMode,
+    writeSessionNow,
   ]);
 
-  // Synchronous flush on window beforeunload
+  // Periodic save at most every 5 s during continuous playback
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (!restoreSessionOnStartup) return;
-      const currentTrack = currentPlayingTrack;
-      const currentUri = status.current_track?.uri || filePath || currentTrack?.path || '';
-      const sessionPayload = {
-        volume: status.volume ?? 1.0,
-        volume_unit: volumeUnit,
-        track_id: status.current_track?.track_id || activeTrackId || currentTrack?.id || null,
-        uri: currentUri,
-        title: status.current_track?.title || currentTrack?.title || null,
-        artist: status.current_track?.artist || currentTrack?.artist || null,
-        album: status.current_track?.album || currentAlbum?.title || null,
-        position_ms: status.position_ms,
-        duration_ms: status.duration_ms || currentTrack?.duration_ms || null,
-        pitch_semitones: status.pitch_semitones,
-        tempo_ratio: status.tempo_ratio,
-        rate_ratio: status.rate_ratio,
-        engine: status.engine,
-        equalizer_enabled: status.equalizer_enabled,
-        equalizer_bands: status.equalizer_bands,
-        nowplaying_visual_mode: nowPlayingVisualMode,
-      };
-      try {
-        localStorage.setItem('auralune_playback_session', JSON.stringify(sessionPayload));
-      } catch {
-        // ignore
+    if (!restoreSessionOnStartup || status.state !== 'Playing') return;
+    const timer = window.setInterval(() => {
+      writeSessionNow();
+    }, SESSION_SAVE_THROTTLE_MS);
+    return () => window.clearInterval(timer);
+  }, [restoreSessionOnStartup, status.state, writeSessionNow]);
+
+  // Flush on pagehide, tab hidden, and window beforeunload
+  useEffect(() => {
+    const handleFlush = () => {
+      writeSessionNow();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        writeSessionNow();
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [
-    activeTrackId,
-    currentAlbum?.title,
-    currentPlayingTrack,
-    filePath,
-    nowPlayingVisualMode,
-    restoreSessionOnStartup,
-    status.current_track?.album,
-    status.current_track?.artist,
-    status.current_track?.title,
-    status.current_track?.track_id,
-    status.current_track?.uri,
-    status.duration_ms,
-    status.engine,
-    status.equalizer_bands,
-    status.equalizer_enabled,
-    status.pitch_semitones,
-    status.position_ms,
-    status.rate_ratio,
-    status.tempo_ratio,
-    status.volume,
-    volumeUnit,
-  ]);
+    window.addEventListener('beforeunload', handleFlush);
+    window.addEventListener('pagehide', handleFlush);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', handleFlush);
+      window.removeEventListener('pagehide', handleFlush);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (trailingTimerRef.current !== null) {
+        clearTimeout(trailingTimerRef.current);
+        trailingTimerRef.current = null;
+      }
+    };
+  }, [writeSessionNow]);
 
   return {
     restoreSessionOnStartup,

@@ -53,6 +53,18 @@ describe('livePlayback store', () => {
     expect(renders).toBe(after);
   });
 
+  it('does not notify subscribers when a new spectrum array has identical elements', () => {
+    let renders = 0;
+    renderHook(() => {
+      renders++;
+      return useLiveSpectrum([0]);
+    });
+    act(() => livePlayback.publish({ positionMs: 500, spectrum: [0.1, 0.2, 0.0] }));
+    const after = renders;
+    act(() => livePlayback.publish({ positionMs: 500, spectrum: [0.1, 0.2, 0.0] }));
+    expect(renders).toBe(after);
+  });
+
   it('useLiveSelector re-renders only when the derived value changes', () => {
     let renders = 0;
     const { result } = renderHook(() => {

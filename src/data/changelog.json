@@ -190,6 +190,13 @@
         "de": "Zuverlässigere, schnellere Coversuche und automatisches Laden im Hintergrund: Die Suche prüft Erscheinungsjahr, Titelanzahl und Songtitel gegen Verwechslungen gleichnamiger Künstler, lädt fehlende Cover bei hoher Sicherheit automatisch im Hintergrund (in den Einstellungen umschaltbar), speichert Vorschaubilder auf der Festplatte und nutzt Cover Art Archive sowie MusicBrainz parallel.",
         "fi": "Luotettavampi ja nopeampi kansikuvahaku sekä automaattinen haku taustalla: haku varmistaa julkaisuvuoden, kappalemäärän ja kappaleiden nimet samannimisten artistien erottamiseksi, hakee puuttuvat kansikuvat taustalla automaattisesti korkealla varmuudella (valittavissa Asetuksissa) ja tallentaa pikkukuvat levylle.",
         "la": "Accommodatio tegumentorum certior ac celerior et inquisitio spontanea in curriculo: annus editionis, numerus carminum et tituli probantur ne artifices eiusdem nominis confundantur, tegumenta absentia altae fiduciae sponte quaeruntur, et imagines parvulae in disco servantur."
+      },
+      {
+        "en": "Smoother playback controls and lower processor usage while listening, as only the moving progress bars, lyrics, and bottom controls update during playback instead of redrawing the entire window.",
+        "pl": "Płynniejsze sterowanie odtwarzaniem i mniejsze zużycie procesora podczas słuchania — w trakcie gry aktualizują się tylko ruchome paski postępu, tekst utworu i dolny pasek zamiast całego okna aplikacji.",
+        "de": "Flüssigere Wiedergabesteuerung und geringere Prozessorlast beim Hören, da während der Wiedergabe nur Fortschrittsbalken, Liedtexte und die untere Leiste statt des gesamten Fensters neu gezeichnet werden.",
+        "fi": "Sulavammat toistosäätimet ja pienempi suoritinkäyttö kuuntelun aikana, kun vain liikkuvat edistymispalkit, sanoitukset ja alapalkki päivittyvät koko ikkunan uudelleenpiirtämisen sijaan.",
+        "la": "Moderatio cantus lenior et minor labor processoris, cum solum indices progressus, verba et vectis inferior dum canitur renoventur."
       }
     ],
     "fixed": [
@@ -311,6 +318,13 @@
         "de": "Kurzes Zurückspringen der Fortschrittsanzeige auf 0:01 beim ersten Starten der Wiedergabe nach dem Programmstart behoben.",
         "fi": "Korjattu toiston edistymispalkin lyhyt hyppy kohtaan 0:01 aloitettaessa toisto ensimmäisen kerran sovelluksen käynnistyksen jälkeen.",
         "la": "Saltus brevis indicis progressus ad 0:01 in primo initio sonitus post aperturam applicationis correctus."
+      },
+      {
+        "en": "Fixed Big Screen controls not auto-hiding while playing, and restored periodic saving of your playback position during continuous playback so resuming tracks works reliably.",
+        "pl": "Naprawiono automatyczne ukrywanie panelu sterowania w trybie pełnego ekranu podczas odtwarzania oraz przywrócono cykliczny zapis aktualnej pozycji utworu w trakcie ciągłego słuchania, aby wznawianie działało niezawodnie.",
+        "de": "Das automatische Ausblenden der Steuerung im Großbildmodus während der Wiedergabe wurde behoben und das regelmäßige Speichern der Wiedergabeposition bei fortlaufender Wiedergabe wiederhergestellt.",
+        "fi": "Korjattiin suuren näytön säätimien automaattinen piilotus toiston aikana ja palautettiin toistokohdan säännöllinen tallennus jatkuvan toiston aikana.",
+        "la": "Emendata est occultatio spontanea moderationum in aspectu magno atque servatio periodica loci cantus inter continuam auditionem restituta."
       }
     ]
   },
