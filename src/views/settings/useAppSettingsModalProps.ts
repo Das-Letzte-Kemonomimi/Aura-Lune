@@ -10,13 +10,17 @@ import type { UpdateManager } from '../../hooks/useUpdateManager';
 import type { useAudioMasteringEffects } from '../../hooks/useAudioMasteringEffects';
 import React from 'react';
 import type { Language, Translations } from '../../i18n';
-import type { AudioDevicesSettingsViewProps } from './AudioDevicesSettingsView';
+import type { GeneralSettingsViewProps } from './GeneralSettingsView';
+import type { PlaybackSettingsViewProps } from './PlaybackSettingsView';
+import type { AudioEngineSettingsViewProps } from './AudioEngineSettingsView';
+import type { LibrarySettingsViewProps } from './LibrarySettingsView';
+import type { IntegrationsSettingsViewProps } from './IntegrationsSettingsView';
 import type { TranscodeSettingsViewProps } from './TranscodeSettingsView';
-import type { ThemesSettingsViewProps } from './ThemesSettingsView';
+import type { AppearanceSettingsViewProps } from './AppearanceSettingsView';
 import type { UpdatesSettingsViewProps } from './UpdatesSettingsView';
 import type { AboutSettingsViewProps } from './AboutSettingsView';
-import type { SettingsTab } from './SettingsModal';
-import type { BackupSettingsViewProps } from './BackupSettingsView';
+import type { LegacySettingsTab, SettingsTab } from '../../types/navigation';
+import type { DataSettingsViewProps } from './DataSettingsView';
 
 export interface UseAppSettingsModalPropsParams {
   audioSettings?: ReturnType<typeof useAudioSettings>;
@@ -87,7 +91,7 @@ export interface UseAppSettingsModalPropsParams {
   about?: Partial<{
     appIconStyle: AboutSettingsViewProps['appIconStyle'];
     setIsHealthCheckModalOpen: (v: boolean) => void;
-    setSettingsTab: (t: SettingsTab) => void;
+    setSettingsTab: (t: SettingsTab | LegacySettingsTab) => void;
     setIsOnboardingOpen: (v: boolean) => void;
   }>;
   backup?: Partial<{
@@ -163,13 +167,65 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     ReturnType<typeof useAudioMasteringEffects> &
     Required<NonNullable<UseAppSettingsModalPropsParams['backup']>>;
 
-  const devicesProps: AudioDevicesSettingsViewProps = {
-    language,
+  const generalProps: GeneralSettingsViewProps = {
     loc,
-    onOpenHealthCheck: () => audioDevices.setIsHealthCheckModalOpen(true),
-    onRefreshDevices: audioDevices.refreshDevices,
+    language,
+    onLanguageChange: themes.setLanguage,
+    restoreSessionOnStartup: audioDevices.restoreSessionOnStartup,
+    onToggleRestoreSessionOnStartup: audioDevices.handleToggleRestoreSessionOnStartup,
+    closeToTray: backup.closeToTray,
+    onToggleCloseToTray: backup.handleToggleCloseToTray,
+    desktopNotificationsEnabled: audioDevices.desktopNotificationsEnabled,
+    onToggleDesktopNotifications: () => {
+      const nextVal = !audioDevices.desktopNotificationsEnabled;
+      audioDevices.setDesktopNotificationsEnabled(nextVal);
+    },
+    albumPlaybackMode: audioDevices.albumPlaybackMode,
+    onSetAlbumPlaybackMode: (mode) => {
+      audioDevices.setAlbumPlaybackMode(mode);
+    },
+    recapOptIn: audioDevices.recapOptIn,
+    onToggleRecapOptIn: () => {
+      audioDevices.setRecapOptIn(!audioDevices.recapOptIn);
+    },
+    onOpenOnboarding: () => about.setIsOnboardingOpen(true),
+  };
+
+  const appearanceProps: AppearanceSettingsViewProps = {
+    loc,
+    buttonGlowEnabled: themes.buttonGlowEnabled,
+    onToggleGlow: () => themes.setButtonGlowEnabled((prev: boolean) => !prev),
+    uiScale: themes.uiScale,
+    onResetScale: themes.handleResetScale,
+    onSelectScale: themes.handleSelectScale,
+    themes: themes.themes,
+    currentTheme: themes.currentTheme,
+    onSelectTheme: themes.handleSelectTheme,
+    customBgPath: themes.customBgPath,
+    onCustomBgPathChange: themes.setCustomBgPath,
+    themeBgImage: themes.themeBgImage,
+    onPickWallpaperFromDisk: themes.handlePickWallpaperFromDisk,
+    onWallpaperDrop: themes.handleWallpaperDrop,
+    onUploadBgImage: themes.handleUploadBgImage,
+    onRemoveBgImage: themes.handleRemoveBgImage,
+    onSaveBackgroundSettings: themes.handleSaveBackgroundSettings,
+    themeOverlay: themes.themeOverlay,
+    onThemeOverlayChange: themes.setThemeOverlay,
+    themeBlur: themes.themeBlur,
+    onThemeBlurChange: themes.setThemeBlur,
+    appIconStyle: themes.appIconStyle,
+    onSelectIconStyle: themes.handleSelectIconStyle,
+  };
+
+  const playbackProps: PlaybackSettingsViewProps = {
+    loc,
+    crossfadeDuration: backup.crossfadeDuration,
+    onCrossfadeDurationChange: backup.handleCrossfadeDurationChange,
     seekFadeEnabled: audioDevices.seekFadeEnabled,
     onToggleSeekFade: audioDevices.handleToggleSeekFade,
+    silenceTrimmingEnabled: audioDevices.silenceTrimmingEnabled,
+    silenceTrimmingThreshold: audioDevices.silenceTrimmingThreshold,
+    onSetSilenceTrimming: audioDevices.handleSetSilenceTrimming,
     instantVolume: audioDevices.instantVolume,
     onToggleInstantVolume: () => {
       audioDevices.setInstantVolume(!audioDevices.instantVolume);
@@ -182,29 +238,6 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onSetVolumeOsdPosition: (pos) => {
       audioDevices.setVolumeOsdPosition(pos);
     },
-    recapOptIn: audioDevices.recapOptIn,
-    onToggleRecapOptIn: () => {
-      audioDevices.setRecapOptIn(!audioDevices.recapOptIn);
-    },
-    restoreSessionOnStartup: audioDevices.restoreSessionOnStartup,
-    onToggleRestoreSessionOnStartup: audioDevices.handleToggleRestoreSessionOnStartup,
-    dspAutoStartup: audioDevices.dspAutoStartup,
-    onToggleDspAutoStartup: audioDevices.handleToggleDspAutoStartup,
-    dspDefaultEngine: audioDevices.dspDefaultEngine,
-    onSetDefaultDspEngine: audioDevices.handleSetDefaultDspEngine,
-    audioBufferMs: audioDevices.audioBufferMs,
-    onSetAudioBuffer: audioDevices.handleSetAudioBuffer,
-    dspBlockSize: audioDevices.dspBlockSize,
-    onSetDspBlockSize: audioDevices.handleSetDspBlockSize,
-    desktopNotificationsEnabled: audioDevices.desktopNotificationsEnabled,
-    onToggleDesktopNotifications: () => {
-      const nextVal = !audioDevices.desktopNotificationsEnabled;
-      audioDevices.setDesktopNotificationsEnabled(nextVal);
-    },
-    albumPlaybackMode: audioDevices.albumPlaybackMode,
-    onSetAlbumPlaybackMode: (mode) => {
-      audioDevices.setAlbumPlaybackMode(mode);
-    },
     replaygainMode: audioDevices.replaygainMode,
     replaygainPreAmp: audioDevices.replaygainPreAmp,
     replaygainFallbackGain: audioDevices.replaygainFallbackGain,
@@ -215,19 +248,81 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onToggleReplaygainScanWriteTags: () => audioDevices.setReplaygainScanWriteTags((prev: boolean) => !prev),
     onScanLibraryReplayGain: audioDevices.handleScanLibraryReplayGain,
     isReplaygainScanning: audioDevices.isReplaygainScanning,
+  };
+
+  const audioProps: AudioEngineSettingsViewProps = {
+    loc,
+    onOpenHealthCheck: () => audioDevices.setIsHealthCheckModalOpen(true),
+    onRefreshDevices: audioDevices.refreshDevices,
+    dspAutoStartup: audioDevices.dspAutoStartup,
+    onToggleDspAutoStartup: audioDevices.handleToggleDspAutoStartup,
+    dspDefaultEngine: audioDevices.dspDefaultEngine,
+    onSetDefaultDspEngine: audioDevices.handleSetDefaultDspEngine,
+    audioBufferMs: audioDevices.audioBufferMs,
+    onSetAudioBuffer: audioDevices.handleSetAudioBuffer,
+    dspBlockSize: audioDevices.dspBlockSize,
+    onSetDspBlockSize: audioDevices.handleSetDspBlockSize,
     crossfeedEnabled: audioDevices.crossfeedEnabled,
     crossfeedPreset: audioDevices.crossfeedPreset,
     crossfeedFcut: audioDevices.crossfeedFcut,
     crossfeedFeed: audioDevices.crossfeedFeed,
     onSetCrossfeed: audioDevices.handleSetCrossfeed,
-    silenceTrimmingEnabled: audioDevices.silenceTrimmingEnabled,
-    silenceTrimmingThreshold: audioDevices.silenceTrimmingThreshold,
-    onSetSilenceTrimming: audioDevices.handleSetSilenceTrimming,
     cards: audioDevices.cards,
     onDisableProAudio: audioDevices.handleDisableProAudio,
     onEnableProAudio: audioDevices.handleEnableProAudio,
     onSetCardProfile: audioDevices.handleSetCardProfile,
     onSetBluetoothCodec: audioDevices.handleSetBluetoothCodec,
+  };
+
+  const libraryProps: LibrarySettingsViewProps = {
+    loc,
+    autoFetchCoversBg: backup.autoFetchCoversBg ?? true,
+    onToggleAutoFetchCoversBg: backup.handleToggleAutoFetchCoversBg,
+    onTriggerBackgroundCoverFetch: backup.handleTriggerBackgroundCoverFetch,
+    coverSyncProgress: backup.coverSyncProgress,
+  };
+
+  const integrationsProps: IntegrationsSettingsViewProps = {
+    loc,
+    discordRpcEnabled: backup.discordRpcEnabled,
+    discordRpcConnected: backup.discordRpcConnected,
+    discordClientId: backup.discordClientId,
+    onToggleDiscordRpc: backup.handleToggleDiscordRpc,
+    onSaveDiscordClientId: backup.handleSaveDiscordClientId,
+    listenbrainzEnabled: backup.listenbrainzEnabled,
+    listenbrainzToken: backup.listenbrainzToken,
+    listenbrainzUser: backup.listenbrainzUser,
+    listenbrainzStatusMsg: backup.listenbrainzStatusMsg,
+    listenbrainzTesting: backup.listenbrainzTesting,
+    onToggleListenbrainz: backup.handleToggleListenbrainz,
+    onListenbrainzTokenChange: backup.handleListenbrainzTokenChange,
+    onTestListenbrainz: backup.handleTestListenbrainz,
+    lastfmEnabled: backup.lastfmEnabled,
+    lastfmUsername: backup.lastfmUsername,
+    lastfmSessionKey: backup.lastfmSessionKey,
+    lastfmPendingToken: backup.lastfmPendingToken,
+    lastfmTesting: backup.lastfmTesting,
+    lastfmStatusMsg: backup.lastfmStatusMsg,
+    lastfmCustomKey: backup.lastfmCustomKey,
+    lastfmCustomSecret: backup.lastfmCustomSecret,
+    onToggleLastfm: backup.handleToggleLastfm,
+    onConnectLastfm: backup.handleConnectLastfm,
+    onConfirmLastfmAuth: backup.handleConfirmLastfmAuth,
+    onDisconnectLastfm: backup.handleDisconnectLastfm,
+    onManualLastfmSessionKeyChange: backup.handleManualLastfmSessionKeyChange,
+    onValidateLastfmSession: backup.handleValidateLastfmSession,
+    onSaveLastfmCustomKeys: backup.handleSaveLastfmCustomKeys,
+  };
+
+  const dataProps: DataSettingsViewProps = {
+    loc,
+    onExportBackup: backup.handleExportProfileBackup,
+    onImportBackup: backup.handleImportProfileBackup,
+    jsonExportContent: themes.jsonExportContent,
+    onExportTheme: themes.handleExportTheme,
+    jsonImportContent: themes.jsonImportContent,
+    onJsonImportContentChange: themes.setJsonImportContent,
+    onImportTheme: themes.handleImportTheme,
   };
 
   const transcodeProps: TranscodeSettingsViewProps = {
@@ -280,39 +375,6 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     onShowMessage: transcode.showMessage,
   };
 
-  const themesProps: ThemesSettingsViewProps = {
-    language,
-    loc,
-    onLanguageChange: themes.setLanguage,
-    buttonGlowEnabled: themes.buttonGlowEnabled,
-    onToggleGlow: () => themes.setButtonGlowEnabled((prev: boolean) => !prev),
-    uiScale: themes.uiScale,
-    onResetScale: themes.handleResetScale,
-    onSelectScale: themes.handleSelectScale,
-    themes: themes.themes,
-    currentTheme: themes.currentTheme,
-    onSelectTheme: themes.handleSelectTheme,
-    customBgPath: themes.customBgPath,
-    onCustomBgPathChange: themes.setCustomBgPath,
-    themeBgImage: themes.themeBgImage,
-    onPickWallpaperFromDisk: themes.handlePickWallpaperFromDisk,
-    onWallpaperDrop: themes.handleWallpaperDrop,
-    onUploadBgImage: themes.handleUploadBgImage,
-    onRemoveBgImage: themes.handleRemoveBgImage,
-    onSaveBackgroundSettings: themes.handleSaveBackgroundSettings,
-    themeOverlay: themes.themeOverlay,
-    onThemeOverlayChange: themes.setThemeOverlay,
-    themeBlur: themes.themeBlur,
-    onThemeBlurChange: themes.setThemeBlur,
-    appIconStyle: themes.appIconStyle,
-    onSelectIconStyle: themes.handleSelectIconStyle,
-    jsonExportContent: themes.jsonExportContent,
-    onExportTheme: themes.handleExportTheme,
-    jsonImportContent: themes.jsonImportContent,
-    onJsonImportContentChange: themes.setJsonImportContent,
-    onImportTheme: themes.handleImportTheme,
-  };
-
   const updatesProps: UpdatesSettingsViewProps = {
     language,
     loc,
@@ -340,58 +402,18 @@ export function useAppSettingsModalProps(params: UseAppSettingsModalPropsParams)
     loc,
     onOpenHealthCheck: () => about.setIsHealthCheckModalOpen(true),
     onOpenChangelog: () => about.setSettingsTab('updates'),
-    onOpenOnboarding: () => about.setIsOnboardingOpen(true),
-  };
-
-  const backupProps: BackupSettingsViewProps = {
-    language,
-    loc,
-    onExportBackup: backup.handleExportProfileBackup,
-    onImportBackup: backup.handleImportProfileBackup,
-    closeToTray: backup.closeToTray,
-    onToggleCloseToTray: backup.handleToggleCloseToTray,
-    autoFetchCoversBg: backup.autoFetchCoversBg ?? true,
-    onToggleAutoFetchCoversBg: backup.handleToggleAutoFetchCoversBg,
-    onTriggerBackgroundCoverFetch: backup.handleTriggerBackgroundCoverFetch,
-    coverSyncProgress: backup.coverSyncProgress,
-    discordRpcEnabled: backup.discordRpcEnabled,
-    discordRpcConnected: backup.discordRpcConnected,
-    discordClientId: backup.discordClientId,
-    onToggleDiscordRpc: backup.handleToggleDiscordRpc,
-    onSaveDiscordClientId: backup.handleSaveDiscordClientId,
-    crossfadeDuration: backup.crossfadeDuration,
-    onCrossfadeDurationChange: backup.handleCrossfadeDurationChange,
-    listenbrainzEnabled: backup.listenbrainzEnabled,
-    listenbrainzToken: backup.listenbrainzToken,
-    listenbrainzUser: backup.listenbrainzUser,
-    listenbrainzStatusMsg: backup.listenbrainzStatusMsg,
-    listenbrainzTesting: backup.listenbrainzTesting,
-    onToggleListenbrainz: backup.handleToggleListenbrainz,
-    onListenbrainzTokenChange: backup.handleListenbrainzTokenChange,
-    onTestListenbrainz: backup.handleTestListenbrainz,
-    lastfmEnabled: backup.lastfmEnabled,
-    lastfmUsername: backup.lastfmUsername,
-    lastfmSessionKey: backup.lastfmSessionKey,
-    lastfmPendingToken: backup.lastfmPendingToken,
-    lastfmTesting: backup.lastfmTesting,
-    lastfmStatusMsg: backup.lastfmStatusMsg,
-    lastfmCustomKey: backup.lastfmCustomKey,
-    lastfmCustomSecret: backup.lastfmCustomSecret,
-    onToggleLastfm: backup.handleToggleLastfm,
-    onConnectLastfm: backup.handleConnectLastfm,
-    onConfirmLastfmAuth: backup.handleConfirmLastfmAuth,
-    onDisconnectLastfm: backup.handleDisconnectLastfm,
-    onManualLastfmSessionKeyChange: backup.handleManualLastfmSessionKeyChange,
-    onValidateLastfmSession: backup.handleValidateLastfmSession,
-    onSaveLastfmCustomKeys: backup.handleSaveLastfmCustomKeys,
   };
 
   return {
-    devicesProps,
+    generalProps,
+    appearanceProps,
+    playbackProps,
+    audioProps,
+    libraryProps,
+    integrationsProps,
     transcodeProps,
-    themesProps,
+    dataProps,
     updatesProps,
     aboutProps,
-    backupProps,
   };
 }

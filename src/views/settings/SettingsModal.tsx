@@ -1,18 +1,44 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Settings,
   Palette,
+  Play,
   Radio,
+  Music,
+  Plug,
   FileAudio,
-  Info,
   Save,
   Download,
+  Info,
 } from '../../components/ui/icons';
 import { type Translations } from '../../i18n';
 
 export type { SettingsTab } from '../../types/navigation';
-import type { SettingsTab } from '../../types/navigation';
-import { Badge, ModalBody, ModalHeader, ModalShell, SegmentedControl, type SegmentedItem } from '../../components/ui';
+import { SETTINGS_TABS, type SettingsNavGroupId, type SettingsTab } from '../../types/navigation';
+import {
+  Badge,
+  ModalBody,
+  ModalHeader,
+  ModalShell,
+  SettingsNav,
+  type SettingsNavGroup,
+} from '../../components/ui';
+
+const TAB_ICONS: Record<SettingsTab, React.ReactNode> = {
+  general: <Settings size={15} />,
+  appearance: <Palette size={15} />,
+  playback: <Play size={15} />,
+  audio: <Radio size={15} />,
+  library: <Music size={15} />,
+  integrations: <Plug size={15} />,
+  export: <FileAudio size={15} />,
+  data: <Save size={15} />,
+  updates: <Download size={15} />,
+  about: <Info size={15} />,
+};
+
+const TAB_PANEL_ID = 'settings-panel';
+const tabElementId = (tab: SettingsTab) => `settings-tab-${tab}`;
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -20,7 +46,7 @@ export interface SettingsModalProps {
   activeTab: SettingsTab;
   onSelectTab: (tab: SettingsTab) => void;
   loc: Translations;
-  /** Shows the "new" pill next to the Updates tab. */
+  /** Shows the "new" bubble on the Updates tab. */
   updateAvailable?: boolean;
   children: React.ReactNode;
 }
@@ -34,33 +60,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   updateAvailable = false,
   children,
 }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Each tab starts at the top.
+  useEffect(() => {
+    contentRef.current?.scrollTo?.({ top: 0 });
+  }, [activeTab]);
+
   if (!isOpen) return null;
 
-  const tabs: SegmentedItem<SettingsTab>[] = [
-    { value: 'themes', label: loc.settings.themes, icon: <Palette size={18} /> },
-    { value: 'devices', label: loc.settings.audioDevices, icon: <Radio size={18} /> },
-    { value: 'transcode', label: loc.settings.exportOpus, icon: <FileAudio size={18} /> },
-    {
-      value: 'updates',
-      label: (
-        <>
-          {loc.updates.tab}
-          {updateAvailable && (
-            <Badge tone="green" size="xs" data-testid="updates-tab-pill" className="uppercase">
-              {loc.updates.badge}
-            </Badge>
-          )}
-        </>
-      ),
-      ariaLabel: updateAvailable ? `${loc.updates.tab} (${loc.updates.badge})` : loc.updates.tab,
-      icon: <Download size={18} />,
-    },
-    { value: 'about', label: loc.settings.about, icon: <Info size={18} /> },
-    { value: 'backup', label: loc.settings.backupTitle, icon: <Save size={18} /> },
-  ];
+  const groups: SettingsNavGroup<SettingsTab>[] = [];
+  for (const tab of SETTINGS_TABS) {
+    const items = groups.find((g) => g.id === tab.group)?.items;
+    const label = tab.id === 'updates' ? loc.updates.title : loc.settings.nav[tab.id];
+    const item = {
+      id: tab.id,
+      label,
+      icon: TAB_ICONS[tab.id],
+      badge:
+        tab.id === 'updates' && updateAvailable ? (
+          <Badge tone="green" size="xs" data-testid="updates-tab-pill" className="uppercase">
+            {loc.updates.badge}
+          </Badge>
+        ) : undefined,
+    };
+    if (items) (items as (typeof item)[]).push(item);
+    else groups.push({ id: tab.group, label: loc.settings.navGroup[tab.group as SettingsNavGroupId], items: [item] });
+  }
 
   return (
-    <ModalShell onClose={onClose} size="2xl" labelledBy="settings-title" className="h-[min(88vh,53.75rem)] max-h-[90vh]">
+    <ModalShell onClose={onClose} size="3xl" labelledBy="settings-title" className="h-[min(88vh,53.75rem)] max-h-[90vh]">
       <ModalHeader
         titleId="settings-title"
         title={loc.settings.title}
@@ -71,21 +100,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         closeLabel={loc.settings.close}
       />
 
-      {/* Settings tab bar. Below 3xl (narrow windows, large UI scale) the icon stacks above the label so six tabs still fit. */}
-      <div className="@container shrink-0 border-b border-line px-4 py-2 sm:px-6 sm:py-2.5">
-        <SegmentedControl
-          label={loc.settings.title}
-          tone="purple"
-          items={tabs}
-          value={activeTab}
-          onChange={onSelectTab}
-          fullWidth
-          className="*:whitespace-normal *:leading-tight @max-3xl:*:flex-col @max-3xl:*:gap-1"
-        />
+      {/* Rail on wide windows, a scrollable strip below 3xl. Only the content column scrolls. */}
+      <div className="@container flex min-h-0 flex-1 flex-col @3xl:flex-row">
+        <div className="shrink-0 border-b border-line p-2 @3xl:w-56 @3xl:overflow-y-auto @3xl:border-r @3xl:border-b-0 @3xl:p-4">
+          <SettingsNav
+            groups={groups}
+            value={activeTab}
+            onChange={onSelectTab}
+            label={loc.settings.title}
+            orientation="responsive"
+            tabId={tabElementId}
+            panelId={TAB_PANEL_ID}
+          />
+        </div>
+        <ModalBody
+          ref={contentRef}
+          role="tabpanel"
+          id={TAB_PANEL_ID}
+          aria-labelledby={tabElementId(activeTab)}
+          className="min-w-0 flex-1 p-4 sm:p-6"
+        >
+          {children}
+        </ModalBody>
       </div>
-
-      {/* Content of the selected settings sub-tab */}
-      <ModalBody className="p-4 sm:p-6">{children}</ModalBody>
     </ModalShell>
   );
 };

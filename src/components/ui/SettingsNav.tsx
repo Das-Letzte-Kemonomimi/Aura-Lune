@@ -25,8 +25,11 @@ export interface SettingsNavProps<T extends string> {
   onChange: (id: T) => void;
   /** Accessible name of the whole list. */
   label: string;
-  /** `vertical` is the side rail; `horizontal` is the scrollable strip used on narrow widths (no eyebrows). */
-  orientation?: 'vertical' | 'horizontal';
+  /**
+   * `vertical` is the side rail; `horizontal` is the scrollable strip (no eyebrows). `responsive` is a
+   * strip that becomes the rail inside an `@container` ancestor at `@3xl` and accepts all four arrow keys.
+   */
+  orientation?: 'vertical' | 'horizontal' | 'responsive';
   /** Builds the `id` of each tab so a `tabpanel` can reference it with `aria-labelledby`. */
   tabId?: (id: T) => string;
   /** The `id` of the panel each tab controls (`aria-controls`). */
@@ -50,6 +53,7 @@ export function SettingsNav<T extends string>({
   className,
 }: SettingsNavProps<T>) {
   const vertical = orientation === 'vertical';
+  const responsive = orientation === 'responsive';
   const tabRefs = useRef(new Map<T, HTMLButtonElement>());
   const enabledIds = groups.flatMap((g) => g.items.filter((i) => !i.disabled).map((i) => i.id));
 
@@ -61,11 +65,11 @@ export function SettingsNav<T extends string>({
   const onKeyDown = (e: React.KeyboardEvent, id: T) => {
     const pos = enabledIds.indexOf(id);
     if (pos < 0) return;
-    const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft';
-    const nextKey = vertical ? 'ArrowDown' : 'ArrowRight';
+    const prevKeys = responsive ? ['ArrowUp', 'ArrowLeft'] : [vertical ? 'ArrowUp' : 'ArrowLeft'];
+    const nextKeys = responsive ? ['ArrowDown', 'ArrowRight'] : [vertical ? 'ArrowDown' : 'ArrowRight'];
     let next: T | undefined;
-    if (e.key === nextKey) next = enabledIds[(pos + 1) % enabledIds.length];
-    else if (e.key === prevKey) next = enabledIds[(pos - 1 + enabledIds.length) % enabledIds.length];
+    if (nextKeys.includes(e.key)) next = enabledIds[(pos + 1) % enabledIds.length];
+    else if (prevKeys.includes(e.key)) next = enabledIds[(pos - 1 + enabledIds.length) % enabledIds.length];
     else if (e.key === 'Home') next = enabledIds[0];
     else if (e.key === 'End') next = enabledIds[enabledIds.length - 1];
     if (next === undefined) return;
@@ -76,17 +80,25 @@ export function SettingsNav<T extends string>({
   return (
     <ToolGroup
       role="tablist"
-      aria-orientation={orientation}
+      aria-orientation={responsive ? undefined : orientation}
       label={label}
       className={cn(
-        vertical ? 'flex flex-col gap-3' : 'scrollbar-none flex gap-1 overflow-x-auto',
+        vertical && 'flex flex-col gap-3',
+        !vertical && !responsive && 'scrollbar-none flex gap-1 overflow-x-auto',
+        responsive && 'scrollbar-none flex gap-1 overflow-x-auto @3xl:flex-col @3xl:gap-3 @3xl:overflow-visible',
         className,
       )}
     >
       {groups.map((group) => (
-        <div key={group.id} className={cn('flex gap-0.5', vertical ? 'flex-col' : 'shrink-0')}>
-          {vertical && group.label && (
-            <div aria-hidden="true" className="label-caps px-3 pt-1 pb-0.5 text-fg-muted">
+        <div
+          key={group.id}
+          className={cn('flex gap-0.5', vertical ? 'flex-col' : 'shrink-0', responsive && '@3xl:shrink @3xl:flex-col')}
+        >
+          {(vertical || responsive) && group.label && (
+            <div
+              aria-hidden="true"
+              className={cn('label-caps px-3 pt-1 pb-0.5 text-fg-muted', responsive && 'hidden @3xl:block')}
+            >
               {group.label}
             </div>
           )}
@@ -112,6 +124,7 @@ export function SettingsNav<T extends string>({
                   'relative flex items-center gap-2 rounded-xl px-3 py-2 text-left text-ui font-semibold whitespace-nowrap text-fg-secondary hover:text-fg',
                   'aria-selected:bg-accent-purple aria-selected:text-fg aria-selected:shadow-halo-sm aria-selected:shadow-accent-purple/40',
                   !vertical && 'shrink-0',
+                  responsive && '@3xl:shrink',
                 )}
               >
                 {item.icon}

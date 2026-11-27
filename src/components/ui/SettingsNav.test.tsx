@@ -83,4 +83,13 @@ describe('SettingsNav', () => {
     fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowRight' });
     expect(onChange).toHaveBeenLastCalledWith('appearance');
   });
+
+  it('accepts all four arrow keys when responsive and leaves the orientation to the layout', () => {
+    const onChange = setup('general', vi.fn(), 'responsive');
+    expect(screen.getByRole('tablist').getAttribute('aria-orientation')).toBeNull();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenLastCalledWith('appearance');
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'General' }), { key: 'ArrowDown' });
+    expect(onChange).toHaveBeenLastCalledWith('appearance');
+  });
 });

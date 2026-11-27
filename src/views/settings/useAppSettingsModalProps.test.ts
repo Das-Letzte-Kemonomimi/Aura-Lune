@@ -194,11 +194,14 @@ describe('useAppSettingsModalProps', () => {
       backup: mockBackup,
     });
 
-    expect(result.devicesProps.language).toBe('en');
+    expect(result.generalProps.language).toBe('en');
     expect(result.transcodeProps.filePath).toBe('/path');
-    expect(result.themesProps.uiScale).toBe(1);
+    expect(result.appearanceProps.uiScale).toBe(1);
     expect(result.aboutProps.appIconStyle).toBe('default');
-    expect(result.backupProps.closeToTray).toBe(false);
+    expect(result.generalProps.closeToTray).toBe(false);
+    expect(result.playbackProps.crossfadeDuration).toBe(0);
+    expect(result.integrationsProps.discordRpcEnabled).toBe(false);
+    expect(result.dataProps.onExportBackup).toBe(mockBackup.handleExportProfileBackup);
   });
 
   it('unpacks manager bundles automatically into respective settings tabs', () => {
@@ -234,9 +237,9 @@ describe('useAppSettingsModalProps', () => {
       backup: {} as any,
     });
 
-    expect(result.themesProps.uiScale).toBe(1.25);
+    expect(result.appearanceProps.uiScale).toBe(1.25);
     expect(result.aboutProps.appIconStyle).toBe('sakura');
-    expect(result.backupProps.closeToTray).toBe(true);
+    expect(result.generalProps.closeToTray).toBe(true);
   });
 });
 

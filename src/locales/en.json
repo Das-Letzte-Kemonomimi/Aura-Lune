@@ -576,14 +576,12 @@
   },
   "settings": {
     "title": "Auralune Settings",
-    "subtitle": "Anime themes, PipeWire audio, transcoding, and diagnostics",
+    "subtitle": "Preferences, playback, integrations and app information",
     "language": "Language",
     "themes": "Themes & Appearance",
     "themesSubtitle": "Deep visual customization with anime themes, wallpapers, and blur",
     "appearance": "Appearance & Themes",
-    "audioDevices": "Audio & Devices",
     "runHealthCheck": "Test audio path",
-    "audioSubtitle": "PipeWire buffer sizes, hardware cards, and codec selection",
     "volumeUnitTitle": "Volume Display Unit",
     "volumeUnitDesc": "Display volume as percentage (0% - 100%) or studio decibels (-∞ dB to 0.0 dB)",
     "volumeUnitPercent": "Percentage (%)",
@@ -852,7 +850,25 @@
     "transcodeGstreamerBgDesc": "GStreamer is rendering audio asynchronously in the background. The app is never blocked — feel free to listen to music or close this window.",
     "transcodeRenderingProgress": "Rendering in background ({0}%)...",
     "replaygainPreampTagged": "Preamp: files with RG tags",
-    "replaygainPreampUntagged": "Preamp: files without RG tags"
+    "replaygainPreampUntagged": "Preamp: files without RG tags",
+    "nav": {
+      "general": "General",
+      "appearance": "Appearance",
+      "playback": "Playback",
+      "audio": "Output & Engine",
+      "library": "Library",
+      "integrations": "Integrations",
+      "export": "Export",
+      "data": "Backup & Data",
+      "updates": "Updates",
+      "about": "About"
+    },
+    "navGroup": {
+      "personal": "Personal",
+      "audio": "Audio",
+      "libraryServices": "Library & services",
+      "system": "System"
+    }
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
@@ -2046,7 +2062,6 @@
     "rowHeightReset": "Row height: click to reset to auto"
   },
   "updates": {
-    "tab": "Updates & Changelog",
     "title": "Updates",
     "currentVersion": "Installed version",
     "channel": "Channel",

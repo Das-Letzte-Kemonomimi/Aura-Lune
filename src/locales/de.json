@@ -576,14 +576,12 @@
   },
   "settings": {
     "title": "Auralune-Einstellungen",
-    "subtitle": "Anime-Themes, PipeWire-Audio, Transkodierung und Diagnose",
+    "subtitle": "Einstellungen, Wiedergabe, Integrationen und App-Informationen",
     "language": "Sprache / Language",
     "themes": "Themes & Erscheinungsbild",
     "themesSubtitle": "Tiefe visuelle Anpassung mit Anime-Themes, Hintergrundbildern und Unschärfe",
     "appearance": "Erscheinungsbild & Themes",
-    "audioDevices": "Audio & Geräte",
     "runHealthCheck": "Audiopfad testen",
-    "audioSubtitle": "PipeWire-Puffergrößen, Soundkarten und Bluetooth-Codecs",
     "volumeUnitTitle": "Lautstärke-Anzeigeformat",
     "volumeUnitDesc": "Lautstärke in Prozent (0% – 100%) oder Studio-Dezibel (-∞ dB bis 0.0 dB) anzeigen",
     "volumeUnitPercent": "Prozent (%)",
@@ -852,7 +850,25 @@
     "transcodeGstreamerBgDesc": "GStreamer rendert Audio asynchron im Hintergrund. Die App wird nicht blockiert — Sie können weiter Musik hören oder dieses Fenster schließen.",
     "transcodeRenderingProgress": "Rendern im Hintergrund ({0}%)...",
     "replaygainPreampTagged": "Vorverstärker: Dateien mit RG-Tags",
-    "replaygainPreampUntagged": "Vorverstärker: Dateien ohne RG-Tags"
+    "replaygainPreampUntagged": "Vorverstärker: Dateien ohne RG-Tags",
+    "nav": {
+      "general": "Allgemein",
+      "appearance": "Darstellung",
+      "playback": "Wiedergabe",
+      "audio": "Ausgabe & Engine",
+      "library": "Bibliothek",
+      "integrations": "Integrationen",
+      "export": "Export",
+      "data": "Backup & Daten",
+      "updates": "Updates",
+      "about": "Info"
+    },
+    "navGroup": {
+      "personal": "Persönlich",
+      "audio": "Audio",
+      "libraryServices": "Bibliothek & Dienste",
+      "system": "System"
+    }
   },
   "shortcuts": {
     "title": "Tastaturkürzel",
@@ -2046,7 +2062,6 @@
     "rowHeightReset": "Zeilenhöhe: Klicken für automatisch"
   },
   "updates": {
-    "tab": "Updates & Änderungen",
     "title": "Updates",
     "currentVersion": "Installierte Version",
     "channel": "Kanal",

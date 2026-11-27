@@ -101,6 +101,7 @@ export {
   IconPlayerStop as Square,
   IconPlaylist as ListMusic,
   IconPlaylistAdd as ListPlus,
+  IconPlug as Plug,
   IconPlus as Plus,
   IconPoint as Point,
   IconPointFilled as PointFilled,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { openExternalUrl } from '../../api/ipc';
 import { Activity, AlertTriangle, History, Music, HeartHandshake, ExternalLink, Keyboard } from '../../components/ui/icons';
-import { Badge, Button, Callout, Card, Kbd, SectionHeader, SettingRow, type ToneOrNeutral } from '../../components/ui';
+import { Badge, Button, Callout, Card, Kbd, SectionHeader, type ToneOrNeutral } from '../../components/ui';
 import { textTones } from '../../components/ui/tones';
 import { type Language, type Translations } from '../../i18n';
 import type { BuildInfo } from '../../types/updates';
@@ -26,7 +26,6 @@ export interface AboutSettingsViewProps {
   loc: Translations;
   onOpenHealthCheck: () => void;
   onOpenChangelog: () => void;
-  onOpenOnboarding: () => void;
 }
 
 export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
@@ -37,7 +36,6 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
   loc,
   onOpenHealthCheck,
   onOpenChangelog,
-  onOpenOnboarding,
 }) => {
   const handleOpenExternalUrl = async (url: string) => {
     try {
@@ -183,15 +181,6 @@ export const AboutSettingsView: React.FC<AboutSettingsViewProps> = ({
         <h4 className="mb-1.5 text-md font-extrabold text-accent-amber">{loc.settings.disclaimerTitle}</h4>
         <p className="text-ui leading-relaxed text-fg-secondary">{loc.settings.disclaimerBody}</p>
       </Callout>
-
-      {/* Re-run the welcome wizard */}
-      <Card padding="none" className="px-5 py-2">
-        <SettingRow
-          title={loc.settings.aboutOnboardingTitle}
-          description={loc.settings.aboutOnboardingDesc}
-          control={<Button onClick={onOpenOnboarding}>{loc.settings.aboutOnboardingBtn}</Button>}
-        />
-      </Card>
     </SettingsPage>
   );
 };

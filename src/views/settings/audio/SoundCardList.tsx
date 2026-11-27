@@ -1,10 +1,10 @@
 import React from 'react';
 import { Zap, Headphones, Check, X } from '../../../components/ui/icons';
 import { Badge, Button, Card, Chip, SectionHeader } from '../../../components/ui';
-import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import type { AudioSettingsProps } from './audioSettingsProps';
 
 export type SoundCardListProps = Pick<
-  AudioDevicesSettingsViewProps,
+  AudioSettingsProps,
   'cards' | 'loc' | 'onDisableProAudio' | 'onEnableProAudio' | 'onSetCardProfile' | 'onSetBluetoothCodec'
 >;
 

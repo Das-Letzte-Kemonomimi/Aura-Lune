@@ -1,5 +1,5 @@
 import type { AppTab, NowPlayingVisualMode } from './types/navigation';
-import { isMainTab, isNowPlayingVisualMode } from './types/navigation';
+import { isMainTab, isNowPlayingVisualMode, isSettingsRedirectTab } from './types/navigation';
 import { usePlaylistManager } from './hooks/usePlaylistManager';
 import { useTranscodeManager } from './hooks/useTranscodeManager';
 import { useHotkeysManager } from './hooks/useHotkeysManager';
@@ -592,7 +592,7 @@ export default function App() {
 
   // Automatically redirect old tabs to the Settings window
   useEffect(() => {
-    if (activeTab === 'themes' || activeTab === 'devices' || activeTab === 'transcode') {
+    if (isSettingsRedirectTab(activeTab)) {
       setSettingsTab(activeTab);
       setIsSettingsOpen(true);
       setActiveTab('player');
@@ -1068,7 +1068,7 @@ export default function App() {
   }, [setIsDraggingOver]);
 
   const openTranscodeSettings = useCallback(() => {
-    setSettingsTab('transcode');
+    setSettingsTab('export');
     setIsSettingsOpen(true);
   }, [setSettingsTab, setIsSettingsOpen]);
 
@@ -1293,12 +1293,16 @@ export default function App() {
             activeTab={settingsTab}
             onSelectTab={setSettingsTab}
             loc={loc}
-            devicesProps={settingsModalProps.devicesProps}
+            generalProps={settingsModalProps.generalProps}
+            appearanceProps={settingsModalProps.appearanceProps}
+            playbackProps={settingsModalProps.playbackProps}
+            audioProps={settingsModalProps.audioProps}
+            libraryProps={settingsModalProps.libraryProps}
+            integrationsProps={settingsModalProps.integrationsProps}
             transcodeProps={settingsModalProps.transcodeProps}
-            themesProps={settingsModalProps.themesProps}
+            dataProps={settingsModalProps.dataProps}
             updatesProps={settingsModalProps.updatesProps}
             aboutProps={settingsModalProps.aboutProps}
-            backupProps={settingsModalProps.backupProps}
             updateAvailable={updateManager.hasUpdate}
           />
         </Suspense>

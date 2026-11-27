@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
+import { usePersistedState } from './usePersistedState';
 import type { TrackRecord } from '../types/player';
 import type { TrackStatsData } from '../components/modals/TrackStatsModal';
 
 export type { SettingsTab } from '../types/navigation';
-import type { SettingsTab } from '../types/navigation';
+import { normalizeSettingsTab, type LegacySettingsTab, type SettingsTab } from '../types/navigation';
 export type AnalysisTab = 'chords' | 'pianoroll' | 'stems' | 'projects' | 'models';
 
 export interface CoverPickerState {
@@ -18,7 +19,14 @@ export function useModalManager() {
   const [isSaveQueueModalOpen, setIsSaveQueueModalOpen] = useState(false);
   const [isAddStationModalOpen, setIsAddStationModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('themes');
+  // The last open settings tab is remembered; legacy ids from older entry points are mapped to the new tabs.
+  const [settingsTab, setPersistedSettingsTab] = usePersistedState<SettingsTab>('auralune_settings_tab', 'general', {
+    parse: normalizeSettingsTab,
+  });
+  const setSettingsTab = useCallback(
+    (tab: SettingsTab | LegacySettingsTab) => setPersistedSettingsTab(normalizeSettingsTab(tab)),
+    [setPersistedSettingsTab],
+  );
   const [showDownloadHub, setShowDownloadHub] = useState<boolean>(false);
   const [isQuickLoadOpen, setIsQuickLoadOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
@@ -104,12 +112,12 @@ export function useModalManager() {
     setIsCreateStemProjectOpen(true);
   }, []);
 
-  const openSettings = useCallback((tab?: SettingsTab) => {
+  const openSettings = useCallback((tab?: SettingsTab | LegacySettingsTab) => {
     if (tab) {
       setSettingsTab(tab);
     }
     setIsSettingsOpen(true);
-  }, []);
+  }, [setSettingsTab]);
 
   const closeAllModals = useCallback(() => {
     setIsSaveQueueModalOpen(false);

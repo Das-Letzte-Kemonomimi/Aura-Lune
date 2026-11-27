@@ -576,14 +576,12 @@
   },
   "settings": {
     "title": "Auralune-asetukset",
-    "subtitle": "Anime-teemat, PipeWire-ääni, muunto ja diagnostiikka",
+    "subtitle": "Asetukset, toisto, integraatiot ja sovelluksen tiedot",
     "language": "Kieli / Language",
     "themes": "Teemat & Ulkoasu",
     "themesSubtitle": "Syvällinen mukautus anime-teemoilla, taustakuvilla ja sumennuksella",
     "appearance": "Ulkoasu ja teemat",
-    "audioDevices": "Ääni & Laitteet",
     "runHealthCheck": "Testaa äänipolku",
-    "audioSubtitle": "PipeWiren puskurikoot, laitekortit ja Bluetooth-koodekit",
     "volumeUnitTitle": "Äänenvoimakkuuden näyttöyksikkö",
     "volumeUnitDesc": "Näytä äänenvoimakkuus prosentteina (0% – 100%) tai studiodesibeleinä (-∞ dB – 0.0 dB)",
     "volumeUnitPercent": "Prosentit (%)",
@@ -852,7 +850,25 @@
     "transcodeGstreamerBgDesc": "GStreamer renderöi ääntä asynkronisesti taustalla. Sovellus ei lukitu — voit vapaasti kuunnella musiikkia tai sulkea tämän ikkunan.",
     "transcodeRenderingProgress": "Renderöidään taustalla ({0}%)...",
     "replaygainPreampTagged": "Esivahvistin: tiedostot, joissa on RG-tunnisteet",
-    "replaygainPreampUntagged": "Esivahvistin: tiedostot ilman RG-tunnisteita"
+    "replaygainPreampUntagged": "Esivahvistin: tiedostot ilman RG-tunnisteita",
+    "nav": {
+      "general": "Yleiset",
+      "appearance": "Ulkoasu",
+      "playback": "Toisto",
+      "audio": "Ulostulo ja moottori",
+      "library": "Kirjasto",
+      "integrations": "Integraatiot",
+      "export": "Vienti",
+      "data": "Varmuuskopio ja data",
+      "updates": "Päivitykset",
+      "about": "Tietoja"
+    },
+    "navGroup": {
+      "personal": "Henkilökohtainen",
+      "audio": "Ääni",
+      "libraryServices": "Kirjasto ja palvelut",
+      "system": "Järjestelmä"
+    }
   },
   "shortcuts": {
     "title": "Pikanäppäimet",
@@ -2046,7 +2062,6 @@
     "rowHeightReset": "Rivin korkeus: palauta automaattinen napsauttamalla"
   },
   "updates": {
-    "tab": "Päivitykset ja muutokset",
     "title": "Päivitykset",
     "currentVersion": "Asennettu versio",
     "channel": "Kanava",

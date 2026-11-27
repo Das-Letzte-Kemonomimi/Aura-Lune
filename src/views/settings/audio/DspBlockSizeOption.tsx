@@ -1,10 +1,10 @@
 import React from 'react';
 import { Activity } from '../../../components/ui/icons';
 import { TextField } from '../../../components/ui';
-import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import type { AudioSettingsProps } from './audioSettingsProps';
 import { PresetOptionCard } from './PresetOptionCard';
 
-export type DspBlockSizeOptionProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'dspBlockSize' | 'onSetDspBlockSize'>;
+export type DspBlockSizeOptionProps = Pick<AudioSettingsProps, 'loc' | 'dspBlockSize' | 'onSetDspBlockSize'>;
 
 const DEFAULT_BLOCK_SIZE = 2048;
 
