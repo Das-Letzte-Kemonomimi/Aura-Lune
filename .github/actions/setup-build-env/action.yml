@@ -1,8 +1,14 @@
 name: Setup Auralune build environment
 description: >-
   Node 22 + Rust stable + system libraries (GStreamer, WebKitGTK, RubberBand,
-  SoundTouch, FUSE) + frontend bundle. Shared by the rolling dev build and the
-  stable release build so both always compile with the same toolchain.
+  SoundTouch, FUSE, mold) + frontend dependencies. Shared by the rolling dev build
+  and the stable release build so both always compile with the same toolchain.
+
+inputs:
+  cache-key:
+    description: "Shared cache key for Swatinem/rust-cache"
+    required: false
+    default: "release"
 
 runs:
   using: composite
@@ -19,6 +25,9 @@ runs:
 
     - name: Rust Cache
       uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ inputs.cache-key }}
+        cache-on-failure: true
 
     - name: Cache APT packages
       uses: actions/cache@v4
@@ -29,7 +38,7 @@ runs:
           ${{ runner.os }}-apt-build-
           ${{ runner.os }}-apt-
 
-    - name: Install system dependencies (GStreamer, WebKit, AppIndicator, FUSE)
+    - name: Install system dependencies (GStreamer, WebKit, AppIndicator, FUSE, mold)
       shell: bash
       run: |
         sudo rm -f /var/lib/man-db/auto-update
@@ -46,14 +55,13 @@ runs:
           libayatana-appindicator3-dev \
           librsvg2-dev \
           librubberband-dev \
-          libsoundtouch-dev
+          libsoundtouch-dev \
+          mold
         sudo apt-get install -y --no-install-recommends libfuse2t64 2>/dev/null || sudo apt-get install -y --no-install-recommends libfuse2 || true
         sudo rm -rf /var/cache/apt/archives/partial /var/cache/apt/archives/lock
         # The cache only needs read access to the downloaded packages.
         sudo chmod -R a+rX /var/cache/apt/archives
 
-    - name: Install frontend dependencies & build bundle
+    - name: Install frontend dependencies
       shell: bash
-      run: |
-        npm ci
-        npm run build
+      run: npm ci

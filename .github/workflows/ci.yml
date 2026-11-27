@@ -59,6 +59,8 @@ jobs:
     name: Rust Backend & Desktop Quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RUSTFLAGS: -C link-arg=-fuse-ld=mold
 
     steps:
       - name: Checkout source code
@@ -78,6 +80,9 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: backend-check
+          cache-on-failure: true
 
       - name: Cache APT packages
         uses: actions/cache@v4
@@ -88,7 +93,7 @@ jobs:
             ${{ runner.os }}-apt-backend-
             ${{ runner.os }}-apt-
 
-      - name: Install system dependencies (Linux GStreamer, Rubber Band, SoundTouch, WebKit)
+      - name: Install system dependencies (Linux GStreamer, Rubber Band, SoundTouch, WebKit, mold)
         run: |
           sudo rm -f /var/lib/man-db/auto-update
           sudo rm -f /etc/apt/apt.conf.d/docker-clean
@@ -105,6 +110,7 @@ jobs:
             librsvg2-dev \
             librubberband-dev \
             libsoundtouch-dev \
+            mold \
             pulseaudio \
             pulseaudio-utils \
             libasound2-plugins
@@ -130,7 +136,7 @@ jobs:
       - name: Run Rust workspace test suite (cargo test)
         env:
           GST_DEBUG: 2
-        run: cargo test --workspace -- --test-threads=1
+        run: cargo test --workspace --all-features -- --test-threads=1
 
       - name: Dependency audit (cargo-deny, report only)
         uses: EmbarkStudios/cargo-deny-action@v2
@@ -138,21 +144,23 @@ jobs:
         with:
           command: check advisories licenses bans
 
-  publish-dev-release:
-    name: Build & Publish Rolling Dev AppImage
-    needs: [frontend, backend-desktop]
+  build-dev-appimage:
+    name: Build Rolling Dev AppImage
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/develop')
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: write
+    env:
+      RUSTFLAGS: -C link-arg=-fuse-ld=mold
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup build environment (toolchains, system libraries, frontend bundle)
+      - name: Setup build environment (toolchains, system libraries, frontend deps)
         uses: ./.github/actions/setup-build-env
+        with:
+          cache-key: release-dev
 
       - name: Verify dev version suffix
         run: |
@@ -166,9 +174,7 @@ jobs:
           AURALUNE_BUILD_CHANNEL: dev
         run: npm run tauri build -- --bundles appimage
 
-      - name: Publish rolling dev release to GitHub Releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Stage rolling dev AppImage
         run: |
           APPIMAGE_PATH=$(find target/release/bundle/appimage/ -name "*.AppImage" -type f | head -n 1)
           if [ -z "$APPIMAGE_PATH" ]; then
@@ -177,10 +183,47 @@ jobs:
           fi
           echo "Found generated AppImage: $APPIMAGE_PATH"
 
-          RELEASE_DIR="$(mktemp -d)"
-          cp "$APPIMAGE_PATH" "$RELEASE_DIR/$(basename "$APPIMAGE_PATH")"
-          cp "$APPIMAGE_PATH" "$RELEASE_DIR/Auralune-dev-x86_64.AppImage"
-          (cd "$RELEASE_DIR" && sha256sum -- *.AppImage > SHA256SUMS && cat SHA256SUMS)
+          mkdir -p staged-dev-release
+          cp "$APPIMAGE_PATH" "staged-dev-release/$(basename "$APPIMAGE_PATH")"
+          cp "$APPIMAGE_PATH" "staged-dev-release/Auralune-dev-x86_64.AppImage"
+          (cd staged-dev-release && sha256sum -- *.AppImage > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Upload rolling dev AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle-dev
+          path: staged-dev-release/*
+          if-no-files-found: error
+          retention-days: 3
+
+  publish-dev-release:
+    name: Publish Rolling Dev AppImage
+    needs: [frontend, backend-desktop, build-dev-appimage]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download built dev AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle-dev
+          path: dist
+
+      - name: Publish rolling dev release to GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           DEV_NOTES="$(node scripts/changelog.mjs dev-notes || true)"
 
           {
@@ -201,21 +244,20 @@ jobs:
               echo
               echo "$DEV_NOTES"
             fi
-          } > "$RELEASE_DIR/DEV_NOTES.md"
+          } > dist/DEV_NOTES.md
 
           echo "Updating rolling 'dev-build' pre-release on GitHub..."
           gh release delete dev-build --yes --cleanup-tag || true
 
           gh release create dev-build \
-            "$RELEASE_DIR"/*.AppImage "$RELEASE_DIR/SHA256SUMS" \
+            dist/*.AppImage dist/SHA256SUMS \
             --target "${{ github.sha }}" \
             --title "Auralune (Development Build)" \
-            --notes-file "$RELEASE_DIR/DEV_NOTES.md" \
+            --notes-file dist/DEV_NOTES.md \
             --prerelease
 
   verify-stable-release:
     name: Verify Stable Release Gate (main)
-    needs: [frontend, backend-desktop]
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -273,13 +315,16 @@ jobs:
     timeout-minutes: 45
     env:
       VERSION: ${{ needs.verify-stable-release.outputs.version }}
+      RUSTFLAGS: -C link-arg=-fuse-ld=mold
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup build environment (toolchains, system libraries, frontend bundle)
+      - name: Setup build environment (toolchains, system libraries, frontend deps)
         uses: ./.github/actions/setup-build-env
+        with:
+          cache-key: release-stable
 
       - name: Build Tauri stable bundles (AppImage + deb)
         env:
@@ -311,8 +356,8 @@ jobs:
 
   publish-stable-release:
     name: Publish Stable GitHub Release
-    needs: [verify-stable-release, build-stable-release]
-    if: ${{ !cancelled() && needs.verify-stable-release.outputs.should_publish == 'true' && needs.build-stable-release.result == 'success' }}
+    needs: [frontend, backend-desktop, verify-stable-release, build-stable-release]
+    if: ${{ !cancelled() && needs.frontend.result == 'success' && needs.backend-desktop.result == 'success' && needs.verify-stable-release.outputs.should_publish == 'true' && needs.build-stable-release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
