@@ -95,6 +95,19 @@ impl PlaybackQueue {
         self.rebuild_shuffle_order();
     }
 
+    /// Appends multiple tracks to the end of the queue and rebuilds the shuffle order once.
+    pub fn extend(&mut self, items: impl IntoIterator<Item = QueueItem>) {
+        let prev_len = self.items.len();
+        self.items.extend(items);
+        if self.items.len() == prev_len {
+            return;
+        }
+        if self.current_index.is_none() {
+            self.current_index = Some(0);
+        }
+        self.rebuild_shuffle_order();
+    }
+
     /// Inserts a track right after the one playing now ("Play next").
     pub fn add_next(&mut self, item: QueueItem) {
         match self.current_index {

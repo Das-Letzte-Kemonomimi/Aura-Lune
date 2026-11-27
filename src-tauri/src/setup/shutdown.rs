@@ -29,5 +29,8 @@ pub fn on_exit(app: &AppHandle) {
     if let Some(ipc) = &state.control_ipc {
         ipc.stop();
     }
+    if let Err(e) = state.rt.block_on(state.db.optimize()) {
+        warn!("Failed to optimize SQLite database on exit: {}", e);
+    }
     desktop_integration::cleanup_waybar_status();
 }

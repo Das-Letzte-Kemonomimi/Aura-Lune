@@ -172,3 +172,51 @@ async fn test_playback_statistics_and_recap() {
     assert!(recap.tracks_played_count >= 2);
     assert!(recap.total_listened_ms >= 360_000);
 }
+
+#[tokio::test]
+async fn test_listening_history_coalesces_consecutive_same_track_within_ten_minutes() {
+    let db = Database::new_in_memory()
+        .await
+        .expect("DB should initialize in-memory");
+    let id1 = db
+        .upsert_track(&make_test_track(1, "Alpha", "Artist", 44100, 16, None))
+        .await
+        .unwrap();
+    let id2 = db
+        .upsert_track(&make_test_track(2, "Beta", "Artist", 44100, 16, None))
+        .await
+        .unwrap();
+
+    // Two consecutive heartbeats on track 1 merge into one row.
+    db.record_track_listening(id1, 5_000).await.unwrap();
+    db.record_track_listening(id1, 5_000).await.unwrap();
+    let rows: Vec<(i64, i64)> =
+        sqlx::query_as("SELECT track_id, duration_ms FROM listening_history ORDER BY id ASC;")
+            .fetch_all(db.pool())
+            .await
+            .unwrap();
+    assert_eq!(rows, vec![(id1, 10_000)]);
+
+    // Switching to track 2 and back to track 1 keeps separate history entries.
+    db.record_track_listening(id2, 5_000).await.unwrap();
+    db.record_track_listening(id1, 5_000).await.unwrap();
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM listening_history;")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(count, 3);
+
+    // An older last row (> 600 s ago) is NOT merged on the next heartbeat.
+    sqlx::query(
+        "UPDATE listening_history SET played_at = played_at - 700 WHERE id = (SELECT MAX(id) FROM listening_history);",
+    )
+    .execute(db.pool())
+    .await
+    .unwrap();
+    db.record_track_listening(id1, 5_000).await.unwrap();
+    let count_after_gap: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM listening_history;")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(count_after_gap, 4);
+}

@@ -58,6 +58,15 @@ impl AudioEngine {
         q.add_item(item);
     }
 
+    /// Appends multiple tracks to the end of the current queue, rebuilding shuffle order once.
+    pub fn extend_queue(&self, items: Vec<QueueItem>) {
+        if items.is_empty() {
+            return;
+        }
+        let mut q = self.queue.lock_safe();
+        q.extend(items);
+    }
+
     /// Inserts a track to play next, after the current one.
     pub fn add_next_to_queue(&self, item: QueueItem) {
         let mut q = self.queue.lock_safe();

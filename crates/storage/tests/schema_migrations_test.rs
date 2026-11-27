@@ -43,7 +43,7 @@ async fn test_fresh_database_reaches_latest_schema_version() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
 }
 
 /// A version 1 database (bookmarks without CASCADE, `album_artist` holding the album title)
@@ -92,7 +92,7 @@ async fn test_upgrade_from_v1_fixes_bookmarks_fk_and_album_artist() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
 
     assert_eq!(
         db.get_bookmark(track_id).await.unwrap(),
@@ -261,7 +261,7 @@ async fn test_upgrade_from_pre_v1_database_adds_columns_and_indexes() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
 
     let indexes: Vec<String> =
         sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
@@ -295,7 +295,7 @@ async fn test_performance_pragmas_apply_to_every_pooled_connection() {
             .fetch_one(&mut **conn)
             .await
             .unwrap();
-        assert_eq!(cache, -64000);
+        assert_eq!(cache, -16000);
     }
     drop(conns);
     db.pool().close().await;
@@ -387,7 +387,7 @@ async fn test_upgrade_from_broken_v4_repairs_added_at_and_prunes_empty_albums() 
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
 
     let added_at: i64 = sqlx::query_scalar("SELECT added_at FROM tracks WHERE path = ?1;")
         .bind("/music/keep.flac")
@@ -437,7 +437,7 @@ async fn test_upgrade_from_v6_migrates_track_waveforms_to_v7() {
         .fetch_one(db.pool())
         .await
         .unwrap();
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
 
     // Legacy row has empty analyzer_version so versioned FFT lookup treats it as a miss.
     assert!(db
@@ -453,4 +453,144 @@ async fn test_upgrade_from_v6_migrates_track_waveforms_to_v7() {
 
     drop(db);
     remove_db(&path);
+}
+
+#[tokio::test]
+async fn test_upgrade_from_v7_to_v8_updates_indexes_and_queue_cursor() {
+    let path = temp_db_path("v7_to_v8_upgrade");
+    {
+        let db = Database::open(&path).await.unwrap();
+        let tid = db
+            .upsert_track(&make_dummy_track(
+                "/music/v7_song.flac",
+                "V7 Song",
+                "Artist",
+            ))
+            .await
+            .unwrap();
+        let pid = db.create_playlist("V7 List").await.unwrap();
+        db.add_track_to_playlist(pid, tid).await.unwrap();
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON playlist_tracks(playlist_id);
+             CREATE INDEX IF NOT EXISTS idx_track_waveforms_track ON track_waveforms(track_id);
+             DROP INDEX IF EXISTS idx_playlist_tracks_pos;
+             CREATE TABLE queue_state_v7 (
+                 id INTEGER PRIMARY KEY CHECK (id = 1),
+                 queue_json TEXT NOT NULL,
+                 updated_at INTEGER NOT NULL
+             );
+             DROP TABLE queue_state;
+             ALTER TABLE queue_state_v7 RENAME TO queue_state;
+             INSERT INTO queue_state (id, queue_json, updated_at)
+             VALUES (1, '{\"items\":[{\"id\":\"q1\",\"track_id\":1,\"uri\":\"/music/v7_song.flac\",\"title\":\"V7 Song\",\"artist\":\"Artist\",\"album\":null,\"duration_ms\":180000}],\"current_index\":0,\"loop_mode\":\"None\",\"shuffle\":false,\"shuffle_order\":[0],\"shuffle_cursor\":0}', 1700000000);
+             PRAGMA user_version = 7;",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+    }
+
+    let db = Database::open(&path).await.unwrap();
+    let version: i32 = sqlx::query_scalar("PRAGMA user_version;")
+        .fetch_one(db.pool())
+        .await
+        .unwrap();
+    assert_eq!(version, 8);
+
+    let indexes: Vec<String> =
+        sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'index';")
+            .fetch_all(db.pool())
+            .await
+            .unwrap();
+    assert!(!indexes.contains(&"idx_playlist_tracks_playlist".to_string()));
+    assert!(!indexes.contains(&"idx_track_waveforms_track".to_string()));
+    assert!(indexes.contains(&"idx_playlist_tracks_pos".to_string()));
+
+    let restored = db
+        .load_queue_state()
+        .await
+        .unwrap()
+        .expect("queue restored");
+    assert_eq!(restored.items.len(), 1);
+    assert_eq!(restored.current_index, Some(0));
+
+    drop(db);
+    remove_db(&path);
+}
+
+#[tokio::test]
+async fn test_save_scanned_tracks_batch_matches_sequential_writes() {
+    let batch_db = setup_test_db().await;
+    let seq_db = setup_test_db().await;
+
+    let scanned = vec![
+        storage::ScannedTrack {
+            record: make_dummy_track("/lib/a/1.flac", "One", "Artist 1"),
+            album_title: "Album X".to_string(),
+            album_artist: "Various".to_string(),
+            year: Some(2020),
+            cover_path: Some("/covers/x.jpg".to_string()),
+            release_mbid: None,
+        },
+        storage::ScannedTrack {
+            record: make_dummy_track("/lib/a/2.flac", "Two", "Artist 2"),
+            album_title: "Album X".to_string(),
+            album_artist: "Various".to_string(),
+            year: None,
+            cover_path: None,
+            release_mbid: Some("mbid-1".to_string()),
+        },
+        storage::ScannedTrack {
+            record: make_dummy_track("/lib/a/3.flac", "Three", "Artist 1"),
+            album_title: "Album Y".to_string(),
+            album_artist: "Artist 1".to_string(),
+            year: Some(2022),
+            cover_path: None,
+            release_mbid: None,
+        },
+    ];
+
+    let ids = batch_db.save_scanned_tracks(&scanned).await.unwrap();
+    assert_eq!(ids.len(), 3);
+    for item in &scanned {
+        seq_db
+            .save_scanned_track(
+                &item.record,
+                &item.album_title,
+                &item.album_artist,
+                item.year,
+                item.cover_path.as_deref(),
+                item.release_mbid.as_deref(),
+            )
+            .await
+            .unwrap();
+    }
+
+    assert_eq!(
+        batch_db.list_albums().await.unwrap().len(),
+        seq_db.list_albums().await.unwrap().len()
+    );
+    assert_eq!(
+        batch_db.list_artists().await.unwrap().len(),
+        seq_db.list_artists().await.unwrap().len()
+    );
+    let batch_tracks = batch_db.list_tracks().await.unwrap();
+    let seq_tracks = seq_db.list_tracks().await.unwrap();
+    assert_eq!(batch_tracks.len(), seq_tracks.len());
+    for (bt, st) in batch_tracks.iter().zip(seq_tracks.iter()) {
+        assert_eq!(bt.path, st.path);
+        assert_eq!(bt.title, st.title);
+        assert_eq!(bt.artist, st.artist);
+    }
+    let batch_x = batch_db
+        .list_albums()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|a| a.title == "Album X")
+        .unwrap();
+    assert_eq!(batch_x.cover_path.as_deref(), Some("/covers/x.jpg"));
+    assert_eq!(batch_x.release_mbid.as_deref(), Some("mbid-1"));
+    assert_eq!(batch_x.year, Some(2020));
 }

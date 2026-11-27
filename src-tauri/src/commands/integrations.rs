@@ -115,28 +115,8 @@ pub async fn import_profile_backup(
     let backup: ProfileBackupDto = serde_json::from_str(&json_content)
         .map_err(|e| CommandError::from(e).context("Invalid profile backup JSON format"))?;
 
-    let mut restored_presets = 0;
-    let mut restored_themes = 0;
-    let mut restored_playlists = 0;
-
-    for preset in backup.dsp_presets {
-        if state
-            .db
-            .save_dsp_preset(
-                &preset.name,
-                &preset.engine,
-                preset.pitch_semitones,
-                preset.tempo_ratio,
-                preset.rate_ratio,
-            )
-            .await
-            .is_ok()
-        {
-            restored_presets += 1;
-        }
-    }
-
     let data_dir = app.path().app_data_dir()?;
+    let mut normalized_themes = Vec::with_capacity(backup.themes.len());
     for mut theme in backup.themes {
         if let Err(e) = theme.validate() {
             warn!(
@@ -166,21 +146,51 @@ pub async fn import_profile_backup(
                 }
             }
         }
-        if state.db.save_theme(&theme).await.is_ok() {
-            restored_themes += 1;
-        }
+        normalized_themes.push(theme);
     }
 
-    for pl in backup.playlists {
-        if let Ok(pl_id) = state.db.create_playlist(&pl.name).await {
-            restored_playlists += 1;
-            for path in pl.track_paths {
-                if let Ok(Some(track)) = state.db.find_track_by_path_or_uri(&path).await {
-                    let _ = state.db.add_track_to_playlist(pl_id, track.id).await;
-                }
-            }
-        }
-    }
+    let all_playlist_paths: Vec<String> = backup
+        .playlists
+        .iter()
+        .flat_map(|pl| pl.track_paths.iter().cloned())
+        .collect();
+    let track_id_map = state
+        .db
+        .find_track_ids_by_paths_or_uris(&all_playlist_paths)
+        .await
+        .unwrap_or_default();
+
+    let playlists_with_ids: Vec<(String, Vec<i64>)> = backup
+        .playlists
+        .into_iter()
+        .map(|pl| {
+            let ids = pl
+                .track_paths
+                .into_iter()
+                .filter_map(|p| track_id_map.get(&p).copied())
+                .collect();
+            (pl.name, ids)
+        })
+        .collect();
+
+    let preset_refs: Vec<(&str, &str, f64, f64, f64)> = backup
+        .dsp_presets
+        .iter()
+        .map(|p| {
+            (
+                p.name.as_str(),
+                p.engine.as_str(),
+                p.pitch_semitones,
+                p.tempo_ratio,
+                p.rate_ratio,
+            )
+        })
+        .collect();
+
+    let (restored_presets, restored_themes, restored_playlists) = state
+        .db
+        .import_profile_entries(&preset_refs, &normalized_themes, &playlists_with_ids)
+        .await?;
 
     Ok(format!(
         "Restored the profile (backup version: {}): {} DSP presets, {} themes, {} playlists.",

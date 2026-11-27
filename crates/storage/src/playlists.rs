@@ -1,6 +1,6 @@
 //! Playlists, playlist tracks and the playback queue state.
 
-use crate::{Database, StorageError, TrackRecord};
+use crate::{Database, QueueCursorState, StorageError, TrackRecord};
 use sqlx::Row;
 
 impl Database {
@@ -86,6 +86,37 @@ impl Database {
         Ok(())
     }
 
+    /// Appends many tracks to a playlist in a single transaction, preserving slice order.
+    pub async fn add_tracks_to_playlist(
+        &self,
+        playlist_id: i64,
+        track_ids: &[i64],
+    ) -> Result<usize, StorageError> {
+        if track_ids.is_empty() {
+            return Ok(0);
+        }
+        let mut tx = self.pool.begin().await?;
+        let base_pos: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_tracks WHERE playlist_id = ?1;",
+        )
+        .bind(playlist_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        for (offset, &track_id) in track_ids.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?1, ?2, ?3);",
+            )
+            .bind(playlist_id)
+            .bind(track_id)
+            .bind(base_pos + offset as i64)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(track_ids.len())
+    }
+
     /// Removes a track from a playlist.
     pub async fn remove_track_from_playlist(
         &self,
@@ -123,7 +154,7 @@ impl Database {
         Ok(rows)
     }
 
-    /// Stores the current playback queue state.
+    /// Stores the current playback queue state (items + cursor) and clears any stale cursor overlay.
     pub async fn save_queue_state(
         &self,
         queue: &domain::PlaybackQueue,
@@ -136,10 +167,11 @@ impl Database {
 
         sqlx::query(
             r#"
-            INSERT INTO queue_state (id, queue_json, updated_at)
-            VALUES (1, ?1, ?2)
+            INSERT INTO queue_state (id, queue_json, cursor_json, updated_at)
+            VALUES (1, ?1, NULL, ?2)
             ON CONFLICT(id) DO UPDATE SET
                 queue_json = excluded.queue_json,
+                cursor_json = NULL,
                 updated_at = excluded.updated_at;
             "#,
         )
@@ -151,15 +183,46 @@ impl Database {
         Ok(())
     }
 
-    /// Loads the stored playback queue state.
+    /// Updates only the persisted queue cursor/modes without rewriting `queue_json`.
+    ///
+    /// Returns `Ok(false)` when no `queue_state` row exists yet so the caller can fall back to
+    /// saving the full queue state.
+    pub async fn save_queue_cursor(&self, cursor: &QueueCursorState) -> Result<bool, StorageError> {
+        let cursor_json = serde_json::to_string(cursor)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        let res =
+            sqlx::query("UPDATE queue_state SET cursor_json = ?1, updated_at = ?2 WHERE id = 1;")
+                .bind(cursor_json)
+                .bind(now)
+                .execute(&self.pool)
+                .await?;
+
+        Ok(res.rows_affected() > 0)
+    }
+
+    /// Loads the stored playback queue state, overlaying any newer cursor-only update.
     pub async fn load_queue_state(&self) -> Result<Option<domain::PlaybackQueue>, StorageError> {
-        let row = sqlx::query("SELECT queue_json FROM queue_state WHERE id = 1 LIMIT 1;")
-            .fetch_optional(&self.pool)
-            .await?;
+        let row =
+            sqlx::query("SELECT queue_json, cursor_json FROM queue_state WHERE id = 1 LIMIT 1;")
+                .fetch_optional(&self.pool)
+                .await?;
 
         if let Some(r) = row {
             let json_str: String = r.get("queue_json");
-            let q: domain::PlaybackQueue = serde_json::from_str(&json_str)?;
+            let mut q: domain::PlaybackQueue = serde_json::from_str(&json_str)?;
+            if let Ok(Some(cursor_str)) = r.try_get::<Option<String>, _>("cursor_json") {
+                if !cursor_str.is_empty() {
+                    let cursor: QueueCursorState = serde_json::from_str(&cursor_str)?;
+                    q.current_index = cursor.current_index;
+                    q.loop_mode = cursor.loop_mode;
+                    q.shuffle = cursor.shuffle;
+                    q.shuffle_cursor = cursor.shuffle_cursor;
+                }
+            }
             Ok(Some(q))
         } else {
             Ok(None)

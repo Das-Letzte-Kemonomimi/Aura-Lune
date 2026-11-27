@@ -59,14 +59,34 @@ impl Database {
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query(
-            "INSERT INTO listening_history (track_id, duration_ms, played_at) VALUES (?1, ?2, ?3);",
+        // Coalesce consecutive heartbeats for the same track within 10 minutes into the last row.
+        let updated = sqlx::query(
+            r#"
+            UPDATE listening_history
+            SET duration_ms = duration_ms + ?1,
+                played_at = ?2
+            WHERE id = (SELECT id FROM listening_history ORDER BY id DESC LIMIT 1)
+              AND track_id = ?3
+              AND ?2 >= played_at
+              AND (?2 - played_at) <= 600;
+            "#,
         )
-        .bind(track_id)
         .bind(duration_ms)
         .bind(now)
+        .bind(track_id)
         .execute(&mut *tx)
         .await?;
+
+        if updated.rows_affected() == 0 {
+            sqlx::query(
+                "INSERT INTO listening_history (track_id, duration_ms, played_at) VALUES (?1, ?2, ?3);",
+            )
+            .bind(track_id)
+            .bind(duration_ms)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
         tx.commit().await?;
 
         Ok(())

@@ -67,22 +67,22 @@ Reference for the Cargo workspace crates under `crates/`. Rules agents must foll
 ## `crates/storage` (Modular Architecture)
 - **Purpose**: SQLite persistence layer built with `sqlx`, partitioned into 9 domain submodules:
   - [`src/models.rs`](../../crates/storage/src/models.rs): Database records (`TrackRecord`, `AlbumRecord`, `ArtistRecord`, `DspPresetRecord`, `DuplicateGroup`, `RecapSummaryDto`) and `StorageError`.
-  - [`src/schema.rs`](../../crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -64000`, `temp_store = MEMORY`, `mmap_size = 256MB` — set per connection in `Database::with_performance_pragmas`, never on the pool), versioned migrations (each step one transaction; v1 = stats/analysis columns + their indexes) (`PRAGMA user_version`, currently **v3**: v2 = bookmark `ON DELETE CASCADE`, `album_artist` repair, cached chord/transcription `bpm`/`musical_key`/`camelot`; v3 = `track_silence_bounds` cache), default anime themes.
-  - [`src/library.rs`](../../crates/storage/src/library.rs): Track, album, and artist CRUD, metadata updates, duplicate detection.
+  - [`src/schema.rs`](../../crates/storage/src/schema.rs): Table DDL, indices, performance PRAGMAs (`cache_size = -16000`, `temp_store = MEMORY`, `mmap_size = 64MB`, `journal_size_limit = 64MB` — set per connection in `Database::with_performance_pragmas`, never on the pool, plus `PRAGMA optimize`), versioned migrations (each step one transaction; `PRAGMA user_version`, currently **v8**: v1–v3 stats/bookmarks/silence; v4–v5 `tracks.added_at` & orphan album pruning; v6 cover-lookup retry table; v7 spectral waveform profiles; v8 index cleanup, `idx_playlist_tracks_pos`, `queue_state.cursor_json`), default anime themes.
+  - [`src/library.rs`](../../crates/storage/src/library.rs): Track, album, and artist CRUD, batched scanner writes (`save_scanned_tracks`), chunked path/URI lookups and stale deletion, metadata updates, duplicate detection.
   - [`src/bookmarks.rs`](../../crates/storage/src/bookmarks.rs): Track bookmarks and multi-cue timestamp markers.
-  - [`src/settings.rs`](../../crates/storage/src/settings.rs): Key-value app settings, DSP presets, custom theme storage.
-  - [`src/playlists.rs`](../../crates/storage/src/playlists.rs): Playlists CRUD, track ordering, and playback queue persistence (`PlaybackQueue`).
-  - [`src/stats.rs`](../../crates/storage/src/stats.rs): Favorites, ratings, playback history, Recap summaries, and smart playlist queries.
+  - [`src/settings.rs`](../../crates/storage/src/settings.rs): Key-value app settings, DSP presets, custom theme storage, single-transaction profile backup import.
+  - [`src/playlists.rs`](../../crates/storage/src/playlists.rs): Playlists CRUD, batched track appends, and split playback queue persistence (`save_queue_state` / `save_queue_cursor` / `load_queue_state`).
+  - [`src/stats.rs`](../../crates/storage/src/stats.rs): Favorites, ratings, coalesced playback history (consecutive heartbeats for the same track within 10 minutes merge into the last row), Recap summaries, and smart playlist queries.
   - [`src/analysis.rs`](../../crates/storage/src/analysis.rs): Musical analysis cache (chords, beat grid, notes, waveform peaks) and AI model registry. `get_track_chords(track_id, analyzer_version)` ignores rows of any other version (stale cache = miss → recompute); `save_track_chords` keeps exactly one row per track; `save_chord_overrides` updates the newest row only. `get_track_transcription(track_id, analyzer_version)` / `save_track_transcription` follow the same rule (stale version = miss, one row per track).
   - [`src/stems.rs`](../../crates/storage/src/stems.rs): Stem tracks and multitrack project storage.
-  - [`src/lib.rs`](../../crates/storage/src/lib.rs): Slim facade exposing `Database`.
+  - [`src/lib.rs`](../../crates/storage/src/lib.rs): Slim facade exposing `Database` (4-connection SQLite pool, `optimize()`).
 - **Tests**: Fully separated in `crates/storage/tests/` (`database_crud_test.rs`, `bookmarks_and_cues_test.rs`, `settings_and_dsp_presets_test.rs`, `waveforms_and_transcription_test.rs`, `stem_projects_multitrack_test.rs`, `smart_playlists_and_stats_test.rs`, `playlist_and_queue_persistence_test.rs`, `schema_migrations_test.rs`).
 
 ## `crates/library`
 - **Purpose**: High-speed local music indexing using `walkdir` and `lofty`. Incremental scanning skips unchanged files using mtime and file size checks.
 - **Album grouping**: albums are keyed by the `ALBUMARTIST` tag (falling back to the track artist), so compilations stay a single album.
-- **Threading**: the directory walk (`walk_audio_files`) and tag/cover reading (`read_track_file`) run in `spawn_blocking`; only database writes stay async. Files whose metadata cannot be read still count as present for stale cleanup.
-- **Stale cleanup**: after a complete walk of an existing root, `Database::delete_stale_tracks(root, active_paths)` removes records for files that vanished — scoped to that root only and skipped on walk errors (unmounted drives never wipe the library).
+- **Threading & caches**: the directory walk (`walk_audio_files`, canonicalizing only the root and symlinked entries) and bounded parallel tag/cover reading (`JoinSet` + `Semaphore(min(cores, 8))` with per-scan directory and album cover caches) run in `spawn_blocking`, streaming parsed tracks over `mpsc` to a single writer that commits batches of 256 tracks per transaction. Files whose metadata cannot be read still count as present for stale cleanup.
+- **Stale cleanup**: after a complete walk of an existing root, unvisited entries under that root are removed in chunked transactions via `Database::delete_tracks_by_ids` (and `Database::delete_stale_tracks` uses a B-tree prefix range query) — skipped on walk errors so unmounted drives never wipe the library.
 - **Tests**: `crates/library/tests/scanner_test.rs`.
 
 ## `crates/metadata`
