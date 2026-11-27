@@ -240,45 +240,69 @@ impl AudioEngine {
 
     /// Stops playback and resets the position.
     pub fn stop(&self) -> Result<(), AudioEngineError> {
-        let pipeline = {
+        let _source_guard = self.source_lock.lock_safe();
+        let (pipeline, unlinked_fv) = {
             let mut inner = self.inner.lock_safe();
             inner.state = PlaybackState::Stopped;
             inner.cached_duration = None;
             inner.base_media_pos = Duration::ZERO;
             inner.base_sink_pts = Duration::ZERO;
             inner.pending_seek = None;
-            inner.pipeline.clone()
+            inner.source_gen = inner.source_gen.wrapping_add(1);
+            let unlinked_fv = if !self.reverb_target.load(Ordering::Acquire) {
+                inner
+                    .freeverb
+                    .as_ref()
+                    .filter(|fv| !Self::is_fv_linked(inner.dsp.upcast_ref(), fv))
+                    .cloned()
+            } else {
+                None
+            };
+            (inner.pipeline.clone(), unlinked_fv)
         };
         pipeline.set_state(gst::State::Null)?;
+        if let Some(fv) = unlinked_fv {
+            fv.set_locked_state(true);
+            let _ = fv.set_state(gst::State::Null);
+        }
         debug!("Pipeline state changed to Stopped (Null)");
         Ok(())
     }
 
     /// Seeks to the given position (an immediate jump).
     pub fn seek(&self, position: Duration) -> Result<(), AudioEngineError> {
-        let mut inner = self.inner.lock_safe();
-        // If no URI is loaded yet or the pipeline is idle (Null),
-        // remember the position to apply silently during preroll before playing.
-        if inner.current_uri.is_none() || inner.pipeline.current_state() == gst::State::Null {
-            inner.base_media_pos = position;
-            inner.base_sink_pts = position;
-            inner.pending_seek = if position.is_zero() {
-                None
-            } else {
-                Some(position)
-            };
-            debug!(
-                "Stored the initial seek position while idle: {:?}",
-                position
-            );
-            return Ok(());
-        }
+        let (pipeline, source_gen) = {
+            let mut inner = self.inner.lock_safe();
+            // If no URI is loaded yet or the pipeline is idle (Null),
+            // remember the position to apply silently during preroll before playing.
+            if inner.current_uri.is_none() || inner.pipeline.current_state() == gst::State::Null {
+                inner.base_media_pos = position;
+                inner.base_sink_pts = position;
+                inner.pending_seek = if position.is_zero() {
+                    None
+                } else {
+                    Some(position)
+                };
+                debug!(
+                    "Stored the initial seek position while idle: {:?}",
+                    position
+                );
+                return Ok(());
+            }
+            (inner.pipeline.clone(), inner.source_gen)
+        };
 
         let position_ns = gst::ClockTime::from_nseconds(position.as_nanos() as u64);
-        if let Err(err) = inner.pipeline.seek_simple(
+        let seek_res = pipeline.seek_simple(
             gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
             position_ns,
-        ) {
+        );
+
+        let mut inner = self.inner.lock_safe();
+        if inner.source_gen != source_gen {
+            return Ok(());
+        }
+        if let Err(err) = seek_res {
             debug!(
                 "seek_simple warning (e.g. preroll not ready yet): {:?}",
                 err

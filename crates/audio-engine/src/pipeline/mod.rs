@@ -111,6 +111,7 @@ struct PipelineInner {
     /// applied silently in `State::Paused` before transitioning to `Playing`.
     pending_seek: Option<Duration>,
     seek_seq: u64,
+    source_gen: u64,
     _stereo_widener: gst::Element,
     stereo_widener_config: Arc<AtomicCell<domain::dynamics::StereoWidenerConfig>>,
     crossfade_duration_ms: u64,
@@ -172,6 +173,14 @@ pub struct AudioEngine {
     silence_trimming_enabled: Arc<AtomicBool>,
     /// Latched by the clip probes (`probes::install_clip_probes`) when a sample exceeds 0 dBFS.
     clip_latched: Arc<AtomicBool>,
+    /// Serialises source teardown/load transitions without holding `inner` across GStreamer waits.
+    source_lock: Arc<Mutex<()>>,
+    /// Serialises control-plane reverb graph relink operations outside `inner`.
+    reverb_switch_lock: Arc<Mutex<()>>,
+    /// Latest desired reverb link state read by a deferred `IDLE` probe when paused.
+    reverb_target: Arc<AtomicBool>,
+    /// Prevents stacking multiple deferred `IDLE` probes if `reverb` toggles while paused.
+    reverb_probe_pending: Arc<AtomicBool>,
 }
 
 /// Releases the GStreamer resources safely when the pipeline controller is dropped.

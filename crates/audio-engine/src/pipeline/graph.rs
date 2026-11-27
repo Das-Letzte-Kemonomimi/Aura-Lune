@@ -310,20 +310,13 @@ impl AudioEngine {
         ])
         .map_err(|_| AudioEngineError::ElementLink("Failed to link the DSP input".into()))?;
 
-        // DSP -> (freeverb) -> equalizer
+        // DSP -> equalizer directly on startup (freeverb is linked on demand via IDLE pad probe).
+        dsp.upcast_ref::<gst::Element>()
+            .link(&equalizer)
+            .map_err(|_| AudioEngineError::ElementLink("Failed to link DSP to equalizer".into()))?;
         if let Some(ref fv) = freeverb {
-            dsp.upcast_ref::<gst::Element>().link(fv).map_err(|_| {
-                AudioEngineError::ElementLink("Failed to link DSP to freeverb".into())
-            })?;
-            fv.link(&equalizer).map_err(|_| {
-                AudioEngineError::ElementLink("Failed to link freeverb to equalizer".into())
-            })?;
-        } else {
-            dsp.upcast_ref::<gst::Element>()
-                .link(&equalizer)
-                .map_err(|_| {
-                    AudioEngineError::ElementLink("Failed to link DSP to equalizer".into())
-                })?;
+            fv.set_locked_state(true);
+            let _ = fv.set_state(gst::State::Null);
         }
 
         // equalizer -> peq_preamp -> peq_equalizer
@@ -432,6 +425,7 @@ impl AudioEngine {
             base_sink_pts: Duration::ZERO,
             pending_seek: None,
             seek_seq: 0,
+            source_gen: 0,
             _stereo_widener: stereo_widener,
             stereo_widener_config,
             crossfade_duration_ms: 1500,
@@ -463,6 +457,10 @@ impl AudioEngine {
             volume_fader,
             silence_trimming_enabled,
             clip_latched,
+            source_lock: Arc::new(Mutex::new(())),
+            reverb_switch_lock: Arc::new(Mutex::new(())),
+            reverb_target: Arc::new(AtomicBool::new(false)),
+            reverb_probe_pending: Arc::new(AtomicBool::new(false)),
         })
     }
 }

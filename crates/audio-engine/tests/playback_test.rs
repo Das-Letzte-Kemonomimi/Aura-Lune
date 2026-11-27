@@ -291,6 +291,74 @@ fn test_reverb_parameters_and_pipeline() {
 }
 
 #[test]
+fn test_reverb_unlinked_when_disabled_and_live_toggle_during_playback() {
+    gstreamer::init().unwrap();
+    if gstreamer::ElementFactory::find("freeverb").is_none() {
+        eprintln!("freeverb plugin missing, skipping live toggle test");
+        return;
+    }
+
+    let engine = AudioEngine::new().expect("Initialising AudioEngine");
+    assert!(
+        !engine.is_reverb_linked(),
+        "freeverb must stay unlinked on startup when reverb is disabled"
+    );
+
+    // Toggling while idle links and unlinks freeverb cleanly.
+    engine.set_reverb_params(true, 0.75, 0.35, 1.0, 0.40);
+    assert!(engine.is_reverb_linked());
+    engine.set_reverb_params(false, 0.75, 0.35, 1.0, 0.0);
+    assert!(!engine.is_reverb_linked());
+
+    // Live toggle while playing keeps the stream advancing without stalling.
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests/fixtures/test_sine_440hz.wav");
+    let uri = audio_engine::uri::media_uri(&fixture_path.canonicalize().unwrap().to_string_lossy());
+    engine.load_uri(&uri).unwrap();
+    engine.play().unwrap();
+
+    let mut started = false;
+    for _ in 0..50 {
+        if engine
+            .position()
+            .is_some_and(|p| p > Duration::from_millis(80))
+        {
+            started = true;
+            break;
+        }
+        sleep(Duration::from_millis(25));
+    }
+    assert!(started, "playback must start before reverb toggle");
+    assert!(!engine.is_reverb_linked());
+
+    engine.set_reverb_params(true, 0.8, 0.3, 1.0, 0.45);
+    assert!(engine.is_reverb_linked());
+    let pos_after_enable = engine.position().unwrap_or_default();
+    sleep(Duration::from_millis(150));
+    let pos_while_reverb_on = engine.position().unwrap_or_default();
+    assert!(
+        pos_while_reverb_on > pos_after_enable,
+        "playback must advance with reverb enabled ({pos_while_reverb_on:?} <= {pos_after_enable:?})"
+    );
+
+    engine.set_reverb_params(false, 0.5, 0.2, 1.0, 0.0);
+    assert!(!engine.is_reverb_linked());
+    let pos_after_disable = engine.position().unwrap_or_default();
+    sleep(Duration::from_millis(150));
+    let pos_while_reverb_off = engine.position().unwrap_or_default();
+    assert!(
+        pos_while_reverb_off > pos_after_disable,
+        "playback must advance after unlinking reverb ({pos_while_reverb_off:?} <= {pos_after_disable:?})"
+    );
+
+    engine.stop().unwrap();
+}
+
+#[test]
 fn test_play_and_pause_with_fade() {
     let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()

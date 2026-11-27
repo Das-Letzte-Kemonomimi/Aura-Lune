@@ -243,7 +243,7 @@ pub fn engine_local_track_path(engine: &audio_engine::AudioEngine) -> Option<Pat
         .current_uri()
         .filter(|u| !u.starts_with("stem"))
         .or_else(|| engine.original_track_uri())
-        .or_else(|| engine.queue().current_item().map(|item| item.uri.clone()))?;
+        .or_else(|| engine.current_item().map(|item| item.uri))?;
 
     if raw_uri.starts_with("http://") || raw_uri.starts_with("https://") {
         return None;

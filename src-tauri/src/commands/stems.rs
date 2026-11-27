@@ -204,7 +204,7 @@ pub async fn load_track_stems_internal(
         .as_ref()
         .map(|t| t.path.clone())
         .or_else(|| state.engine.current_uri())
-        .or_else(|| state.engine.queue().current_item().map(|it| it.uri.clone()));
+        .or_else(|| state.engine.current_item().map(|it| it.uri));
 
     let cur_pos = seek_position_ms
         .map(std::time::Duration::from_millis)
@@ -554,7 +554,7 @@ pub async fn load_stem_project_internal(
         .as_ref()
         .map(|t| t.path.clone())
         .or_else(|| state.engine.current_uri())
-        .or_else(|| state.engine.queue().current_item().map(|it| it.uri.clone()));
+        .or_else(|| state.engine.current_item().map(|it| it.uri));
 
     let m_vol = master_volume.unwrap_or(1.0);
     let cur_pos = seek_position_ms
@@ -591,9 +591,8 @@ pub async fn load_stem_project_internal(
 pub fn restore_original_track_internal(state: &AppState) -> Result<(), CommandError> {
     state.engine.restore_original_track()?;
 
-    let q = state.engine.queue();
-    if let Some(item) = q.current_item() {
-        crate::commands::playback::sync_mpris_from_queue_item(item, state);
+    if let Some(item) = state.engine.current_item() {
+        crate::commands::playback::sync_mpris_from_queue_item(&item, state);
     }
     Ok(())
 }

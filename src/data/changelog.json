@@ -211,6 +211,13 @@
         "de": "Albumcover und eigene Hintergrundbilder werden jetzt direkt als Dateien statt großer eingebetteter Daten geladen, was den Speicherbedarf senkt und das Albumraster beschleunigt.",
         "fi": "Albumien kannet ja omat taustakuvat ladataan nyt suoraan tiedostoina suurten upotettujen tietojen sijaan, mikä vähentää muistinkulutusta ja nopeuttaa albumiruudukkoa.",
         "la": "Opercula alborum et picturae fundi propriae nunc directe ut fasciculi onerantur pro magnis datis inclusis, quod usum memoriae minuit et tabulam alborum accelerat."
+      },
+      {
+        "en": "Reduced CPU and memory usage during playback by bypassing the reverb effect when off and only loading the active audio speed/pitch engine.",
+        "pl": "Zmniejszono zużycie procesora i pamięci podczas odtwarzania dzięki całkowitemu pomijaniu wyłączonego pogłosu oraz uruchamianiu tylko aktywnego silnika zmiany tempa i tonacji.",
+        "de": "Geringere CPU- und Speichernutzung bei der Wiedergabe, indem der Halleffekt im ausgeschalteten Zustand komplett umgangen und nur die aktive Tempo-/Tonhöhen-Engine geladen wird.",
+        "fi": "Vähennetty suorittimen ja muistin käyttöä toiston aikana ohittamalla pois kytketty kaikutehoste kokonaan ja lataamalla vain aktiivinen nopeus- ja sävelkorkeusmoottori.",
+        "la": "Consumptio CPU memoriaeque inter sonum imminuta est, effectu echo omisso cum absit et solo motore activo onerato."
       }
     ],
     "fixed": [

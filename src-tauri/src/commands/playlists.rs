@@ -67,20 +67,28 @@ pub async fn save_queue_as_playlist(
     state: State<'_, AppState>,
 ) -> Result<i64, CommandError> {
     info!("Tauri command: save_queue_as_playlist('{}')", name);
-    let queue = state.engine.queue();
-    if queue.items.is_empty() {
+    let entries: Vec<Result<i64, String>> = state.engine.with_queue(|q| {
+        q.items
+            .iter()
+            .map(|item| item.track_id.ok_or_else(|| item.uri.clone()))
+            .collect()
+    });
+    if entries.is_empty() {
         return Err(CommandError::validation("The playback queue is empty"));
     }
 
     let pl_id = state.db.create_playlist(&name).await?;
 
-    for item in &queue.items {
-        let track_id = if let Some(tid) = item.track_id {
-            Some(tid)
-        } else if let Ok(Some(track)) = state.db.get_track_by_path(&item.uri).await {
-            Some(track.id)
-        } else {
-            None
+    for entry in entries {
+        let track_id = match entry {
+            Ok(tid) => Some(tid),
+            Err(uri) => state
+                .db
+                .get_track_by_path(&uri)
+                .await
+                .ok()
+                .flatten()
+                .map(|t| t.id),
         };
 
         if let Some(tid) = track_id {
