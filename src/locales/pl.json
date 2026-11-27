@@ -926,6 +926,7 @@
   },
   "common": {
     "loading": "Ładowanie...",
+    "loadingView": "Ładowanie: {0}…",
     "confirm": "Potwierdź",
     "cancel": "Anuluj",
     "clear": "Wyczyść",

@@ -1,16 +1,28 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { SettingsModal, type SettingsTab } from './SettingsModal';
-import { GeneralSettingsView, type GeneralSettingsViewProps } from './GeneralSettingsView';
-import { AppearanceSettingsView, type AppearanceSettingsViewProps } from './AppearanceSettingsView';
-import { PlaybackSettingsView, type PlaybackSettingsViewProps } from './PlaybackSettingsView';
-import { AudioEngineSettingsView, type AudioEngineSettingsViewProps } from './AudioEngineSettingsView';
-import { LibrarySettingsView, type LibrarySettingsViewProps } from './LibrarySettingsView';
-import { IntegrationsSettingsView, type IntegrationsSettingsViewProps } from './IntegrationsSettingsView';
-import { TranscodeSettingsView, type TranscodeSettingsViewProps } from './TranscodeSettingsView';
-import { DataSettingsView, type DataSettingsViewProps } from './DataSettingsView';
-import { UpdatesSettingsView, type UpdatesSettingsViewProps } from './UpdatesSettingsView';
-import { AboutSettingsView, type AboutSettingsViewProps } from './AboutSettingsView';
+import type { GeneralSettingsViewProps } from './GeneralSettingsView';
+import type { AppearanceSettingsViewProps } from './AppearanceSettingsView';
+import type { PlaybackSettingsViewProps } from './PlaybackSettingsView';
+import type { AudioEngineSettingsViewProps } from './AudioEngineSettingsView';
+import type { LibrarySettingsViewProps } from './LibrarySettingsView';
+import type { IntegrationsSettingsViewProps } from './IntegrationsSettingsView';
+import type { TranscodeSettingsViewProps } from './TranscodeSettingsView';
+import type { DataSettingsViewProps } from './DataSettingsView';
+import type { UpdatesSettingsViewProps } from './UpdatesSettingsView';
+import type { AboutSettingsViewProps } from './AboutSettingsView';
+import { SettingsTabSkeleton } from './SettingsTabSkeleton';
 import { type Translations } from '../../i18n';
+
+const GeneralSettingsView = React.lazy(() => import('./GeneralSettingsView').then((m) => ({ default: m.GeneralSettingsView })));
+const AppearanceSettingsView = React.lazy(() => import('./AppearanceSettingsView').then((m) => ({ default: m.AppearanceSettingsView })));
+const PlaybackSettingsView = React.lazy(() => import('./PlaybackSettingsView').then((m) => ({ default: m.PlaybackSettingsView })));
+const AudioEngineSettingsView = React.lazy(() => import('./AudioEngineSettingsView').then((m) => ({ default: m.AudioEngineSettingsView })));
+const LibrarySettingsView = React.lazy(() => import('./LibrarySettingsView').then((m) => ({ default: m.LibrarySettingsView })));
+const IntegrationsSettingsView = React.lazy(() => import('./IntegrationsSettingsView').then((m) => ({ default: m.IntegrationsSettingsView })));
+const TranscodeSettingsView = React.lazy(() => import('./TranscodeSettingsView').then((m) => ({ default: m.TranscodeSettingsView })));
+const DataSettingsView = React.lazy(() => import('./DataSettingsView').then((m) => ({ default: m.DataSettingsView })));
+const UpdatesSettingsView = React.lazy(() => import('./UpdatesSettingsView').then((m) => ({ default: m.UpdatesSettingsView })));
+const AboutSettingsView = React.lazy(() => import('./AboutSettingsView').then((m) => ({ default: m.AboutSettingsView })));
 
 export interface AppSettingsModalProps {
   isOpen: boolean;
@@ -58,16 +70,18 @@ export const AppSettingsModal: React.FC<AppSettingsModalProps> = ({
       loc={loc}
       updateAvailable={updateAvailable}
     >
-      {activeTab === 'general' && <GeneralSettingsView {...generalProps} />}
-      {activeTab === 'appearance' && <AppearanceSettingsView {...appearanceProps} />}
-      {activeTab === 'playback' && <PlaybackSettingsView {...playbackProps} />}
-      {activeTab === 'audio' && <AudioEngineSettingsView {...audioProps} />}
-      {activeTab === 'library' && <LibrarySettingsView {...libraryProps} />}
-      {activeTab === 'integrations' && <IntegrationsSettingsView {...integrationsProps} />}
-      {activeTab === 'export' && <TranscodeSettingsView {...transcodeProps} />}
-      {activeTab === 'data' && <DataSettingsView {...dataProps} />}
-      {activeTab === 'updates' && <UpdatesSettingsView {...updatesProps} />}
-      {activeTab === 'about' && <AboutSettingsView {...aboutProps} />}
+      <Suspense key={activeTab} fallback={<SettingsTabSkeleton tab={activeTab} loc={loc} />}>
+        {activeTab === 'general' && <GeneralSettingsView {...generalProps} />}
+        {activeTab === 'appearance' && <AppearanceSettingsView {...appearanceProps} />}
+        {activeTab === 'playback' && <PlaybackSettingsView {...playbackProps} />}
+        {activeTab === 'audio' && <AudioEngineSettingsView {...audioProps} />}
+        {activeTab === 'library' && <LibrarySettingsView {...libraryProps} />}
+        {activeTab === 'integrations' && <IntegrationsSettingsView {...integrationsProps} />}
+        {activeTab === 'export' && <TranscodeSettingsView {...transcodeProps} />}
+        {activeTab === 'data' && <DataSettingsView {...dataProps} />}
+        {activeTab === 'updates' && <UpdatesSettingsView {...updatesProps} />}
+        {activeTab === 'about' && <AboutSettingsView {...aboutProps} />}
+      </Suspense>
     </SettingsModal>
   );
 };

@@ -93,9 +93,11 @@ describe('AppSettingsModal', () => {
     ['library', () => loc.settings.autoFetchCoversTitle],
     ['data', () => loc.settings.backupTitle],
     ['about', () => loc.settings.disclaimerTitle],
-  ] as const)('renders the %s tab content', (tab, text) => {
+  ] as const)('shows tab-specific skeleton then renders the %s tab content', async (tab, text) => {
     render(<AppSettingsModal {...defaultProps} activeTab={tab} />);
-    expect(screen.getAllByText(text()).length).toBeGreaterThan(0);
+    const tabLabel = loc.settings.nav[tab];
+    expect(screen.getByRole('status', { name: `Loading ${tabLabel}…` })).toBeTruthy();
+    expect((await screen.findAllByText(text())).length).toBeGreaterThan(0);
   });
 
   it('lists every settings tab in the navigation and marks the active one', () => {

@@ -64,14 +64,16 @@ describe('MainContentRouter component', () => {
     cleanup();
   });
 
-  it('renders PlayerView when activeTab is player', () => {
+  it('shows Now Playing loading skeleton before PlayerView resolves', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="player" />);
-    expect(screen.getByTestId('player-view')).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Loading Now Playing…' })).toBeTruthy();
+    expect(await screen.findByTestId('player-view')).toBeTruthy();
     expect(screen.queryByTestId('library-view')).toBeNull();
   });
 
-  it('renders LibraryView when activeTab is library', async () => {
+  it('shows Library loading skeleton before LibraryView resolves', async () => {
     render(<MainContentRouter {...dummyProps} activeTab="library" />);
+    expect(screen.getByRole('status', { name: 'Loading Library…' })).toBeTruthy();
     expect(await screen.findByTestId('library-view')).toBeTruthy();
     expect(screen.queryByTestId('player-view')).toBeNull();
   });

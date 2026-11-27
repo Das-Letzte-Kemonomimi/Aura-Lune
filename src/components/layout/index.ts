@@ -7,5 +7,6 @@ export * from './BackgroundExportBadge';
 export * from './DragDropOverlay';
 export * from './QueueDrawer';
 export * from './StartupSplash';
+export * from './ViewLoadingSkeleton';
 export * from './useAppHeaderProps';
 export * from './useBottomPlaybackDockProps';

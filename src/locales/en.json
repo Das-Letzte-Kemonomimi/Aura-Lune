@@ -926,6 +926,7 @@
   },
   "common": {
     "loading": "Loading...",
+    "loadingView": "Loading {0}…",
     "confirm": "Confirm",
     "cancel": "Cancel",
     "clear": "Clear",

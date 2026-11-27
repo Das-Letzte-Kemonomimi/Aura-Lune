@@ -140,6 +140,7 @@
   --animate-bounce-drop: bounce-drop 1.5s ease-in-out infinite;
   --animate-update-dot: update-dot-pulse 1.6s ease-in-out infinite;
   --animate-eq-bar: eq-bar 0.8s ease-in-out infinite alternate;
+  --animate-skeleton-shimmer: skeleton-shimmer 1.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 
   @keyframes fade-in {
     from {
@@ -206,6 +207,15 @@
     }
     to {
       scale: 1 1;
+    }
+  }
+
+  @keyframes skeleton-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
     }
   }
 }

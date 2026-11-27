@@ -926,6 +926,7 @@
   },
   "common": {
     "loading": "Wird geladen...",
+    "loadingView": "{0} wird geladen…",
     "confirm": "Bestätigen",
     "cancel": "Abbrechen",
     "clear": "Leeren",

@@ -1,6 +1,6 @@
 import type { useLibraryManager } from '../../hooks/useLibraryManager';
 import { useArtistsIndex } from '../../hooks/useArtistsIndex';
-import React, { useCallback, useMemo, useState } from "react";
+import React, { Suspense, useCallback, useMemo, useState } from "react";
 import {
   Clock,
   Disc,
@@ -12,14 +12,16 @@ import type { AlbumRecord, TrackRecord, PlaybackStatus, ReleaseCandidateDto } fr
 import type { CoverSyncProgress } from '../../types/library';
 import { type Language, getTranslations } from '../../i18n';
 import { LibraryMusicBrainzMatchPanel } from './sections/LibraryMusicBrainzMatchPanel';
-import { LibraryArtistsView } from './sections/LibraryArtistsView';
-import { LibraryAlbumGrid } from './sections/LibraryAlbumGrid';
-import { LibraryAlbumDetail } from './sections/LibraryAlbumDetail';
-import { LibraryTracksView } from './sections/LibraryTracksView';
 import { LibraryToolbar } from './sections/LibraryToolbar';
 import { LibraryScanPanel } from './sections/LibraryScanPanel';
 import { LibraryHeader } from './sections/LibraryHeader';
 import { Card } from '../../components/ui';
+import { LibraryContentSkeleton } from '../../components/layout/ViewLoadingSkeleton';
+
+const LibraryTracksView = React.lazy(() => import('./sections/LibraryTracksView').then((m) => ({ default: m.LibraryTracksView })));
+const LibraryAlbumGrid = React.lazy(() => import('./sections/LibraryAlbumGrid').then((m) => ({ default: m.LibraryAlbumGrid })));
+const LibraryAlbumDetail = React.lazy(() => import('./sections/LibraryAlbumDetail').then((m) => ({ default: m.LibraryAlbumDetail })));
+const LibraryArtistsView = React.lazy(() => import('./sections/LibraryArtistsView').then((m) => ({ default: m.LibraryArtistsView })));
 
 /** The library setter and state types come straight from the `useLibraryManager` hook. */
 type LibraryManager = ReturnType<typeof useLibraryManager>;
@@ -272,36 +274,49 @@ export const LibraryView: React.FC<LibraryViewProps> = React.memo((props) => {
         onBackFromArtistDetail={() => setSelectedArtistName(null)}
       />
 
-      {/* View 1: track table */}
-      {librarySubView === 'tracks' && (
-        <Card variant="panel" padding="md">
-          <LibraryTracksView {...props} t={t} />
-        </Card>
-      )}
-
-      {/* View 2: album and cover grid, or the detail view of the selected album */}
-      {librarySubView === 'albums' && (
-        selectedAlbumDetail ? (
-          <LibraryAlbumDetail {...props} selectedAlbumDetail={selectedAlbumDetail} t={t} />
-        ) : (
+      <Suspense
+        key={`${librarySubView}-${selectedAlbumDetail ? 'detail' : 'list'}`}
+        fallback={
+          <LibraryContentSkeleton
+            subView={librarySubView}
+            albumViewMode={props.albumViewMode}
+            albumGridSize={props.albumGridSize}
+            hasSelectedAlbumDetail={Boolean(selectedAlbumDetail)}
+            label={loc.common.loading}
+          />
+        }
+      >
+        {/* View 1: track table */}
+        {librarySubView === 'tracks' && (
           <Card variant="panel" padding="md">
-            <LibraryAlbumGrid {...props} formatAlbumDuration={formatAlbumDuration} />
+            <LibraryTracksView {...props} t={t} />
           </Card>
-        )
-      )}
+        )}
 
-      {/* View 3: artists */}
-      {librarySubView === 'artists' && (
-        <LibraryArtistsView
-          {...props}
-          filteredArtists={filteredArtists}
-          t={t}
-          artistSortField={artistSortField}
-          artistSortOrder={artistSortOrder}
-          selectedArtistName={selectedArtistName}
-          setSelectedArtistName={setSelectedArtistName}
-        />
-      )}
+        {/* View 2: album and cover grid, or the detail view of the selected album */}
+        {librarySubView === 'albums' && (
+          selectedAlbumDetail ? (
+            <LibraryAlbumDetail {...props} selectedAlbumDetail={selectedAlbumDetail} t={t} />
+          ) : (
+            <Card variant="panel" padding="md">
+              <LibraryAlbumGrid {...props} formatAlbumDuration={formatAlbumDuration} />
+            </Card>
+          )
+        )}
+
+        {/* View 3: artists */}
+        {librarySubView === 'artists' && (
+          <LibraryArtistsView
+            {...props}
+            filteredArtists={filteredArtists}
+            t={t}
+            artistSortField={artistSortField}
+            artistSortOrder={artistSortOrder}
+            selectedArtistName={selectedArtistName}
+            setSelectedArtistName={setSelectedArtistName}
+          />
+        )}
+      </Suspense>
 
       {/* MusicBrainz release matching modal */}
       {selectedAlbumForMb && <LibraryMusicBrainzMatchPanel {...props} />}

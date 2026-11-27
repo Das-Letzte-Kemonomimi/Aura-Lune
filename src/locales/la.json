@@ -926,6 +926,7 @@
   },
   "common": {
     "loading": "Oneratur...",
+    "loadingView": "Oneratur: {0}…",
     "confirm": "Confirma",
     "cancel": "Dimitte",
     "clear": "Purga",

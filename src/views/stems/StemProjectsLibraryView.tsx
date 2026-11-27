@@ -13,7 +13,8 @@ import { formatBytes } from '../../utils/fileSizeFormat';
 import { getTranslations, type Language } from '../../i18n';
 import { useTauriEvent } from '../../hooks/useTauriEvent';
 import { fmt } from '../../utils/fmt';
-import { Badge, Button, Callout, Card, EmptyState, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, PageHeader, Spinner, TextField } from '../../components/ui';
+import { Badge, Button, Callout, Card, EmptyState, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, PageHeader, TextField } from '../../components/ui';
+import { StemProjectsCardSkeleton } from '../../components/layout/ViewLoadingSkeleton';
 
 interface StemProjectsLibraryViewProps {
   onOpenProject: (projectId: number) => void;
@@ -141,10 +142,7 @@ export const StemProjectsLibraryView: React.FC<StemProjectsLibraryViewProps> = (
       )}
 
       {loading && projects.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-15 text-fg-secondary">
-          <Spinner size="lg" />
-          <div>{t.stems.loadingProjects}</div>
-        </div>
+        <StemProjectsCardSkeleton label={t.stems.loadingProjects} />
       ) : projects.length === 0 ? (
         <Card variant="panel" padding="md">
           <EmptyState icon={<Layers size={22} />} title={t.stems.noProjects} description={t.stems.noProjectsDesc} />

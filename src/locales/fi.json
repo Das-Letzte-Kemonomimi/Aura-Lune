@@ -926,6 +926,7 @@
   },
   "common": {
     "loading": "Ladataan...",
+    "loadingView": "Ladataan: {0}…",
     "confirm": "Vahvista",
     "cancel": "Peruuta",
     "clear": "Tyhjennä",

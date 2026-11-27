@@ -415,6 +415,7 @@ export function useMainRouterProps(params: UseMainRouterPropsParams) {
     onSelectPlaylist: p.setSelectedPlaylist,
     playlistTracks: p.playlistTracks,
     onSetPlaylistTracks: p.setPlaylistTracks,
+    isLoadingTracks: p.isPlaylistTracksLoading,
     onPlayLibraryTrack: p.handlePlayLibraryTrack,
     refreshQueue: p.refreshQueue,
     showMessage: p.showMessage,

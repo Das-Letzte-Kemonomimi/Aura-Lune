@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '../api/ipc';
 import type { Playlist } from '../types/playlist';
 import type { TrackRecord } from '../types/player';
@@ -28,6 +28,8 @@ export function usePlaylistManager({
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistTracks, setPlaylistTracks] = useState<TrackRecord[]>([]);
+  const [isPlaylistTracksLoading, setIsPlaylistTracksLoading] = useState(false);
+  const playlistTracksRequestRef = useRef(0);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [trackToAddToPlaylist, setTrackToAddToPlaylist] = useState<TrackRecord | null>(null);
@@ -116,6 +118,8 @@ export function usePlaylistManager({
     try {
       await invoke('delete_playlist', { playlistId });
       if (selectedPlaylist?.id === playlistId) {
+        playlistTracksRequestRef.current += 1;
+        setIsPlaylistTracksLoading(false);
         setSelectedPlaylist(null);
         setPlaylistTracks([]);
       }
@@ -127,12 +131,23 @@ export function usePlaylistManager({
   }, [selectedPlaylist, showMessage, t.notifications.playlistDeletedMsg, t.common.errorPrefix, refreshPlaylists]);
 
   const handleOpenPlaylist = useCallback(async (pl: Playlist) => {
+    const requestId = ++playlistTracksRequestRef.current;
     setSelectedPlaylist(pl);
+    setPlaylistTracks([]);
+    setIsPlaylistTracksLoading(true);
     try {
       const tr = await invoke<TrackRecord[]>('get_playlist_tracks', { playlistId: pl.id });
-      setPlaylistTracks(tr);
+      if (playlistTracksRequestRef.current === requestId) {
+        setPlaylistTracks(tr);
+      }
     } catch (err: unknown) {
-      showMessage(`${t.common.errorPrefix} ${err}`, true);
+      if (playlistTracksRequestRef.current === requestId) {
+        showMessage(`${t.common.errorPrefix} ${err}`, true);
+      }
+    } finally {
+      if (playlistTracksRequestRef.current === requestId) {
+        setIsPlaylistTracksLoading(false);
+      }
     }
   }, [showMessage, t.common.errorPrefix]);
 
@@ -216,6 +231,7 @@ export function usePlaylistManager({
     setSelectedPlaylist,
     playlistTracks,
     setPlaylistTracks,
+    isPlaylistTracksLoading,
     newPlaylistName,
     setNewPlaylistName,
     showPlaylistModal,

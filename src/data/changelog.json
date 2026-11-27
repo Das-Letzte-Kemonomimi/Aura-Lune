@@ -111,6 +111,13 @@
         "de": "Schnelle A–Z-Sprungleiste bei Titeln und Alben, ein deutlicheres Warnsymbol für Alben ohne Cover sowie neue Sortierung nach Jahr und nach dem Datum, an dem ein Titel zur Bibliothek hinzugefügt wurde.",
         "fi": "Nopea A–Ö-hyppypalkki kappaleissa ja albumeissa, selkeämpi varoitusmerkki albumeille ilman kansikuvaa sekä uusi lajittelu vuoden ja kirjastoon lisäyspäivän mukaan.",
         "la": "Taenia saltus A–Z in carminibus et albis, signum monitorium clarius pro albis sine imagine, et ordo novus secundum annum et diem additum."
+      },
+      {
+        "en": "Added theme-aware loading skeletons tailored to each view, Library sub-tab, and Settings tab while pages load on demand.",
+        "pl": "Dodano szkielety ładowania dopasowane do motywu oraz układu każdego widoku, podzakładki Biblioteki i zakładki Ustawień podczas wczytywania stron na żądanie.",
+        "de": "An das Design angepasste Lade-Platzhalter hinzugefügt, die genau auf jede Ansicht, jeden Bibliotheks-Unterreiter und jeden Einstellungs-Tab beim Laden zugeschnitten sind.",
+        "fi": "Lisättiin teemaan mukautuvat latausrungot kullekin näkymälle, Kirjaston välilehdelle ja Asetusten osiolle sivujen latautuessa tarpeen mukaan.",
+        "la": "Addita sunt sceleta onerationis ad thema et formam cuiusque paginae, subtabulae Bibliothecae et tabulae Praeferentiarum aptata dum paginae pro necessitate onerantur."
       }
     ],
     "changed": [

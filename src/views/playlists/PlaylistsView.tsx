@@ -17,6 +17,7 @@ import { type Translations } from '../../i18n';
 import { type TrackRecord } from '../../types/player';
 import { fmt } from '../../utils/fmt';
 import { Badge, Button, Card, EmptyState, PageHeader, TextField } from '../../components/ui';
+import { PlaylistTracksSkeleton } from '../../components/layout/ViewLoadingSkeleton';
 import { TrackAction, TrackFormatBadge } from '../library/sections/trackRowParts';
 
 export interface PlaylistsViewProps {
@@ -31,6 +32,7 @@ export interface PlaylistsViewProps {
   onSelectPlaylist: (playlist: Playlist | null) => void;
   playlistTracks: TrackRecord[];
   onSetPlaylistTracks: (tracks: TrackRecord[]) => void;
+  isLoadingTracks?: boolean;
   onPlayLibraryTrack: (track: TrackRecord, playlist?: TrackRecord[]) => void;
   refreshQueue: () => Promise<void>;
   showMessage: (msg: string, isError?: boolean) => void;
@@ -56,6 +58,7 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
   onSelectPlaylist,
   playlistTracks,
   onSetPlaylistTracks,
+  isLoadingTracks = false,
   onPlayLibraryTrack,
   refreshQueue,
   showMessage,
@@ -167,7 +170,9 @@ export const PlaylistsView: React.FC<PlaylistsViewProps> = ({
 
           {/* Track table of the selected playlist */}
           <Card variant="panel" padding="md">
-            {noTracks ? (
+            {isLoadingTracks ? (
+              <PlaylistTracksSkeleton label={loc.common.loading} />
+            ) : noTracks ? (
               <EmptyState icon={<ListMusic size={22} />} title={loc.playlists.emptyHint} />
             ) : (
               <div className="overflow-x-auto">
