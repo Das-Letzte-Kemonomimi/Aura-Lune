@@ -1,11 +1,10 @@
 [
   {
-    "version": "2.0.0-dev",
-    "codename": "Development Channel",
+    "version": "2.0.0",
+    "codename": "Lune",
     "date": "2026-11-27",
     "author": "Das Letzte Kemonomimi & Kamuri",
-    "isDev": true,
-    "isLatest": false,
+    "isLatest": true,
     "added": [
       {
         "pl": "Przewijanie przeciąganiem na wszystkich czterech stylach falogramu — działa myszą i dotykiem, z podglądem czasu na żywo oraz płynnym skokiem po puszczeniu.",
@@ -403,7 +402,7 @@
     "codename": "Player Dock Harmony & Waveform Precision",
     "date": "2026-11-15",
     "author": "Das Letzte Kemonomimi",
-    "isLatest": true,
+    "isLatest": false,
     "added": [
       {
         "pl": "Kompletny 8-przyciskowy pasek narzędzi doku odtwarzacza (Bookmark, Points, A, B, Sliders, Moon, Keyboard, Lyrics) przywrócony 1:1 według wzorca graficznego.",
@@ -505,7 +504,8 @@
         "fi": "Päivitetty soittimen tilakysely estämään liukusäätimien jumiutuminen.",
         "la": "Interrogatio status emendata ne indices aequatoris in quiete impediat."
       }
-    ]
+    ],
+    "isLatest": false
   },
   {
     "version": "1.1.2",
@@ -1038,7 +1038,8 @@
         "la": "Inspector tramitis acustici Bit-Perfect (AudioPathInspectorModal): inspector canalis soni modo Poweramp per bullam PipeWire, demonstratio quattuor graduum et status BIT-PERFECT DIRECT."
       }
     ],
-    "fixed": []
+    "fixed": [],
+    "isLatest": false
   },
   {
     "version": "0.9.3",

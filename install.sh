@@ -12,7 +12,7 @@ REPO="Das-Letzte-Kemonomimi/Aura-Lune"
 GITHUB_API="https://api.github.com/repos/${REPO}/releases"
 
 # Default base version for fallback
-VERSION="1.1.5"
+VERSION="2.0.0"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/src-tauri/tauri.conf.json" ]]; then
     DETECTED_VER=$(grep -m1 '"version"' "$SCRIPT_DIR/src-tauri/tauri.conf.json" | sed -E 's/.*"version": "([^"]+)".*/\1/' || echo "")
     if [[ -n "$DETECTED_VER" ]]; then
