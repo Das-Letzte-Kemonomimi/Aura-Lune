@@ -136,9 +136,9 @@ export const AlbumTile = React.memo(function AlbumTile({
       onClick={() => actions.open(album)}
     >
       <AlbumCover album={album} iconSize={compact ? 36 : 46} className="aspect-square w-full overflow-hidden rounded-xl">
-        <AlbumFormatBadge stats={stats} mixedLabel={loc.library.albumFormatMixed} className="absolute top-2 left-2 bg-black/75 backdrop-blur-xs" />
+        <AlbumFormatBadge stats={stats} mixedLabel={loc.library.albumFormatMixed} className="absolute top-2 left-2 bg-black/75" />
         {current && (
-          <div className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-black/75 backdrop-blur-xs">
+          <div className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-black/75">
             <NowPlayingMark playing={playback === 'playing'} />
           </div>
         )}

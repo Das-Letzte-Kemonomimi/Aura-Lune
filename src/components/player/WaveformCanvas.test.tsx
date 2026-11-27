@@ -294,8 +294,9 @@ describe('WaveformCanvas Component', () => {
         raf.step();
         const initialWidthSets = canvasMock.widthAssignments();
         const initialHeightSets = canvasMock.heightAssignments();
-        expect(initialWidthSets).toBe(1);
-        expect(initialHeightSets).toBe(1);
+        // Rounded backing size (400×66 at 1.5×), not a per-frame truncated reallocation.
+        expect(canvas.width).toBe(600);
+        expect(canvas.height).toBe(99);
 
         canvasMock.calls.length = 0;
         fireEvent.pointerMove(waveformContainer, { clientX: 200, pointerId: 1 });
@@ -306,6 +307,58 @@ describe('WaveformCanvas Component', () => {
         expect(canvasMock.widthAssignments()).toBe(initialWidthSets);
         expect(canvasMock.heightAssignments()).toBe(initialHeightSets);
       } finally {
+        raf.restore();
+        canvasMock.restore();
+      }
+    });
+
+    it('renders the wave body once and only blits the cached layers on progress ticks', () => {
+      const canvasMock = installCanvasMock({ width: 400, height: 66 });
+      const raf = installFakeRaf();
+      try {
+        const base = { peaks: dummyPeaks, durationMs: 120000, currentLang: 'en' as const, initialStyle: 'smooth' as const };
+        const { rerender } = render(<WaveformCanvas {...base} progress={10} positionMs={12000} />);
+        raf.step();
+        expect(canvasMock.calls).toContain('bezierCurveTo');
+        const layerAllocations = canvasMock.widthAssignments();
+
+        canvasMock.calls.length = 0;
+        rerender(<WaveformCanvas {...base} progress={11} positionMs={13200} />);
+        raf.step();
+
+        expect(canvasMock.calls).toContain('drawImage');
+        expect(canvasMock.calls).not.toContain('bezierCurveTo');
+        expect(canvasMock.widthAssignments()).toBe(layerAllocations);
+      } finally {
+        raf.restore();
+        canvasMock.restore();
+      }
+    });
+
+    it('re-renders the cached layers when the theme rewrites the root colour variables', async () => {
+      const canvasMock = installCanvasMock({ width: 400, height: 66 });
+      const raf = installFakeRaf();
+      try {
+        render(
+          <WaveformCanvas
+            peaks={dummyPeaks}
+            progress={10}
+            durationMs={120000}
+            currentLang="en"
+            initialStyle="smooth"
+            colorPlayedStart="var(--accent-pink)"
+          />,
+        );
+        raf.step();
+        canvasMock.calls.length = 0;
+
+        document.documentElement.style.setProperty('--accent-pink', '#00ff00');
+        await Promise.resolve();
+        raf.step();
+
+        expect(canvasMock.calls).toContain('bezierCurveTo');
+      } finally {
+        document.documentElement.style.removeProperty('--accent-pink');
         raf.restore();
         canvasMock.restore();
       }

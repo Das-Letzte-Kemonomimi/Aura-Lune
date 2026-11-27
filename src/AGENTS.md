@@ -97,7 +97,7 @@ The backend playback ticker is the clock. The frontend never polls; a watchdog f
 - **Formatting values**: use `utils/timeFormat.ts`, `utils/fileSizeFormat.ts`, and `fmt(template, …args)` for `{0}` placeholders. Never chain `.replace('{0}', …)` or write a local formatter copy.
 - **Views & Modals**: Non-player tabs (`Library`, `DSP`, `Playlists`, `Stem Projects`, `Radio`, `Stats`) in `MainContentRouter.tsx`, `AppSettingsModal` in `App.tsx`, and all modal dialogs in `AppModalsContainer.tsx` are `React.lazy` + `<Suspense fallback={null}>` and conditionally mounted so only the active screen loads its JS chunk at startup.
 - **i18n**: `en.json` is static while `pl`/`de`/`fi`/`la` load on demand via `loadLocale(lang)` (`useAppBootstrap`, `LanguageSelector`). Every user-visible string goes in all five `locales/*.json`. `i18n.test.ts` (all English keys exist everywhere) and `i18n.parity.test.ts` (no stale keys, same `{n}` placeholders) must pass. The `i18n-sync` skill helps.
-- **Performance**: wrap layout and player components that receive ticking props in `React.memo`. Virtualize long lists (`useVirtualScroll`, `useQueueVirtualScroll`). Update hover tooltips on canvases imperatively, not through React state.
+- **Performance**: wrap layout and player components that receive ticking props in `React.memo`. Virtualize long lists (`useVirtualScroll`, `useQueueVirtualScroll`). Update hover tooltips on canvases imperatively, not through React state. Canvas and rAF animations go through `useFrameLoop` / `useCanvasLoop` with a `maxFps` cap, cache layers and gradients instead of redrawing static parts, and never use per-frame `shadowBlur`.
 - **Conventional Commits** (`feat(player): …`, `fix(library): …`); see the root `AGENTS.md`.
 
 ## Testing

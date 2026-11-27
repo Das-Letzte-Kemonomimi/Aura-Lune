@@ -43,7 +43,7 @@ describe('VuMeterWidget', () => {
     mount({ isPlaying: true, spectrum: Array(32).fill(0.5) });
     raf.step();
     const gradientsAfterFirst = canvas.calls.filter((c) => c === 'createLinearGradient').length;
-    for (let i = 0; i < 10; i++) raf.step();
+    for (let i = 0; i < 10; i++) raf.step(34); // 30 fps cap: one drawn frame per ~33 ms
     const gradientsAfter = canvas.calls.filter((c) => c === 'createLinearGradient').length;
     expect(gradientsAfter).toBe(gradientsAfterFirst); // static gradients only in the layer, once
     expect(canvas.calls.filter((c) => c === 'drawImage').length).toBeGreaterThanOrEqual(10);

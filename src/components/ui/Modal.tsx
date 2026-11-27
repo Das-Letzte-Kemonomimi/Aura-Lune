@@ -12,7 +12,7 @@ import { iconTileTones, type Tone } from './tones';
  *   100 tool · 110 tool dialog · 120 top (palette, recap) · 130 OSD · 140 fatal
  */
 const backdropVariants = cva(
-  'fixed inset-0 flex justify-center bg-black/75 p-5 backdrop-blur-sm motion-safe:animate-fade-in',
+  'fixed inset-0 flex justify-center bg-black/75 p-5 motion-safe:animate-fade-in',
   {
     variants: {
       placement: {

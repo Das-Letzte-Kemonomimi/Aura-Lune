@@ -271,7 +271,7 @@ export const PlayerQueuePanel: React.FC<PlayerQueuePanelProps> = React.memo(({
         <div ref={queueListRef} className="flex flex-col gap-1.5">
           {/* Column header bar */}
           <div
-            className="sticky top-0 z-10 grid items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold tracking-wider text-fg-muted uppercase backdrop-blur-md"
+            className="sticky top-0 z-10 grid items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold tracking-wider text-fg-muted uppercase"
             style={{ gridTemplateColumns: getQueueGridTemplate(queueColumns) }}
           >
             {queueColumns.showIndex && <span className="w-7 text-center">{t.queue.headerIndex}</span>}

@@ -28,6 +28,8 @@ import {
   type RomajiMode,
 } from './lyricsModel';
 import { cn } from '../../utils/cn';
+import { useStableCallback } from '../../hooks/useStableCallback';
+import { LyricLineRow } from './LyricLineRow';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { Badge, Button, Chip, IconButton, Spinner } from '../ui';
 
@@ -185,6 +187,25 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     });
     setSyncTargetIndex(Math.min(newLines.length - 1, index + 1));
   };
+
+  // Stable handlers for the memoised line rows (they read the latest state when called).
+  const handleLineClick = useStableCallback((idx: number) => {
+    if (isSyncMode) {
+      setSyncTargetIndex(idx);
+      return;
+    }
+    const line = lyrics?.lines[idx];
+    if (line) onSeek(Math.max(0, line.time_ms + offsetMs));
+  });
+  const handleSetLineTimeNow = useStableCallback((idx: number) => handleSetLineTime(idx, currentPositionMs));
+
+  // Transliteration per line, computed once per lyrics/mode change instead of on every position tick.
+  const romajiLines = useMemo(() => {
+    if (romajiMode === 'original' || !lyrics?.lines) return null;
+    return lyrics.lines.map((line) =>
+      romajiMode === 'romaji' || hasJapaneseCharacters(line.text) ? toRomaji(line.text) : null,
+    );
+  }, [lyrics, romajiMode]);
 
   // Automatic line layout (Auto-Sync) along the track duration
   const handleAutoDistribute = () => {
@@ -448,72 +469,24 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
           <div className="flex w-full max-w-205 min-w-0 flex-col gap-3.5 pt-[15vh] pb-[25vh]">
             {lyrics.lines.map((line, idx) => {
               const isActive = idx === activeIndex;
-              const isPast = idx < activeIndex;
-              const isTarget = isSyncMode && idx === syncTargetIndex;
-
               return (
-                <div
+                <LyricLineRow
                   key={`${line.time_ms}-${idx}`}
-                  ref={isActive ? activeLineRef : null}
-                  className={cn(
-                    'border-l-4',
-                    'flex min-w-0 max-w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl px-4 py-2 leading-normal wrap-anywhere motion-safe:transition-[color,background-color,border-color,opacity,scale] motion-safe:duration-200',
-                    isActive ? 'text-2xl font-bold' : 'text-base font-medium',
-                    isActive ? 'text-fg' : isPast ? 'text-fg-secondary' : 'text-fg-muted',
-                    isActive ? 'opacity-100' : isPast ? 'opacity-65' : 'opacity-45',
-                    isTarget ? 'bg-accent-pink/20' : isActive ? 'bg-accent-purple/10' : 'bg-transparent',
-                    isActive ? 'border-accent-cyan' : isTarget ? 'border-accent-pink' : 'border-transparent',
-                    isActive && 'scale-104 text-shadow-glow',
-                  )}
-                  onClick={() => {
-                    if (isSyncMode) {
-                      setSyncTargetIndex(idx);
-                    } else {
-                      onSeek(Math.max(0, line.time_ms + offsetMs));
-                    }
-                  }}
-                >
-                  {/* Timestamp in sync mode */}
-                  {isSyncMode && (
-                    <div className="flex items-center gap-1.5">
-                      <Badge mono>{formatTimeLrc(Math.max(0, line.time_ms + offsetMs))}</Badge>
-                      <Button
-                        variant="tinted"
-                        tone="pink"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSetLineTime(idx, currentPositionMs);
-                        }}
-                        title={loc.lyricsView.syncLineTooltip}
-                        className="text-xxs"
-                      >
-                        <Clock size={11} /> {loc.lyricsView.syncLineAction}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Lyric line text with optional Romaji transliteration */}
-                  {romajiMode === 'original' ? (
-                    <span className="min-w-0 flex-1">{line.text}</span>
-                  ) : romajiMode === 'romaji' ? (
-                    <span className="min-w-0 flex-1">{toRomaji(line.text)}</span>
-                  ) : (
-                    <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
-                      <span>{line.text}</span>
-                      {hasJapaneseCharacters(line.text) && (
-                        <span
-                          className={cn(
-                            'text-[0.72em] font-medium tracking-wide italic transition-[color,opacity] duration-200',
-                            isActive ? 'text-accent-cyan opacity-95' : 'text-fg-secondary opacity-65',
-                          )}
-                        >
-                          {toRomaji(line.text)}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  index={idx}
+                  text={line.text}
+                  romaji={romajiLines?.[idx] ?? null}
+                  romajiMode={romajiMode}
+                  isActive={isActive}
+                  isPast={idx < activeIndex}
+                  isTarget={isSyncMode && idx === syncTargetIndex}
+                  isSyncMode={isSyncMode}
+                  timeLabel={isSyncMode ? formatTimeLrc(Math.max(0, line.time_ms + offsetMs)) : ''}
+                  syncActionLabel={loc.lyricsView.syncLineAction}
+                  syncTooltip={loc.lyricsView.syncLineTooltip}
+                  lineRef={isActive ? activeLineRef : undefined}
+                  onLineClick={handleLineClick}
+                  onSetLineTime={handleSetLineTimeNow}
+                />
               );
             })}
           </div>

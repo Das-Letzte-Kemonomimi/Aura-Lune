@@ -87,6 +87,8 @@ export const VuMeterWidget: React.FC<VuMeterWidgetProps> = ({
       return !(isVuSettled(leftRef.current, playing) && isVuSettled(rightRef.current, playing));
     },
     {
+      // Needle ballistics on 10 Hz data: 30 fps is visually identical and halves the draw cost.
+      maxFps: 30,
       onResize: () => {
         faceRef.current = { layer: null, key: '' };
       },

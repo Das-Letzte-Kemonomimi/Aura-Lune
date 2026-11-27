@@ -85,6 +85,8 @@ export const SpectrumVisualizer: React.FC<SpectrumVisualizerProps> = ({
       return playing || moving;
     },
     {
+      // The spectrum arrives at 10 Hz and the bands are smoothed per frame: 60 fps is plenty even on 144 Hz screens.
+      maxFps: 60,
       pixelRatio: 'device',
       onResize: () => gradients.clear(),
     },

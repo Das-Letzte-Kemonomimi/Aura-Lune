@@ -8,6 +8,10 @@ import type { TrackRecord } from '../../../types/library';
 import { Badge, Button, Card, EmptyState, IconButton } from '../../../components/ui';
 import type { ArtistSortField } from './LibraryToolbar';
 import { NowPlayingMark, TrackAction, TrackCover, TrackFormatBadge } from './trackRowParts';
+import { useProgressiveCount } from '../../../hooks/useProgressiveCount';
+
+/** Off-screen artist cards skip layout and paint until scrolled near (height estimate of one card). */
+const CARD_OFFSCREEN_SKIP = '[content-visibility:auto] [contain-intrinsic-size:auto_9rem]';
 
 export type LibraryArtistsViewProps = Pick<
   LibraryViewProps,
@@ -81,6 +85,8 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
   );
 
   const albumById = useMemo(() => new Map(albums.map((a) => [a.id, a])), [albums]);
+  // Mount the artist grid in chunks (a large library has thousands of artists); restarts on a new sort.
+  const visibleArtistCount = useProgressiveCount(sortedArtists.length, `${artistSortField}-${artistSortOrder}`);
 
   if (selectedArtist) {
     const artistTracks = byDiscAndTrack(selectedArtist.tracks);
@@ -272,20 +278,22 @@ export const LibraryArtistsView: React.FC<LibraryArtistsViewProps> = ({
         />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(--spacing(64),1fr))] gap-4">
-          {sortedArtists.map((artist) => (
+          {sortedArtists.slice(0, visibleArtistCount).map((artist) => (
             <Card
               key={artist.name}
               interactive
               padding="sm"
               onClick={() => setSelectedArtistName(artist.name)}
-              className="flex cursor-pointer flex-col gap-3 rounded-2xl"
+              className={cn('flex cursor-pointer flex-col gap-3 rounded-2xl', CARD_OFFSCREEN_SKIP)}
             >
               <div className="flex items-center gap-3.5">
-                <div
-                  className="flex size-16 shrink-0 items-center justify-center rounded-2xl border-2 border-accent-pink/40 bg-linear-135 from-accent-pink/25 to-accent-purple/25 bg-cover bg-center shadow-lift shadow-accent-pink/20"
-                  style={artist.sampleCover ? { backgroundImage: `url("${artist.sampleCover}")` } : undefined}
-                >
-                  {!artist.sampleCover && <Mic2 size={26} className="text-accent-pink" />}
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-accent-pink/40 bg-linear-135 from-accent-pink/25 to-accent-purple/25 shadow-lift shadow-accent-pink/20">
+                  {artist.sampleCover ? (
+                    // A lazy, async-decoded <img> (not a CSS background): off-screen covers are not fetched or decoded up front
+                    <img src={artist.sampleCover} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                  ) : (
+                    <Mic2 size={26} className="text-accent-pink" />
+                  )}
                 </div>
 
                 <div className="min-w-0 flex-1">

@@ -193,17 +193,22 @@ const drawAnimeCircle: Drawer = ({ ctx, width, height, bands, count, rotation, g
   const bassLevel = (bands[0] || 0) * 0.6 + (bands[1] || 0) * 0.4;
   const coreR = Math.max(8, 14 + bassLevel * 16);
 
-  // Pulsing anime core with a neon glow
+  // Pulsing anime core with a neon glow: a translucent halo disc instead of a per-frame shadowBlur
   ctx.save();
-  ctx.shadowBlur = 14;
-  ctx.shadowColor = 'rgba(255, 77, 148, 0.75)';
+  ctx.fillStyle = 'rgba(255, 77, 148, 0.18)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, coreR + 7, 0, 2 * Math.PI);
+  ctx.fill();
 
-  // Inner circle (Kitsune Core)
-  const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreR);
-  coreGrad.addColorStop(0, '#ffffff');
-  coreGrad.addColorStop(0.5, '#ff4d94');
-  coreGrad.addColorStop(1, '#7928ca');
-  ctx.fillStyle = coreGrad;
+  // Inner circle (Kitsune Core); the radial gradient is cached by the rounded radius (cleared on resize)
+  const coreKey = Math.round(coreR);
+  ctx.fillStyle = gradients.get(`core:${coreKey}`, () => {
+    const coreGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreKey);
+    coreGrad.addColorStop(0, '#ffffff');
+    coreGrad.addColorStop(0.5, '#ff4d94');
+    coreGrad.addColorStop(1, '#7928ca');
+    return coreGrad;
+  });
   ctx.beginPath();
   ctx.arc(cx, cy, coreR, 0, 2 * Math.PI);
   ctx.fill();
@@ -290,15 +295,14 @@ const drawOscilloscope: Drawer = ({ ctx, width, height, bands, count, isPlaying,
     else ctx.lineTo(x, y);
   }
 
-  // Glow only on the wide beam (one blur instead of three), a thin white line without a shadow
-  ctx.shadowBlur = 12;
-  ctx.shadowColor = '#00ffcc';
+  // Glow as a wide translucent stroke under the beam (no per-frame shadowBlur), then a thin white core line
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.16)';
+  ctx.lineWidth = 8;
+  ctx.stroke();
   ctx.strokeStyle = '#00ffcc';
   ctx.lineWidth = 2.4;
   ctx.stroke();
 
-  ctx.shadowBlur = 0;
-  ctx.shadowColor = 'transparent';
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 0.8;
   ctx.stroke();
@@ -362,10 +366,6 @@ const drawLissajous: Drawer = ({ ctx, width, height, bands, count, isPlaying, ro
   if (isPlaying) {
     const points = 120;
     ctx.beginPath();
-    ctx.strokeStyle = '#06b6d4';
-    ctx.shadowColor = '#06b6d4';
-    ctx.shadowBlur = 8;
-    ctx.lineWidth = 2;
 
     for (let p = 0; p <= points; p++) {
       const t = (p / points) * Math.PI * 2;
@@ -376,6 +376,12 @@ const drawLissajous: Drawer = ({ ctx, width, height, bands, count, isPlaying, ro
       if (p === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+    // Glow as a wide translucent stroke under the trace (no per-frame shadowBlur)
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 2;
     ctx.stroke();
   }
   ctx.restore();

@@ -21,6 +21,13 @@ export interface VinylSimConfig {
 
 const STORAGE_KEY = 'auralune_vinyl_sim_config_v1';
 
+/** Length of one dust crackle impulse (s). */
+const CRACKLE_SECONDS = 0.006;
+/** Pre-generated crackle impulse shapes, reused for every crackle. */
+const CRACKLE_VARIANTS = 6;
+/** The fade-out uses a 0.08 s time constant; after ~6τ the noise is inaudible and the context can sleep. */
+const SUSPEND_AFTER_FADE_MS = 500;
+
 export const DEFAULT_VINYL_SIM_CONFIG: VinylSimConfig = {
   enabled: false,
   mode: 'vinyl',
@@ -44,6 +51,12 @@ class VinylSimulatorEngine {
   private tapeHissSource: AudioBufferSourceNode | null = null;
 
   private crackleTimer: number | null = null;
+  // Crackle chain built once: pre-generated impulse shapes + one band-pass and gain stage.
+  private crackleBuffers: AudioBuffer[] = [];
+  private crackleFilter: BiquadFilterNode | null = null;
+  private crackleGain: GainNode | null = null;
+  // Suspends the AudioContext once the fade-out has reached silence (no audio thread work while idle).
+  private suspendTimer: number | null = null;
   private isRunning = false;
   private isPlayerPlaying = false;
   private rpm: 33 | 45 = 33;
@@ -156,6 +169,7 @@ class VinylSimulatorEngine {
 
     this.setupVinylSynthesis();
     this.setupTapeSynthesis();
+    this.setupCrackleChain();
   }
 
   private createPinkNoiseBuffer(seconds = 4): AudioBuffer {
@@ -264,6 +278,28 @@ class VinylSimulatorEngine {
     this.tapeHissSource.start();
   }
 
+  /** Impulse shapes (normalised, random polarity and decay) and the shared crackle filter/gain. */
+  private setupCrackleChain() {
+    const ctx = this.ctx;
+    if (!ctx || !this.masterGain) return;
+    const frames = Math.max(1, Math.floor(ctx.sampleRate * CRACKLE_SECONDS));
+    this.crackleBuffers = Array.from({ length: CRACKLE_VARIANTS }, (_, v) => {
+      const buf = ctx.createBuffer(1, frames, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      const decay = 5 + (v / Math.max(1, CRACKLE_VARIANTS - 1)) * 2; // 5..7 samples
+      for (let i = 0; i < frames; i++) data[i] = Math.exp(-i / decay);
+      return buf;
+    });
+
+    this.crackleFilter = ctx.createBiquadFilter();
+    this.crackleFilter.type = 'bandpass';
+    this.crackleFilter.Q.setValueAtTime(4.0, ctx.currentTime);
+    this.crackleGain = ctx.createGain();
+    this.crackleGain.gain.setValueAtTime(0, ctx.currentTime);
+    this.crackleFilter.connect(this.crackleGain);
+    this.crackleGain.connect(this.masterGain);
+  }
+
   private scheduleCrackle() {
     if (this.crackleTimer !== null) {
       window.clearTimeout(this.crackleTimer);
@@ -282,36 +318,23 @@ class VinylSimulatorEngine {
   }
 
   private playSingleCrackle() {
-    if (!this.ctx || !this.masterGain || !this.isRunning || this.config.intensity <= 0.01) return;
+    if (!this.ctx || !this.crackleFilter || !this.crackleGain || !this.isRunning || this.config.intensity <= 0.01) return;
+    const buffer = this.crackleBuffers[Math.floor(Math.random() * this.crackleBuffers.length)];
+    if (!buffer) return;
     const now = this.ctx.currentTime;
 
-    // Short needle spike impulse with a random polarity
-    const frames = Math.floor(this.ctx.sampleRate * 0.006);
-    const buf = this.ctx.createBuffer(1, frames, this.ctx.sampleRate);
-    const data = buf.getChannelData(0);
-
+    // Short needle spike: a pre-generated impulse; random amplitude and polarity go into the shared gain
+    // (a negative gain inverts the polarity). Crackles are ≥ 25 ms apart and the impulse lasts 6 ms,
+    // so retuning the shared band-pass per crackle never affects a sounding one.
     const isLoudPop = Math.random() > 0.92;
     const amp = (isLoudPop ? 0.35 : 0.12) * (Math.random() * 2 - 1) * this.config.intensity;
+    this.crackleFilter.frequency.setValueAtTime(2400 + Math.random() * 3200, now);
+    this.crackleGain.gain.setValueAtTime(0.22 * amp, now);
 
-    for (let i = 0; i < frames; i++) {
-      data[i] = amp * Math.exp(-i / 6.0);
-    }
-
+    // A buffer source is single-use by design; it is the only node created per crackle.
     const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-
-    const bp = this.ctx.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.setValueAtTime(2400 + Math.random() * 3200, now);
-    bp.Q.setValueAtTime(4.0, now);
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.22, now);
-
-    src.connect(bp);
-    bp.connect(gain);
-    gain.connect(this.masterGain);
-
+    src.buffer = buffer;
+    src.connect(this.crackleFilter);
     src.start(now);
   }
 
@@ -348,12 +371,13 @@ class VinylSimulatorEngine {
       this.config.enabled &&
       (!this.config.autoSync || this.isPlayerPlaying);
 
+    this.cancelSuspend();
     if (shouldAudible) {
       this.initContext();
       if (!this.ctx) return;
 
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
+        void this.ctx.resume();
       }
 
       this.isRunning = true;
@@ -380,7 +404,23 @@ class VinylSimulatorEngine {
         window.clearTimeout(this.crackleTimer);
         this.crackleTimer = null;
       }
+      this.scheduleSuspend();
     }
+  }
+
+  /** Once the fade-out is inaudible, suspend the context so the audio thread stops rendering silence. */
+  private scheduleSuspend() {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    this.suspendTimer = window.setTimeout(() => {
+      this.suspendTimer = null;
+      if (!this.isRunning && this.ctx?.state === 'running') void this.ctx.suspend();
+    }, SUSPEND_AFTER_FADE_MS);
+  }
+
+  private cancelSuspend() {
+    if (this.suspendTimer === null) return;
+    window.clearTimeout(this.suspendTimer);
+    this.suspendTimer = null;
   }
 }
 

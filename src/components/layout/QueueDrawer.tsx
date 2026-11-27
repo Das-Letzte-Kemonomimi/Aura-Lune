@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
   ListMusic,
   Infinity as InfinityIcon,
@@ -19,6 +19,7 @@ import {
   resolveQueueTrackMetaFromLookup,
 } from '../../views/player/queueTrackMeta';
 import { cn } from '../../utils/cn';
+import { useVirtualScroll } from '../../hooks/useVirtualScroll';
 import { Badge, Button, Chip, EmptyState, IconButton } from '../ui';
 
 export interface QueueDrawerProps {
@@ -110,80 +111,130 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = React.memo(({
         </div>
       </div>
 
-      {/* Queue item list */}
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
-        {queue.items.length === 0 ? (
+      {/* Queue item list (virtualised on its own scroller) */}
+      {queue.items.length === 0 ? (
+        <div className="flex flex-1 flex-col overflow-y-auto p-3">
           <EmptyState icon={<Music size={24} />} title={loc.queue.empty} description={loc.queue.emptyHint} className="py-15" />
-        ) : (
-          queue.items.map((item, idx) => {
-            const isCurrent = idx === queue.current_index;
-            const isPlaying = isCurrent && status.state === 'Playing';
-            const meta = metas[idx];
-            return (
-              <div
-                key={item.id}
-                onClick={() => onPlayQueueIndex(idx, item)}
-                aria-current={isCurrent ? 'true' : undefined}
-                className="group flex cursor-pointer items-center gap-3 rounded-2xl border border-line bg-white/5 p-2.5 not-aria-[current=true]:hover:border-line-accent aria-[current=true]:border-accent-pink aria-[current=true]:bg-linear-to-r aria-[current=true]:from-accent-pink/25 aria-[current=true]:via-accent-purple/10 aria-[current=true]:to-transparent aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25"
-              >
-                {/* Cover with position; the current track shows its play state over the art */}
-                <div
-                  className={cn(
-                    'relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border bg-linear-135 from-accent-pink/30 to-accent-purple/30',
-                    isCurrent ? 'border-accent-pink/60' : 'border-line',
-                  )}
-                  style={meta?.cover ? { background: `url("${meta.cover}") center/cover no-repeat` } : undefined}
-                >
-                  {!meta?.cover && <Disc size={24} className="text-fg-muted" />}
-                  {isCurrent ? (
-                    <span className="absolute inset-0 grid place-items-center bg-black/55 text-accent-pink">
-                      {isPlaying ? <Zap size={20} /> : <Play size={18} />}
-                    </span>
-                  ) : (
-                    <span className="absolute top-0.5 left-0.5 rounded-md bg-black/85 px-1.5 py-px font-mono text-xs font-bold text-fg shadow-sm ring-1 ring-white/15">{idx + 1}</span>
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className={cn('truncate text-sm text-fg', isCurrent ? 'font-bold' : 'font-semibold')}>{item.title}</p>
-                  <p className="truncate text-xs text-fg-muted group-aria-[current=true]:text-accent-cyan">
-                    {item.artist || loc.player.unknownArtist} {item.album ? `• ${item.album}` : ''}
-                  </p>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    {meta && (
-                      <Badge mono size="xs" tone={/FLAC|WAV/i.test(meta.format) ? 'cyan' : 'purple'}>
-                        {meta.format}
-                        {meta.bitDepth ? ` ${meta.bitDepth}b` : ''}
-                      </Badge>
-                    )}
-                    <span className="font-mono text-xs text-fg-muted group-aria-[current=true]:text-accent-pink">{formatTime(item.duration_ms || 0)}</span>
-                  </div>
-                </div>
-
-                {/* Actions: stacked reorder arrows and remove; dimmed until hover or focus */}
-                <div className="flex shrink-0 items-center gap-0.5 opacity-55 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <div className="flex flex-col">
-                    <IconButton size="sm" label={loc.queue.moveUp} disabled={idx === 0} onClick={(e) => onMoveQueueItem(idx, idx - 1, e)}>
-                      <ChevronUp size={16} />
-                    </IconButton>
-                    <IconButton
-                      size="sm"
-                      label={loc.queue.moveDown}
-                      disabled={idx === queue.items.length - 1}
-                      onClick={(e) => onMoveQueueItem(idx, idx + 1, e)}
-                    >
-                      <ChevronDown size={16} />
-                    </IconButton>
-                  </div>
-                  <IconButton size="sm" label={loc.queue.remove} onClick={(e) => onRemoveFromQueue(item.id, e)} className="hover:text-accent-red">
-                    <Trash2 size={15} />
-                  </IconButton>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+        </div>
+      ) : (
+        <QueueDrawerList
+          queue={queue}
+          isPlaybackActive={status.state === 'Playing'}
+          metas={metas}
+          onPlayQueueIndex={onPlayQueueIndex}
+          onMoveQueueItem={onMoveQueueItem}
+          onRemoveFromQueue={onRemoveFromQueue}
+          formatTime={formatTime}
+          loc={loc}
+        />
+      )}
     </div>
   );
 });
+
+/** Row box height (px) and the gap below it: a fixed stride keeps the virtual spacers exact. */
+const QUEUE_ROW_HEIGHT_PX = 84;
+const QUEUE_ROW_GAP_PX = 8;
+const QUEUE_ROW_STRIDE_PX = QUEUE_ROW_HEIGHT_PX + QUEUE_ROW_GAP_PX;
+
+interface QueueDrawerListProps
+  extends Pick<QueueDrawerProps, 'queue' | 'onPlayQueueIndex' | 'onMoveQueueItem' | 'onRemoveFromQueue' | 'formatTime' | 'loc'> {
+  isPlaybackActive: boolean;
+  metas: ReturnType<typeof useQueueMetas>;
+}
+
+/** The scrolling item list: renders only the visible rows (plus overscan) of a long queue. */
+function QueueDrawerList({
+  queue,
+  isPlaybackActive,
+  metas,
+  onPlayQueueIndex,
+  onMoveQueueItem,
+  onRemoveFromQueue,
+  formatTime,
+  loc,
+}: QueueDrawerListProps) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { startIndex, endIndex, topSpacerHeight, bottomSpacerHeight } = useVirtualScroll({
+    itemCount: queue.items.length,
+    itemHeight: QUEUE_ROW_STRIDE_PX,
+    containerRef: scrollRef,
+    overscan: 8,
+  });
+
+  return (
+    <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
+      {topSpacerHeight > 0 && <div aria-hidden="true" style={{ height: topSpacerHeight }} />}
+      {queue.items.slice(startIndex, endIndex).map((item, offset) => {
+        const idx = startIndex + offset;
+        const isCurrent = idx === queue.current_index;
+        const isPlaying = isCurrent && isPlaybackActive;
+        const meta = metas[idx];
+        return (
+          <div
+            key={item.id}
+            onClick={() => onPlayQueueIndex(idx, item)}
+            aria-current={isCurrent ? 'true' : undefined}
+            style={{ height: QUEUE_ROW_HEIGHT_PX, marginBottom: QUEUE_ROW_GAP_PX }}
+            className="group flex cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-line bg-white/5 p-2.5 not-aria-[current=true]:hover:border-line-accent aria-[current=true]:border-accent-pink aria-[current=true]:bg-linear-to-r aria-[current=true]:from-accent-pink/25 aria-[current=true]:via-accent-purple/10 aria-[current=true]:to-transparent aria-[current=true]:shadow-halo-lg aria-[current=true]:shadow-accent-pink/25"
+          >
+            {/* Cover with position; the current track shows its play state over the art */}
+            <div
+              className={cn(
+                'relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border bg-linear-135 from-accent-pink/30 to-accent-purple/30',
+                isCurrent ? 'border-accent-pink/60' : 'border-line',
+              )}
+              style={meta?.cover ? { background: `url("${meta.cover}") center/cover no-repeat` } : undefined}
+            >
+              {!meta?.cover && <Disc size={24} className="text-fg-muted" />}
+              {isCurrent ? (
+                <span className="absolute inset-0 grid place-items-center bg-black/55 text-accent-pink">
+                  {isPlaying ? <Zap size={20} /> : <Play size={18} />}
+                </span>
+              ) : (
+                <span className="absolute top-0.5 left-0.5 rounded-md bg-black/85 px-1.5 py-px font-mono text-xs font-bold text-fg shadow-sm ring-1 ring-white/15">{idx + 1}</span>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className={cn('truncate text-sm text-fg', isCurrent ? 'font-bold' : 'font-semibold')}>{item.title}</p>
+              <p className="truncate text-xs text-fg-muted group-aria-[current=true]:text-accent-cyan">
+                {item.artist || loc.player.unknownArtist} {item.album ? `• ${item.album}` : ''}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                {meta && (
+                  <Badge mono size="xs" tone={/FLAC|WAV/i.test(meta.format) ? 'cyan' : 'purple'}>
+                    {meta.format}
+                    {meta.bitDepth ? ` ${meta.bitDepth}b` : ''}
+                  </Badge>
+                )}
+                <span className="font-mono text-xs text-fg-muted group-aria-[current=true]:text-accent-pink">{formatTime(item.duration_ms || 0)}</span>
+              </div>
+            </div>
+
+            {/* Actions: stacked reorder arrows and remove; dimmed until hover or focus */}
+            <div className="flex shrink-0 items-center gap-0.5 opacity-55 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+              <div className="flex flex-col">
+                <IconButton size="sm" label={loc.queue.moveUp} disabled={idx === 0} onClick={(e) => onMoveQueueItem(idx, idx - 1, e)}>
+                  <ChevronUp size={16} />
+                </IconButton>
+                <IconButton
+                  size="sm"
+                  label={loc.queue.moveDown}
+                  disabled={idx === queue.items.length - 1}
+                  onClick={(e) => onMoveQueueItem(idx, idx + 1, e)}
+                >
+                  <ChevronDown size={16} />
+                </IconButton>
+              </div>
+              <IconButton size="sm" label={loc.queue.remove} onClick={(e) => onRemoveFromQueue(item.id, e)} className="hover:text-accent-red">
+                <Trash2 size={15} />
+              </IconButton>
+            </div>
+          </div>
+        );
+      })}
+      {bottomSpacerHeight > 0 && <div aria-hidden="true" style={{ height: bottomSpacerHeight }} />}
+    </div>
+  );
+}

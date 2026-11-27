@@ -1,14 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { BarChart2, Waves, Activity, Sliders } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
+import { sanitizeBands, sanitizePeaks, spectralColor } from './waveformGeometry';
 import {
-  computeBarLayout,
-  resampleBands,
-  resamplePeaks,
-  sanitizeBands,
-  sanitizePeaks,
-  spectralColor,
-} from './waveformGeometry';
+  blitWaveLayers,
+  drawPlayhead,
+  horizontalPlayedGradient,
+  playedClipX,
+  renderWaveLayers,
+  verticalPlayedGradient,
+  type WaveColors,
+  type WaveLayers,
+  type WaveLayerSpec,
+} from './waveformLayers';
 import type { SpectralBandTriple } from '../../types/analysis';
 import { parseOneOf, usePersistedState } from '../../hooks/usePersistedState';
 import { useCanvasLoop } from '../../hooks/useCanvasLoop';
@@ -170,32 +174,37 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     tip.style.left = `${clampedX}px`;
   }, [durationMs, isScrolling]);
 
+  // CSS colours resolved once per prop/theme change (not 2× getComputedStyle per draw); see the effect below.
+  const colorsRef = useRef<WaveColors>({ start: '#f43f5e', end: '#a855f7', unplayed: 'rgba(255, 255, 255, 0.16)' });
+  // Played/unplayed wave bodies rendered once per (peaks, bands, style, size, colours); each tick only blits them.
+  const layersRef = useRef<{
+    key: string;
+    peaks: number[] | null;
+    bands: SpectralBandTriple[] | null;
+    layers: WaveLayers | null;
+  }>({ key: '', peaks: null, bands: null, layers: null });
+  // Gradients of the per-tick styles (loading baseline, scrolling bars), rebuilt only on size/colour changes.
+  const gradientsRef = useRef<{ key: string; horizontal: CanvasGradient | null; vertical: CanvasGradient | null }>({
+    key: '',
+    horizontal: null,
+    vertical: null,
+  });
+
   const { canvasRef, invalidate } = useCanvasLoop(
     ({ ctx, width, height: canvasHeight }) => {
       canvasWidthRef.current = width;
-      const startColor = resolveCssColor(colorPlayedStart, '#f43f5e');
-      const endColor = resolveCssColor(colorPlayedEnd, '#a855f7');
-      const unplayedColor = resolveCssColor(colorUnplayed, 'rgba(255, 255, 255, 0.16)');
+      const colors = colorsRef.current;
 
-      // Gradient for the played part
-      const playedGrad = ctx.createLinearGradient(0, 0, width, 0);
-      try {
-        playedGrad.addColorStop(0, startColor);
-        playedGrad.addColorStop(1, endColor);
-      } catch {
-        playedGrad.addColorStop(0, '#f43f5e');
-        playedGrad.addColorStop(1, '#a855f7');
+      const gradientKey = `${width}x${canvasHeight}|${colors.start}|${colors.end}`;
+      if (gradientsRef.current.key !== gradientKey) {
+        gradientsRef.current = {
+          key: gradientKey,
+          horizontal: horizontalPlayedGradient(ctx, width, colors),
+          vertical: verticalPlayedGradient(ctx, canvasHeight, colors),
+        };
       }
-
-      const verticalPlayedGrad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-      try {
-        verticalPlayedGrad.addColorStop(0, startColor);
-        verticalPlayedGrad.addColorStop(0.5, endColor);
-        verticalPlayedGrad.addColorStop(1, '#06b6d4');
-      } catch {
-        verticalPlayedGrad.addColorStop(0, '#f43f5e');
-        verticalPlayedGrad.addColorStop(1, '#a855f7');
-      }
+      const playedGrad = gradientsRef.current.horizontal as CanvasGradient;
+      const verticalPlayedGrad = gradientsRef.current.vertical as CanvasGradient;
 
       const effectiveProgress = isDraggingRef.current && dragProgressRef.current !== null ? dragProgressRef.current : progress;
       const currentX = (effectiveProgress / 100) * width;
@@ -205,7 +214,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       if (isLoading && !hasRealPeaks) {
         const midY = canvasHeight / 2;
         ctx.save();
-        ctx.fillStyle = unplayedColor;
+        ctx.fillStyle = colors.unplayed;
         ctx.beginPath();
         roundRectPath(ctx, 0, midY - 2, width, 4, 2);
         ctx.fill();
@@ -218,193 +227,32 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.restore();
       }
       // ==========================================
-      // STYLE 1: SMOOTH CONTINUOUS WAVE (SMOOTH ANALOG WAVE)
+      // SMOOTH WAVE / CYBER BARS / MIRROR SPECTRUM: cached layers + clip at the playhead
       // ==========================================
-      else if (activeStyle === 'smooth') {
-        // The curve needs at least 2 points (otherwise division by zero → NaN).
-        const smoothPeaks = normalizedPeaks.length >= 2 ? normalizedPeaks : [normalizedPeaks[0], normalizedPeaks[0]];
-        const count = smoothPeaks.length;
-        const step = width / (count - 1);
-        const midY = canvasHeight / 2;
-
-        // Upper and lower curve points
-        const topPoints: { x: number; y: number }[] = [];
-        const bottomPoints: { x: number; y: number }[] = [];
-
-        for (let i = 0; i < count; i++) {
-          const x = i * step;
-          const p = smoothPeaks[i] / 100;
-          const amp = Math.max(0.12, p) * (midY - 4);
-          topPoints.push({ x, y: midY - amp });
-          bottomPoints.push({ x, y: midY + amp * 0.85 });
-        }
-
-        const drawSpline = (ctxTarget: CanvasRenderingContext2D) => {
-          ctxTarget.beginPath();
-          ctxTarget.moveTo(topPoints[0].x, topPoints[0].y);
-
-          // Upper Catmull-Rom curve forwards
-          for (let i = 0; i < count - 1; i++) {
-            const p0 = topPoints[Math.max(0, i - 1)];
-            const p1 = topPoints[i];
-            const p2 = topPoints[i + 1];
-            const p3 = topPoints[Math.min(count - 1, i + 2)];
-
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-            ctxTarget.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-          }
-
-          // Lower curve back from right to left
-          ctxTarget.lineTo(bottomPoints[count - 1].x, bottomPoints[count - 1].y);
-          for (let i = count - 1; i > 0; i--) {
-            const p0 = bottomPoints[Math.min(count - 1, i + 1)];
-            const p1 = bottomPoints[i];
-            const p2 = bottomPoints[i - 1];
-            const p3 = bottomPoints[Math.max(0, i - 2)];
-
-            const cp1x = p1.x + (p2.x - p0.x) / 6;
-            const cp1y = p1.y + (p2.y - p0.y) / 6;
-            const cp2x = p2.x - (p3.x - p1.x) / 6;
-            const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-            ctxTarget.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
-          }
-
-          ctxTarget.closePath();
+      else if (activeStyle !== 'scrolling') {
+        const spec: WaveLayerSpec = {
+          style: activeStyle,
+          peaks: normalizedPeaks,
+          bands: normalizedBands,
+          width,
+          height: canvasHeight,
+          colors,
         };
-
-        // 1. Unplayed layer (background)
-        drawSpline(ctx);
-        ctx.fillStyle = unplayedColor;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // 2. Played layer (neon clip, no shadowBlur for WebKitGTK compositor stability)
-        if (currentX > 0) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(0, 0, currentX, canvasHeight);
-          ctx.clip();
-
-          drawSpline(ctx);
-          if (hasSpectralData) {
-            const spectralGrad = ctx.createLinearGradient(0, 0, width, 0);
-            const stopCount = Math.min(24, normalizedBands.length);
-            for (let s = 0; s < stopCount; s++) {
-              const t = stopCount > 1 ? s / (stopCount - 1) : 0;
-              const idx = Math.min(normalizedBands.length - 1, Math.round(t * (normalizedBands.length - 1)));
-              spectralGrad.addColorStop(t, spectralColor(normalizedBands[idx], 0.92));
-            }
-            ctx.fillStyle = spectralGrad;
-          } else {
-            ctx.fillStyle = verticalPlayedGrad;
-          }
-          ctx.fill();
-
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.lineWidth = 1.75;
-          ctx.stroke();
-
-          ctx.restore();
-        }
-
-        // Playhead laser line
-        if (currentX > 0 && currentX < width) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(currentX, 2);
-          ctx.lineTo(currentX, canvasHeight - 2);
-          ctx.strokeStyle = 'rgba(244, 63, 94, 0.32)';
-          ctx.lineWidth = 6;
-          ctx.stroke();
-
-          ctx.beginPath();
-          ctx.moveTo(currentX, 2);
-          ctx.lineTo(currentX, canvasHeight - 2);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-
-          ctx.fillStyle = '#f43f5e';
-          ctx.beginPath();
-          ctx.arc(currentX, midY, 4.5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      }
-
-      // ==========================================
-      // STYLE 2: MODERN CYBER BARS
-      // ==========================================
-      else if (activeStyle === 'bars') {
-        // The layout fills exactly the whole width, so the bars match the playhead position.
-        const layout = computeBarLayout(width, normalizedPeaks.length, 3, 2.5);
-        const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
-        const barBands = hasSpectralData ? resampleBands(normalizedBands, layout.count) : [];
-        const { barWidth, step } = layout;
-
-        if (barBands.length === barPeaks.length && barBands.length > 0) {
-          const r = Math.min(barWidth / 2, 4);
-          ctx.save();
-          for (let i = 0; i < barPeaks.length; i++) {
-            const x = i * step;
-            const barHeight = Math.max(8, (Math.max(14, barPeaks[i]) / 100) * (canvasHeight - 6));
-            const y = (canvasHeight - barHeight) / 2;
-            const isPlayed = x + barWidth / 2 <= currentX;
-            ctx.fillStyle = spectralColor(barBands[i], isPlayed ? 0.95 : 0.22);
-            ctx.beginPath();
-            roundRectPath(ctx, x, y, barWidth, barHeight, r);
-            ctx.fill();
-          }
-          ctx.restore();
-        } else {
-          const playedPath: { x: number; y: number; h: number }[] = [];
-          const unplayedPath: { x: number; y: number; h: number }[] = [];
-          for (let i = 0; i < barPeaks.length; i++) {
-            const x = i * step;
-            const barHeight = Math.max(8, (Math.max(14, barPeaks[i]) / 100) * (canvasHeight - 6));
-            const bar = { x, y: (canvasHeight - barHeight) / 2, h: barHeight };
-            (x + barWidth / 2 <= currentX ? playedPath : unplayedPath).push(bar);
-          }
-
-          const fillBars = (bars: { x: number; y: number; h: number }[], radius: number) => {
-            if (bars.length === 0) return;
-            ctx.beginPath();
-            const r = Math.min(barWidth / 2, radius);
-            for (const b of bars) {
-              roundRectPath(ctx, b.x, b.y, barWidth, b.h, r);
-            }
-            ctx.fill();
+        const backingWidth = ctx.canvas.width;
+        const backingHeight = ctx.canvas.height;
+        const layerKey = `${activeStyle}|${width}x${canvasHeight}|${backingWidth}x${backingHeight}|${colors.start}|${colors.end}|${colors.unplayed}`;
+        const cache = layersRef.current;
+        if (cache.key !== layerKey || cache.peaks !== normalizedPeaks || cache.bands !== normalizedBands) {
+          layersRef.current = {
+            key: layerKey,
+            peaks: normalizedPeaks,
+            bands: normalizedBands,
+            layers: renderWaveLayers(spec, backingWidth, backingHeight),
           };
-
-          ctx.save();
-          ctx.fillStyle = unplayedColor;
-          fillBars(unplayedPath, 4);
-          ctx.fillStyle = verticalPlayedGrad;
-          fillBars(playedPath, 4);
-          ctx.restore();
         }
-
-        // Playhead indicator with a crisp halo dot
-        if (currentX > 0 && currentX < width) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(currentX, canvasHeight / 2, 8, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(244, 63, 94, 0.32)';
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.arc(currentX, canvasHeight / 2, 4.5, 0, Math.PI * 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.fill();
-          ctx.restore();
-        }
+        const layers = layersRef.current.layers;
+        if (layers) blitWaveLayers(ctx, layers, width, playedClipX(spec, currentX));
+        drawPlayhead(ctx, activeStyle, currentX, width, canvasHeight);
       }
 
       // ==========================================
@@ -524,99 +372,6 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       }
 
       // ==========================================
-      // STYLE 4: SYMMETRIC MIRROR WAVE (MIRROR SPECTRUM)
-      // ==========================================
-      else if (activeStyle === 'mirror') {
-        const layout = computeBarLayout(width, normalizedPeaks.length, 2.5, 2);
-        const barPeaks = resamplePeaks(normalizedPeaks, layout.count);
-        const barBands = hasSpectralData ? resampleBands(normalizedBands, layout.count) : [];
-        const { barWidth, step } = layout;
-        const midY = canvasHeight / 2;
-
-        if (barBands.length === barPeaks.length && barBands.length > 0) {
-          ctx.save();
-          for (let i = 0; i < barPeaks.length; i++) {
-            const x = i * step;
-            const [low, mid, high] = barBands[i];
-            const isPlayed = x + barWidth / 2 <= currentX;
-            const upperHeight = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
-            // Lower reflection emphasises bass/low-mid weight so kicks punch downward.
-            const bassWeight = 0.55 * low + 0.30 * mid + 0.15 * high;
-            const lowerHeight = Math.max(4, upperHeight * (0.45 + 0.50 * bassWeight));
-
-            ctx.fillStyle = spectralColor(barBands[i], isPlayed ? 0.95 : 0.22);
-            ctx.beginPath();
-            roundRectPath(ctx, x, midY - upperHeight - 1, barWidth, upperHeight, [3, 3, 0, 0]);
-            ctx.fill();
-
-            ctx.fillStyle = spectralColor([low, mid * 0.7, high * 0.4], isPlayed ? 0.48 : 0.14);
-            ctx.beginPath();
-            roundRectPath(ctx, x, midY + 1, barWidth, lowerHeight, [0, 0, 3, 3]);
-            ctx.fill();
-          }
-          ctx.restore();
-        } else {
-          const playedBars: { x: number; h: number }[] = [];
-          const unplayedBars: { x: number; h: number }[] = [];
-          for (let i = 0; i < barPeaks.length; i++) {
-            const x = i * step;
-            const halfHeight = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
-            (x + barWidth / 2 <= currentX ? playedBars : unplayedBars).push({ x, h: halfHeight });
-          }
-
-          // Upper half (main) and lower half (mirror with a lower opacity),
-          // one fill per group without shadowBlur so WebKitGTK compositing stays crisp.
-          const fillGroup = (
-            bars: { x: number; h: number }[],
-            fill: string | CanvasGradient,
-            lowerAlpha: number,
-          ) => {
-            if (bars.length === 0) return;
-            ctx.save();
-            ctx.fillStyle = fill;
-            ctx.beginPath();
-            for (const b of bars) roundRectPath(ctx, b.x, midY - b.h - 1, barWidth, b.h, [3, 3, 0, 0]);
-            ctx.fill();
-
-            ctx.globalAlpha = lowerAlpha;
-            ctx.beginPath();
-            for (const b of bars) roundRectPath(ctx, b.x, midY + 1, barWidth, b.h * 0.75, [0, 0, 3, 3]);
-            ctx.fill();
-            ctx.restore();
-          };
-          fillGroup(unplayedBars, unplayedColor, 0.15);
-          fillGroup(playedBars, playedGrad, 0.45);
-        }
-
-        // Central zero line
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, midY);
-        ctx.lineTo(width, midY);
-        ctx.stroke();
-
-        // Laser indicator
-        if (currentX > 0 && currentX < width) {
-          ctx.save();
-          ctx.strokeStyle = 'rgba(244, 63, 94, 0.32)';
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.moveTo(currentX, 2);
-          ctx.lineTo(currentX, canvasHeight - 2);
-          ctx.stroke();
-
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(currentX, 2);
-          ctx.lineTo(currentX, canvasHeight - 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-
-      // ==========================================
       // INTERACTIVE HOVER LINE (CURSOR PREVIEW)
       // ==========================================
       const hoverX = hoverXRef.current;
@@ -709,6 +464,24 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     },
   );
 
+  // Resolve the CSS colours on prop changes and again whenever the theme engine rewrites the root
+  // variables (one batched MutationObserver callback per theme switch), never per draw.
+  useLayoutEffect(() => {
+    const resolve = () => {
+      colorsRef.current = {
+        start: resolveCssColor(colorPlayedStart, '#f43f5e'),
+        end: resolveCssColor(colorPlayedEnd, '#a855f7'),
+        unplayed: resolveCssColor(colorUnplayed, 'rgba(255, 255, 255, 0.16)'),
+      };
+      invalidate();
+    };
+    resolve();
+    if (typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(resolve);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    return () => observer.disconnect();
+  }, [colorPlayedStart, colorPlayedEnd, colorUnplayed, invalidate]);
+
   // Redraw when props/style change (hover/drag pointer moves call `invalidate()` directly).
   useEffect(() => {
     invalidate();
@@ -723,9 +496,6 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     progress,
     isDragging,
     activeStyle,
-    colorPlayedStart,
-    colorPlayedEnd,
-    colorUnplayed,
     positionMs,
     durationMs,
     loopPointA,
