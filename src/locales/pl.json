@@ -576,14 +576,12 @@
   },
   "settings": {
     "title": "Ustawienia Auralune",
-    "subtitle": "Personalizacja motywu anime, audio PipeWire, konwersja i diagnostyka",
+    "subtitle": "Preferencje, odtwarzanie, integracje i informacje o aplikacji",
     "language": "Język / Language",
     "themes": "Motywy & Wygląd",
     "themesSubtitle": "Głęboka personalizacja: dopracowane presety anime, tapety i rozmycie szkła",
     "appearance": "Wygląd i motywy",
-    "audioDevices": "Audio & Urządzenia",
     "runHealthCheck": "Test toru audio",
-    "audioSubtitle": "Rozmiar bufora PipeWire, karty sprzętowe i kodeki Bluetooth",
     "volumeUnitTitle": "Format wyświetlania poziomu głośności",
     "volumeUnitDesc": "Wybierz wyświetlanie głośności w procentach (0% – 100%) lub w decybelach studyjnych (-∞ dB do 0.0 dB)",
     "volumeUnitPercent": "Procenty (%)",
@@ -852,7 +850,25 @@
     "transcodeGstreamerBgDesc": "Potok GStreamer przetwarza dźwięk asynchronicznie w tle. Aplikacja nie ulega zamrożeniu — możesz swobodnie słuchać muzyki lub zamknąć to okno.",
     "transcodeRenderingProgress": "Renderowanie w tle ({0}%)...",
     "replaygainPreampTagged": "Przedwzmacniacz: pliki z tagami RG",
-    "replaygainPreampUntagged": "Przedwzmacniacz: pliki bez tagów RG"
+    "replaygainPreampUntagged": "Przedwzmacniacz: pliki bez tagów RG",
+    "nav": {
+      "general": "Ogólne",
+      "appearance": "Wygląd",
+      "playback": "Odtwarzanie",
+      "audio": "Wyjście i silnik",
+      "library": "Biblioteka",
+      "integrations": "Integracje",
+      "export": "Eksport",
+      "data": "Kopia i dane",
+      "updates": "Aktualizacje",
+      "about": "O programie"
+    },
+    "navGroup": {
+      "personal": "Osobiste",
+      "audio": "Dźwięk",
+      "libraryServices": "Biblioteka i usługi",
+      "system": "System"
+    }
   },
   "shortcuts": {
     "title": "Skróty Klawiszowe",
@@ -2046,7 +2062,6 @@
     "rowHeightReset": "Wysokość wierszy: kliknij, aby przywrócić automatyczną"
   },
   "updates": {
-    "tab": "Aktualizacje i zmiany",
     "title": "Aktualizacje",
     "currentVersion": "Zainstalowana wersja",
     "channel": "Kanał",

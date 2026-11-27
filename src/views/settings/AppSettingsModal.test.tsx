@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { AppSettingsModal } from './AppSettingsModal';
 import { getTranslations } from '../../i18n';
+
+afterEach(cleanup);
 
 describe('AppSettingsModal', () => {
   const loc = getTranslations('en');
@@ -9,15 +11,27 @@ describe('AppSettingsModal', () => {
   const defaultProps = {
     isOpen: true,
     onClose: vi.fn(),
-    activeTab: 'themes' as const,
+    activeTab: 'general' as const,
     onSelectTab: vi.fn(),
     loc,
-    devicesProps: {} as any,
-    transcodeProps: {} as any,
-    themesProps: {
-      language: 'en' as const,
+    generalProps: {
       loc,
+      language: 'en' as const,
       onLanguageChange: vi.fn(),
+      restoreSessionOnStartup: true,
+      onToggleRestoreSessionOnStartup: vi.fn(),
+      closeToTray: false,
+      onToggleCloseToTray: vi.fn(),
+      desktopNotificationsEnabled: true,
+      onToggleDesktopNotifications: vi.fn(),
+      albumPlaybackMode: 'replace' as const,
+      onSetAlbumPlaybackMode: vi.fn(),
+      recapOptIn: false,
+      onToggleRecapOptIn: vi.fn(),
+      onOpenOnboarding: vi.fn(),
+    },
+    appearanceProps: {
+      loc,
       buttonGlowEnabled: true,
       onToggleGlow: vi.fn(),
       uiScale: 1.0,
@@ -40,6 +54,21 @@ describe('AppSettingsModal', () => {
       onThemeBlurChange: vi.fn(),
       appIconStyle: 'classic' as const,
       onSelectIconStyle: vi.fn(),
+    },
+    playbackProps: {} as any,
+    audioProps: {} as any,
+    libraryProps: {
+      loc,
+      autoFetchCoversBg: true,
+      onToggleAutoFetchCoversBg: vi.fn(),
+      onTriggerBackgroundCoverFetch: vi.fn(),
+    },
+    integrationsProps: {} as any,
+    transcodeProps: {} as any,
+    dataProps: {
+      loc,
+      onExportBackup: vi.fn(),
+      onImportBackup: vi.fn(),
       jsonExportContent: '',
       onExportTheme: vi.fn(),
       jsonImportContent: '',
@@ -55,14 +84,33 @@ describe('AppSettingsModal', () => {
       loc,
       onOpenHealthCheck: vi.fn(),
       onOpenChangelog: vi.fn(),
-      onOpenOnboarding: vi.fn(),
     },
-    backupProps: {} as any,
   };
 
-  it('renders themes tab content when activeTab is themes', () => {
-    render(<AppSettingsModal {...defaultProps} />);
-    expect(screen.getAllByText(loc.settings.themes).length).toBeGreaterThan(0);
+  it.each([
+    ['general', () => loc.settings.language],
+    ['appearance', () => loc.settings.themes],
+    ['library', () => loc.settings.autoFetchCoversTitle],
+    ['data', () => loc.settings.backupTitle],
+    ['about', () => loc.settings.disclaimerTitle],
+  ] as const)('renders the %s tab content', (tab, text) => {
+    render(<AppSettingsModal {...defaultProps} activeTab={tab} />);
+    expect(screen.getAllByText(text()).length).toBeGreaterThan(0);
+  });
+
+  it('lists every settings tab in the navigation and marks the active one', () => {
+    render(<AppSettingsModal {...defaultProps} activeTab="library" />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(10);
+    expect(screen.getByRole('tab', { name: loc.settings.nav.library }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('settings-tab-library');
+  });
+
+  it('selects a tab from the navigation', () => {
+    const onSelectTab = vi.fn();
+    render(<AppSettingsModal {...defaultProps} onSelectTab={onSelectTab} />);
+    fireEvent.click(screen.getByRole('tab', { name: loc.settings.nav.integrations }));
+    expect(onSelectTab).toHaveBeenCalledWith('integrations');
   });
 
   it('shows a pill on the Updates tab only when an update is available', () => {

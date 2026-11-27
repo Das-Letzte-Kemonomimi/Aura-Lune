@@ -576,14 +576,12 @@
   },
   "settings": {
     "title": "Optiones Auralune",
-    "subtitle": "Themata anime, audio PipeWire, transcodificatio et exploratio",
+    "subtitle": "Optiones, ludus, coniunctiones et notitiae applicationis",
     "language": "Lingua / Language",
     "themes": "Themata & Aspectus",
     "themesSubtitle": "Alta aptatio: themata anime, imagines et caligo vitri",
     "appearance": "Aspectus et themata",
-    "audioDevices": "Audio & Instrumenta",
     "runHealthCheck": "Viam soni proba",
-    "audioSubtitle": "Magnitudo buffer PipeWire, tabulae et codeces Bluetooth",
     "volumeUnitTitle": "Formatum exhibitionis voluminis",
     "volumeUnitDesc": "Monstra volumen per centesimas (0% - 100%) an per decibel (-∞ dB ad 0.0 dB)",
     "volumeUnitPercent": "Centesimae (%)",
@@ -852,7 +850,25 @@
     "transcodeGstreamerBgDesc": "GStreamer audio in curriculo asynchronice reddit. Applicatio numquam haeret — libere musicam audi vel claude fenestram.",
     "transcodeRenderingProgress": "Redditur in curriculo ({0}%)...",
     "replaygainPreampTagged": "Praeamplificator: fasciculi cum notis RG",
-    "replaygainPreampUntagged": "Praeamplificator: fasciculi sine notis RG"
+    "replaygainPreampUntagged": "Praeamplificator: fasciculi sine notis RG",
+    "nav": {
+      "general": "Generalia",
+      "appearance": "Species",
+      "playback": "Ludere",
+      "audio": "Exitus et machina",
+      "library": "Bibliotheca",
+      "integrations": "Coniunctiones",
+      "export": "Exportatio",
+      "data": "Tutela et data",
+      "updates": "Renovationes",
+      "about": "De Programmate"
+    },
+    "navGroup": {
+      "personal": "Personalia",
+      "audio": "Sonus",
+      "libraryServices": "Bibliotheca et servitia",
+      "system": "Systema"
+    }
   },
   "shortcuts": {
     "title": "Compendia Claviaturae",
@@ -2046,7 +2062,6 @@
     "rowHeightReset": "Altitudo linearum: preme ut automatica fiat"
   },
   "updates": {
-    "tab": "Renovationes et mutationes",
     "title": "Renovationes",
     "currentVersion": "Versio instituta",
     "channel": "Canalis",

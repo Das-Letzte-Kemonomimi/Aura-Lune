@@ -30,7 +30,7 @@ describe('useModalManager', () => {
     const { result } = renderHook(() => useModalManager());
 
     expect(result.current.isSettingsOpen).toBe(false);
-    expect(result.current.settingsTab).toBe('themes');
+    expect(result.current.settingsTab).toBe('general');
     expect(result.current.isShortcutsModalOpen).toBe(false);
     expect(result.current.tagEditorTrack).toBeNull();
     expect(result.current.coverPickerState).toBeNull();
@@ -82,7 +82,21 @@ describe('useModalManager', () => {
     });
 
     expect(result.current.isSettingsOpen).toBe(true);
-    expect(result.current.settingsTab).toBe('transcode');
+    expect(result.current.settingsTab).toBe('export');
+  });
+
+  it('remembers the last settings tab across mounts', () => {
+    const first = renderHook(() => useModalManager());
+    act(() => first.result.current.openSettings('integrations'));
+    first.unmount();
+    const second = renderHook(() => useModalManager());
+    expect(second.result.current.settingsTab).toBe('integrations');
+  });
+
+  it('maps a legacy stored tab id to its new tab', () => {
+    localStorage.setItem('auralune_settings_tab', 'themes');
+    const { result } = renderHook(() => useModalManager());
+    expect(result.current.settingsTab).toBe('appearance');
   });
 
   it('opens analysis with specified tab', () => {
@@ -103,7 +117,7 @@ describe('useModalManager', () => {
       result.current.setIsShortcutsModalOpen(true);
       result.current.setIsSoundscapeOpen(true);
       result.current.openTagEditor(sampleTrack);
-      result.current.openSettings('devices');
+      result.current.openSettings('audio');
     });
 
     expect(result.current.isShortcutsModalOpen).toBe(true);

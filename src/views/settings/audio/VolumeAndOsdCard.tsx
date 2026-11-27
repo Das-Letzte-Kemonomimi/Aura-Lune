@@ -2,11 +2,10 @@ import React from 'react';
 import { Volume2 } from '../../../components/ui/icons';
 import { type VolumeOsdPosition } from '../../../components/player/VolumeOsd';
 import { Card, SectionHeader, SegmentedControl, Select, SettingRow } from '../../../components/ui';
-import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
-import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import type { AudioSettingsProps } from './audioSettingsProps';
 
 export type VolumeAndOsdCardProps = Pick<
-  AudioDevicesSettingsViewProps,
+  AudioSettingsProps,
   | 'loc'
   | 'instantVolume'
   | 'onToggleInstantVolume'
@@ -16,8 +15,6 @@ export type VolumeAndOsdCardProps = Pick<
   | 'onSetVolumeCurve'
   | 'volumeOsdPosition'
   | 'onSetVolumeOsdPosition'
-  | 'onToggleRecapOptIn'
-  | 'recapOptIn'
 >;
 
 export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
@@ -27,8 +24,6 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
   onSetVolumeCurve,
   onSetVolumeUnit,
   onToggleInstantVolume,
-  onToggleRecapOptIn,
-  recapOptIn,
   volumeCurve,
   volumeOsdPosition,
   volumeUnit,
@@ -118,13 +113,6 @@ export const VolumeAndOsdCard: React.FC<VolumeAndOsdCardProps> = ({
         }
       />
 
-      {/* Auralune Recap consent (opt-in) */}
-      <SettingRow
-        title={loc.settings.recapTitle}
-        description={loc.settings.recapDesc}
-        control={<ToggleSwitch checked={recapOptIn} onChange={onToggleRecapOptIn} label={loc.settings.recapTitle} />}
-        className="pb-0"
-      />
     </div>
   </Card>
 );

@@ -2,11 +2,11 @@ import React from 'react';
 import { Activity, Sliders, Zap, ShieldCheck } from '../../../components/ui/icons';
 import { Badge, Button, Card, SectionHeader, SegmentedControl, SettingRow, SliderRow, Spinner } from '../../../components/ui';
 import { ToggleSwitch } from '../../../components/common/ToggleSwitch';
-import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import type { AudioSettingsProps } from './audioSettingsProps';
 import { formatSignedDb } from '../../../utils/preamp';
 
 export type ReplayGainOptionProps = Pick<
-  AudioDevicesSettingsViewProps,
+  AudioSettingsProps,
   | 'replaygainMode'
   | 'loc'
   | 'onSetReplayGain'

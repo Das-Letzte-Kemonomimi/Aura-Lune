@@ -1,10 +1,10 @@
 import React from 'react';
 import { Headphones } from '../../../components/ui/icons';
 import { Chip, SliderRow, ToggleCard } from '../../../components/ui';
-import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import type { AudioSettingsProps } from './audioSettingsProps';
 
 export type CrossfeedOptionProps = Pick<
-  AudioDevicesSettingsViewProps,
+  AudioSettingsProps,
   'crossfeedEnabled' | 'loc' | 'onSetCrossfeed' | 'crossfeedPreset' | 'crossfeedFcut' | 'crossfeedFeed'
 >;
 

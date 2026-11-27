@@ -1,4 +1,4 @@
-import type { SettingsTab } from '../types/navigation';
+import type { LegacySettingsTab, SettingsTab } from '../types/navigation';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '../api/ipc';
 import type { PlaybackStatus, TrackRecord, AlbumRecord, TrackBookmarkDto } from '../types/player';
@@ -28,7 +28,7 @@ export interface UseTranscodeManagerProps {
   loc: Translations;
   t: ReturnType<typeof getTranslations>;
   showMessage: (msg: string, isError?: boolean) => void;
-  setSettingsTab: (tab: SettingsTab) => void;
+  setSettingsTab: (tab: SettingsTab | LegacySettingsTab) => void;
   isSettingsOpen?: boolean;
   settingsTab?: string;
   setIsSettingsOpen: (open: boolean) => void;
@@ -107,7 +107,7 @@ export function useTranscodeManager({
 
   // Sync the active A-B loop and the current path after opening the transcoding tab
   useEffect(() => {
-    if (isSettingsOpen && settingsTab === 'transcode') {
+    if (isSettingsOpen && settingsTab === 'export') {
       const curPath = currentPlayingTrack?.path || status.current_track?.uri;
       if (curPath && (!filePath || filePath === 'tests/fixtures/test_sine_440hz.wav')) {
         let clean = curPath;
@@ -296,7 +296,7 @@ export function useTranscodeManager({
     setTranscodeRangeA(a !== null ? formatTimeMs(a) : '0:00.000');
     setTranscodeRangeB(b !== null ? formatTimeMs(b) : '');
     setTranscodeApplyRange(true);
-    setSettingsTab('transcode');
+    setSettingsTab('export');
     setIsSettingsOpen(true);
     showMessage(
       fmt((t.notifications.loopRangeImported || 'Imported A-B loop range for export: {0} → {1}'), formatTimeMs(a ?? 0), formatTimeMs(b))

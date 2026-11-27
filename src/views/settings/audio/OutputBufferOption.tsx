@@ -1,11 +1,11 @@
 import React from 'react';
 import { Layers } from '../../../components/ui/icons';
 import { TextField } from '../../../components/ui';
-import type { AudioDevicesSettingsViewProps } from '../AudioDevicesSettingsView';
+import type { AudioSettingsProps } from './audioSettingsProps';
 import { cssVars } from '../../../utils/cssVars';
 import { PresetOptionCard } from './PresetOptionCard';
 
-export type OutputBufferOptionProps = Pick<AudioDevicesSettingsViewProps, 'loc' | 'audioBufferMs' | 'onSetAudioBuffer'>;
+export type OutputBufferOptionProps = Pick<AudioSettingsProps, 'loc' | 'audioBufferMs' | 'onSetAudioBuffer'>;
 
 const DEFAULT_BUFFER_MS = 600;
 const SLIDER_MIN = 50;

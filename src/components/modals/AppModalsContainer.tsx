@@ -905,7 +905,7 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
           onResetDsp={handleResetDsp}
           onOpenBigScreen={() => setIsBigScreen(true)}
           onOpenReplayGainScanner={() => {
-            setActiveTab('devices');
+            setActiveTab('playback');
           }}
           onOpenSoundscape={() => setIsSoundscapeOpen(true)}
           onOpenHarmonicSuggester={() => setIsHarmonicSuggesterOpen(true)}

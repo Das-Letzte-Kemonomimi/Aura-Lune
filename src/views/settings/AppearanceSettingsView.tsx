@@ -1,6 +1,5 @@
 import React, { useId, useState } from 'react';
 import {
-  Globe,
   Sparkles,
   Maximize2,
   Palette,
@@ -10,9 +9,7 @@ import {
   Upload,
   Trash2,
   Save,
-  Download,
   Check,
-  Copy,
 } from '../../components/ui/icons';
 import {
   Badge,
@@ -22,22 +19,18 @@ import {
   OptionCard,
   SectionHeader,
   SliderRow,
-  TextArea,
   TextField,
   ToggleCard,
 } from '../../components/ui';
 import { highlightTones, iconTileTones } from '../../components/ui/tones';
-import { type Language, type Translations } from '../../i18n';
-import { LanguageSelector } from '../../components/common/LanguageSelector';
+import { type Translations } from '../../i18n';
 import { type Theme } from '../../types/theme';
 import { cn } from '../../utils/cn';
 import { SettingsPage } from './SettingsPage';
 import { AMBIENCE_OPACITY_MIN, useAmbienceOpacity } from '../../hooks/useAmbienceMode';
 
-export interface ThemesSettingsViewProps {
-  language: Language;
+export interface AppearanceSettingsViewProps {
   loc: Translations;
-  onLanguageChange: (lang: Language) => void;
   buttonGlowEnabled: boolean;
   onToggleGlow: () => void;
   uiScale: number;
@@ -60,17 +53,10 @@ export interface ThemesSettingsViewProps {
   onThemeBlurChange: (val: number) => void;
   appIconStyle: 'lineout' | 'classic';
   onSelectIconStyle: (style: 'lineout' | 'classic') => void;
-  jsonExportContent: string;
-  onExportTheme: () => void;
-  jsonImportContent: string;
-  onJsonImportContentChange: (content: string) => void;
-  onImportTheme: () => void;
 }
 
-export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
-  language,
+export const AppearanceSettingsView: React.FC<AppearanceSettingsViewProps> = ({
   loc,
-  onLanguageChange,
   buttonGlowEnabled,
   onToggleGlow,
   uiScale,
@@ -93,23 +79,10 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
   onThemeBlurChange,
   appIconStyle,
   onSelectIconStyle,
-  jsonExportContent,
-  onExportTheme,
-  jsonImportContent,
-  onJsonImportContentChange,
-  onImportTheme,
 }) => {
   const [ambienceOpacity, setAmbienceOpacity] = useAmbienceOpacity();
-  const [copiedJson, setCopiedJson] = useState<boolean>(false);
   const [isDraggingWallpaper, setIsDraggingWallpaper] = useState<boolean>(false);
   const id = useId();
-
-  const handleCopyJson = () => {
-    if (!jsonExportContent) return;
-    navigator.clipboard.writeText(jsonExportContent);
-    setCopiedJson(true);
-    setTimeout(() => setCopiedJson(false), 2000);
-  };
 
   const handleInternalDrop = (e: React.DragEvent) => {
     setIsDraggingWallpaper(false);
@@ -149,18 +122,7 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
   ] as const;
 
   return (
-    <SettingsPage>
-      {/* UI language */}
-      <Card>
-        <SectionHeader
-          icon={<Globe size={20} />}
-          tone="cyan"
-          title={loc.settings.language}
-          description="English • Polski • Deutsch • Suomi • Latina"
-          actions={<LanguageSelector currentLang={language} onLanguageChange={onLanguageChange} />}
-        />
-      </Card>
-
+    <SettingsPage title={loc.settings.nav.appearance} icon={<Palette size={22} />} tone="pink">
       {/* Button hover glow */}
       <ToggleCard
         icon={<Sparkles size={20} />}
@@ -413,61 +375,6 @@ export const ThemesSettingsView: React.FC<ThemesSettingsViewProps> = ({
         </div>
       </Card>
 
-      {/* Safe JSON import and export */}
-      <Card>
-        <SectionHeader icon={<Download size={20} />} tone="pink" title={loc.settings.themePortability} />
-
-        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(--spacing(68),1fr))] gap-5">
-          {/* Export */}
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor={`${id}-export`} className="mb-0">
-                {loc.settings.exportTheme}
-              </FieldLabel>
-              <Button variant="tinted" tone="purple" size="sm" onClick={onExportTheme}>
-                {loc.settings.generateJson}
-              </Button>
-            </div>
-            <TextArea
-              id={`${id}-export`}
-              readOnly
-              mono
-              size="sm"
-              value={jsonExportContent}
-              placeholder={loc.settings.generateJsonPlaceholder}
-              rows={6}
-              className="resize-none text-accent-cyan"
-            />
-            {jsonExportContent && (
-              <Button onClick={handleCopyJson}>
-                {copiedJson ? <Check size={16} className="text-accent-green" /> : <Copy size={16} />}
-                {copiedJson ? loc.settings.copiedJson : loc.settings.copyJson}
-              </Button>
-            )}
-          </div>
-
-          {/* Import */}
-          <div className="flex flex-col gap-2.5">
-            <FieldLabel htmlFor={`${id}-import`} className="mb-0 py-1">
-              {loc.settings.importTheme}
-            </FieldLabel>
-            <TextArea
-              id={`${id}-import`}
-              mono
-              size="sm"
-              value={jsonImportContent}
-              onChange={(e) => onJsonImportContentChange(e.target.value)}
-              placeholder={loc.settings.importPlaceholder}
-              rows={6}
-              className="resize-none"
-            />
-            <Button variant="primary" onClick={onImportTheme}>
-              <Upload size={16} />
-              {loc.settings.verifyImport}
-            </Button>
-          </div>
-        </div>
-      </Card>
     </SettingsPage>
   );
 };
