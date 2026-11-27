@@ -7,6 +7,7 @@ import {
   findNextDistinctCell,
   groupByBar,
   mergeChordSegments,
+  transposeChordName,
 } from './chordChart';
 
 const seg = (chord: string, quality: string, start: number, end: number, bar: number): ChordSegment => ({
@@ -93,5 +94,17 @@ describe('groupByBar with long cells', () => {
     const long = mergeChordSegments([seg('C', 'maj', 0, 20000, 1)]);
     expect(groupByBar(long)).toHaveLength(1);
     expect(groupByBar(long, 0)).toHaveLength(1);
+  });
+});
+
+describe('transposeChordName', () => {
+  it('transposes natural, sharp, flat, and slash chords', () => {
+    expect(transposeChordName('A', 5)).toBe('D');
+    expect(transposeChordName('Am7', 5)).toBe('Dm7');
+    expect(transposeChordName('Bb', 5)).toBe('D#');
+    expect(transposeChordName('Eb7', -2)).toBe('C#7');
+    expect(transposeChordName('G/B', 5)).toBe('C/E');
+    expect(transposeChordName('N', 5)).toBe('N');
+    expect(transposeChordName('C', 0)).toBe('C');
   });
 });

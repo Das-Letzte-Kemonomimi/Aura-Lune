@@ -47,7 +47,7 @@ const SaveQueueModal = React.lazy(() => import('./SaveQueueModal').then((m) => (
 const AddRadioStationModal = React.lazy(() => import('./AddRadioStationModal').then((m) => ({ default: m.AddRadioStationModal })));
 import { type AmbienceMode } from '../player/AnimeAmbienceFX';
 import { fmt } from '../../utils/fmt';
-import { playbackSpeed } from '../../utils/playbackSpeed';
+import { effectivePitchSemitones, playbackSpeed } from '../../utils/playbackSpeed';
 
 export interface AppModalsContainerProps {
   language: Language;
@@ -801,7 +801,11 @@ export const AppModalsContainer: React.FC<AppModalsContainerProps> = React.memo(
             rate: status.rate_ratio,
           })}
           onNotify={showMessage}
-          pitchSemitones={status.pitch_semitones ?? 0}
+          pitchSemitones={effectivePitchSemitones({
+            engine: status.engine,
+            pitchSemitones: status.pitch_semitones,
+            rate: status.rate_ratio,
+          })}
           onSeek={handleSeek}
           onSetLoop={(start, end) => {
             setLoopPointA(start);

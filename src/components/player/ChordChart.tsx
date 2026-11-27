@@ -23,6 +23,8 @@ export interface ChordChartProps {
   bars: ChordBar[];
   currentTimeMs: number;
   displayChord: (chord: string) => string;
+  /** Playback speed factor (>0) used to display wall-clock bar timestamps. */
+  timeScale?: number;
   onSeek: (positionMs: number) => void;
   canEdit: boolean;
   editingCell: ChordCell | null;
@@ -42,6 +44,7 @@ export const ChordChart: React.FC<ChordChartProps> = ({
   bars,
   currentTimeMs,
   displayChord,
+  timeScale = 1,
   onSeek,
   canEdit,
   editingCell,
@@ -107,7 +110,7 @@ export const ChordChart: React.FC<ChordChartProps> = ({
             >
               <span>{barLabel(bar.bar)}</span>
               <span className="font-mono font-medium">
-                {formatTime(bar.start_ms)}
+                {formatTime(timeScale !== 1 && timeScale > 0 ? Math.round(bar.start_ms / timeScale) : bar.start_ms)}
                 <span className={cn('ml-1.5', barLowConfidence ? 'text-accent-amber' : 'text-fg-secondary')}>{barConfidencePct}%</span>
               </span>
             </div>

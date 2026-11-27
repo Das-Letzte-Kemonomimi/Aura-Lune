@@ -99,6 +99,41 @@ export function groupByBar(cells: ChordCell[], bpm?: number): ChordBar[] {
   return bars;
 }
 
+const CHROMATIC = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+
+const FLAT_TO_SHARP: Record<string, string> = {
+  DB: 'C#',
+  EB: 'D#',
+  FB: 'E',
+  GB: 'F#',
+  AB: 'G#',
+  BB: 'A#',
+  CB: 'B',
+};
+
+function transposeNotePart(part: string, semitones: number): string {
+  if (!part) return part;
+  const hasAccidental = part.length > 1 && (part[1] === '#' || part[1] === 'b');
+  const root = hasAccidental ? part.substring(0, 2) : part.substring(0, 1);
+  const remainder = hasAccidental ? part.substring(2) : part.substring(1);
+  const upper = root.toUpperCase();
+  const normalized = FLAT_TO_SHARP[upper] ?? upper;
+  const idx = CHROMATIC.indexOf(normalized as (typeof CHROMATIC)[number]);
+  if (idx === -1) return part;
+  const newIdx = ((idx + semitones) % 12 + 12) % 12;
+  return `${CHROMATIC[newIdx]}${remainder}`;
+}
+
+/** Transposes a chord symbol (including flats and slash bass notes) by `semitones`. */
+export function transposeChordName(chord: string, semitones: number): string {
+  if (semitones === 0 || !chord || chord === 'N') return chord;
+  const slashIdx = chord.indexOf('/');
+  if (slashIdx === -1) return transposeNotePart(chord, semitones);
+  const main = transposeNotePart(chord.slice(0, slashIdx), semitones);
+  const bass = transposeNotePart(chord.slice(slashIdx + 1), semitones);
+  return `${main}/${bass}`;
+}
+
 export function findActiveCell(cells: ChordCell[], positionMs: number): number {
   return cells.findIndex((c) => positionMs >= c.start_ms && positionMs < c.end_ms);
 }

@@ -8,6 +8,7 @@ import { formatTime, formatTimeMs } from '../../../utils/timeFormat';
 import {
   COLORS,
   FONT_MONO,
+  drawPianoKeyLabel,
   minimapKeyEquals,
   noteColor,
   renderMinimapLayer,
@@ -81,6 +82,8 @@ export interface PianoRollCanvasProps {
   mode: PianoRollViewMode;
   /** Note labels (e.g. D2, C4) inside the rectangles, when the note is wide enough. */
   showLabels: boolean;
+  /** Show note names on every piano key instead of only C notes. */
+  showAllKeyLabels: boolean;
   /** Row height (px); `null` = fitted automatically. */
   rowHeight: number | null;
   onViewChange: (change: PianoRollViewChange) => void;
@@ -265,6 +268,7 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
       keyHeight,
       scrollRows: wholeRows,
       keyWidth: layout.keyWidth,
+      showAllKeyLabels: p.showAllKeyLabels,
     };
     if (!rowsLayerRef.current || !rowsKeyEquals(rowsKeyRef.current, rowsKey)) {
       rowsLayerRef.current = renderRowsLayer(rowsKey, { ...pitch, scrollRows: wholeRows });
@@ -387,11 +391,12 @@ export const PianoRollCanvas = React.memo(function PianoRollCanvas(props: PianoR
     ctx.clip();
     ctx.drawImage(layers.keys, 0, roll.y - subRow, layout.keyWidth, layerHeight);
     if (active.length > 0) {
-      ctx.fillStyle = COLORS.keyActive;
       for (const midi of active) {
         const y = pitchToY(pitch, midi);
         if (y + keyHeight < roll.y || y > roll.y + roll.h) continue;
+        ctx.fillStyle = COLORS.keyActive;
         ctx.fillRect(1, y + 1, layout.keyWidth - 3, keyHeight - 2);
+        drawPianoKeyLabel(ctx, midi, y, keyHeight, p.showAllKeyLabels, true);
       }
     }
     ctx.restore();

@@ -115,6 +115,7 @@ export const MusicAnalysisModal: React.FC<MusicAnalysisModalProps> = ({
             currentTimeMs={currentTimeMs}
             durationMs={durationMs}
             pitchSemitones={pitchSemitones}
+            playbackSpeed={playbackSpeed}
             onSeek={onSeek}
             onSetLoop={onSetLoop}
             currentLang={currentLang}

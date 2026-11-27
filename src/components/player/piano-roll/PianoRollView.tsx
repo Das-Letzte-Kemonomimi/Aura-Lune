@@ -85,6 +85,9 @@ export const PianoRollView = React.memo(function PianoRollView({
   });
   const [mode, setMode] = useState<PianoRollViewMode>('follow');
   const [showLabels, setShowLabels] = usePersistedState('auralune_piano_roll_labels', true, { parse: parseBoolean });
+  const [showAllKeyLabels, setShowAllKeyLabels] = usePersistedState('auralune_piano_roll_all_key_labels', true, {
+    parse: parseBoolean,
+  });
 
   useEffect(() => {
     if (!trackId && !trackPath) return;
@@ -190,6 +193,15 @@ export const PianoRollView = React.memo(function PianoRollView({
             <Type size={14} />
             {t.analysis.noteLabels}
           </Chip>
+          <Chip
+            tone="purple"
+            pressed={showAllKeyLabels}
+            onClick={() => setShowAllKeyLabels((v) => !v)}
+            title={t.analysis.allKeyLabelsTooltip}
+          >
+            <Piano size={14} />
+            {t.analysis.allKeyLabels}
+          </Chip>
 
           <div className="flex items-center rounded-lg border border-line bg-white/5 p-0.5">
             <IconButton
@@ -275,6 +287,7 @@ export const PianoRollView = React.memo(function PianoRollView({
             mode={mode}
             rowHeight={rowHeight}
             showLabels={showLabels}
+            showAllKeyLabels={showAllKeyLabels}
             onViewChange={onViewChange}
             onSeek={onSeek}
             labels={labels}

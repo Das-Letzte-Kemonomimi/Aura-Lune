@@ -43,9 +43,18 @@ export function computePitchRange(notes: readonly DetectedNote[]): PitchRange {
   return { minMidi, maxMidi };
 }
 
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+
 export function isBlackKey(midi: number): boolean {
   const n = ((midi % 12) + 12) % 12;
   return n === 1 || n === 3 || n === 6 || n === 8 || n === 10;
+}
+
+/** Scientific pitch notation for a MIDI note number (e.g. 60 → `C4`, 61 → `C#4`). */
+export function midiNoteName(midi: number): string {
+  const n = ((midi % 12) + 12) % 12;
+  const octave = Math.floor(midi / 12) - 1;
+  return `${NOTE_NAMES[n]}${octave}`;
 }
 
 export function clamp(v: number, lo: number, hi: number): number {

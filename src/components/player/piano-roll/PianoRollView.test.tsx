@@ -65,4 +65,16 @@ describe('PianoRollView remembers the view size', () => {
     expect(screen.getByText('80px/s')).toBeTruthy();
     expect(screen.getByTitle(t.analysis.rowHeightReset).textContent).toBe(t.analysis.rowHeightAuto);
   });
+
+  it('defaults all-key piano labels to on and persists toggling', () => {
+    const first = mountView();
+    const btn = screen.getByTitle(t.analysis.allKeyLabelsTooltip);
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    first.unmount();
+
+    mountView();
+    expect(screen.getByTitle(t.analysis.allKeyLabelsTooltip).getAttribute('aria-pressed')).toBe('false');
+  });
 });

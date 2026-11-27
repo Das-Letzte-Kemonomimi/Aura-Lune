@@ -4,7 +4,7 @@
  * vertical scroll / data change, never when the playhead moves.
  */
 import { computeBackingSize } from '../../../utils/canvasDraw';
-import { isBlackKey, type PitchAxis } from './pianoRollModel';
+import { isBlackKey, midiNoteName, type PitchAxis } from './pianoRollModel';
 
 export const COLORS = {
   background: '#090a12',
@@ -16,6 +16,7 @@ export const COLORS = {
   keyBlack: '#0b1020',
   keyBorder: '#475569',
   keyLabel: '#0f172a',
+  keyLabelOnBlack: '#e2e8f0',
   keyActive: '#f43f5e',
   beat: 'rgba(100, 116, 139, 0.16)',
   bar: 'rgba(148, 163, 184, 0.34)',
@@ -43,6 +44,24 @@ export const COLORS = {
 
 export const FONT_MONO = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
 export const FONT_KEY_LABEL = 'bold 9px ui-monospace, SFMono-Regular, Menlo, monospace';
+export const FONT_KEY_LABEL_COMPACT = 'bold 7.5px ui-monospace, SFMono-Regular, Menlo, monospace';
+const MIN_ALL_KEY_LABELS_HEIGHT = 9;
+
+export function drawPianoKeyLabel(
+  ctx: CanvasRenderingContext2D,
+  midi: number,
+  y: number,
+  keyHeight: number,
+  showAllKeyLabels: boolean,
+  onDark: boolean,
+): void {
+  const isC = ((midi % 12) + 12) % 12 === 0;
+  if (!isC && (!showAllKeyLabels || keyHeight < MIN_ALL_KEY_LABELS_HEIGHT)) return;
+  ctx.fillStyle = onDark ? COLORS.keyLabelOnBlack : COLORS.keyLabel;
+  ctx.font = keyHeight < 11 ? FONT_KEY_LABEL_COMPACT : FONT_KEY_LABEL;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(midiNoteName(midi), 6, y + keyHeight / 2);
+}
 
 export function noteColor(stem: string | undefined): string {
   if (stem === 'bass') return COLORS.noteBass;
@@ -70,6 +89,7 @@ export interface RowsLayerKey {
   keyHeight: number;
   scrollRows: number;
   keyWidth: number;
+  showAllKeyLabels: boolean;
 }
 
 export function rowsKeyEquals(a: RowsLayerKey | null, b: RowsLayerKey): boolean {
@@ -82,7 +102,8 @@ export function rowsKeyEquals(a: RowsLayerKey | null, b: RowsLayerKey): boolean 
     a.maxMidi === b.maxMidi &&
     a.keyHeight === b.keyHeight &&
     a.scrollRows === b.scrollRows &&
-    a.keyWidth === b.keyWidth
+    a.keyWidth === b.keyWidth &&
+    a.showAllKeyLabels === b.showAllKeyLabels
   );
 }
 
@@ -128,11 +149,7 @@ export function renderRowsLayer(
       kc.fillRect(0, y, key.keyWidth, key.keyHeight);
       kc.fillStyle = COLORS.keyBorder;
       kc.fillRect(0, y + key.keyHeight - 1, key.keyWidth, 1);
-      if (m % 12 === 0) {
-        kc.fillStyle = COLORS.keyLabel;
-        kc.font = FONT_KEY_LABEL;
-        kc.fillText(`C${Math.floor(m / 12) - 1}`, 6, y + key.keyHeight / 2);
-      }
+      drawPianoKeyLabel(kc, m, y, key.keyHeight, key.showAllKeyLabels, black);
     }
   }
   if (kc) {

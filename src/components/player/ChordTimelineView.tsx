@@ -18,10 +18,12 @@ import {
   findNextDistinctCell,
   groupByBar,
   mergeChordSegments,
+  transposeChordName,
   type ChordCell,
   TONE_COLORS,
   type ChordTone,
 } from '../../utils/chordChart';
+import { getTransposedKey } from '../../utils/harmonicMixing';
 import { ChordChart, ChordOverview } from './ChordChart';
 import { cn } from '../../utils/cn';
 import { Button, Callout, Card, Chip, IconButton, ModalBody, ModalFooter, ModalHeader, ModalShell, TextArea } from '../ui';
@@ -34,34 +36,11 @@ export interface ChordTimelineViewProps {
   currentTimeMs: number;
   durationMs?: number;
   pitchSemitones?: number;
+  playbackSpeed?: number;
   onSeek: (positionMs: number) => void;
   onSetLoop?: (startMs: number, endMs: number) => void;
   onClose?: () => void;
   currentLang?: Language;
-}
-
-const CHROMATIC = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-function transposeChordName(chord: string, semitones: number): string {
-  if (semitones === 0 || !chord || chord === 'N') return chord;
-  let root = chord;
-  let remainder = '';
-
-  if (chord.length > 1 && (chord[1] === '#' || chord[1] === 'b')) {
-    root = chord.substring(0, 2);
-    remainder = chord.substring(2);
-  } else {
-    root = chord.substring(0, 1);
-    remainder = chord.substring(1);
-  }
-
-  const idx = CHROMATIC.findIndex(
-    (n) => n.toUpperCase() === root.toUpperCase() || (root.toUpperCase() === 'DB' && n === 'C#')
-  );
-  if (idx === -1) return chord;
-
-  const newIdx = (idx + semitones + 120) % 12;
-  return `${CHROMATIC[newIdx]}${remainder}`;
 }
 
 export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
@@ -72,6 +51,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   currentTimeMs: currentTimeMsProp,
   durationMs,
   pitchSemitones = 0,
+  playbackSpeed = 1,
   onSeek,
   onSetLoop,
   onClose,
@@ -155,8 +135,20 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
   const activeChord = activeIdx >= 0 ? cells[activeIdx] : null;
   const nextChord = findNextDistinctCell(cells, activeIdx);
 
-  const transposeBy = showTransposed ? Math.round(pitchSemitones) : 0;
+  const speed = playbackSpeed > 0 ? playbackSpeed : 1;
+  const roundedSemitones = Math.round(pitchSemitones);
+  const hasPitchShift = roundedSemitones !== 0;
+  const hasSpeedChange = Math.abs(speed - 1) > 0.005;
+  const hasDspAdjustment = hasPitchShift || hasSpeedChange;
+
+  const transposeBy = showTransposed ? roundedSemitones : 0;
+  const effectiveSpeed = showTransposed ? speed : 1;
   const displayChord = (chord: string) => transposeChordName(chord, transposeBy);
+
+  const transposedKey = data && transposeBy !== 0 ? getTransposedKey(data.key || data.camelot, transposeBy) : null;
+  const displayKey = transposedKey ? transposedKey.keyName : data?.key;
+  const displayCamelot = transposedKey ? transposedKey.camelot : data?.camelot;
+  const displayBpm = data ? data.bpm * effectiveSpeed : 0;
 
   const handleSaveOverride = async () => {
     if (!data || !trackId || !editingCell) return;
@@ -217,13 +209,15 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               {t.player.chordTimelineTitle}
             </span>
             <p className="mt-0.5 text-xs text-fg-secondary">
-              {data ? `${t.dsp.keyLabel}: ${data.key} (${data.camelot}) • ${data.bpm.toFixed(1)} BPM` : t.player.harmonicAnalysis}
+              {data
+                ? `${t.dsp.keyLabel}: ${displayKey} (${displayCamelot}) • ${displayBpm.toFixed(1)} BPM${effectiveSpeed !== 1 ? ` (${effectiveSpeed.toFixed(2)}×)` : ''}`
+                : t.player.harmonicAnalysis}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {pitchSemitones !== 0 && (
+          {hasDspAdjustment && (
             <Chip
               tone="amber"
               pressed={showTransposed}
@@ -231,7 +225,11 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               title={t.player.transposeToggleTooltip}
               className="px-3.5 py-2 text-ui"
             >
-              {fmt(t.player.transposition, pitchSemitones > 0 ? `+${pitchSemitones}` : String(pitchSemitones), showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
+              {hasPitchShift && !hasSpeedChange
+                ? fmt(t.player.transposition, roundedSemitones > 0 ? `+${roundedSemitones}` : String(roundedSemitones), showTransposed ? t.player.transposedOn : t.player.transposedOrig)
+                : hasPitchShift && hasSpeedChange
+                  ? `${roundedSemitones > 0 ? `+${roundedSemitones}` : roundedSemitones} st · ${speed.toFixed(2)}× (${showTransposed ? t.player.transposedOn : t.player.transposedOrig})`
+                  : fmt(t.player.tempoAdaptation, `${speed.toFixed(2)}×`, showTransposed ? t.player.transposedOn : t.player.transposedOrig)}
             </Chip>
           )}
 
@@ -334,6 +332,7 @@ export const ChordTimelineView: React.FC<ChordTimelineViewProps> = ({
               bars={bars}
               currentTimeMs={currentTimeMs}
               displayChord={displayChord}
+              timeScale={effectiveSpeed}
               onSeek={onSeek}
               canEdit={!!trackId}
               editingCell={editingCell}
