@@ -41,6 +41,16 @@ export {
   type ModalShellProps,
 } from './Modal';
 export { MenuItem, Popover, type MenuItemProps, type PopoverProps } from './Popover';
+export {
+  SettingsGroup,
+  type SettingsGroupProps,
+} from './SettingsGroup';
+export {
+  SettingsNav,
+  type SettingsNavGroup,
+  type SettingsNavItem,
+  type SettingsNavProps,
+} from './SettingsNav';
 export { SegmentedControl, type SegmentedControlProps, type SegmentedItem } from './SegmentedControl';
 export {
   NudgeButtons,
@@ -50,5 +60,6 @@ export {
   type RangeSliderProps,
   type SliderRowProps,
 } from './SliderRow';
+export { ToolGroup, type ToolGroupProps } from './ToolGroup';
 export { ToggleCard, type ToggleCardProps } from './ToggleCard';
 export type { Tone, ToneOrNeutral } from './tones';
