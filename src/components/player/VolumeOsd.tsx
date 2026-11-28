@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { cn } from '../../utils/cn';
 import { useVolumeCurve } from '../../hooks/useVolumeCurve';
 import { useLiveVolume } from '../../state/livePlayback';
+import { isVolumeOsdSilenced } from '../../state/volumeOsdSilence';
 import { formatVolume, gainToPosition } from '../../utils/volumeCurve';
 import { VolumeIcon } from './VolumeSlider';
 
@@ -50,6 +51,12 @@ export const VolumeOsd: React.FC<VolumeOsdProps> = ({ volume: volumeProp, positi
     }
 
     if (position === 'off') {
+      queueMicrotask(() => setVisible(false));
+      return;
+    }
+
+    // Programmatic changes (sleep-timer fade) are announced and stay silent.
+    if (isVolumeOsdSilenced(volume)) {
       queueMicrotask(() => setVisible(false));
       return;
     }

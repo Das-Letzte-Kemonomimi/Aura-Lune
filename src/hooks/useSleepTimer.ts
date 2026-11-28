@@ -3,12 +3,19 @@ import { invoke } from '../api/ipc';
 import type { PlaybackStatus } from '../types/playback';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { silenceVolumeOsdFor } from '../state/volumeOsdSilence';
 
 interface UseSleepTimerOptions {
   statusRef: React.MutableRefObject<PlaybackStatus>;
   filePath: string;
   showMessage: (msg: string) => void;
   loc: Translations;
+}
+
+/** Sets the volume for the sleep-timer fade or its restore, without the volume OSD popping up. */
+function setVolumeSilently(volume: number): Promise<unknown> {
+  silenceVolumeOsdFor(volume);
+  return invoke('set_volume', { volume });
 }
 
 export function useSleepTimer({
@@ -49,7 +56,7 @@ export function useSleepTimer({
     setSleepTimerRemainingSec(null);
     setSleepTimerTargetMode(null);
     if (preFadeVolumeRef.current !== null) {
-      invoke('set_volume', { volume: preFadeVolumeRef.current }).catch(() => {});
+      setVolumeSilently(preFadeVolumeRef.current).catch(() => {});
       preFadeVolumeRef.current = null;
     }
     showMessage(loc.notifications.sleepTimerCancelled);
@@ -74,7 +81,7 @@ export function useSleepTimer({
 
     const restorePreFadeVolume = () => {
       if (preFadeVolumeRef.current !== null) {
-        invoke('set_volume', { volume: preFadeVolumeRef.current }).catch(() => {});
+        setVolumeSilently(preFadeVolumeRef.current).catch(() => {});
         preFadeVolumeRef.current = null;
       }
     };
@@ -122,7 +129,7 @@ export function useSleepTimer({
         }
         const factor = Math.max(0.02, nextSec / 30);
         const fadeVol = (preFadeVolumeRef.current || 1.0) * factor;
-        invoke('set_volume', { volume: fadeVol }).catch(() => {});
+        setVolumeSilently(fadeVol).catch(() => {});
       }
     }, 1000);
 

@@ -5,6 +5,7 @@ import type { PlaybackStatus } from '../types/playback';
 import { DEFAULT_PLAYBACK_STATUS } from '../types/player';
 import { getTranslations } from '../i18n';
 import { invokeMock as mockInvoke } from '../test/ipcMock';
+import { isVolumeOsdSilenced, resetVolumeOsdSilence } from '../state/volumeOsdSilence';
 
 
 describe('useSleepTimer hook', () => {
@@ -15,6 +16,7 @@ describe('useSleepTimer hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    resetVolumeOsdSilence();
 
     statusRef = {
       current: {
@@ -166,6 +168,35 @@ describe('useSleepTimer hook', () => {
     expect(result.current.sleepTimerRemainingSec).toBeNull();
     expect(result.current.sleepTimerTargetMode).toBeNull();
     expect(showMessage).toHaveBeenCalledWith(loc.notifications.sleepTimerPaused);
+  });
+
+  it('fade steps and the final restore are announced as silent so the volume OSD stays hidden', () => {
+    const { result } = renderHook(() =>
+      useSleepTimer({ statusRef, filePath: 'file:///music/test.flac', showMessage, loc })
+    );
+
+    act(() => {
+      result.current.handleSetSleepTimer(31 / 60, true);
+    });
+    // The fade starts once 30 s are left.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    act(() => {
+      vi.advanceTimersByTime(14000);
+    });
+    // 16 s left: 0.8 * 16/30
+    expect(mockInvoke).toHaveBeenLastCalledWith('set_volume', { volume: expect.closeTo(0.8 * 16 / 30, 5) });
+    expect(isVolumeOsdSilenced(0.8 * 16 / 30)).toBe(true);
+    // A user change to another gain is not silenced.
+    expect(isVolumeOsdSilenced(0.7)).toBe(false);
+
+    // Timer ends: pause, then the original volume comes back silently.
+    act(() => {
+      vi.advanceTimersByTime(16000);
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('set_volume', { volume: 0.8 });
+    expect(isVolumeOsdSilenced(0.8)).toBe(true);
   });
 
   it('pauses playback when end_of_track threshold is reached in end_of_track mode', async () => {

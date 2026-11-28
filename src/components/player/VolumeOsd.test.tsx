@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
+import { silenceVolumeOsdFor, resetVolumeOsdSilence, VOLUME_OSD_SILENCE_MS } from '../../state/volumeOsdSilence';
 import { VolumeOsd, VOLUME_OSD_HIDE_MS, DEFAULT_VOLUME_OSD_POSITION, type VolumeOsdPosition } from './VolumeOsd';
 
 /** Lets the `queueMicrotask` show/hide run. */
@@ -17,6 +18,7 @@ describe('VolumeOsd', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
+    resetVolumeOsdSilence();
   });
 
   afterEach(() => {
@@ -90,5 +92,30 @@ describe('VolumeOsd', () => {
     rerender(<VolumeOsd volume={0.5} position="off" />);
     await flush();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('stays hidden for a programmatic volume step such as the sleep-timer fade', async () => {
+    const { rerender } = renderOsd(0.8);
+    silenceVolumeOsdFor(0.4);
+    rerender(<VolumeOsd volume={0.4} position="bottom-right" />);
+    await flush();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('still shows a user change to a different gain during the silence window', async () => {
+    const { rerender } = renderOsd(0.8);
+    silenceVolumeOsdFor(0.4);
+    rerender(<VolumeOsd volume={0.6} position="bottom-right" />);
+    await flush();
+    expect(screen.queryByRole('status')).not.toBeNull();
+  });
+
+  it('shows again once the silence window has passed', async () => {
+    const { rerender } = renderOsd(0.8);
+    silenceVolumeOsdFor(0.4);
+    vi.advanceTimersByTime(VOLUME_OSD_SILENCE_MS + 1);
+    rerender(<VolumeOsd volume={0.4} position="bottom-right" />);
+    await flush();
+    expect(screen.queryByRole('status')).not.toBeNull();
   });
 });
