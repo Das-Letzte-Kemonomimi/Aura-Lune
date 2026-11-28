@@ -1,4 +1,6 @@
 import React from 'react';
+import { useHoverIntent } from '../../hooks/useHoverIntent';
+import { preloadAppSettingsModal } from '../../views/settings/loadAppSettingsModal';
 import {
   Flame,
   Activity,
@@ -148,6 +150,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenSettings,
   onLanguageChange,
 }) => {
+  const settingsHoverIntent = useHoverIntent(preloadAppSettingsModal);
   const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   return (
     <header className="relative z-30 mb-3 flex min-w-0 shrink-0 flex-col gap-2 rounded-2xl border border-line bg-ink/80 px-3 py-2 shadow-card">
@@ -321,7 +324,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {queueCount}
             </Badge>
           </HeaderButton>
-          <HeaderButton icon={<Settings size={15} />} tone="purple" pressed={isSettingsOpen} onClick={onOpenSettings} title={loc.settings.title}>
+          <HeaderButton icon={<Settings size={15} />} tone="purple" pressed={isSettingsOpen} onClick={onOpenSettings} {...settingsHoverIntent} title={loc.settings.title}>
             <span className="max-nav:hidden">{loc.settings.title}</span>
           </HeaderButton>
         </ToolGroup>

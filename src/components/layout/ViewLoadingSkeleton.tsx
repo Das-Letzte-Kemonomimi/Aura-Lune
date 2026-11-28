@@ -1,11 +1,9 @@
 import React from 'react';
-import { SETTINGS_TABS, isMainTab, type AppTab, type MainTabType, type NowPlayingVisualMode, type SettingsTab } from '../../types/navigation';
+import { isMainTab, type AppTab, type MainTabType, type NowPlayingVisualMode } from '../../types/navigation';
 import { getTranslations, type Translations } from '../../i18n';
 import { fmt } from '../../utils/fmt';
 import { cn } from '../../utils/cn';
-import { Card, ModalBody, ModalHeader, ModalShell, Skeleton, SkeletonLoadingPill } from '../ui';
-import { Settings } from '../ui/icons';
-import { SettingsTabSkeleton } from '../../views/settings/SettingsTabSkeleton';
+import { Card, Skeleton, SkeletonLoadingPill } from '../ui';
 
 const SPECTRUM_HEIGHTS = [
   'h-5', 'h-8', 'h-12', 'h-9', 'h-14', 'h-10', 'h-7', 'h-11',
@@ -967,56 +965,4 @@ export const ViewLoadingSkeleton: React.FC<ViewLoadingSkeletonProps> = ({
     case 'stats':
       return <StatsViewSkeleton loadingLabel={loadingLabel} />;
   }
-};
-
-export interface SettingsModalSkeletonProps {
-  loc: Translations;
-  activeTab?: SettingsTab;
-  onClose: () => void;
-}
-
-/** Fallback skeleton shown while the lazy `AppSettingsModal` shell loads. */
-export const SettingsModalSkeleton: React.FC<SettingsModalSkeletonProps> = ({
-  loc,
-  activeTab = 'general',
-  onClose,
-}) => {
-  const tabLabel = activeTab === 'updates' ? loc.updates.title : loc.settings.nav[activeTab];
-  const loadingLabel = fmt(loc.common.loadingView, tabLabel);
-
-  return (
-    <ModalShell
-      onClose={onClose}
-      size="3xl"
-      labelledBy="settings-skeleton-title"
-      className="h-[min(88vh,53.75rem)] max-h-[90vh]"
-    >
-      <ModalHeader
-        titleId="settings-skeleton-title"
-        title={loc.settings.title}
-        subtitle={loc.settings.subtitle}
-        icon={<Settings size={22} />}
-        tone="purple"
-        onClose={onClose}
-        closeLabel={loc.settings.close}
-        actions={<SkeletonLoadingPill label={loadingLabel} />}
-      />
-      <div className="@container flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col @3xl:flex-row">
-          <div className="flex shrink-0 flex-row gap-2 overflow-hidden border-b border-line p-2 @3xl:w-56 @3xl:flex-col @3xl:border-r @3xl:border-b-0 @3xl:p-4">
-            {SETTINGS_TABS.map((entry) => (
-              <Skeleton
-                key={entry.id}
-                tone={entry.id === activeTab ? 'purple' : 'neutral'}
-                className="h-9 w-28 shrink-0 rounded-lg @3xl:w-full"
-              />
-            ))}
-          </div>
-          <ModalBody className="flex-1 p-6">
-            <SettingsTabSkeleton tab={activeTab} loc={loc} />
-          </ModalBody>
-        </div>
-      </div>
-    </ModalShell>
-  );
 };
