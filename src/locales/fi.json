@@ -1628,6 +1628,8 @@
     "channelCafeDesc": "Syvä ruskea kohina keskittymiseen ja lepoon",
     "masterVolume": "Pää-äänenvoimakkuus (Master)",
     "muted": "Mykistetty",
+    "power": "Äänimaisema päälle/pois",
+    "off": "Pois (miksi säilyy)",
     "active": "Äänimaisema päällä",
     "allSilent": "Kaikki kanavat hiljaisia",
     "resetZero": "Nollaa",

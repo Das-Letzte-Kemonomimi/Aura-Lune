@@ -245,8 +245,6 @@ class SoundscapeEngine {
     filter.connect(this.gainRain);
     this.rainSource.start();
 
-    // Small water drops
-    this.scheduleDroplet();
   }
 
   private scheduleDroplet() {
@@ -300,7 +298,6 @@ class SoundscapeEngine {
     hissGain.connect(this.gainVinyl);
     this.vinylHissSource.start();
 
-    this.scheduleVinylClick();
   }
 
   private scheduleVinylClick() {
@@ -363,7 +360,6 @@ class SoundscapeEngine {
     rumbleGain.connect(this.gainCampfire);
     this.campfireRumbleSource.start();
 
-    this.scheduleCampfirePop();
   }
 
   private scheduleCampfirePop() {
@@ -436,7 +432,6 @@ class SoundscapeEngine {
     windGain.connect(this.gainWindChimes);
     this.windSource.start();
 
-    this.scheduleChime();
   }
 
   private scheduleChime() {
@@ -511,14 +506,32 @@ class SoundscapeEngine {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    this.startEventTimers();
   }
 
-  public stop() {
-    this.isRunning = false;
+  /** (Re)starts the random one-shot events (drops, crackle, pops, chimes); stop() clears them. */
+  private startEventTimers() {
+    this.clearEventTimers();
+    this.scheduleDroplet();
+    this.scheduleVinylClick();
+    this.scheduleCampfirePop();
+    this.scheduleChime();
+  }
+
+  private clearEventTimers() {
     if (this.dropletTimer) window.clearTimeout(this.dropletTimer);
     if (this.vinylClickTimer) window.clearTimeout(this.vinylClickTimer);
     if (this.campfirePopTimer) window.clearTimeout(this.campfirePopTimer);
     if (this.chimesTimer) window.clearTimeout(this.chimesTimer);
+    this.dropletTimer = null;
+    this.vinylClickTimer = null;
+    this.campfirePopTimer = null;
+    this.chimesTimer = null;
+  }
+
+  public stop() {
+    this.isRunning = false;
+    this.clearEventTimers();
 
     if (this.ctx && this.ctx.state === 'running') {
       this.ctx.suspend();
@@ -580,6 +593,23 @@ class SoundscapeEngine {
     this.checkAutoStart();
     this.saveSettings();
     return this.isMuted;
+  }
+
+  /**
+   * Master on/off switch. Off silences and suspends every layer; the per-layer mix is left
+   * untouched, so switching back on restores it exactly. Persisted with the other settings.
+   */
+  public setEnabled(enabled: boolean) {
+    this.isMuted = !enabled;
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setTargetAtTime(this.isMuted ? 0 : this.volumes.master, this.ctx.currentTime, 0.03);
+    }
+    this.checkAutoStart();
+    this.saveSettings();
+  }
+
+  public isEnabled(): boolean {
+    return !this.isMuted;
   }
 
   public applyPreset(preset: SoundscapePreset) {

@@ -1628,6 +1628,8 @@
     "channelCafeDesc": "Tiefes braunes Rauschen zum Fokussieren und Entspannen",
     "masterVolume": "Hauptlautstärke (Master)",
     "muted": "Stumm",
+    "power": "Klangkulisse ein/aus",
+    "off": "Aus (Mischung bleibt erhalten)",
     "active": "Soundscape aktiv",
     "allSilent": "Alle Kanäle stumm",
     "resetZero": "Zurücksetzen",

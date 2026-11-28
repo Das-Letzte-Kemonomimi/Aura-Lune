@@ -1628,6 +1628,8 @@
     "channelCafeDesc": "Sonus fuscus profundus ad mentem intendendam",
     "masterVolume": "Volumen Principale (Master)",
     "muted": "Mutum",
+    "power": "Sonus ambiens accensus/exstinctus",
+    "off": "Exstinctus (mixtura servatur)",
     "active": "Ambiens actuosus",
     "allSilent": "Omnes canales silentes",
     "resetZero": "Zerum",

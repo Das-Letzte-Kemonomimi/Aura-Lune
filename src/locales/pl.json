@@ -1628,6 +1628,8 @@
     "channelCafeDesc": "Głęboki, kojący szum do nauki",
     "masterVolume": "Głośność główna (Master)",
     "muted": "Wyciszono",
+    "power": "Dźwięki tła włączone/wyłączone",
+    "off": "Wyłączone (miks zostaje zapamiętany)",
     "active": "Aktywny szum tła",
     "allSilent": "Wszystkie kanały wyciszone",
     "resetZero": "Zeruj",
