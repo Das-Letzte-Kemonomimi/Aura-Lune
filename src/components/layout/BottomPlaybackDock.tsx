@@ -1,5 +1,5 @@
 import type { AppTab } from '../../types/navigation';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Play,
   Pause,
@@ -129,26 +129,66 @@ const DockVolumeCluster: React.FC<{
 interface DockProgressProps {
   status: PlaybackStatus;
   seekLabel: string;
+  liveLabel: string;
+  /** The source is known to be a stream (e.g. a radio station), even before a duration is reported. */
+  isStream?: boolean;
   formatTime: (ms: number) => string;
   onSeek: (ms: number) => void;
   onSeekPreview?: (ms: number) => void;
   onSeekCommit?: (ms: number) => void;
 }
 
+/** A live stream has no duration: the engine reports none (null) or 0 while something is playing. */
+function isLivePlayback(status: PlaybackStatus, isStream = false): boolean {
+  if (isStream) return true;
+  return status.state === 'Playing' && !(status.duration_ms && status.duration_ms > 0);
+}
+
+/** Elapsed listening time for a live source: the engine position when it reports one, else a local 1 s counter. */
+function useLiveElapsedMs(active: boolean, playing: boolean, resetKey: string | number, enginePositionMs: number): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    setElapsed(0);
+  }, [resetKey, active]);
+  useEffect(() => {
+    if (!active || !playing) return;
+    const id = window.setInterval(() => setElapsed((v) => v + 1000), 1000);
+    return () => window.clearInterval(id);
+  }, [active, playing, resetKey]);
+  return Math.max(elapsed, enginePositionMs);
+}
+
 /** Progress slider and timestamps: owns the live position subscription so the dock itself does not tick 10×/s. */
 const DockProgress: React.FC<DockProgressProps> = ({
   status: statusProp,
   seekLabel,
+  liveLabel,
+  isStream,
   formatTime,
   onSeek,
   onSeekPreview,
   onSeekCommit,
 }) => {
   const status = useLiveStatus(statusProp);
+  const isLive = isLivePlayback(status, isStream);
+  const liveElapsedMs = useLiveElapsedMs(isLive, status.state === 'Playing', status.current_track?.id ?? '', status.position_ms);
   const seekProgressPercent =
     status.duration_ms && status.duration_ms > 0
       ? Math.min(100, Math.max(0, (status.position_ms / status.duration_ms) * 100))
       : 0;
+
+  if (isLive) {
+    return (
+      <div className="flex w-full items-center gap-2.5" data-testid="dock-live-progress">
+        <span className="min-w-11 rounded-md bg-black/30 px-1.5 py-px text-center font-mono text-xs tabular-nums text-fg">{formatTime(liveElapsedMs)}</span>
+        <div className="h-1.5 flex-1 rounded-full bg-black/30" aria-hidden="true" />
+        <span className="flex min-w-11 items-center justify-center gap-1 rounded-md bg-black/30 px-1.5 py-px text-xs font-semibold tracking-wider text-accent-pink">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-pink motion-safe:animate-pulse" />
+          {liveLabel}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full items-center gap-2.5">
@@ -339,6 +379,8 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
         <DockProgress
           status={status}
           seekLabel={loc.bottomDock.seekLabel}
+          liveLabel={loc.bottomDock.live}
+          isStream={/^https?:\/\//.test(status.current_track?.uri ?? filePath)}
           formatTime={formatTime}
           onSeek={onSeek}
           onSeekPreview={onSeekPreview}

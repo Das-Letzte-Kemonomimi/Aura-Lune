@@ -1065,6 +1065,7 @@
   "bottomDock": {
     "openFullPlayer": "Avaa toistimen koko näkymä napsauttamalla",
     "seekLabel": "Kappaleen kohta",
+    "live": "LIVE",
     "prevTooltip": "Edellinen kappale",
     "nextTooltip": "Seuraava kappale",
     "playTooltip": "Toista",

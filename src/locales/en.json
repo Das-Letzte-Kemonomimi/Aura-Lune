@@ -1065,6 +1065,7 @@
   "bottomDock": {
     "openFullPlayer": "Click to open full Player view",
     "seekLabel": "Track position",
+    "live": "LIVE",
     "prevTooltip": "Previous track",
     "nextTooltip": "Next track",
     "playTooltip": "Play",

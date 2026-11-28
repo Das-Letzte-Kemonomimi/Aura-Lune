@@ -1065,6 +1065,7 @@
   "bottomDock": {
     "openFullPlayer": "Klicken, um Vollansicht des Players zu öffnen",
     "seekLabel": "Titelposition",
+    "live": "LIVE",
     "prevTooltip": "Vorheriger Titel",
     "nextTooltip": "Nächster Titel",
     "playTooltip": "Wiedergabe",
