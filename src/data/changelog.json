@@ -1,5 +1,40 @@
 [
   {
+    "version": "2.1.1-dev",
+    "codename": "Development Channel",
+    "date": "2026-11-28",
+    "author": "Das Letzte Kemonomimi",
+    "isDev": true,
+    "isLatest": false,
+    "added": [
+      {
+        "en": "While a new track's waveform is still being prepared, the progress bar now blinks gently so you can tell it is loading.",
+        "pl": "Gdy fala nowego utworu jest jeszcze przygotowywana, pasek postępu delikatnie pulsuje, dzięki czemu widać, że trwa ładowanie.",
+        "de": "Solange die Wellenform eines neuen Titels noch vorbereitet wird, blinkt die Fortschrittsleiste sanft, damit man sieht, dass sie lädt.",
+        "fi": "Kun uuden kappaleen aaltomuotoa vielä valmistellaan, edistymispalkki vilkkuu hellästi, jotta näet sen latautuvan.",
+        "la": "Dum unda novi cantus adhuc paratur, vitta progressus leniter micat, ut videas eam onerari."
+      }
+    ],
+    "changed": [
+      {
+        "en": "Waveforms are now much more detailed: about three times as many, thinner bars show every beat and quiet passage of a track.",
+        "pl": "Fale dźwiękowe są teraz znacznie bardziej szczegółowe: około trzy razy więcej, cieńszych słupków pokazuje każdy beat i cichy fragment utworu.",
+        "de": "Wellenformen sind jetzt deutlich detaillierter: etwa dreimal so viele, dünnere Balken zeigen jeden Beat und jede leise Passage eines Titels.",
+        "fi": "Aaltomuodot ovat nyt paljon yksityiskohtaisempia: noin kolme kertaa enemmän ohuempia palkkeja näyttää jokaisen iskun ja hiljaisen kohdan.",
+        "la": "Undae nunc multo accuratiores sunt: ter fere plures columnae graciliores omnem ictum et locum placidum cantus ostendunt."
+      }
+    ],
+    "fixed": [
+      {
+        "en": "Waveforms on loud, heavily compressed tracks no longer look like solid blocks: bar heights now follow how loud the music actually sounds, so quiet and loud passages stand out clearly.",
+        "pl": "Fale dźwiękowe głośnych, mocno skompresowanych utworów nie wyglądają już jak jednolite prostokąty: wysokość słupków odpowiada teraz temu, jak głośno naprawdę brzmi muzyka, więc ciche i głośne fragmenty wyraźnie się różnią.",
+        "de": "Wellenformen bei lauten, stark komprimierten Titeln sehen nicht mehr wie feste Blöcke aus: Die Balkenhöhe folgt jetzt der tatsächlichen Lautstärke, sodass leise und laute Passagen klar erkennbar sind.",
+        "fi": "Äänekkäiden, voimakkaasti pakattujen kappaleiden aaltomuodot eivät enää näytä umpinaisilta palkeilta: palkkien korkeus seuraa nyt musiikin todellista voimakkuutta, joten hiljaiset ja kovat kohdat erottuvat selvästi.",
+        "la": "Undae cantuum altorum et valde compressorum non iam ut moles solidae apparent: altitudo columnarum nunc veram sonoritatem sequitur, ita ut loca placida et clamosa clare distinguantur."
+      }
+    ]
+  },
+  {
     "version": "2.1.0",
     "codename": "Soundscape Bloom",
     "date": "2026-11-28",

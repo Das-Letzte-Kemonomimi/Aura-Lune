@@ -308,7 +308,7 @@ export function useCurrentTrackInfo({
   }, [currentRadioStation, cleanLiveTitle, currentPlayingTrack?.artist, status.current_track?.artist, status.current_track?.title, tracks.length, isPlayingRadio, loc.player.unknownArtist]);
 
   // 10. Real FFT Spectral Waveform Profile (extracted via Rust/GStreamer + SQLite cache)
-  const WAVEFORM_BUCKETS = 160;
+  const WAVEFORM_BUCKETS = 480;
   const WAVEFORM_SESSION_CACHE_CAP = 64;
   const waveformCacheRef = useRef<Map<string, { peaks: number[]; bands: SpectralBandTriple[] }>>(new Map());
   const [waveformState, setWaveformState] = useState<{

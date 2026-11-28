@@ -262,7 +262,7 @@ describe('useCurrentTrackInfo', () => {
     expect(invokeMock).toHaveBeenCalledWith('get_track_waveform', {
       path: mockTrack1.path,
       trackId: 1,
-      sampleCount: 160,
+      sampleCount: 480,
     });
 
     invokeMock.mockClear();

@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { BarChart2, Waves, Activity, Sliders } from '../ui/icons';
 import { type Language, getTranslations } from '../../i18n';
-import { sanitizeBands, sanitizePeaks, spectralColor } from './waveformGeometry';
+import { loadingPulseAlpha, sanitizeBands, sanitizePeaks } from './waveformGeometry';
 import {
   blitWaveLayers,
   drawPlayhead,
   horizontalPlayedGradient,
+  blitScrollLayers,
   playedClipX,
+  renderScrollLayers,
   renderWaveLayers,
-  verticalPlayedGradient,
   type WaveColors,
   type WaveLayers,
   type WaveLayerSpec,
@@ -48,8 +49,15 @@ export interface WaveformCanvasProps {
   currentLang?: string;
 }
 
-/** Width of one peak on the scrolling DJ wave (px), shared by drawing and dragging. */
-const SCROLL_UNIT_WIDTH = 6.5;
+/**
+ * Width of one peak on the scrolling DJ wave (px), shared by drawing and dragging. The track has 3× the
+ * former 160 buckets, so each is a third as wide and the wave scrolls at the same speed as before.
+ */
+const SCROLL_UNIT_WIDTH = 6.5 / 3;
+/** Drawn width of one scrolling bar (px), a little narrower than its slot. */
+const SCROLL_BAR_WIDTH = 1.5;
+/** Stable "no spectrum" value, so the strip cache can compare bands by identity. */
+const NO_BANDS: SpectralBandTriple[] = [];
 /** Position of the fixed DJ needle as a fraction of the width (centre). */
 const SCROLL_PLAYHEAD_RATIO = 0.5;
 /** Minimum shift (px) from which dragging the DJ wave counts as scrolling rather than a click. */
@@ -68,6 +76,10 @@ function resolveCssColor(color: string | undefined, fallback: string): string {
     }
   }
   return trimmed;
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function formatTimeSec(seconds: number): string {
@@ -183,15 +195,22 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     bands: SpectralBandTriple[] | null;
     layers: WaveLayers | null;
   }>({ key: '', peaks: null, bands: null, layers: null });
-  // Gradients of the per-tick styles (loading baseline, scrolling bars), rebuilt only on size/colour changes.
-  const gradientsRef = useRef<{ key: string; horizontal: CanvasGradient | null; vertical: CanvasGradient | null }>({
+  // The scrolling wave's played/unplayed strips: independent of the canvas width and the position, so they are
+  // rebuilt only for new peaks/bands, a new height or backing scale, or new colours.
+  const scrollLayersRef = useRef<{
+    key: string;
+    peaks: number[] | null;
+    bands: SpectralBandTriple[] | null;
+    layers: WaveLayers | null;
+  }>({ key: '', peaks: null, bands: null, layers: null });
+  // Gradient of the loading baseline, rebuilt only on size/colour changes.
+  const gradientsRef = useRef<{ key: string; horizontal: CanvasGradient | null }>({
     key: '',
     horizontal: null,
-    vertical: null,
   });
 
   const { canvasRef, invalidate } = useCanvasLoop(
-    ({ ctx, width, height: canvasHeight }) => {
+    ({ ctx, width, height: canvasHeight, now }) => {
       canvasWidthRef.current = width;
       const colors = colorsRef.current;
 
@@ -200,20 +219,24 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         gradientsRef.current = {
           key: gradientKey,
           horizontal: horizontalPlayedGradient(ctx, width, colors),
-          vertical: verticalPlayedGradient(ctx, canvasHeight, colors),
         };
       }
       const playedGrad = gradientsRef.current.horizontal as CanvasGradient;
-      const verticalPlayedGrad = gradientsRef.current.vertical as CanvasGradient;
 
       const effectiveProgress = isDraggingRef.current && dragProgressRef.current !== null ? dragProgressRef.current : progress;
       const currentX = (effectiveProgress / 100) * width;
       const hasSpectralData = normalizedBands.length > 0 && normalizedBands.length === normalizedPeaks.length;
 
-      // Subtle neutral baseline while the track's FFT spectrum is decoding
+      // True only while the loading baseline blinks: keeps the loop awake (otherwise it sleeps after each draw).
+      let animating = false;
+
+      // Subtle neutral baseline, blinking lightly, while the track's FFT spectrum is being analysed
       if (isLoading && !hasRealPeaks) {
         const midY = canvasHeight / 2;
+        const reducedMotion = prefersReducedMotion();
+        animating = !reducedMotion;
         ctx.save();
+        ctx.globalAlpha = loadingPulseAlpha(now, reducedMotion);
         ctx.fillStyle = colors.unplayed;
         ctx.beginPath();
         roundRectPath(ctx, 0, midY - 2, width, 4, 2);
@@ -259,70 +282,59 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       // STYLE 3: SCROLLING DJ WAVE
       // ==========================================
       else if (activeStyle === 'scrolling') {
-        const midY = canvasHeight / 2;
         const playheadX = Math.floor(width * SCROLL_PLAYHEAD_RATIO); // Fixed DJ needle in the centre
         const count = normalizedPeaks.length;
-        const waveUnitWidth = SCROLL_UNIT_WIDTH; // Width of a single bar
-        const totalWaveWidth = count * waveUnitWidth;
+        const totalWaveWidth = count * SCROLL_UNIT_WIDTH;
 
         // Wave offset based on playback progress
         const scrollOffset = (effectiveProgress / 100) * totalWaveWidth;
 
-        // Background grid (DJ beat grid)
+        // Background grid (DJ beat grid), one batched stroke
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
         ctx.lineWidth = 1;
+        ctx.beginPath();
         for (let gx = 0; gx < width; gx += 40) {
           const lineX = Math.floor(gx) + 0.5;
-          ctx.beginPath();
           ctx.moveTo(lineX, 0);
           ctx.lineTo(lineX, canvasHeight);
-          ctx.stroke();
         }
+        ctx.stroke();
 
-        // Draw the scrolling bars (batched when monochromatic, per-band when FFT spectrum is available)
-        const bWidth = 4.5;
-        if (hasSpectralData) {
-          ctx.save();
-          for (let i = 0; i < count; i++) {
-            const barX = playheadX - scrollOffset + i * waveUnitWidth;
-            if (barX < -20 || barX > width + 20) continue;
-            const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
-            const isPlayed = barX <= playheadX;
-            ctx.fillStyle = spectralColor(normalizedBands[i], isPlayed ? 0.95 : 0.25);
-            ctx.beginPath();
-            roundRectPath(ctx, barX, midY - barHeight / 2, bWidth, barHeight, 2.5);
-            ctx.fill();
-          }
-          ctx.restore();
-        } else {
-          const played: { x: number; y: number; h: number }[] = [];
-          const upcoming: { x: number; y: number; h: number }[] = [];
-          for (let i = 0; i < count; i++) {
-            const barX = playheadX - scrollOffset + i * waveUnitWidth;
-
-            // Draw only the elements that fit on the screen
-            if (barX < -20 || barX > width + 20) continue;
-
-            const barHeight = Math.max(10, (Math.max(16, normalizedPeaks[i]) / 100) * (canvasHeight - 8));
-            const bar = { x: barX, y: midY - barHeight / 2, h: barHeight };
-            (barX <= playheadX ? played : upcoming).push(bar);
-          }
-
-          const fillScrollBars = (bars: { x: number; y: number; h: number }[]) => {
-            if (bars.length === 0) return;
-            ctx.beginPath();
-            for (const b of bars) {
-              roundRectPath(ctx, b.x, b.y, bWidth, b.h, 2.5);
-            }
-            ctx.fill();
+        // The bars are drawn once into played/unplayed strips; each tick blits only the visible window.
+        const scaleX = ctx.canvas.width / width;
+        const scaleY = ctx.canvas.height / canvasHeight;
+        const stripBands = hasSpectralData ? normalizedBands : NO_BANDS;
+        const stripKey = `${canvasHeight}|${scaleX}x${scaleY}|${colors.start}|${colors.end}`;
+        const stripCache = scrollLayersRef.current;
+        if (stripCache.key !== stripKey || stripCache.peaks !== normalizedPeaks || stripCache.bands !== stripBands) {
+          scrollLayersRef.current = {
+            key: stripKey,
+            peaks: normalizedPeaks,
+            bands: stripBands,
+            layers: renderScrollLayers(
+              {
+                peaks: normalizedPeaks,
+                bands: stripBands,
+                height: canvasHeight,
+                unitWidth: SCROLL_UNIT_WIDTH,
+                barWidth: SCROLL_BAR_WIDTH,
+                colors,
+              },
+              scaleX,
+              scaleY,
+            ),
           };
-
-          ctx.save();
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-          fillScrollBars(upcoming);
-          ctx.fillStyle = verticalPlayedGrad;
-          fillScrollBars(played);
-          ctx.restore();
+        }
+        const stripLayers = scrollLayersRef.current.layers;
+        if (stripLayers) {
+          blitScrollLayers(ctx, stripLayers, {
+            playheadX,
+            offset: scrollOffset,
+            unitWidth: SCROLL_UNIT_WIDTH,
+            barWidth: SCROLL_BAR_WIDTH,
+            count,
+            scaleX,
+          });
         }
 
         // Central laser DJ needle with crisp halo (playhead marker)
@@ -456,10 +468,12 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         ctx.restore();
       }
 
-      return false;
+      return animating;
     },
     {
       pixelRatio: 'device',
+      // Redraws are event-driven (progress, hover, drag) except the loading blink, which needs no more than 30 fps.
+      maxFps: isLoading && !hasRealPeaks ? 30 : undefined,
       onResize: ({ width }) => {
         canvasWidthRef.current = width;
         syncTooltip();
@@ -771,6 +785,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
         {/* Wave canvas container (mouse and touch dragging) */}
         <div
           ref={containerRef}
+          aria-busy={isLoading && !hasRealPeaks}
           className={cn(
             'relative w-full select-none overflow-hidden rounded-xl border waveform-container',
             isDragging ? 'border-accent-pink transition-none' : 'border-line transition-[border-color,box-shadow] duration-200',

@@ -138,8 +138,8 @@ describe('WaveformCanvas Component', () => {
     expect(handleSeek).toHaveBeenCalledWith(0.75);
   });
   describe('scrolling DJ wave', () => {
-    // 160 peaks * 6.5 px = 1040 px for the whole wave => 1 px of dragging = 1/1040 of the track
-    const manyPeaks = Array.from({ length: 160 }, (_, i) => 20 + (i % 60));
+    // 480 peaks * (6.5 / 3) px = 1040 px for the whole wave => 1 px of dragging = 1/1040 of the track
+    const manyPeaks = Array.from({ length: 480 }, (_, i) => 20 + (i % 60));
 
     function setup(overrides: Partial<React.ComponentProps<typeof WaveformCanvas>> = {}) {
       const onSeekPreview = vi.fn();
@@ -411,6 +411,55 @@ describe('WaveformCanvas Component', () => {
         raf.restore();
         canvasMock.restore();
       }
+    });
+
+    describe('loading blink', () => {
+      const loadingProps = { peaks: [] as number[], isLoading: true, progress: 30, durationMs: 120000, currentLang: 'en' as const };
+
+      it('keeps animating while the track is being analysed and marks the wave busy', () => {
+        const canvasMock = installCanvasMock({ width: 400, height: 66 });
+        const raf = installFakeRaf();
+        try {
+          const { container } = render(<WaveformCanvas {...loadingProps} />);
+          for (let i = 0; i < 5; i++) raf.step(50);
+          expect(raf.pending()).toBeGreaterThan(0);
+          expect(container.querySelector('.waveform-container')?.getAttribute('aria-busy')).toBe('true');
+        } finally {
+          raf.restore();
+          canvasMock.restore();
+        }
+      });
+
+      it('goes back to sleep once the waveform has loaded', () => {
+        const canvasMock = installCanvasMock({ width: 400, height: 66 });
+        const raf = installFakeRaf();
+        try {
+          const { rerender, container } = render(<WaveformCanvas {...loadingProps} />);
+          raf.step(50);
+          rerender(<WaveformCanvas {...loadingProps} peaks={dummyPeaks} isLoading={false} />);
+          for (let i = 0; i < 5; i++) raf.step(50);
+          expect(raf.pending()).toBe(0);
+          expect(container.querySelector('.waveform-container')?.getAttribute('aria-busy')).toBe('false');
+        } finally {
+          raf.restore();
+          canvasMock.restore();
+        }
+      });
+
+      it('does not animate with reduced motion, but still draws the baseline once', () => {
+        const canvasMock = installCanvasMock({ width: 400, height: 66 });
+        const raf = installFakeRaf();
+        vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+        try {
+          render(<WaveformCanvas {...loadingProps} />);
+          for (let i = 0; i < 5; i++) raf.step(50);
+          expect(canvasMock.calls).toContain('fill');
+          expect(raf.pending()).toBe(0);
+        } finally {
+          raf.restore();
+          canvasMock.restore();
+        }
+      });
     });
   });
 });
