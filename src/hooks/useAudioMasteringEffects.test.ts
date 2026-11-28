@@ -59,6 +59,54 @@ describe('useAudioMasteringEffects', () => {
     });
   });
 
+  it('clamps crossfade to the engine range before applying and saving', async () => {
+    const { result } = renderHook(() =>
+      useAudioMasteringEffects({ status: baseStatus, setStatus: vi.fn(), showMessage: vi.fn(), loc })
+    );
+    await act(async () => {
+      await result.current.handleCrossfadeDurationChange(12000);
+    });
+    expect(result.current.crossfadeDuration).toBe(8000);
+    expect(invokeMock).toHaveBeenCalledWith('set_crossfade_duration', { durationMs: 8000 });
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'crossfade_duration', value: '8000' });
+  });
+
+  it('still persists the crossfade when the engine call fails', async () => {
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'set_crossfade_duration') throw new Error('engine down');
+      return null;
+    });
+    const { result } = renderHook(() =>
+      useAudioMasteringEffects({ status: baseStatus, setStatus: vi.fn(), showMessage: vi.fn(), loc })
+    );
+    await act(async () => {
+      await result.current.handleCrossfadeDurationChange(3000);
+    });
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'crossfade_duration', value: '3000' });
+  });
+
+  it('writes rapid crossfade changes in order so the last value is what is persisted', async () => {
+    const saved: string[] = [];
+    invokeMock.mockImplementation(async (cmd: string, args?: { key?: string; value?: string }) => {
+      if (cmd !== 'set_app_setting') return null;
+      // Earlier writes are slower; without serialisation they would land last.
+      await new Promise((r) => setTimeout(r, saved.length === 0 ? 20 : 1));
+      saved.push(args?.value ?? '');
+      return null;
+    });
+    const { result } = renderHook(() =>
+      useAudioMasteringEffects({ status: baseStatus, setStatus: vi.fn(), showMessage: vi.fn(), loc })
+    );
+    await act(async () => {
+      await Promise.all([
+        result.current.handleCrossfadeDurationChange(1000),
+        result.current.handleCrossfadeDurationChange(2000),
+        result.current.handleCrossfadeDurationChange(4000),
+      ]);
+    });
+    expect(saved).toEqual(['1000', '2000', '4000']);
+  });
+
   it('toggles limiter on and off', async () => {
     const showMessage = vi.fn();
     const { result } = renderHook(() =>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { parseCrossfadeSetting } from '../utils/crossfade';
 import { invoke } from '../api/ipc';
 import { getSetting, setSetting } from '../api/settings';
 import { clampPreampDb, parseFiniteSetting } from '../utils/preamp';
@@ -155,11 +156,9 @@ export function useAppBootstrap({
 
         getSetting('crossfade_duration')
           .then((val) => {
-            const ms = val ? parseInt(val, 10) : 1500;
-            if (!isNaN(ms)) {
-              if (!disposed) setCrossfadeDuration(ms);
-              invoke('set_crossfade_duration', { durationMs: ms }).catch(() => {});
-            }
+            const ms = parseCrossfadeSetting(val);
+            if (!disposed) setCrossfadeDuration(ms);
+            invoke('set_crossfade_duration', { durationMs: ms }).catch(() => {});
           })
           .catch((e) => console.warn('Failed to read crossfade_duration:', e)),
 
