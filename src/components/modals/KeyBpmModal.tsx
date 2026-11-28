@@ -4,6 +4,7 @@ import { errorMessage, invoke } from '../../api/ipc';
 import type { Language, Translations } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { totalPitchShiftSemitones, transposeKeyIndex } from '../../utils/keyTranspose';
 import {
   Badge,
   Button,
@@ -260,8 +261,9 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   };
 
   // Key after transposition
-  const roundedSemitones = Math.round(pitchSemitones);
-  const transposedIndex = ((baseKeyIndex + roundedSemitones) % 12 + 12) % 12;
+  // Rate is tape-style (tempo and pitch together), so it shifts the key on top of the explicit pitch.
+  const totalSemitones = totalPitchShiftSemitones(pitchSemitones, rateRatio);
+  const transposedIndex = transposeKeyIndex(baseKeyIndex, totalSemitones);
   const originalKeyName = `${CHROMATIC_SCALE[baseKeyIndex]} ${isMinor ? 'm' : 'Maj'}`;
   const transposedKeyName = `${CHROMATIC_SCALE[transposedIndex]} ${isMinor ? 'm' : 'Maj'}`;
 
@@ -361,7 +363,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="label-caps text-accent-pink">{loc.keyBpm.outputDsp}</span>
               <Badge tone="pink" size="xs" mono>
-                {pitchSemitones > 0 ? `+${pitchSemitones.toFixed(1)}` : pitchSemitones.toFixed(1)} st
+                {totalSemitones > 0 ? `+${totalSemitones.toFixed(1)}` : totalSemitones.toFixed(1)} st
               </Badge>
             </div>
             <KeyReadout label={loc.keyBpm.transposedKey} keyName={transposedKeyName} camelot={transposedCamelot} camelotTone="cyan" camelotTitle={loc.keyBpm.camelotNotation} />
