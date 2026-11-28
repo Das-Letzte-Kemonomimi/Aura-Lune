@@ -74,6 +74,12 @@ impl Default for DspExportSettings {
 }
 
 impl DspExportSettings {
+    /// Combined speed factor the stretcher applies to the duration (tempo × rate): output length
+    /// is the source length divided by this value.
+    pub fn speed_ratio(&self) -> f64 {
+        self.tempo_ratio * self.rate_ratio
+    }
+
     /// Checks whether any DSP parameter differs from the defaults (Bypass).
     pub fn is_active(&self) -> bool {
         self.pitch_semitones.abs() > 0.001
@@ -118,4 +124,21 @@ impl TimeRange {
     pub fn duration_ms(&self) -> Option<u64> {
         self.end_ms.map(|end| end.saturating_sub(self.start_ms))
     }
+
+    /// Length of the exported file in milliseconds. The range is in SOURCE time, so the DSP
+    /// stretches it by `1 / speed_ratio` (see [`DspExportSettings::speed_ratio`]).
+    /// `source_duration_ms` bounds an open-ended range (no point B).
+    pub fn output_duration_ms(&self, source_duration_ms: u64, speed_ratio: f64) -> u64 {
+        let end = self.end_ms.unwrap_or(source_duration_ms);
+        let source_ms = end.saturating_sub(self.start_ms);
+        scale_by_speed(source_ms, speed_ratio)
+    }
+}
+
+/// Converts a source-time length to the length it has after playing at `speed_ratio`.
+pub fn scale_by_speed(source_ms: u64, speed_ratio: f64) -> u64 {
+    if !speed_ratio.is_finite() || speed_ratio <= 0.0 {
+        return source_ms;
+    }
+    (source_ms as f64 / speed_ratio).round() as u64
 }

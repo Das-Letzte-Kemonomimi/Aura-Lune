@@ -5,7 +5,7 @@
 //! or deletes the source file.
 
 use crate::error::AudioEngineError;
-use domain::transcode::{DspExportSettings, ExportFormat, TimeRange};
+use domain::transcode::{scale_by_speed, DspExportSettings, ExportFormat, TimeRange};
 use gst::prelude::*;
 use gstreamer as gst;
 use std::path::Path;
@@ -279,6 +279,35 @@ impl Transcoder {
             audioresample.link(&capsfilter_dsp)?;
             capsfilter_dsp.link(&dsp_elem)?;
 
+            // The A-B seek happens in SOURCE time, so the segment reaching the DSP element has
+            // `stop = B`. The stretcher emits `(B - A) / speed` of output starting at PTS A, which
+            // for speed < 1 runs past B. Downstream encoders clip buffers to the segment, so
+            // replace it with an open-ended one: the stream still ends by EOS once the decoder
+            // has delivered the whole source range and the DSP element has drained its tail.
+            if let Some(dsp_src) = dsp_elem.static_pad("src") {
+                dsp_src.add_probe(gst::PadProbeType::EVENT_DOWNSTREAM, |_pad, info| {
+                    let Some(gst::PadProbeData::Event(ref event)) = info.data else {
+                        return gst::PadProbeReturn::Ok;
+                    };
+                    let gst::EventView::Segment(seg) = event.view() else {
+                        return gst::PadProbeReturn::Ok;
+                    };
+                    let Ok(src_seg) = seg.segment().clone().downcast::<gst::ClockTime>() else {
+                        return gst::PadProbeReturn::Ok;
+                    };
+                    let mut open = gst::FormattedSegment::<gst::ClockTime>::new();
+                    open.set_start(src_seg.start());
+                    open.set_time(src_seg.time());
+                    open.set_position(src_seg.position());
+                    open.set_base(src_seg.base());
+                    let replacement = gst::event::Segment::builder(&open)
+                        .seqnum(event.seqnum())
+                        .build();
+                    info.data = Some(gst::PadProbeData::Event(replacement));
+                    gst::PadProbeReturn::Ok
+                });
+            }
+
             let mut last_elem = dsp_elem.upcast::<gst::Element>();
 
             // Freeverb
@@ -439,6 +468,9 @@ impl Transcoder {
         let mut last_advance = std::time::Instant::now();
         let mut last_position: Option<u64> = None;
         let mut last_progress_report = std::time::Instant::now();
+        let speed_ratio = dsp_settings
+            .filter(|s| s.is_active())
+            .map_or(1.0, DspExportSettings::speed_ratio);
 
         while last_advance.elapsed() < stall_timeout {
             let position = pipeline
@@ -502,16 +534,14 @@ impl Transcoder {
                     };
 
                     if let Some(p) = pos_ms {
+                        // The range is in source time, but the position reported by the pipeline
+                        // is output time (stretched by the DSP speed), so the expected total is too.
                         let (effective_p, effective_d) = match time_range {
-                            Some(r) => {
-                                let start = r.start_ms;
-                                let dur = match r.end_ms {
-                                    Some(end) => end.saturating_sub(start),
-                                    None => dur_ms.unwrap_or(0).saturating_sub(start),
-                                };
-                                (p.saturating_sub(start), dur)
-                            }
-                            None => (p, dur_ms.unwrap_or(0)),
+                            Some(r) => (
+                                p.saturating_sub(r.start_ms),
+                                r.output_duration_ms(dur_ms.unwrap_or(0), speed_ratio),
+                            ),
+                            None => (p, scale_by_speed(dur_ms.unwrap_or(0), speed_ratio)),
                         };
 
                         let percent = if effective_d > 0 {

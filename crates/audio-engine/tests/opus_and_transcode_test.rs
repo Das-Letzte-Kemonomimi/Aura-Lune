@@ -436,3 +436,68 @@ fn test_transcode_different_ranges_with_rubberband_slowed() {
         size2
     );
 }
+
+/// Exports `range` of the 440 Hz fixture as WAV with the given DSP tempo/rate and returns the
+/// duration of the written file in milliseconds (WAV: 44-byte header, then PCM data).
+fn export_wav_with_tempo(range: &TimeRange, tempo: f64, rate: f64, name: &str) -> f64 {
+    let temp = TempTestDir::new(name);
+    let input_wav = fixture_path("test_sine_440hz.wav");
+    let output = temp.child("out.wav");
+    let dsp = DspExportSettings {
+        pitch_semitones: 0.0,
+        tempo_ratio: tempo,
+        rate_ratio: rate,
+        engine: Some("RubberBand".into()),
+        reverb_level: 0.0,
+        eq_bands: None,
+    };
+    Transcoder::transcode_with_dsp(
+        &input_wav,
+        &output,
+        ExportFormat::Wav,
+        Some(&dsp),
+        Some(range),
+    )
+    .expect("Transcoding should succeed");
+    wav_duration_ms(&output)
+}
+
+/// Minimal WAV duration reader: parses the `fmt ` chunk for byte rate and the `data` chunk size.
+fn wav_duration_ms(path: &Path) -> f64 {
+    let bytes = fs::read(path).expect("Reading the exported WAV");
+    let mut pos = 12;
+    let mut byte_rate = 0u32;
+    while pos + 8 <= bytes.len() {
+        let id = &bytes[pos..pos + 4];
+        let size = u32::from_le_bytes(bytes[pos + 4..pos + 8].try_into().unwrap()) as usize;
+        if id == b"fmt " {
+            byte_rate = u32::from_le_bytes(bytes[pos + 16..pos + 20].try_into().unwrap());
+        } else if id == b"data" {
+            let len = size.min(bytes.len() - pos - 8);
+            return len as f64 * 1000.0 / byte_rate as f64;
+        }
+        pos += 8 + size + (size & 1);
+    }
+    panic!("No data chunk in the exported WAV");
+}
+
+#[test]
+fn test_range_export_with_slow_tempo_keeps_whole_source_range() {
+    let range = TimeRange::new(500, Some(1500)).unwrap();
+    let ms = export_wav_with_tempo(&range, 0.5, 1.0, "range_slow");
+    assert!(
+        (1850.0..=2150.0).contains(&ms),
+        "A 1000 ms range at tempo 0.5x must last ~2000 ms, got {ms:.0} ms"
+    );
+}
+
+#[test]
+fn test_range_export_with_fast_tempo_and_rate_scales_duration() {
+    let range = TimeRange::new(500, Some(2500)).unwrap();
+    let ms = export_wav_with_tempo(&range, 1.25, 1.2, "range_fast");
+    let expected = 2000.0 / (1.25 * 1.2);
+    assert!(
+        (expected - 150.0..=expected + 150.0).contains(&ms),
+        "A 2000 ms range at 1.25x tempo * 1.2x rate must last ~{expected:.0} ms, got {ms:.0} ms"
+    );
+}
