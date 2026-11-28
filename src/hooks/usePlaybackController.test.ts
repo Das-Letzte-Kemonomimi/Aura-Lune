@@ -441,6 +441,27 @@ describe('usePlaybackController', () => {
       expect(seeks[0][1]).toMatchObject({ positionMs: 5_000 });
     });
 
+    it('snaps a seek before A or past B to A while an A-B loop is active', async () => {
+      const { result } = setupHook();
+      await act(async () => {});
+      act(() => {
+        result.current.setLoopPointA(5_000);
+        result.current.setLoopPointB(8_000);
+      });
+      mockInvoke.mockClear();
+
+      await act(async () => {
+        await result.current.handleSeekCommit(1_000, false);
+        await result.current.handleSeekCommit(9_000, false);
+        await result.current.handleSeekCommit(6_000, false);
+      });
+
+      const positions = mockInvoke.mock.calls
+        .filter(([cmd]) => cmd === 'seek')
+        .map(([, args]) => (args as { positionMs: number }).positionMs);
+      expect(positions).toEqual([5_000, 5_000, 6_000]);
+    });
+
     it('two identical status events cause no second App state commit (including replaygain_status)', async () => {
       const settledStatus: PlaybackStatus = {
         ...mockStatus,
