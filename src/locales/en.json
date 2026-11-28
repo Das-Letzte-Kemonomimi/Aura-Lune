@@ -68,6 +68,7 @@
     "clearLoop": "Clear Loop",
     "invalidTimeFormat": "Invalid time format (e.g. 860ms, 860, 0:00.860 or 1:23.450)",
     "loopBMustBeGreaterThanA": "Point B must be strictly greater than Point A",
+    "loopPointBeyondTrack": "A loop point lies beyond the end of the track",
     "loopAB": "Loop A-B",
     "lyrics": "Lyrics",
     "openFile": "Open File...",

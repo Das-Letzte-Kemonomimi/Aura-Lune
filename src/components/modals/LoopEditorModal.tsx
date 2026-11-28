@@ -2,11 +2,12 @@ import React, { useEffect, useId, useState } from 'react';
 import { Play, RotateCcw, Clock, Check, AlertCircle, Scissors, Bookmark } from '../ui/icons';
 import { type Language, type Translations, getTranslations } from '../../i18n';
 
-import { parseTimeToMs, formatTimeMs } from '../../utils/timeFormat';
+import { formatTimeMs } from '../../utils/timeFormat';
 import { useLivePositionMs } from '../../state/livePlayback';
 import { cn } from '../../utils/cn';
 import { Button, Callout, Card, ModalBody, ModalFooter, ModalHeader, ModalShell, NudgeButtons, TextField } from '../ui';
 import { textTones } from '../ui/tones';
+import { loopPointInputText, validateLoopInputs } from './loopEditorModel';
 
 export interface LoopEditorModalProps {
   isOpen: boolean;
@@ -50,21 +51,15 @@ const LoopEditorModalInner: React.FC<LoopEditorModalProps> = ({
 
   // Sync when loop bounds change while open
   useEffect(() => {
-    setInputA(loopPointA !== null ? `${loopPointA}ms` : '');
-    setInputB(loopPointB !== null ? `${loopPointB}ms` : '');
+    setInputA(loopPointInputText(loopPointA));
+    setInputB(loopPointInputText(loopPointB));
   }, [loopPointA, loopPointB]);
 
-  const parsedA = parseTimeToMs(inputA);
-  const parsedB = parseTimeToMs(inputB);
-
-  const isAValid = inputA.trim() === '' || parsedA !== null;
-  const isBValid = inputB.trim() === '' || parsedB !== null;
-  const isOrderValid = parsedA === null || parsedB === null || parsedB > parsedA;
-
-  const loopDuration = parsedA !== null && parsedB !== null && parsedB > parsedA ? parsedB - parsedA : null;
+  const { parsedA, parsedB, isAValid, isBValid, isOrderValid, isWithinTrack, loopDurationMs: loopDuration, canApply } =
+    validateLoopInputs(inputA, inputB, durationMs);
 
   const handleApply = () => {
-    if (!isAValid || !isBValid || !isOrderValid) return;
+    if (!canApply) return;
     onApplyLoop(parsedA, parsedB);
     onClose();
   };
@@ -76,7 +71,7 @@ const LoopEditorModalInner: React.FC<LoopEditorModalProps> = ({
     onClose();
   };
 
-  const invalidRange = !isAValid || !isBValid || !isOrderValid;
+  const invalidRange = !canApply;
   const nothingSet = parsedA === null && parsedB === null;
   const maxMs = durationMs ?? Number.MAX_SAFE_INTEGER;
 
@@ -108,12 +103,12 @@ const LoopEditorModalInner: React.FC<LoopEditorModalProps> = ({
           onInput={setInputA}
           parsed={parsedA}
           valid={isAValid}
-          placeholder="e.g. 860ms, 860 or 0:00.860"
+          placeholder="m:ss.mmm"
           nudgeBase={parsedA ?? currentPositionMs}
           maxMs={maxMs}
           setNowLabel={loc.player.useCurrentPos || 'Set now'}
           jumpLabel={loc.player.jumpToA || 'Jump to A'}
-          onSetNow={() => setInputA(`${currentPositionMs}ms`)}
+          onSetNow={() => setInputA(loopPointInputText(currentPositionMs))}
           onSeek={onSeek}
         />
         <LoopPointCard
@@ -123,12 +118,12 @@ const LoopEditorModalInner: React.FC<LoopEditorModalProps> = ({
           onInput={setInputB}
           parsed={parsedB}
           valid={isBValid}
-          placeholder="e.g. 5000ms, 5200 or 0:05.200"
+          placeholder="m:ss.mmm"
           nudgeBase={parsedB ?? currentPositionMs}
           maxMs={maxMs}
           setNowLabel={loc.player.useCurrentPos || 'Set now'}
           jumpLabel={loc.player.jumpToA ? loc.player.jumpToA.replace('A', 'B') : 'Jump to B'}
-          onSetNow={() => setInputB(`${currentPositionMs}ms`)}
+          onSetNow={() => setInputB(loopPointInputText(currentPositionMs))}
           onSeek={onSeek}
         />
 
@@ -144,6 +139,12 @@ const LoopEditorModalInner: React.FC<LoopEditorModalProps> = ({
             <div className="flex items-center gap-1.5 text-accent-pink">
               <AlertCircle size={14} />
               <span>{loc.player.loopBMustBeGreaterThanA}</span>
+            </div>
+          )}
+          {!isWithinTrack && (
+            <div className="flex items-center gap-1.5 text-accent-pink">
+              <AlertCircle size={14} />
+              <span>{loc.player.loopPointBeyondTrack}</span>
             </div>
           )}
           {(!isAValid || !isBValid) && (
@@ -272,7 +273,7 @@ function LoopPointCard({
         <span className="mr-1 text-xxs text-fg-muted">Nudge:</span>
         <NudgeButtons
           value={nudgeBase}
-          onChange={(ms) => onInput(`${ms}ms`)}
+          onChange={(ms) => onInput(loopPointInputText(ms))}
           steps={NUDGE_STEPS_MS}
           min={0}
           max={maxMs}
