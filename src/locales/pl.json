@@ -68,6 +68,7 @@
     "clearLoop": "Wyczyść pętlę",
     "invalidTimeFormat": "Nieprawidłowy format czasu (np. 860ms, 860, 0:00.860 lub 1:23.450)",
     "loopBMustBeGreaterThanA": "Punkt B musi być większy niż punkt A",
+    "loopPointBeyondTrack": "Punkt pętli leży poza końcem utworu",
     "loopAB": "Pętla A-B",
     "lyrics": "Tekst utworu",
     "openFile": "Otwórz plik...",

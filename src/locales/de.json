@@ -68,6 +68,7 @@
     "clearLoop": "Schleife löschen",
     "invalidTimeFormat": "Ungültiges Zeitformat (z. B. 860ms, 860, 0:00.860 oder 1:23.450)",
     "loopBMustBeGreaterThanA": "Punkt B muss größer als Punkt A sein",
+    "loopPointBeyondTrack": "Ein Schleifenpunkt liegt hinter dem Ende des Titels",
     "loopAB": "Schleife A-B",
     "lyrics": "Songtext",
     "openFile": "Datei öffnen...",

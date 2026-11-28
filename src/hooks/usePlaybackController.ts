@@ -95,7 +95,6 @@ export function usePlaybackController({
   // A-B Repeat Loop State
   const [loopPointA, setLoopPointA] = useState<number | null>(null);
   const [loopPointB, setLoopPointB] = useState<number | null>(null);
-  const [isLoopEditorOpen, setIsLoopEditorOpen] = useState(false);
 
   // Track Bookmarks State
   const [currentBookmark, setCurrentBookmark] = useState<number | null>(null);
@@ -194,6 +193,8 @@ export function usePlaybackController({
     loopPointsRef.current = { a: loopPointA, b: loopPointB };
   }, [loopPointA, loopPointB]);
   const loopSeekPendingRef = useRef(false);
+  // Identity of the track the A-B points belong to; they are cleared when it changes.
+  const loopTrackKeyRef = useRef<string | null>(null);
   const handleSeekRef = useRef<((val: number) => Promise<void>) | null>(null);
   const lastStatusEventAtRef = useRef(0);
   const firstStatusLoggedRef = useRef(false);
@@ -238,6 +239,19 @@ export function usePlaybackController({
       };
     } else {
       livePlayback.publish({ spectrum: res.spectrum, volume: liveVol });
+    }
+
+    // A-B points belong to one track: drop them as soon as another track starts.
+    const trackKey = res.current_track ? (res.current_track.uri || String(res.current_track.track_id ?? '')) : null;
+    if (trackKey) {
+      const previousKey = loopTrackKeyRef.current;
+      loopTrackKeyRef.current = trackKey;
+      if (previousKey !== null && previousKey !== trackKey) {
+        loopPointsRef.current = { a: null, b: null };
+        loopSeekPendingRef.current = false;
+        setLoopPointA(null);
+        setLoopPointB(null);
+      }
     }
 
     // The A-B loop is checked on every frame (~100 ms accuracy).
@@ -809,8 +823,6 @@ export function usePlaybackController({
     setLoopPointA,
     loopPointB,
     setLoopPointB,
-    isLoopEditorOpen,
-    setIsLoopEditorOpen,
     currentBookmark,
     setCurrentBookmark,
     currentTrackBookmarks,

@@ -68,6 +68,7 @@
     "clearLoop": "Purga gyrum",
     "invalidTimeFormat": "Forma temporis mendosa (ut 860ms, 860, 0:00.860 vel 1:23.450)",
     "loopBMustBeGreaterThanA": "Punctum B maius esse debet quam punctum A",
+    "loopPointBeyondTrack": "Punctum orbis ultra finem cantus iacet",
     "loopAB": "Limes A-B",
     "lyrics": "Carmen",
     "openFile": "Aperi Fasciculum...",

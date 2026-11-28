@@ -68,6 +68,7 @@
     "clearLoop": "Tyhjennä silmukka",
     "invalidTimeFormat": "Virheellinen aikamuoto (esim. 860ms, 860, 0:00.860 tai 1:23.450)",
     "loopBMustBeGreaterThanA": "Pisteen B on oltava suurempi kuin pisteen A",
+    "loopPointBeyondTrack": "Silmukan piste on kappaleen lopun jälkeen",
     "loopAB": "Silmukka A-B",
     "lyrics": "Sanoitus",
     "openFile": "Avaa tiedosto...",
