@@ -5,6 +5,7 @@ import { useStableCallback } from './useStableCallback';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { CROSSFADE_DEFAULT_MS, clampCrossfadeMs } from '../utils/crossfade';
 
 export interface UseAudioMasteringEffectsOptions {
   status: PlaybackStatus;
@@ -17,7 +18,9 @@ export function useAudioMasteringEffects({
   showMessage,
   loc,
 }: UseAudioMasteringEffectsOptions) {
-  const [crossfadeDuration, setCrossfadeDuration] = useState<number>(1500);
+  const [crossfadeDuration, setCrossfadeDuration] = useState<number>(CROSSFADE_DEFAULT_MS);
+  // Slider drags fire many changes; chaining the writes keeps the engine and the database on the last value.
+  const crossfadeWriteChain = useRef<Promise<void>>(Promise.resolve());
   const [bassBoost, setBassBoost] = useState<number>(0);
   const lastBassBoostRef = useRef<number>(6.0);
   const [stereoWidenerActive, setStereoWidenerActive] = useState<boolean>(false);
@@ -25,14 +28,22 @@ export function useAudioMasteringEffects({
   const [limiterEnabled, setLimiterEnabled] = useState<boolean>(true);
 
   const handleCrossfadeDurationChange = useStableCallback(async (ms: number) => {
-    const clamped = Math.max(0, Math.min(8000, ms));
+    const clamped = clampCrossfadeMs(ms);
     setCrossfadeDuration(clamped);
-    try {
-      await invoke('set_crossfade_duration', { durationMs: clamped });
-      await setSetting('crossfade_duration', clamped.toString());
-    } catch (e) {
-      console.warn('Failed to save crossfade_duration:', e);
-    }
+    const write = crossfadeWriteChain.current.then(async () => {
+      try {
+        await invoke('set_crossfade_duration', { durationMs: clamped });
+      } catch (e: unknown) {
+        console.warn('Failed to apply crossfade_duration:', e);
+      }
+      try {
+        await setSetting('crossfade_duration', clamped.toString());
+      } catch (e: unknown) {
+        console.warn('Failed to save crossfade_duration:', e);
+      }
+    });
+    crossfadeWriteChain.current = write;
+    await write;
   });
 
   const handleToggleLimiter = useStableCallback(async (enabled: boolean) => {
