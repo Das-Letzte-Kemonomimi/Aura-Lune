@@ -108,23 +108,27 @@ impl Database {
         let mut total_listened_ms: i64 = total_row.try_get("total_ms").unwrap_or(0);
         let mut tracks_played_count: i64 = total_row.try_get("tracks_count").unwrap_or(0);
 
-        if since_epoch_secs == 0 {
+        // Counters on `tracks` predate `listening_history`; they are only a fallback when no history
+        // exists at all, so every period (incl. all time) aggregates the same rows.
+        let history_rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM listening_history;")
+            .fetch_one(&self.pool)
+            .await?;
+        let use_track_counters = since_epoch_secs <= 0 && history_rows == 0;
+        if use_track_counters {
             if let Ok(tracks_total_row) = sqlx::query(
                 "SELECT COALESCE(SUM(total_play_time_ms), 0) as total_ms, COUNT(DISTINCT id) as tracks_count FROM tracks WHERE play_count > 0 OR total_play_time_ms > 0;",
             )
             .fetch_one(&self.pool)
             .await
             {
-                let tracks_total_ms: i64 = tracks_total_row.try_get("total_ms").unwrap_or(0);
-                let tracks_count: i64 = tracks_total_row.try_get("tracks_count").unwrap_or(0);
-                total_listened_ms = total_listened_ms.max(tracks_total_ms);
-                tracks_played_count = tracks_played_count.max(tracks_count);
+                total_listened_ms = tracks_total_row.try_get("total_ms").unwrap_or(0);
+                tracks_played_count = tracks_total_row.try_get("tracks_count").unwrap_or(0);
             }
         }
 
         let mut top_tracks = Vec::new();
 
-        if since_epoch_secs > 0 {
+        if !use_track_counters {
             let top_track_rows = sqlx::query(
                 r#"
                 SELECT 
@@ -171,7 +175,7 @@ impl Database {
             }
         }
 
-        if top_tracks.is_empty() {
+        if use_track_counters {
             let all_time_rows = sqlx::query(
                 r#"
                 SELECT 
@@ -213,7 +217,7 @@ impl Database {
 
         let mut top_artists = Vec::new();
 
-        if since_epoch_secs > 0 {
+        if !use_track_counters {
             let artist_rows = sqlx::query(
                 r#"
                 SELECT 
@@ -245,7 +249,7 @@ impl Database {
             }
         }
 
-        if top_artists.is_empty() {
+        if use_track_counters {
             let fallback_artists = sqlx::query(
                 r#"
                 SELECT 

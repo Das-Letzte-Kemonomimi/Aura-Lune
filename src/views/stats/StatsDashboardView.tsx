@@ -28,9 +28,9 @@ function KpiCard({ tone, icon, label, children }: { tone: Tone; icon: React.Reac
   return (
     <Card padding="none" className="flex items-center gap-3.5 rounded-2xl px-5 py-4.5">
       <div className={cn('flex size-11.5 shrink-0 items-center justify-center rounded-xl', iconTileTones[tone])}>{icon}</div>
-      <div>
-        <span className="text-xs font-semibold text-fg-muted">{label}</span>
-        <div className="mt-0.5 text-xl font-extrabold text-fg">{children}</div>
+      <div className="min-w-0">
+        <span className="block truncate text-xs font-semibold text-fg-muted">{label}</span>
+        <div className="mt-0.5 text-xl font-extrabold text-fg wrap-break-word">{children}</div>
       </div>
     </Card>
   );
@@ -167,7 +167,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
                       </span>
                       <div className="min-w-0">
                         <div className="truncate text-sm font-bold text-fg">{t.title}</div>
-                        <div className="text-xs text-fg-secondary">{t.artist}</div>
+                        <div className="truncate text-xs text-fg-secondary">{t.artist}</div>
                       </div>
                     </div>
 
@@ -211,7 +211,7 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-sm font-bold text-fg">{a.artist}</div>
-                        <div className="text-xs text-fg-secondary">{tracksInLibraryText(a.tracks)}</div>
+                        <div className="truncate text-xs text-fg-secondary">{tracksInLibraryText(a.tracks)}</div>
                       </div>
                     </div>
 
@@ -232,9 +232,9 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           <div className="flex flex-col gap-2.5">
             {stats.formatBreakdown.map((item) => (
               <div key={item.format}>
-                <div className="mb-1 flex justify-between text-ui">
+                <div className="mb-1 flex justify-between gap-2 text-ui">
                   <span className="font-mono font-bold text-fg">{item.format}</span>
-                  <span className="text-fg-muted">
+                  <span className="shrink-0 text-fg-muted">
                     {item.count} {loc.stats.tracksUnit} ({item.percent}%)
                   </span>
                 </div>
@@ -250,10 +250,10 @@ export const StatsDashboardView: React.FC<StatsDashboardViewProps> = ({
           ) : (
             <div className="flex flex-col gap-2">
               {stats.recentTracks.map((t) => (
-                <div key={t.id} className="flex items-center justify-between rounded-lg bg-white/2 px-2.5 py-2">
+                <div key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-white/2 px-2.5 py-2">
                   <div className="min-w-0">
                     <div className="truncate text-ui font-semibold text-fg">{t.title}</div>
-                    <div className="text-xs text-fg-muted">{t.artist}</div>
+                    <div className="truncate text-xs text-fg-muted">{t.artist}</div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="text-xs text-accent-cyan">{formatRelativeTime(t.last_played_at)}</span>
