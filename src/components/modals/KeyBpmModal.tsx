@@ -135,6 +135,13 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   const tapTimesRef = useRef<number[]>([]);
   const [tapActive, setTapActive] = useState<boolean>(false);
 
+  // The parent passes a fresh callback on every render. Read it through a ref so the load
+  // effect below does not re-run (and overwrite manual edits from the cache) on each parent render.
+  const onTrackKeyBpmUpdatedRef = useRef(onTrackKeyBpmUpdated);
+  useEffect(() => {
+    onTrackKeyBpmUpdatedRef.current = onTrackKeyBpmUpdated;
+  }, [onTrackKeyBpmUpdated]);
+
   // Automatic background key and BPM detection
   const handleAutoDetect = useCallback(async (path?: string, trackId?: number, forceRecompute: boolean = false) => {
     const targetPath = path || currentTrackPath;
@@ -165,7 +172,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
 
         const targetId = trackId ?? currentTrackId;
         if (targetId) {
-          onTrackKeyBpmUpdated?.(targetId, res.bpm, res.camelot || res.key_name);
+          onTrackKeyBpmUpdatedRef.current?.(targetId, res.bpm, res.camelot || res.key_name);
         }
 
         const cacheKey = currentTrackId
@@ -189,7 +196,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
     } finally {
       setIsDetecting(false);
     }
-  }, [currentTrackPath, currentTrackId, onTrackKeyBpmUpdated]);
+  }, [currentTrackPath, currentTrackId]);
 
   // Load the remembered metadata for the track, or detect it automatically if missing
   useEffect(() => {
@@ -296,6 +303,20 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
       if (calculatedBpm >= 40 && calculatedBpm <= 280) {
         setBaseBpm(calculatedBpm);
         setDetectionSource('manual');
+        // Remember the tapped tempo as a manual override so a reload of the cached values keeps it
+        const cacheKey = currentTrackId
+          ? `auralune_track_key_bpm_${currentTrackId}`
+          : currentTrackPath
+          ? `auralune_track_key_bpm_${currentTrackPath}`
+          : null;
+        if (cacheKey) {
+          try {
+            localStorage.setItem(
+              cacheKey,
+              JSON.stringify({ baseKeyIndex, isMinor, baseBpm: calculatedBpm, source: 'manual' })
+            );
+          } catch {}
+        }
       }
     }
   };
