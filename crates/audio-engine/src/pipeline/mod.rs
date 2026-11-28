@@ -170,6 +170,8 @@ pub struct AudioEngine {
     queue: Arc<Mutex<PlaybackQueue>>,
     stop_after_current: Arc<AtomicBool>,
     fade_generation: Arc<AtomicU64>,
+    /// Bumped on every DSP parameter change; the debounced flush resync runs only for the latest.
+    dsp_resync_gen: Arc<AtomicU64>,
     is_fading_in: Arc<AtomicBool>,
     volume_element: gst::Element,
     atomic_volume: Arc<AtomicU64>,
