@@ -400,3 +400,40 @@ fn export_range_duration_scales_with_dsp_speed() {
     assert_eq!(scale_by_speed(1_000, 0.0), 1_000);
     assert_eq!(scale_by_speed(1_000, f64::NAN), 1_000);
 }
+
+#[test]
+fn test_parametric_eq_is_off_by_default() {
+    assert!(!ParametricEqState::default().enabled);
+    assert!(!ParametricEqState::new().enabled);
+    assert!(!ParametricEqState::with_default_bands().enabled);
+}
+
+#[test]
+fn test_parametric_eq_saved_state_roundtrip_keeps_enabled_flag() {
+    for enabled in [true, false] {
+        let mut state = ParametricEqState::with_default_bands();
+        state.enabled = enabled;
+        state.preamp_db = -3.5;
+        let json = serde_json::to_string(&state).unwrap();
+        let restored = ParametricEqState::from_saved_json(&json).expect("valid JSON restores");
+        assert_eq!(restored, state);
+    }
+}
+
+#[test]
+fn test_parametric_eq_saved_state_is_sanitised() {
+    let json = r#"{"enabled":true,"preamp_db":99.0,"bands":[
+        {"id":"b","filter_type":"peak","freq":1.0,"gain_db":50.0,"q":0.0,"enabled":true}]}"#;
+    let restored = ParametricEqState::from_saved_json(json).unwrap();
+    assert!(restored.enabled);
+    assert_eq!(restored.preamp_db, domain::MAX_PREAMP_DB);
+    assert_eq!(restored.bands[0].freq, domain::MIN_PARAMETRIC_FREQ);
+    assert_eq!(restored.bands[0].gain_db, domain::MAX_PARAMETRIC_GAIN_DB);
+    assert_eq!(restored.bands[0].q, domain::MIN_PARAMETRIC_Q);
+}
+
+#[test]
+fn test_parametric_eq_corrupt_saved_state_is_rejected() {
+    assert!(ParametricEqState::from_saved_json("not json").is_none());
+    assert!(ParametricEqState::from_saved_json("{}").is_none());
+}

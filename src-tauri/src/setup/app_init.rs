@@ -8,7 +8,7 @@ use crate::setup::tray::setup_tray_and_window_events;
 use crate::AppState;
 use audio_engine::AudioEngine;
 use domain::queue::QueueItem;
-use domain::PlaybackState;
+use domain::{ParametricEqState, PlaybackState};
 use downloads::DownloadManager;
 use dsp_api::{DspEngine, DspParams};
 use library::LibraryScanner;
@@ -97,6 +97,21 @@ pub fn init_app(
         engine.set_equalizer_enabled(enabled);
     } else {
         engine.set_equalizer_enabled(false);
+    }
+
+    // Restore the parametric EQ exactly as the user left it. With no saved state (fresh
+    // profile) the engine keeps its default: PEQ bypassed.
+    if let Some(saved) = settings
+        .get(domain::parametric_eq::PARAMETRIC_EQ_SETTING_KEY)
+        .and_then(|json| ParametricEqState::from_saved_json(json))
+    {
+        match engine.set_parametric_eq_state(&saved) {
+            Ok(()) => info!(
+                "Restored the saved parametric EQ (enabled={})",
+                saved.enabled
+            ),
+            Err(e) => tracing::warn!("Failed to restore the parametric EQ: {e}"),
+        }
     }
 
     // Check whether the DSP settings should be restored automatically on start-up

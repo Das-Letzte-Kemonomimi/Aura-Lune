@@ -26,6 +26,7 @@ export const SETTING_KEYS = [
   'limiter_enabled',
   'listenbrainz_enabled',
   'listenbrainz_token',
+  'parametric_eq_state',
   'playback_session_state',
   'playback_volume',
   'preamp_auto',
