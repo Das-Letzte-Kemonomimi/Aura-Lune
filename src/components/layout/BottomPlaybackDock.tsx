@@ -214,6 +214,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
   if (!isVisible) return null;
 
   const closeDspMenu = () => setIsDspQuickMenuOpen(false);
+  const dspBypassed = status.engine === 'Bypass';
   const loopTitle =
     queue.loop_mode === "Track" ? loc.player.loopTrack : queue.loop_mode === "Queue" ? loc.player.loopQueue : loc.player.loopOff;
 
@@ -356,7 +357,13 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
             label={loc.bottomDock.selectDspEngine}
             className="min-w-51"
             trigger={
-              <div className={cn('inline-flex items-center rounded-lg border', tintedTones[ENGINE_TONE[status.engine]])}>
+              <div
+                className={cn(
+                  'inline-flex items-center rounded-lg border',
+                  dspBypassed ? 'border-line bg-white/5 text-fg-muted opacity-60' : tintedTones[ENGINE_TONE[status.engine]],
+                )}
+                data-bypassed={dspBypassed || undefined}
+              >
                 <button
                   type="button"
                   onClick={onCycleDspEngine}
@@ -370,7 +377,7 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
                         : status.engine
                   )}
                 >
-                  <Zap size={16} fill={status.engine !== 'Bypass' ? 'currentColor' : 'none'} />
+                  <Zap size={16} fill={dspBypassed ? 'none' : 'currentColor'} />
                   {status.engine === 'RubberBand' ? 'Rubber Band' : status.engine}
                 </button>
                 <button
@@ -409,12 +416,22 @@ export const BottomPlaybackDock: React.FC<BottomPlaybackDockProps> = React.memo(
           </Popover>
   
           {status.pitch_semitones !== 0 && (
-            <Badge tone="pink" size="sm" title={t.bottomDock.pitchTooltip}>
+            <Badge
+              tone={dspBypassed ? 'neutral' : 'pink'}
+              size="sm"
+              title={dspBypassed ? `${t.bottomDock.pitchTooltip}: ${t.bottomDock.bypassedTooltip}` : t.bottomDock.pitchTooltip}
+              className={cn(dspBypassed && 'opacity-60')}
+            >
               {status.pitch_semitones > 0 ? `+${status.pitch_semitones}` : status.pitch_semitones} st
             </Badge>
           )}
           {status.tempo_ratio !== 1.0 && (
-            <Badge tone="cyan" size="sm" title={t.bottomDock.tempoTooltip}>
+            <Badge
+              tone={dspBypassed ? 'neutral' : 'cyan'}
+              size="sm"
+              title={dspBypassed ? `${t.bottomDock.tempoTooltip}: ${t.bottomDock.bypassedTooltip}` : t.bottomDock.tempoTooltip}
+              className={cn(dspBypassed && 'opacity-60')}
+            >
               {status.tempo_ratio.toFixed(2)}x
             </Badge>
           )}

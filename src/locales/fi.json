@@ -1067,6 +1067,7 @@
     "pauseTooltip": "Tauko",
     "pitchTooltip": "Äänenkorkeuden muutos",
     "tempoTooltip": "Temposäätö",
+    "bypassedTooltip": "DSP ohitettu (efekti ei käytössä)",
     "mutedTooltip": "Mykistetty (palauta napsauttamalla)",
     "volumeTooltip": "Äänenvoimakkuus",
     "maximizeTooltip": "Avaa toistimen koko näkymä",

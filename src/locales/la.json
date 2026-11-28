@@ -1067,6 +1067,7 @@
     "pauseTooltip": "Mora",
     "pitchTooltip": "Toni mutatio (pitch shift)",
     "tempoTooltip": "Velocitatis mutatio (tempo stretch)",
+    "bypassedTooltip": "DSP praetermissum (effectus quiescit)",
     "mutedTooltip": "Obmutatum (premito ad vocem reddendam)",
     "volumeTooltip": "Volumen",
     "maximizeTooltip": "Aperi plenam faciem Lusoris",

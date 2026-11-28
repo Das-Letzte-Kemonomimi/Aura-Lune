@@ -1067,6 +1067,7 @@
     "pauseTooltip": "Wstrzymaj",
     "pitchTooltip": "Wysokość dźwięku (pitch shift)",
     "tempoTooltip": "Mnożnik tempa (tempo stretch)",
+    "bypassedTooltip": "DSP pominięty (efekt nieaktywny)",
     "mutedTooltip": "Wyciszony (kliknij by przywrócić)",
     "volumeTooltip": "Głośność",
     "maximizeTooltip": "Otwórz pełny widok Odtwarzacza",
