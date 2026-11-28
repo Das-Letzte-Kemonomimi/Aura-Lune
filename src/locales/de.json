@@ -123,6 +123,7 @@
     "clickToJump": "Klicken zum Springen",
     "loadTrackToManageBookmarks": "Titel laden, um Lesezeichen zu verwalten",
     "pointsLabel": "Punkte",
+    "bookmarkOptions": "Lesezeichen-Optionen und Punkte",
     "bookmarksModalTitle": "Lesezeichen und Cue-Punkte ({0})",
     "setPointAAtCurrent": "Punkt A an aktueller Position setzen (Taste: A)",
     "setPointBAtCurrent": "Punkt B an aktueller Position setzen (Taste: B)",
@@ -1655,6 +1656,9 @@
     "saveBookmarksTitle": "Punkte A und B dauerhaft in der Datenbank für diesen Titel speichern"
   },
   "trackBookmarks": {
+    "deleteAll": "Alle löschen",
+    "deleteAllConfirm": "Alle {0} Punkte dieses Titels löschen? Das kann nicht rückgängig gemacht werden.",
+    "deleteAllConfirmYes": "Ja, alle löschen",
     "title": "Titel-Lesezeichen & Cue-Punkte",
     "subtitle": "Gespeicherte Cue-Punkte, Schleifenbereiche und Zeitmarker verwalten",
     "addBookmark": "Lesezeichen hinzufügen",

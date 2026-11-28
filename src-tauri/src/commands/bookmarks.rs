@@ -90,3 +90,15 @@ pub async fn delete_track_bookmark(
         .await
         .map_err(CommandError::from)
 }
+
+#[tauri::command]
+pub async fn delete_all_track_bookmarks(
+    track_id: i64,
+    state: State<'_, AppState>,
+) -> Result<u64, CommandError> {
+    state
+        .db
+        .delete_all_track_bookmarks(track_id)
+        .await
+        .map_err(CommandError::from)
+}

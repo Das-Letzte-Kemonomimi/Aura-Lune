@@ -80,3 +80,49 @@ describe('PlayerTransportControls', () => {
     expect(handlePlayPause).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('PlayerTransportControls bookmark control', () => {
+  const loc = getTranslations('en');
+  const point = { id: 1, track_id: 1, name: 'P', position_ms: 1000, created_at: 0 };
+
+  it('saves a bookmark on click and opens the points menu from the options button', () => {
+    const handleSaveBookmark = vi.fn();
+    const setIsBookmarksModalOpen = vi.fn();
+    render(<PlayerTransportControls {...makeProps({ handleSaveBookmark, setIsBookmarksModalOpen })} />);
+
+    fireEvent.click(screen.getByTitle(loc.player.bookmarkDesc));
+    expect(handleSaveBookmark).toHaveBeenCalledTimes(1);
+    expect(setIsBookmarksModalOpen).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: loc.player.bookmarkOptions }));
+    expect(setIsBookmarksModalOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('opens the points menu on right-click of the bookmark button', () => {
+    const setIsBookmarksModalOpen = vi.fn();
+    render(<PlayerTransportControls {...makeProps({ setIsBookmarksModalOpen })} />);
+    fireEvent.contextMenu(screen.getByTitle(loc.player.bookmarkDesc));
+    expect(setIsBookmarksModalOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('colours the options button and shows a count only once the track has points', () => {
+    const { rerender } = render(<PlayerTransportControls {...makeProps()} />);
+    const plain = screen.getByRole('button', { name: loc.player.bookmarkOptions });
+    const plainClass = plain.className;
+    expect(plain.textContent).toBe('');
+
+    rerender(<PlayerTransportControls {...makeProps({ currentTrackBookmarks: [point, { ...point, id: 2 }] })} />);
+    const tinted = screen.getByTitle(loc.player.bookmarksModalTitle.replace('{0}', '2'));
+    expect(tinted.textContent).toBe('2');
+    expect(tinted.className).not.toBe(plainClass);
+  });
+
+  it('does not open the menu without a loaded track', () => {
+    const setIsBookmarksModalOpen = vi.fn();
+    const showMessage = vi.fn();
+    render(<PlayerTransportControls {...makeProps({ activeTrackId: null, setIsBookmarksModalOpen, showMessage })} />);
+    fireEvent.click(screen.getByRole('button', { name: loc.player.bookmarkOptions }));
+    expect(setIsBookmarksModalOpen).not.toHaveBeenCalled();
+    expect(showMessage).toHaveBeenCalledWith(loc.player.loadTrackToManageBookmarks, true);
+  });
+});

@@ -123,6 +123,7 @@
     "clickToJump": "Kliknij, aby skoczyć",
     "loadTrackToManageBookmarks": "Załaduj utwór, aby zarządzać znacznikami",
     "pointsLabel": "Punkty",
+    "bookmarkOptions": "Opcje zakładki i punkty",
     "bookmarksModalTitle": "Punkty i Zakładki utworu ({0})",
     "setPointAAtCurrent": "Ustaw Punkt A na bieżącej pozycji (Klawisz: A)",
     "setPointBAtCurrent": "Ustaw Punkt B na bieżącej pozycji (Klawisz: B)",
@@ -1655,6 +1656,9 @@
     "saveBookmarksTitle": "Zapisz te punkty A i B na stałe w bazie danych dla tego utworu"
   },
   "trackBookmarks": {
+    "deleteAll": "Usuń wszystkie",
+    "deleteAllConfirm": "Usunąć wszystkie punkty ({0}) tego utworu? Tej operacji nie można cofnąć.",
+    "deleteAllConfirmYes": "Tak, usuń wszystkie",
     "title": "Zakładki i Znaczniki Utworu",
     "subtitle": "Zarządzaj trwałymi punktami czasu i pętli zapisanymi dla utworu.",
     "addBookmark": "Dodaj znacznik czasu",

@@ -123,6 +123,7 @@
     "clickToJump": "Preme ad saliendum",
     "loadTrackToManageBookmarks": "Onera cantum ad signa curanda",
     "pointsLabel": "Puncta",
+    "bookmarkOptions": "Optiones indicis et puncta",
     "bookmarksModalTitle": "Signa et Puncta Cantus ({0})",
     "setPointAAtCurrent": "Pone Punctum A in loco currente (Clavis: A)",
     "setPointBAtCurrent": "Pone Punctum B in loco currente (Clavis: B)",
@@ -1655,6 +1656,9 @@
     "saveBookmarksTitle": "Puncta A et B in base datorum perpetuo pro hoc carmine serva"
   },
   "trackBookmarks": {
+    "deleteAll": "Omnia dele",
+    "deleteAllConfirm": "Omnia {0} puncta huius cantus delere? Hoc revocari non potest.",
+    "deleteAllConfirmYes": "Ita, omnia dele",
     "title": "Indicia Cantus & Puncta Cue",
     "subtitle": "Guberna puncta servata, laqueos et notas temporis cantus",
     "addBookmark": "Adde indicium temporis",

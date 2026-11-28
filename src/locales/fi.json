@@ -123,6 +123,7 @@
     "clickToJump": "Napsauta hypätäksesi",
     "loadTrackToManageBookmarks": "Lataa kappale hallitaksesi kirjanmerkkejä",
     "pointsLabel": "Pisteet",
+    "bookmarkOptions": "Kirjanmerkin asetukset ja pisteet",
     "bookmarksModalTitle": "Kirjanmerkit ja Cue-pisteet ({0})",
     "setPointAAtCurrent": "Aseta piste A nykyiseen kohtaan (Näppäin: A)",
     "setPointBAtCurrent": "Aseta piste B nykyiseen kohtaan (Näppäin: B)",
@@ -1655,6 +1656,9 @@
     "saveBookmarksTitle": "Tallenna pisteet A ja B pysyvästi tämän kappaleen tietokantaan"
   },
   "trackBookmarks": {
+    "deleteAll": "Poista kaikki",
+    "deleteAllConfirm": "Poistetaanko kaikki {0} pistettä tästä kappaleesta? Tätä ei voi perua.",
+    "deleteAllConfirmYes": "Kyllä, poista kaikki",
     "title": "Kappaleen kirjanmerkit & Cue-pisteet",
     "subtitle": "Hallitse tallennettuja cue-pisteitä, silmukka-alueita ja aikamerkkejä",
     "addBookmark": "Lisää kirjanmerkki",
