@@ -464,6 +464,7 @@ impl AudioEngine {
             queue,
             stop_after_current,
             fade_generation,
+            dsp_resync_gen: Arc::new(AtomicU64::new(0)),
             is_fading_in,
             volume_element,
             atomic_volume,

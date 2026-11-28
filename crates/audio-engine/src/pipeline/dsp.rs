@@ -42,11 +42,18 @@ impl AudioEngine {
         if inner.dsp_params.engine != params.engine {
             inner.cached_capabilities = params.engine.capabilities();
         }
+        let previous = inner.dsp_params;
+        let resync = inner.state == PlaybackState::Playing
+            && crate::dsp_resync::needs_flush_resync(&previous, &params);
         inner.dsp_params = params;
         debug!(
             "DSP updated: engine={:?}, pitch={:.2} st, tempo={:.2}x, rate={:.2}x",
             params.engine, params.pitch_semitones, params.tempo_ratio, params.rate_ratio
         );
+        drop(inner);
+        if resync {
+            self.resync_after_dsp_change();
+        }
         Ok(())
     }
 
@@ -403,5 +410,40 @@ impl AudioEngine {
             .lock_safe()
             .spectrum
             .set_property("post-messages", enabled);
+    }
+}
+
+impl AudioEngine {
+    /// Drops the audio buffered downstream of the DSP element so a pitch / tempo / rate change
+    /// is heard (and drawn by the spectrum and waveform) now, not after the queue and sink
+    /// latency. Runs on a short-lived thread so the IPC command is not delayed, and is
+    /// debounced: only the newest change in a burst performs the flush seek.
+    fn resync_after_dsp_change(&self) {
+        let generation = self.dsp_resync_gen.fetch_add(1, Ordering::AcqRel) + 1;
+        let (engine, source_gen) = (self.clone(), self.inner.lock_safe().source_gen);
+        let spawned = std::thread::Builder::new()
+            .name("auralune-dsp-resync".into())
+            .spawn(move || {
+                std::thread::sleep(crate::dsp_resync::DSP_RESYNC_DEBOUNCE);
+                if engine.dsp_resync_gen.load(Ordering::Acquire) != generation {
+                    return;
+                }
+                {
+                    // Stopped or switched track meanwhile: a seek would only store a stale target.
+                    let inner = engine.inner.lock_safe();
+                    if inner.state != PlaybackState::Playing || inner.source_gen != source_gen {
+                        return;
+                    }
+                }
+                let Some(position) = engine.position() else {
+                    return;
+                };
+                if let Err(e) = engine.seek_with_fade(position, true) {
+                    warn!("Resync seek failed after a DSP parameter change: {:?}", e);
+                }
+            });
+        if let Err(e) = spawned {
+            warn!("Failed to start the DSP resync thread: {}", e);
+        }
     }
 }
