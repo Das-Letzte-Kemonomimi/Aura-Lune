@@ -426,13 +426,21 @@ describe('WaveformCanvas shared style', () => {
     const bigScreen = render(<WaveformCanvas {...props} />);
     const pressed = (view: ReturnType<typeof render>, title: string) =>
       within(view.container).getByTitle(title).getAttribute('aria-pressed');
-    expect(pressed(bigScreen, 'Smooth Wave')).toBe('true');
+    expect(pressed(bigScreen, 'Mirror Spectrum')).toBe('true');
 
     fireEvent.click(within(player.container).getByTitle('Cyber Bars'));
 
     expect(pressed(bigScreen, 'Cyber Bars')).toBe('true');
-    expect(pressed(bigScreen, 'Smooth Wave')).toBe('false');
+    expect(pressed(bigScreen, 'Mirror Spectrum')).toBe('false');
     expect(localStorage.getItem('auralune_waveform_style')).toBe('bars');
+  });
+
+  it('defaults to Mirror Spectrum and lists it first in the style picker', () => {
+    const view = render(<WaveformCanvas {...props} />);
+    const group = within(view.container).getByRole('group', { name: 'Waveform style' });
+    const titles = within(group).getAllByRole('button').map((b) => b.getAttribute('title'));
+    expect(titles[0]).toBe('Mirror Spectrum');
+    expect(within(group).getByTitle('Mirror Spectrum').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('uses initialStyle only as the default when nothing is saved', () => {
