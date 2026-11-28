@@ -22,6 +22,13 @@
         "de": "Wellenformen sind jetzt deutlich detaillierter: etwa dreimal so viele, dünnere Balken zeigen jeden Beat und jede leise Passage eines Titels.",
         "fi": "Aaltomuodot ovat nyt paljon yksityiskohtaisempia: noin kolme kertaa enemmän ohuempia palkkeja näyttää jokaisen iskun ja hiljaisen kohdan.",
         "la": "Undae nunc multo accuratiores sunt: ter fere plures columnae graciliores omnem ictum et locum placidum cantus ostendunt."
+      },
+      {
+        "en": "Settings now opens with every tab ready, so switching between tabs is instant and no longer shows loading placeholders. Hovering the settings button also gets it ready in advance.",
+        "pl": "Ustawienia otwierają się z gotowymi wszystkimi kartami, więc przełączanie między nimi jest natychmiastowe i nie pokazuje już ekranów ładowania. Najechanie na przycisk ustawień dodatkowo przygotowuje je z wyprzedzeniem.",
+        "de": "Die Einstellungen öffnen sich mit allen Tabs bereit, sodass der Wechsel zwischen den Tabs sofort erfolgt und keine Ladeplatzhalter mehr zeigt. Beim Überfahren der Einstellungen-Schaltfläche werden sie außerdem schon vorab vorbereitet.",
+        "fi": "Asetukset avautuvat kaikki välilehdet valmiina, joten välilehtien vaihto on välitön eikä enää näytä latausnäkymiä. Asetuspainikkeen päälle vienti valmistelee asetukset myös etukäteen.",
+        "la": "Optiones cum omnibus tabulis paratis aperiuntur, itaque inter tabulas transitus statim fit nec iam locos onerationis ostendit. Super bullam optionum cursore ducto, etiam ante parantur."
       }
     ],
     "fixed": [
