@@ -124,6 +124,15 @@ impl Database {
         Ok(())
     }
 
+    /// Removes every time marker of a track and returns how many were deleted.
+    pub async fn delete_all_track_bookmarks(&self, track_id: i64) -> Result<u64, StorageError> {
+        let result = sqlx::query("DELETE FROM track_bookmarks WHERE track_id = ?1;")
+            .bind(track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
+
     /// Removes the time marker with the given ID.
     pub async fn delete_track_bookmark(&self, bookmark_id: i64) -> Result<(), StorageError> {
         sqlx::query("DELETE FROM track_bookmarks WHERE id = ?1;")

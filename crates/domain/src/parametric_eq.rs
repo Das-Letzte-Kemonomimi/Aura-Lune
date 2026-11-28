@@ -117,9 +117,37 @@ impl Default for ParametricEqState {
     }
 }
 
+/// `app_settings` key under which the host persists the parametric EQ state (JSON).
+pub const PARAMETRIC_EQ_SETTING_KEY: &str = "parametric_eq_state";
+
+/// Upper bound on restored bands; matches the engine's `equalizer-nbands` limit.
+const MAX_RESTORED_BANDS: usize = 64;
+
 impl ParametricEqState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Restores a state saved as JSON, clamping every value to its valid range.
+    ///
+    /// Returns `None` for malformed JSON so a corrupt setting falls back to the
+    /// default (PEQ off) instead of failing start-up.
+    pub fn from_saved_json(json: &str) -> Option<Self> {
+        let mut state: Self = serde_json::from_str(json).ok()?;
+        state.preamp_db = if state.preamp_db.is_finite() {
+            state.preamp_db.clamp(MIN_PREAMP_DB, MAX_PREAMP_DB)
+        } else {
+            0.0
+        };
+        state.bands.truncate(MAX_RESTORED_BANDS);
+        for band in &mut state.bands {
+            let finite = |v: f64, fallback: f64| if v.is_finite() { v } else { fallback };
+            band.freq = finite(band.freq, 1000.0).clamp(MIN_PARAMETRIC_FREQ, MAX_PARAMETRIC_FREQ);
+            band.gain_db =
+                finite(band.gain_db, 0.0).clamp(MIN_PARAMETRIC_GAIN_DB, MAX_PARAMETRIC_GAIN_DB);
+            band.q = finite(band.q, 1.0).clamp(MIN_PARAMETRIC_Q, MAX_PARAMETRIC_Q);
+        }
+        Some(state)
     }
 
     /// Creates a new state with the default set of 5 general-purpose parametric bands.

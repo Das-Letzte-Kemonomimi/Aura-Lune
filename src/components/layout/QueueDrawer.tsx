@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   ListMusic,
   Infinity as InfinityIcon,
@@ -52,6 +52,44 @@ function useQueueMetas(queue: PlaybackQueue, tracks: TrackRecord[], albums: Albu
   }, [enabled, queue.items, lookup]);
 }
 
+/** Marks the control that toggles the drawer: pressing it must not count as an outside click, or its own click would reopen the drawer. */
+export const QUEUE_TOGGLE_ATTR = 'data-queue-toggle';
+
+/**
+ * Closes the drawer when a press AND its release both land outside `panelRef`. Tracking the
+ * pointerdown target means dragging a row inside the drawer and releasing outside does not close it.
+ */
+function useOutsideClose(panelRef: React.RefObject<HTMLElement | null>, enabled: boolean, onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let pressedOutside = false;
+    const isOutside = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      if (panelRef.current?.contains(target)) return false;
+      return !target.closest(`[${QUEUE_TOGGLE_ATTR}]`);
+    };
+    const onDown = (e: PointerEvent) => {
+      pressedOutside = isOutside(e.target);
+    };
+    const onUp = (e: PointerEvent) => {
+      const closes = pressedOutside && isOutside(e.target);
+      pressedOutside = false;
+      if (closes) onCloseRef.current();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('pointerup', onUp, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('pointerup', onUp, true);
+    };
+  }, [enabled, panelRef]);
+}
+
 export const QueueDrawer: React.FC<QueueDrawerProps> = React.memo(({
   isOpen,
   onClose,
@@ -69,12 +107,14 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = React.memo(({
   loc,
 }) => {
   const metas = useQueueMetas(queue, tracks, albums, isOpen);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useOutsideClose(panelRef, isOpen, onClose);
   if (!isOpen) return null;
 
   const totalMs = queue.items.reduce((sum, item) => sum + (item.duration_ms || 0), 0);
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-105 max-w-[90vw] flex-col border-l border-line-accent bg-modal shadow-drawer">
+    <div ref={panelRef} className="fixed inset-y-0 right-0 z-50 flex w-105 max-w-[90vw] flex-col border-l border-line-accent bg-modal shadow-drawer">
       {/* Drawer header */}
       <div className="flex flex-col gap-3 border-b border-line p-4">
         <div className="flex items-center justify-between gap-3">
@@ -93,7 +133,11 @@ export const QueueDrawer: React.FC<QueueDrawerProps> = React.memo(({
               </p>
             </div>
           </div>
-          <IconButton label={loc.common.close} onClick={onClose}>
+          <IconButton
+            label={loc.common.close}
+            onClick={onClose}
+            className="size-10 border-accent-red/35 bg-accent-red/15 text-accent-red hover:bg-accent-red/25 hover:text-accent-red"
+          >
             <X size={20} />
           </IconButton>
         </div>

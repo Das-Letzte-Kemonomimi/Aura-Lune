@@ -315,7 +315,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </ToolGroup>
 
         <ToolGroup label={loc.nav.queue}>
-          <HeaderButton icon={<ListMusic size={15} />} tone="pink" pressed={isQueueOpen} onClick={onToggleQueue} title={`${loc.nav.queue} (${queueCount})`}>
+          <HeaderButton icon={<ListMusic size={15} />} tone="pink" pressed={isQueueOpen} onClick={onToggleQueue} data-queue-toggle title={`${loc.nav.queue} (${queueCount})`}>
             <span className="max-nav:hidden">{loc.nav.queue}</span>
             <Badge tone="pink" size="xs" mono className="font-bold">
               {queueCount}

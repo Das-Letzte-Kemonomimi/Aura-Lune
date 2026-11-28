@@ -117,11 +117,20 @@ export function ModalShell({
     };
   }, []);
 
+  // A drag that starts inside the panel (slider, text selection) and is released over the backdrop
+  // still fires `click` on the backdrop; only close when the press began on the backdrop too.
+  const pressStartedOnBackdrop = useRef(false);
+
   return (
     <div
       className={backdropVariants({ layer, placement })}
+      onPointerDown={(e) => {
+        pressStartedOnBackdrop.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        if (closeOnBackdrop && e.target === e.currentTarget) onClose();
+        const startedOnBackdrop = pressStartedOnBackdrop.current;
+        pressStartedOnBackdrop.current = false;
+        if (closeOnBackdrop && startedOnBackdrop && e.target === e.currentTarget) onClose();
       }}
     >
       <div

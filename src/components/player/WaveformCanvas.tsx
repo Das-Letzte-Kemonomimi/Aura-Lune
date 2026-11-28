@@ -122,7 +122,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   // `initialStyle` is only the default when nothing is saved: no caller passes it in the app.
   const [activeStyle, setActiveStyle] = usePersistedState<WaveformStyle>(
     'auralune_waveform_style',
-    initialStyle ?? 'smooth',
+    initialStyle ?? 'mirror',
     { parse: parseOneOf(['bars', 'smooth', 'scrolling', 'mirror'] as const) },
   );
 
@@ -729,7 +729,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       {showStyleSelector && (
         <div className="flex w-full items-center justify-end gap-1.5">
           <div role="group" aria-label="Waveform style" className="flex items-center gap-0.5 rounded-full border border-line bg-black/30 p-0.5">
-            {(['smooth', 'bars', 'scrolling', 'mirror'] as WaveformStyle[]).map((st) => {
+            {(['mirror', 'smooth', 'bars', 'scrolling'] as WaveformStyle[]).map((st) => {
               const isSelected = activeStyle === st;
               return (
                 <Chip

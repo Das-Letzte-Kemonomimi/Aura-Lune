@@ -10,9 +10,19 @@ export interface PreampStepModifiers {
   shiftKey?: boolean;
 }
 
-/** dB step for one key press or wheel notch: 0.5 dB, Shift 0.1 dB (fine). */
+/** dB step for one key press or wheel notch: 0.1 dB, Shift 1 dB (coarse). */
 export function preampStepSize({ shiftKey }: PreampStepModifiers): number {
-  return shiftKey ? 0.1 : 0.5;
+  return shiftKey ? 1 : 0.1;
+}
+
+/**
+ * Parses a typed preamp value ("3.5", "+3,5", "-6 dB") into a clamped dB value rounded to 0.1 dB,
+ * or `null` when the text is not a number (so the caller can revert the field).
+ */
+export function parsePreampInput(text: string): number | null {
+  const cleaned = text.trim().replace(/db$/i, '').trim().replace(',', '.');
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;
+  return clampPreampDb(Math.round(Number(cleaned) * 10) / 10);
 }
 
 /** Signed step for a wheel event: wheel up raises the gain. */

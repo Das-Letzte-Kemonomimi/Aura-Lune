@@ -6,6 +6,7 @@ import { PeqBandRack } from './parametric-eq/PeqBandRack';
 import { PeqImportExportDialog } from './parametric-eq/PeqImportExportDialog';
 import { invoke } from '../../api/ipc';
 import { ModalShell } from '../ui';
+import { createPeqSaver } from '../../utils/peqPersistence';
 import { type Language, getTranslations } from '../../i18n';
 import {
   generateFrequencyResponseCurve,
@@ -61,7 +62,10 @@ export const ParametricEqModal: React.FC<ParametricEqModalProps> = (props) => {
     latestStateRef.current = state;
   }, [state]);
 
+  const peqSaverRef = useRef(createPeqSaver());
+
   const sendToBackend = (st: ParametricEqStateDto) => {
+    peqSaverRef.current.schedule(st);
     invoke('set_parametric_eq_state', { eqState: st }).catch((e) =>
       console.error('Failed to save the PEQ state:', e)
     );

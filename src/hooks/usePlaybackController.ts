@@ -10,6 +10,7 @@ import type { TrackRecord, AlbumRecord } from '../types/library';
 import type { TrackBookmarkDto } from '../types/player';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { clampSeekToLoop } from '../utils/abLoop';
 
 export interface UsePlaybackControllerOptions {
   status: PlaybackStatus;
@@ -95,7 +96,6 @@ export function usePlaybackController({
   // A-B Repeat Loop State
   const [loopPointA, setLoopPointA] = useState<number | null>(null);
   const [loopPointB, setLoopPointB] = useState<number | null>(null);
-  const [isLoopEditorOpen, setIsLoopEditorOpen] = useState(false);
 
   // Track Bookmarks State
   const [currentBookmark, setCurrentBookmark] = useState<number | null>(null);
@@ -194,6 +194,8 @@ export function usePlaybackController({
     loopPointsRef.current = { a: loopPointA, b: loopPointB };
   }, [loopPointA, loopPointB]);
   const loopSeekPendingRef = useRef(false);
+  // Identity of the track the A-B points belong to; they are cleared when it changes.
+  const loopTrackKeyRef = useRef<string | null>(null);
   const handleSeekRef = useRef<((val: number) => Promise<void>) | null>(null);
   const lastStatusEventAtRef = useRef(0);
   const firstStatusLoggedRef = useRef(false);
@@ -238,6 +240,19 @@ export function usePlaybackController({
       };
     } else {
       livePlayback.publish({ spectrum: res.spectrum, volume: liveVol });
+    }
+
+    // A-B points belong to one track: drop them as soon as another track starts.
+    const trackKey = res.current_track ? (res.current_track.uri || String(res.current_track.track_id ?? '')) : null;
+    if (trackKey) {
+      const previousKey = loopTrackKeyRef.current;
+      loopTrackKeyRef.current = trackKey;
+      if (previousKey !== null && previousKey !== trackKey) {
+        loopPointsRef.current = { a: null, b: null };
+        loopSeekPendingRef.current = false;
+        setLoopPointA(null);
+        setLoopPointB(null);
+      }
     }
 
     // The A-B loop is checked on every frame (~100 ms accuracy).
@@ -475,7 +490,10 @@ export function usePlaybackController({
   );
 
   const handleSeekCommit = useCallback(
-    async (val: number, fade?: boolean) => {
+    async (target: number, fade?: boolean) => {
+      // While an A-B loop is active, seeks outside [A, B) snap to A.
+      const { a: loopA, b: loopB } = loopPointsRef.current;
+      const val = clampSeekToLoop(target, loopA, loopB);
       initialStartupPositionRef.current = null;
       isSeekingRef.current = true;
       if (seekReleaseTimerRef.current) {
@@ -809,8 +827,6 @@ export function usePlaybackController({
     setLoopPointA,
     loopPointB,
     setLoopPointB,
-    isLoopEditorOpen,
-    setIsLoopEditorOpen,
     currentBookmark,
     setCurrentBookmark,
     currentTrackBookmarks,

@@ -220,3 +220,110 @@ async fn test_listening_history_coalesces_consecutive_same_track_within_ten_minu
         .unwrap();
     assert_eq!(count_after_gap, 4);
 }
+
+async fn seed_history(db: &Database, track_id: i64, duration_ms: i64, played_at: i64) {
+    sqlx::query(
+        "INSERT INTO listening_history (track_id, duration_ms, played_at) VALUES (?1, ?2, ?3);",
+    )
+    .bind(track_id)
+    .bind(duration_ms)
+    .bind(played_at)
+    .execute(db.pool())
+    .await
+    .expect("seed history");
+}
+
+fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+}
+
+#[tokio::test]
+async fn recap_all_time_matches_last_year_when_history_is_recent() {
+    let db = Database::new_in_memory().await.unwrap();
+    let a = db
+        .upsert_track(&make_test_track(1, "A", "Artist X", 44100, 16, None))
+        .await
+        .unwrap();
+    let b = db
+        .upsert_track(&make_test_track(2, "B", "Artist Y", 44100, 16, None))
+        .await
+        .unwrap();
+    let now = now_secs();
+    seed_history(&db, a, 300_000, now - 40 * 86400).await;
+    seed_history(&db, a, 200_000, now - 2 * 86400).await;
+    seed_history(&db, b, 100_000, now - 10 * 86400).await;
+    // Legacy lifetime counters on the track row must not inflate "all time".
+    db.record_track_play(a).await.unwrap();
+    sqlx::query("UPDATE tracks SET play_count = 9, total_play_time_ms = 9000000 WHERE id = ?1;")
+        .bind(a)
+        .execute(db.pool())
+        .await
+        .unwrap();
+
+    let year = db
+        .get_recap_summary("year", now - 365 * 86400)
+        .await
+        .unwrap();
+    let all = db.get_recap_summary("all", 0).await.unwrap();
+
+    assert_eq!(year.total_listened_ms, 600_000);
+    assert_eq!(all.total_listened_ms, year.total_listened_ms);
+    assert_eq!(all.tracks_played_count, year.tracks_played_count);
+    assert_eq!(all.tracks_played_count, 2);
+    let ids = |r: &storage::RecapSummaryDto| {
+        r.top_tracks
+            .iter()
+            .map(|t| (t.id, t.total_time_ms))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ids(&all), ids(&year));
+    let artists = |r: &storage::RecapSummaryDto| {
+        r.top_artists
+            .iter()
+            .map(|t| (t.artist.clone(), t.total_time_ms))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(artists(&all), artists(&year));
+}
+
+#[tokio::test]
+async fn recap_period_boundary_is_inclusive_and_excludes_older_plays() {
+    let db = Database::new_in_memory().await.unwrap();
+    let a = db
+        .upsert_track(&make_test_track(1, "A", "Artist X", 44100, 16, None))
+        .await
+        .unwrap();
+    let since = now_secs() - 7 * 86400;
+    seed_history(&db, a, 1_000, since - 1).await;
+    seed_history(&db, a, 2_000, since).await;
+    seed_history(&db, a, 4_000, since + 1).await;
+
+    let week = db.get_recap_summary("week", since).await.unwrap();
+    assert_eq!(week.total_listened_ms, 6_000);
+    let all = db.get_recap_summary("all", 0).await.unwrap();
+    assert_eq!(all.total_listened_ms, 7_000);
+    // A window with no plays does not fall back to lifetime counters.
+    let empty = db.get_recap_summary("week", now_secs() + 10).await.unwrap();
+    assert_eq!(empty.total_listened_ms, 0);
+    assert!(empty.top_tracks.is_empty() && empty.top_artists.is_empty());
+}
+
+#[tokio::test]
+async fn recap_all_time_falls_back_to_counters_without_any_history() {
+    let db = Database::new_in_memory().await.unwrap();
+    let a = db
+        .upsert_track(&make_test_track(1, "A", "Artist X", 44100, 16, None))
+        .await
+        .unwrap();
+    sqlx::query("UPDATE tracks SET play_count = 3, total_play_time_ms = 500000 WHERE id = ?1;")
+        .bind(a)
+        .execute(db.pool())
+        .await
+        .unwrap();
+    let all = db.get_recap_summary("all", 0).await.unwrap();
+    assert_eq!(all.total_listened_ms, 500_000);
+    assert_eq!(all.top_tracks.len(), 1);
+}

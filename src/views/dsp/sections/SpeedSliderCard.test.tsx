@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { SpeedSliderCard } from './SpeedSliderCard';
+import { formatRatioStep } from './speedSliderModel';
 
 afterEach(cleanup);
 
@@ -15,6 +16,7 @@ function renderCard(onChange = vi.fn(), value = 1) {
       sliderMax={2}
       min={0.1}
       max={3}
+      formatStep={formatRatioStep}
       formatEntry={(v) => v.toFixed(2)}
       placeholder="1.00"
       entryTitle="Type a tempo"
@@ -55,6 +57,15 @@ describe('SpeedSliderCard', () => {
     expect(onChange).toHaveBeenLastCalledWith(1.1);
     fireEvent.keyDown(field, { key: 'ArrowDown', shiftKey: true });
     expect(onChange).toHaveBeenLastCalledWith(1.09);
+  });
+
+  it('orders the nudge buttons fine outside, coarse inside', () => {
+    renderCard();
+    const labels = screen
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '')
+      .filter((t) => /^[−+]0\.\d+x$/.test(t));
+    expect(labels).toEqual(['−0.01x', '−0.1x', '+0.1x', '+0.01x']);
   });
 
   it('marks the preset that matches the current value', () => {

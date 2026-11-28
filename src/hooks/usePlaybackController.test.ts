@@ -133,7 +133,6 @@ describe('usePlaybackController', () => {
     const { result } = setupHook();
     expect(result.current.loopPointA).toBeNull();
     expect(result.current.loopPointB).toBeNull();
-    expect(result.current.isLoopEditorOpen).toBe(false);
     expect(result.current.currentBookmark).toBeNull();
     expect(result.current.currentTrackBookmarks).toEqual([]);
     expect(result.current.isBookmarksModalOpen).toBe(false);
@@ -422,6 +421,32 @@ describe('usePlaybackController', () => {
       expect(livePlayback.getSnapshot().positionMs).toBe(50_000);
     });
 
+    it('clears the A-B points when another track starts, but keeps them within the same track', async () => {
+      const { result } = setupHook();
+      await act(async () => {});
+      const track = (uri: string, track_id: number) => ({
+        id: `t-${track_id}`,
+        uri,
+        track_id,
+        title: 'Song',
+        artist: 'Artist',
+        album: null,
+        duration_ms: 200_000,
+      });
+      act(() => emitStatus(playing(1_000, { current_track: track('/music/a.flac', 1) })));
+      act(() => {
+        result.current.setLoopPointA(38_000);
+        result.current.setLoopPointB(43_000);
+      });
+      act(() => emitStatus(playing(2_000, { current_track: track('/music/a.flac', 1) })));
+      expect(result.current.loopPointA).toBe(38_000);
+      expect(result.current.loopPointB).toBe(43_000);
+
+      act(() => emitStatus(playing(100, { current_track: track('/music/b.flac', 2) })));
+      expect(result.current.loopPointA).toBeNull();
+      expect(result.current.loopPointB).toBeNull();
+    });
+
     it('jumps back to loop point A as soon as a frame passes loop point B', async () => {
       const { result } = setupHook();
       await act(async () => {});
@@ -439,6 +464,27 @@ describe('usePlaybackController', () => {
       const seeks = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'seek');
       expect(seeks).toHaveLength(1);
       expect(seeks[0][1]).toMatchObject({ positionMs: 5_000 });
+    });
+
+    it('snaps a seek before A or past B to A while an A-B loop is active', async () => {
+      const { result } = setupHook();
+      await act(async () => {});
+      act(() => {
+        result.current.setLoopPointA(5_000);
+        result.current.setLoopPointB(8_000);
+      });
+      mockInvoke.mockClear();
+
+      await act(async () => {
+        await result.current.handleSeekCommit(1_000, false);
+        await result.current.handleSeekCommit(9_000, false);
+        await result.current.handleSeekCommit(6_000, false);
+      });
+
+      const positions = mockInvoke.mock.calls
+        .filter(([cmd]) => cmd === 'seek')
+        .map(([, args]) => (args as { positionMs: number }).positionMs);
+      expect(positions).toEqual([5_000, 5_000, 6_000]);
     });
 
     it('two identical status events cause no second App state commit (including replaygain_status)', async () => {

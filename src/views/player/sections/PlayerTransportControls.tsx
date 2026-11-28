@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, Sliders, SkipBack, SkipForward, Square, X } from '../../../components/ui/icons';
+import { Bookmark, ChevronDown, Keyboard, Mic2, Pause, Play, Repeat, Repeat1, Shuffle, Sliders, SkipBack, SkipForward, Square, X } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs, useLiveVolume } from '../../../state/livePlayback';
@@ -8,7 +8,7 @@ import { cn } from '../../../utils/cn';
 import { Button, Chip, IconButton } from '../../../components/ui';
 import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
 
-export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleToggleStopAfterCurrent' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
+export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleToggleStopAfterCurrent' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
 };
 
@@ -111,19 +111,23 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   setIsBookmarksModalOpen,
   setIsLoopEditorOpen,
   setIsShortcutsModalOpen,
-  setIsSleepTimerOpen,
   setLoopPointA,
   setLoopPointB,
   setShowLyrics,
   showLyrics,
   showMessage,
-  sleepTimerRemainingSec,
-  sleepTimerTargetMode,
   status,
   volumeUnit,
 }) => {
   const hasLoopPoint = loopPointA !== null || loopPointB !== null;
-  const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
+  const hasPoints = currentTrackBookmarks.length > 0;
+  const openPointsMenu = () => {
+    if (!activeTrackId && !status.current_track?.track_id) {
+      showMessage(loc.player.loadTrackToManageBookmarks, true);
+      return;
+    }
+    setIsBookmarksModalOpen(true);
+  };
   const playing = status.state === 'Playing';
   return (
     <div className="grid grid-cols-1 items-center gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
@@ -173,66 +177,64 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
       {/* Tools: grouped by purpose, wrapping as clusters instead of single buttons */}
       <div className="order-2 flex flex-wrap items-center gap-2 lg:order-1 lg:justify-self-start">
         <ToolGroup>
-        {currentBookmark === null ? (
+        {/* One bookmark control: click saves a bookmark, the attached options button opens the points menu */}
+        <div className="flex items-center">
           <Button
             variant={activeTrackId ? 'tinted' : 'secondary'}
             tone="amber"
             size="sm"
             onClick={handleSaveBookmark}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              openPointsMenu();
+            }}
             title={loc.player.bookmarkDesc}
-            className="h-7"
+            className="h-7 rounded-r-none"
           >
             <Bookmark size={13} fill={activeTrackId ? 'currentColor' : 'none'} className="text-accent-amber" />
             {loc.player.bookmark}
           </Button>
-        ) : (
-          <div className="flex items-center">
-            <Button variant="tinted" tone="amber" size="sm" onClick={handleSaveBookmark} className="h-7 rounded-r-none">
-              <Bookmark size={13} fill="currentColor" /> {loc.player.bookmark}
-            </Button>
-            <Button
-              variant="tinted"
-              tone="amber"
-              size="sm"
-              onClick={() => handleJumpToBookmark(currentBookmark)}
-              title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
-              className="h-7 rounded-none border-l-0 font-mono"
-            >
-              {formatTime(currentBookmark)}
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleDeleteBookmark}
-              aria-label={loc.player.bookmarkDelete}
-              title={loc.player.bookmarkDelete}
-              className="h-7 rounded-l-none border-l-0 px-1.5"
-            >
-              <X size={12} />
-            </Button>
-          </div>
-        )}
-
-        {/* Cue points (multi-point bookmarks) */}
-        <Button
-          variant="tinted"
-          tone="cyan"
-          size="sm"
-          onClick={() => {
-            if (!activeTrackId && !status.current_track?.track_id) {
-              showMessage(loc.player.loadTrackToManageBookmarks, true);
-              return;
-            }
-            setIsBookmarksModalOpen(true);
-          }}
-          title={fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length))}
-          className="h-7"
-        >
-          <Bookmark size={13} />
-          {currentTrackBookmarks.length > 0 ? `${currentTrackBookmarks.length}` : loc.player.pointsLabel}
-        </Button>
+          {currentBookmark !== null && (
+            <>
+              <Button
+                variant="tinted"
+                tone="amber"
+                size="sm"
+                onClick={() => handleJumpToBookmark(currentBookmark)}
+                title={fmt(loc.player.bookmarkJump, formatTime(currentBookmark))}
+                className="h-7 rounded-none border-l-0 font-mono"
+              >
+                {formatTime(currentBookmark)}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteBookmark}
+                aria-label={loc.player.bookmarkDelete}
+                title={loc.player.bookmarkDelete}
+                className="h-7 rounded-none border-l-0 px-1.5"
+              >
+                <X size={12} />
+              </Button>
+            </>
+          )}
+          {/* Neutral while the track has no points; takes the points colour (cyan) once it has some */}
+          <Button
+            variant={hasPoints ? 'tinted' : 'secondary'}
+            tone={hasPoints ? 'cyan' : undefined}
+            size="sm"
+            onClick={openPointsMenu}
+            aria-label={loc.player.bookmarkOptions}
+            title={hasPoints ? fmt(loc.player.bookmarksModalTitle, String(currentTrackBookmarks.length)) : loc.player.bookmarkOptions}
+            className="h-7 rounded-l-none border-l-0 px-1.5"
+          >
+            {hasPoints && <span className="font-mono text-2xs font-bold">{currentTrackBookmarks.length}</span>}
+            <ChevronDown size={12} />
+          </Button>
+        </div>
 
         </ToolGroup>
+
 
         <ToolGroup>
         <Chip
@@ -299,24 +301,6 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         </ToolGroup>
 
         <ToolGroup>
-        <Chip
-          tone="purple"
-          pressed={sleepActive}
-          onClick={() => setIsSleepTimerOpen(true)}
-          aria-label={loc.player.sleepTimer}
-          title={loc.player.sleepTimer}
-          className="h-7 min-w-8 px-2"
-        >
-          <Moon size={13} />
-          {sleepActive && (
-            <span className="font-mono text-xxs font-bold">
-              {sleepTimerRemainingSec !== null
-                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
-                : loc.player.timerEnd}
-            </span>
-          )}
-        </Chip>
-
         <IconButton variant="secondary" label={loc.shortcuts.title} onClick={() => setIsShortcutsModalOpen(true)} className="size-7">
           <Keyboard size={13} />
         </IconButton>

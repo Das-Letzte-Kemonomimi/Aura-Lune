@@ -4,6 +4,7 @@ import { errorMessage, invoke } from '../../api/ipc';
 import type { Language, Translations } from '../../i18n';
 import { getTranslations } from '../../i18n';
 import { cn } from '../../utils/cn';
+import { totalPitchShiftSemitones, transposeKeyIndex } from '../../utils/keyTranspose';
 import {
   Badge,
   Button,
@@ -135,6 +136,13 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   const tapTimesRef = useRef<number[]>([]);
   const [tapActive, setTapActive] = useState<boolean>(false);
 
+  // The parent passes a fresh callback on every render. Read it through a ref so the load
+  // effect below does not re-run (and overwrite manual edits from the cache) on each parent render.
+  const onTrackKeyBpmUpdatedRef = useRef(onTrackKeyBpmUpdated);
+  useEffect(() => {
+    onTrackKeyBpmUpdatedRef.current = onTrackKeyBpmUpdated;
+  }, [onTrackKeyBpmUpdated]);
+
   // Automatic background key and BPM detection
   const handleAutoDetect = useCallback(async (path?: string, trackId?: number, forceRecompute: boolean = false) => {
     const targetPath = path || currentTrackPath;
@@ -165,7 +173,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
 
         const targetId = trackId ?? currentTrackId;
         if (targetId) {
-          onTrackKeyBpmUpdated?.(targetId, res.bpm, res.camelot || res.key_name);
+          onTrackKeyBpmUpdatedRef.current?.(targetId, res.bpm, res.camelot || res.key_name);
         }
 
         const cacheKey = currentTrackId
@@ -189,7 +197,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
     } finally {
       setIsDetecting(false);
     }
-  }, [currentTrackPath, currentTrackId, onTrackKeyBpmUpdated]);
+  }, [currentTrackPath, currentTrackId]);
 
   // Load the remembered metadata for the track, or detect it automatically if missing
   useEffect(() => {
@@ -260,8 +268,9 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
   };
 
   // Key after transposition
-  const roundedSemitones = Math.round(pitchSemitones);
-  const transposedIndex = ((baseKeyIndex + roundedSemitones) % 12 + 12) % 12;
+  // Rate is tape-style (tempo and pitch together), so it shifts the key on top of the explicit pitch.
+  const totalSemitones = totalPitchShiftSemitones(pitchSemitones, rateRatio);
+  const transposedIndex = transposeKeyIndex(baseKeyIndex, totalSemitones);
   const originalKeyName = `${CHROMATIC_SCALE[baseKeyIndex]} ${isMinor ? 'm' : 'Maj'}`;
   const transposedKeyName = `${CHROMATIC_SCALE[transposedIndex]} ${isMinor ? 'm' : 'Maj'}`;
 
@@ -296,6 +305,20 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
       if (calculatedBpm >= 40 && calculatedBpm <= 280) {
         setBaseBpm(calculatedBpm);
         setDetectionSource('manual');
+        // Remember the tapped tempo as a manual override so a reload of the cached values keeps it
+        const cacheKey = currentTrackId
+          ? `auralune_track_key_bpm_${currentTrackId}`
+          : currentTrackPath
+          ? `auralune_track_key_bpm_${currentTrackPath}`
+          : null;
+        if (cacheKey) {
+          try {
+            localStorage.setItem(
+              cacheKey,
+              JSON.stringify({ baseKeyIndex, isMinor, baseBpm: calculatedBpm, source: 'manual' })
+            );
+          } catch {}
+        }
       }
     }
   };
@@ -361,7 +384,7 @@ export const KeyBpmModal: React.FC<KeyBpmModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="label-caps text-accent-pink">{loc.keyBpm.outputDsp}</span>
               <Badge tone="pink" size="xs" mono>
-                {pitchSemitones > 0 ? `+${pitchSemitones.toFixed(1)}` : pitchSemitones.toFixed(1)} st
+                {totalSemitones > 0 ? `+${totalSemitones.toFixed(1)}` : totalSemitones.toFixed(1)} st
               </Badge>
             </div>
             <KeyReadout label={loc.keyBpm.transposedKey} keyName={transposedKeyName} camelot={transposedCamelot} camelotTone="cyan" camelotTitle={loc.keyBpm.camelotNotation} />

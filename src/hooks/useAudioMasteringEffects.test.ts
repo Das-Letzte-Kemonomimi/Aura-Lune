@@ -59,6 +59,54 @@ describe('useAudioMasteringEffects', () => {
     });
   });
 
+  it('clamps crossfade to the engine range before applying and saving', async () => {
+    const { result } = renderHook(() =>
+      useAudioMasteringEffects({ status: baseStatus, setStatus: vi.fn(), showMessage: vi.fn(), loc })
+    );
+    await act(async () => {
+      await result.current.handleCrossfadeDurationChange(12000);
+    });
+    expect(result.current.crossfadeDuration).toBe(8000);
+    expect(invokeMock).toHaveBeenCalledWith('set_crossfade_duration', { durationMs: 8000 });
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'crossfade_duration', value: '8000' });
+  });
+
+  it('still persists the crossfade when the engine call fails', async () => {
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'set_crossfade_duration') throw new Error('engine down');
+      return null;
+    });
+    const { result } = renderHook(() =>
+      useAudioMasteringEffects({ status: baseStatus, setStatus: vi.fn(), showMessage: vi.fn(), loc })
+    );
+    await act(async () => {
+      await result.current.handleCrossfadeDurationChange(3000);
+    });
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'crossfade_duration', value: '3000' });
+  });
+
+  it('writes rapid crossfade changes in order so the last value is what is persisted', async () => {
+    const saved: string[] = [];
+    invokeMock.mockImplementation(async (cmd: string, args?: { key?: string; value?: string }) => {
+      if (cmd !== 'set_app_setting') return null;
+      // Earlier writes are slower; without serialisation they would land last.
+      await new Promise((r) => setTimeout(r, saved.length === 0 ? 20 : 1));
+      saved.push(args?.value ?? '');
+      return null;
+    });
+    const { result } = renderHook(() =>
+      useAudioMasteringEffects({ status: baseStatus, setStatus: vi.fn(), showMessage: vi.fn(), loc })
+    );
+    await act(async () => {
+      await Promise.all([
+        result.current.handleCrossfadeDurationChange(1000),
+        result.current.handleCrossfadeDurationChange(2000),
+        result.current.handleCrossfadeDurationChange(4000),
+      ]);
+    });
+    expect(saved).toEqual(['1000', '2000', '4000']);
+  });
+
   it('toggles limiter on and off', async () => {
     const showMessage = vi.fn();
     const { result } = renderHook(() =>
@@ -83,11 +131,11 @@ describe('useAudioMasteringEffects', () => {
     expect(showMessage).toHaveBeenCalledWith(loc.notifications.limiterOff);
   });
 
-  it('adjusts bass boost and updates equalizer bands', async () => {
+  it('applies bass boost through its own stage and never touches the EQ', async () => {
     const setStatus = vi.fn();
     const { result } = renderHook(() =>
       useAudioMasteringEffects({
-        status: baseStatus,
+        status: { ...baseStatus, equalizer_bands: [1, -2, 3, 0, 0, 0, 0, 0, 0, 0] },
         setStatus,
         showMessage: vi.fn(),
         loc,
@@ -97,17 +145,18 @@ describe('useAudioMasteringEffects', () => {
     await act(async () => {
       await result.current.handleBassBoostChange(4.0);
     });
+    await act(async () => {
+      await result.current.handleBassBoostChange(0);
+    });
 
-    expect(result.current.bassBoost).toBe(4.0);
-    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', {
-      key: 'bass_boost',
-      value: '4',
-    });
-    expect(invokeMock).toHaveBeenCalledWith('set_equalizer_params', {
-      enabled: true,
-      bands: [4.0, 3.0, 1.6, 0, 0, 0, 0, 0, 0, 0],
-    });
-    expect(setStatus).toHaveBeenCalled();
+    expect(result.current.bassBoost).toBe(0);
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'bass_boost', value: '4' });
+    expect(invokeMock).toHaveBeenCalledWith('set_bass_boost', { boostDb: 4 });
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'bass_boost', value: '0' });
+    expect(invokeMock).toHaveBeenCalledWith('set_bass_boost', { boostDb: 0 });
+    const touchedEq = invokeMock.mock.calls.some(([cmd]) => String(cmd).startsWith('set_equalizer'));
+    expect(touchedEq).toBe(false);
+    expect(setStatus).not.toHaveBeenCalled();
   });
 
   it('toggles stereo widener', async () => {

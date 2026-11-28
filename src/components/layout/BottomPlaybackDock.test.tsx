@@ -205,4 +205,61 @@ describe('BottomPlaybackDock component', () => {
     fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.maximizeTooltip }));
     expect(onToggleMiniPlayer).toHaveBeenCalledTimes(1);
   });
+
+  describe('DSP bypass indicator', () => {
+    const withEngine = (engine: 'Bypass' | 'RubberBand') => ({
+      ...defaultProps,
+      status: { ...defaultProps.status, engine, pitch_semitones: 2, tempo_ratio: 1.15 },
+    });
+
+    it('greys out the engine pill and effect badges while bypass is on', () => {
+      const { container } = render(<BottomPlaybackDock {...withEngine('Bypass')} />);
+      const pill = container.querySelector('[data-bypassed]');
+      expect(pill).not.toBeNull();
+      expect(pill?.className).toContain('opacity-60');
+      expect(pill?.className).not.toContain('text-accent-green');
+      const pitch = screen.getByText('+2 st');
+      expect(pitch.className).toContain('opacity-60');
+      expect(pitch.className).not.toContain('text-accent-pink');
+      expect(pitch.getAttribute('title')).toContain(loc.bottomDock.bypassedTooltip);
+      expect(screen.getByText('1.15x').getAttribute('title')).toContain(loc.bottomDock.bypassedTooltip);
+    });
+
+    it('keeps the accent colours when a DSP engine is active', () => {
+      const { container } = render(<BottomPlaybackDock {...withEngine('RubberBand')} />);
+      expect(container.querySelector('[data-bypassed]')).toBeNull();
+      const pitch = screen.getByText('+2 st');
+      expect(pitch.className).toContain('text-accent-pink');
+      expect(pitch.className).not.toContain('opacity-60');
+    });
+  });
+
+  it('shows a seekable slider with a duration for a normal track', () => {
+    render(<BottomPlaybackDock {...defaultProps} />);
+    expect(screen.getByRole('slider', { name: loc.bottomDock.seekLabel })).toBeDefined();
+    expect(screen.queryByText(loc.bottomDock.live)).toBeNull();
+    expect(screen.getByText('3:00')).toBeDefined();
+  });
+
+  it('shows a LIVE badge and no seek slider when the stream has no duration', () => {
+    render(
+      <BottomPlaybackDock
+        {...defaultProps}
+        status={{ ...defaultProps.status, state: 'Playing', position_ms: 0, duration_ms: null }}
+      />
+    );
+    expect(screen.getByText(loc.bottomDock.live)).toBeDefined();
+    expect(screen.queryByRole('slider', { name: loc.bottomDock.seekLabel })).toBeNull();
+  });
+
+  it('shows LIVE for an http stream source even if a duration is reported', () => {
+    render(
+      <BottomPlaybackDock
+        {...defaultProps}
+        filePath="https://x.test/stream"
+      />
+    );
+    expect(screen.getByText(loc.bottomDock.live)).toBeDefined();
+    expect(screen.queryByRole('slider', { name: loc.bottomDock.seekLabel })).toBeNull();
+  });
 });

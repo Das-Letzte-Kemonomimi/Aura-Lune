@@ -43,13 +43,29 @@ describe('ModalShell', () => {
     fireEvent.click(screen.getByText('Inside'));
     expect(onClose).not.toHaveBeenCalled();
     const backdrop = screen.getByRole('dialog').parentElement as HTMLElement;
+    fireEvent.pointerDown(backdrop);
+    fireEvent.click(backdrop);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays open when a press starts inside the panel and is released on the backdrop', () => {
+    const onClose = renderModal();
+    const backdrop = screen.getByRole('dialog').parentElement as HTMLElement;
+    // A drag (e.g. a slider) that begins in the panel makes the browser fire `click` on the backdrop.
+    fireEvent.pointerDown(screen.getByText('Inside'));
+    fireEvent.click(backdrop);
+    expect(onClose).not.toHaveBeenCalled();
+    // The stale press does not leak into a later genuine backdrop click.
+    fireEvent.pointerDown(backdrop);
     fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the backdrop inert when closeOnBackdrop is false', () => {
     const onClose = renderModal(vi.fn(), false);
-    fireEvent.click(screen.getByRole('dialog').parentElement as HTMLElement);
+    const backdrop = screen.getByRole('dialog').parentElement as HTMLElement;
+    fireEvent.pointerDown(backdrop);
+    fireEvent.click(backdrop);
     expect(onClose).not.toHaveBeenCalled();
   });
 

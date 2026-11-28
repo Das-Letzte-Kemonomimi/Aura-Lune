@@ -70,6 +70,8 @@ struct PipelineInner {
     equalizer: gst::Element,
     peq_preamp: gst::Element,
     peq_equalizer: gst::Element,
+    /// Dedicated low-shelf stage for Bass Boost (independent of the graphic EQ and the PEQ).
+    bass_boost: gst::Element,
     compressor: gst::Element,
     compressor_makeup: gst::Element,
     _saturator: gst::Element,
@@ -93,6 +95,8 @@ struct PipelineInner {
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     eq_preamp_db: f64,
+    /// Bass Boost low-shelf gain in dB (0 = off); independent of `equalizer_state`.
+    bass_boost_db: f64,
     /// User preamp (dB), always applied regardless of the equalisers.
     user_preamp_db: f64,
     parametric_eq_state: ParametricEqState,
@@ -134,6 +138,19 @@ impl PipelineInner {
         &self.queue_sink
     }
 
+    /// Pushes the stored graphic EQ gains to the filter, or flat gains while the EQ is off,
+    /// so a disabled equaliser never colours the sound.
+    fn apply_equalizer_bands(&self) {
+        for i in 0..10 {
+            let val = if self.equalizer_state.enabled {
+                self.equalizer_state.bands[i]
+            } else {
+                0.0
+            };
+            self.equalizer.set_property(&format!("band{i}"), val);
+        }
+    }
+
     fn update_preamp_volume(&self) {
         let total_db = domain::equalizer::combined_preamp_db(
             self.user_preamp_db,
@@ -170,6 +187,8 @@ pub struct AudioEngine {
     queue: Arc<Mutex<PlaybackQueue>>,
     stop_after_current: Arc<AtomicBool>,
     fade_generation: Arc<AtomicU64>,
+    /// Bumped on every DSP parameter change; the debounced flush resync runs only for the latest.
+    dsp_resync_gen: Arc<AtomicU64>,
     is_fading_in: Arc<AtomicBool>,
     volume_element: gst::Element,
     atomic_volume: Arc<AtomicU64>,

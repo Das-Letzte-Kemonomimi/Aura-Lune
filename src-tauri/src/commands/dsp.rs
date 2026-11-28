@@ -705,3 +705,11 @@ pub async fn scan_library_replaygain(
         errors,
     })
 }
+
+/// Sets Bass Boost (dB, 0 = off). It is a dedicated engine stage and never touches EQ state.
+#[tauri::command]
+pub fn set_bass_boost(boost_db: f64, state: State<'_, AppState>) -> Result<(), CommandError> {
+    info!("Tauri command: set_bass_boost({})", boost_db);
+    state.engine.set_bass_boost(boost_db);
+    Ok(())
+}

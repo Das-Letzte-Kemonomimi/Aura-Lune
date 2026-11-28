@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Badge, Button, Card, Chip, IconButton, StatusDot } from '../../../components/ui';
+import { Button, Card, Chip, IconButton, StatusDot, TextField } from '../../../components/ui';
 import { Gauge, Sparkles } from '../../../components/ui/icons';
 import type { Translations } from '../../../i18n';
 import { cn } from '../../../utils/cn';
@@ -9,6 +9,7 @@ import {
   PREAMP_MIN_DB,
   clampPreampDb,
   formatSignedDb,
+  parsePreampInput,
   preampStepSize,
   stepPreampDb,
   wheelPreampStep,
@@ -38,13 +39,15 @@ function verticalPointerToDb(clientY: number, rect: DOMRect, shiftKey: boolean):
   if (rect.height <= 0) return 0;
   const ratio = Math.min(1, Math.max(0, 1 - (clientY - rect.top) / rect.height));
   const rawDb = PREAMP_MIN_DB + ratio * (PREAMP_MAX_DB - PREAMP_MIN_DB);
-  const step = shiftKey ? 0.1 : 0.5;
+  const step = shiftKey ? 0.5 : 0.1;
   return clampPreampDb(Math.round(Math.round(rawDb / step) * step * 10) / 10);
 }
 
 /**
  * Always-on vertical Poweramp-style preamp fader (applied even with the EQ off) and the EQ Auto
- * preamp toggle. Wheel and arrow keys: +/- 0.5 dB (Shift 0.1 dB). Double-click or "0 dB": reset.
+ * preamp toggle. Wheel and arrow keys: +/- 0.1 dB (Shift 1 dB); drag: 0.1 dB (Shift 0.5 dB).
+ * The dB field takes a typed value (Enter or blur applies, Escape reverts). Double-click or
+ * "0 dB": reset.
  */
 export const PreampControl: React.FC<PreampControlProps> = ({
   autoPreampValue,
@@ -60,6 +63,8 @@ export const PreampControl: React.FC<PreampControlProps> = ({
   const sliderRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  // Text being typed in the dB field; `null` while the field mirrors the live value.
+  const [draft, setDraft] = useState<string | null>(null);
 
   // The wheel listener is attached once; it reads the latest values through this ref.
   const latestRef = useRef({ preampDb, onPreampChange });
@@ -126,6 +131,23 @@ export const PreampControl: React.FC<PreampControlProps> = ({
     if (!sign) return;
     e.preventDefault();
     onPreampChange(stepPreampDb(preampDb, sign * preampStepSize(e)));
+  };
+
+  const commitDraft = () => {
+    if (draft === null) return;
+    const parsed = parsePreampInput(draft);
+    setDraft(null);
+    if (parsed !== null && parsed !== preampDb) onPreampChange(parsed);
+  };
+
+  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitDraft();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setDraft(null);
+    }
   };
 
   const ratio = (clampPreampDb(preampDb) - PREAMP_MIN_DB) / (PREAMP_MAX_DB - PREAMP_MIN_DB);
@@ -244,9 +266,23 @@ export const PreampControl: React.FC<PreampControlProps> = ({
         <span className="max-w-full truncate text-xs font-bold text-fg" title={`${loc.dsp.preamp} ${loc.dsp.preampDesc}`}>
           {loc.dsp.preamp}
         </span>
-        <Badge mono tone={preampDb > 0 ? 'pink' : preampDb < 0 ? 'cyan' : 'neutral'} className="min-w-16 justify-center">
-          {formatSignedDb(preampDb)}
-        </Badge>
+        <div className="flex w-full items-center justify-center gap-1">
+          <TextField
+            mono
+            size="sm"
+            inputMode="decimal"
+            aria-label={loc.dsp.preampInputLabel}
+            title={loc.dsp.preampInputLabel}
+            className="w-20 text-center"
+            value={draft ?? preampDb.toFixed(1)}
+            onChange={(e) => setDraft(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+            onBlur={commitDraft}
+            onKeyDown={onInputKeyDown}
+            data-testid="preamp-input"
+          />
+          <span className="text-xs text-fg-muted">dB</span>
+        </div>
         <div className="flex w-full items-center justify-center gap-1.5">
           <Chip size="xs" pressed={preampAuto} tone="cyan" onClick={onToggleAuto} title={loc.dsp.preampAutoTooltip}>
             <Sparkles size={12} /> {loc.dsp.preampAuto}

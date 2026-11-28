@@ -5,6 +5,7 @@ import { useStableCallback } from './useStableCallback';
 import type { PlaybackStatus } from '../types/player';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { CROSSFADE_DEFAULT_MS, clampCrossfadeMs } from '../utils/crossfade';
 
 export interface UseAudioMasteringEffectsOptions {
   status: PlaybackStatus;
@@ -14,12 +15,12 @@ export interface UseAudioMasteringEffectsOptions {
 }
 
 export function useAudioMasteringEffects({
-  status,
-  setStatus,
   showMessage,
   loc,
 }: UseAudioMasteringEffectsOptions) {
-  const [crossfadeDuration, setCrossfadeDuration] = useState<number>(1500);
+  const [crossfadeDuration, setCrossfadeDuration] = useState<number>(CROSSFADE_DEFAULT_MS);
+  // Slider drags fire many changes; chaining the writes keeps the engine and the database on the last value.
+  const crossfadeWriteChain = useRef<Promise<void>>(Promise.resolve());
   const [bassBoost, setBassBoost] = useState<number>(0);
   const lastBassBoostRef = useRef<number>(6.0);
   const [stereoWidenerActive, setStereoWidenerActive] = useState<boolean>(false);
@@ -27,14 +28,22 @@ export function useAudioMasteringEffects({
   const [limiterEnabled, setLimiterEnabled] = useState<boolean>(true);
 
   const handleCrossfadeDurationChange = useStableCallback(async (ms: number) => {
-    const clamped = Math.max(0, Math.min(8000, ms));
+    const clamped = clampCrossfadeMs(ms);
     setCrossfadeDuration(clamped);
-    try {
-      await invoke('set_crossfade_duration', { durationMs: clamped });
-      await setSetting('crossfade_duration', clamped.toString());
-    } catch (e) {
-      console.warn('Failed to save crossfade_duration:', e);
-    }
+    const write = crossfadeWriteChain.current.then(async () => {
+      try {
+        await invoke('set_crossfade_duration', { durationMs: clamped });
+      } catch (e: unknown) {
+        console.warn('Failed to apply crossfade_duration:', e);
+      }
+      try {
+        await setSetting('crossfade_duration', clamped.toString());
+      } catch (e: unknown) {
+        console.warn('Failed to save crossfade_duration:', e);
+      }
+    });
+    crossfadeWriteChain.current = write;
+    await write;
   });
 
   const handleToggleLimiter = useStableCallback(async (enabled: boolean) => {
@@ -60,12 +69,8 @@ export function useAudioMasteringEffects({
     }
     try {
       await setSetting('bass_boost', clamped.toString());
-      const baseBands = [...(status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
-      baseBands[0] = Math.min(12, Math.max(-24, clamped * 1.0));
-      baseBands[1] = Math.min(12, Math.max(-24, clamped * 0.75));
-      baseBands[2] = Math.min(12, Math.max(-24, clamped * 0.4));
-      await invoke('set_equalizer_params', { enabled: true, bands: baseBands });
-      setStatus((prev) => ({ ...prev, equalizer_bands: baseBands, equalizer_enabled: true }));
+      // Bass Boost is its own engine stage: it must never write into the graphic EQ bands.
+      await invoke('set_bass_boost', { boostDb: clamped });
       if (clamped > 0 && !limiterEnabled) {
         handleToggleLimiter(true);
       }

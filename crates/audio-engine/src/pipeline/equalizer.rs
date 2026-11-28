@@ -38,45 +38,25 @@ impl AudioEngine {
     }
 
     /// Sets the gain of one graphic equalizer band (in dB: -24.0 to +12.0).
-    /// Enables the equalizer automatically, so the sound reacts to the slider immediately.
+    /// Never changes the enabled state: while the equalizer is off the gain is only stored, and
+    /// reaches the filter when the user switches the equalizer on.
     pub fn set_equalizer_band(&self, band: usize, gain_db: f64) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
-        inner.equalizer_state.enabled = true;
-        if let Ok(transform) = inner
-            .equalizer
-            .clone()
-            .dynamic_cast::<gst_base::BaseTransform>()
-        {
-            transform.set_passthrough(false);
-        }
         if inner.equalizer_state.set_band(band, gain_db) {
-            for i in 0..10 {
-                let val = inner.equalizer_state.bands[i];
-                inner.equalizer.set_property(&format!("band{}", i), val);
-            }
+            inner.apply_equalizer_bands();
         }
         inner.update_preamp_volume();
         Ok(())
     }
 
     /// Sets the gains of all 10 graphic equalizer bands at once.
-    /// Enables the equalizer automatically and applies every band straight to the GStreamer pipeline.
+    /// Never changes the enabled state (see [`Self::set_equalizer_band`]).
     pub fn set_equalizer_bands(&self, bands: &[f64; 10]) -> Result<(), AudioEngineError> {
         let mut inner = self.inner.lock_safe();
-        inner.equalizer_state.enabled = true;
-        if let Ok(transform) = inner
-            .equalizer
-            .clone()
-            .dynamic_cast::<gst_base::BaseTransform>()
-        {
-            transform.set_passthrough(false);
-        }
         for (i, &gain) in bands.iter().enumerate() {
             inner.equalizer_state.set_band(i, gain);
-            inner
-                .equalizer
-                .set_property(&format!("band{}", i), inner.equalizer_state.bands[i]);
         }
+        inner.apply_equalizer_bands();
         inner.update_preamp_volume();
         Ok(())
     }

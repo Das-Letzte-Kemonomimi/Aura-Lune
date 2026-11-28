@@ -44,9 +44,6 @@ export interface PlayerViewProps {
   handleToggleSeekFade: () => void;
   infinityQueue: boolean;
   handleToggleInfinityQueue: () => void;
-  sleepTimerRemainingSec: number | null;
-  sleepTimerTargetMode: "time" | "end_of_track" | null;
-  setIsSleepTimerOpen: (v: boolean) => void;
   setIsAudioPathModalOpen: (v: boolean) => void;
   setIsLoFiModalOpen: (v: boolean) => void;
   setIsShortcutsModalOpen: (v: boolean) => void;

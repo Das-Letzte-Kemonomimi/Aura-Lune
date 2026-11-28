@@ -80,6 +80,7 @@ describe('SleepTimerModal component', () => {
 
     // First child is the backdrop overlay
     const backdrop = container.firstChild as HTMLElement;
+    fireEvent.pointerDown(backdrop);
     fireEvent.click(backdrop);
 
     expect(onClose).toHaveBeenCalled();

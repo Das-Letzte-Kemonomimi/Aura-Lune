@@ -1,6 +1,7 @@
 pub mod analysis;
 pub mod device;
 pub mod dsp_node;
+pub mod dsp_resync;
 pub mod error;
 pub mod hpss;
 pub mod metadata_editor;
