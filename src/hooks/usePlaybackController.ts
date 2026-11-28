@@ -10,6 +10,7 @@ import type { TrackRecord, AlbumRecord } from '../types/library';
 import type { TrackBookmarkDto } from '../types/player';
 import type { Translations } from '../i18n';
 import { fmt } from '../utils/fmt';
+import { clampSeekToLoop } from '../utils/abLoop';
 
 export interface UsePlaybackControllerOptions {
   status: PlaybackStatus;
@@ -475,7 +476,10 @@ export function usePlaybackController({
   );
 
   const handleSeekCommit = useCallback(
-    async (val: number, fade?: boolean) => {
+    async (target: number, fade?: boolean) => {
+      // While an A-B loop is active, seeks outside [A, B) snap to A.
+      const { a: loopA, b: loopB } = loopPointsRef.current;
+      const val = clampSeekToLoop(target, loopA, loopB);
       initialStartupPositionRef.current = null;
       isSeekingRef.current = true;
       if (seekReleaseTimerRef.current) {
