@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, Keyboard, Mic2, Moon, Pause, Play, Repeat, Repeat1, Shuffle, Sliders, SkipBack, SkipForward, Square, X } from '../../../components/ui/icons';
+import { Bookmark, Keyboard, Mic2, Pause, Play, Repeat, Repeat1, Shuffle, Sliders, SkipBack, SkipForward, Square, X } from '../../../components/ui/icons';
 import type { PlaybackStatus } from '../../../types/player';
 import type { PlayerViewProps } from '../PlayerView';
 import { currentPositionMs, useLiveVolume } from '../../../state/livePlayback';
@@ -8,7 +8,7 @@ import { cn } from '../../../utils/cn';
 import { Button, Chip, IconButton } from '../../../components/ui';
 import { VolumeIcon, VolumeSlider } from '../../../components/player/VolumeSlider';
 
-export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsSleepTimerOpen' | 'sleepTimerRemainingSec' | 'sleepTimerTargetMode' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleToggleStopAfterCurrent' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
+export type PlayerTransportControlsProps = Pick<PlayerViewProps, 'currentBookmark' | 'handleSaveBookmark' | 'loc' | 'activeTrackId' | 'handleJumpToBookmark' | 'formatTime' | 'handleDeleteBookmark' | 'showMessage' | 'setIsBookmarksModalOpen' | 'currentTrackBookmarks' | 'setLoopPointA' | 'formatTimeMs' | 'loopPointA' | 'setLoopPointB' | 'loopPointB' | 'setIsLoopEditorOpen' | 'setIsShortcutsModalOpen' | 'setShowLyrics' | 'showLyrics' | 'handleToggleShuffle' | 'queue' | 'handlePrevious' | 'handleToggleStopAfterCurrent' | 'handlePlayPause' | 'handleNext' | 'handleCycleLoopMode' | 'handleToggleMute' | 'handleVolumeChange' | 'formatVolumeValue' | 'handleToggleVolumeUnit' | 'volumeUnit'> & {
   status: PlaybackStatus;
 };
 
@@ -111,19 +111,15 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
   setIsBookmarksModalOpen,
   setIsLoopEditorOpen,
   setIsShortcutsModalOpen,
-  setIsSleepTimerOpen,
   setLoopPointA,
   setLoopPointB,
   setShowLyrics,
   showLyrics,
   showMessage,
-  sleepTimerRemainingSec,
-  sleepTimerTargetMode,
   status,
   volumeUnit,
 }) => {
   const hasLoopPoint = loopPointA !== null || loopPointB !== null;
-  const sleepActive = sleepTimerRemainingSec !== null || sleepTimerTargetMode === 'end_of_track';
   const playing = status.state === 'Playing';
   return (
     <div className="grid grid-cols-1 items-center gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
@@ -299,24 +295,6 @@ export const PlayerTransportControls: React.FC<PlayerTransportControlsProps> = R
         </ToolGroup>
 
         <ToolGroup>
-        <Chip
-          tone="purple"
-          pressed={sleepActive}
-          onClick={() => setIsSleepTimerOpen(true)}
-          aria-label={loc.player.sleepTimer}
-          title={loc.player.sleepTimer}
-          className="h-7 min-w-8 px-2"
-        >
-          <Moon size={13} />
-          {sleepActive && (
-            <span className="font-mono text-xxs font-bold">
-              {sleepTimerRemainingSec !== null
-                ? `${Math.floor(sleepTimerRemainingSec / 60)}:${(sleepTimerRemainingSec % 60) < 10 ? '0' : ''}${sleepTimerRemainingSec % 60}`
-                : loc.player.timerEnd}
-            </span>
-          )}
-        </Chip>
-
         <IconButton variant="secondary" label={loc.shortcuts.title} onClick={() => setIsShortcutsModalOpen(true)} className="size-7">
           <Keyboard size={13} />
         </IconButton>
