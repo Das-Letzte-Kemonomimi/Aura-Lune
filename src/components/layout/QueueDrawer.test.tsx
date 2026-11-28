@@ -66,4 +66,53 @@ describe('QueueDrawer', () => {
     const { container } = render(<QueueDrawer {...props(5, { isOpen: false })} />);
     expect(container.firstChild).toBeNull();
   });
+
+  describe('outside click', () => {
+    const press = (target: Element, type: 'pointerdown' | 'pointerup') => fireEvent(target, new MouseEvent(type, { bubbles: true }));
+
+    it('closes when the press and release both land outside the panel', () => {
+      const p = props(3);
+      render(<QueueDrawer {...p} />);
+      press(document.body, 'pointerdown');
+      press(document.body, 'pointerup');
+      expect(p.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays open when a drag starts inside and is released outside', () => {
+      const p = props(3);
+      render(<QueueDrawer {...p} />);
+      press(screen.getByText('Track 1'), 'pointerdown');
+      press(document.body, 'pointerup');
+      expect(p.onClose).not.toHaveBeenCalled();
+    });
+
+    it('stays open for clicks inside the panel', () => {
+      const p = props(3);
+      render(<QueueDrawer {...p} />);
+      press(screen.getByText('Track 1'), 'pointerdown');
+      press(screen.getByText('Track 1'), 'pointerup');
+      expect(p.onClose).not.toHaveBeenCalled();
+    });
+
+    it('ignores presses on the toggle control so its own click does not reopen the drawer', () => {
+      const p = props(3);
+      render(
+        <>
+          <button data-queue-toggle>toggle</button>
+          <QueueDrawer {...p} />
+        </>,
+      );
+      press(screen.getByText('toggle'), 'pointerdown');
+      press(screen.getByText('toggle'), 'pointerup');
+      expect(p.onClose).not.toHaveBeenCalled();
+    });
+
+    it('does not listen while closed', () => {
+      const p = props(3, { isOpen: false });
+      render(<QueueDrawer {...p} />);
+      press(document.body, 'pointerdown');
+      press(document.body, 'pointerup');
+      expect(p.onClose).not.toHaveBeenCalled();
+    });
+  });
 });
