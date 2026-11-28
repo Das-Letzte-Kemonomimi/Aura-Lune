@@ -1,5 +1,131 @@
 [
   {
+    "version": "2.0.1-dev",
+    "codename": "Development Channel",
+    "date": "2026-11-28",
+    "author": "Das Letzte Kemonomimi",
+    "isDev": true,
+    "isLatest": false,
+    "added": [
+      {
+        "en": "The Soundscape window now has an on/off switch that keeps your mix, and rain drops, crackle and chimes come back properly when you turn it on.",
+        "pl": "Okno Pejzażu dźwiękowego ma teraz przełącznik wł./wył., który zachowuje miks, a krople deszczu, trzaski i dzwonki poprawnie wracają po włączeniu.",
+        "de": "Das Soundscape-Fenster hat jetzt einen Ein/Aus-Schalter, der deine Mischung behält, und Regentropfen, Knistern und Glockenspiel kehren beim Einschalten richtig zurück.",
+        "fi": "Äänimaisema-ikkunassa on nyt päälle/pois-kytkin, joka säilyttää miksauksesi, ja sadepisarat, rätinä ja kellot palaavat kunnolla päälle kytkettäessä.",
+        "la": "Fenestra Soni Ambientis nunc commutatorem accensionis habet qui mixturam tuam servat, et guttae pluviae, crepitus et tintinnabula recte redeunt cum accendis."
+      }
+    ],
+    "changed": [
+      {
+        "en": "Tidier controls under the seekbar: the duplicate sleep-timer button is gone (use the Timer tab), and Points now live inside the Bookmark button. Click it to save a bookmark, or use the small arrow or right-click to manage all points, including deleting them all at once.",
+        "pl": "Porządniejsze przyciski pod paskiem przewijania: zniknął zdublowany przycisk wyłącznika czasowego (użyj karty Timer), a Punkty są teraz częścią przycisku Zakładka. Kliknij, by zapisać zakładkę, albo użyj małej strzałki lub prawego przycisku, by zarządzać punktami, także usuwać je wszystkie naraz.",
+        "de": "Aufgeräumte Bedienelemente unter der Zeitleiste: Der doppelte Schlaftimer-Knopf ist weg (nutze den Tab Timer), und Punkte stecken jetzt im Lesezeichen-Knopf. Klick speichert ein Lesezeichen, der kleine Pfeil oder Rechtsklick verwaltet alle Punkte, inklusive alle auf einmal löschen.",
+        "fi": "Siistimmät säätimet hakupalkin alla: kaksoiskappaleena ollut uniajastimen painike on poistettu (käytä Ajastin-välilehteä), ja Pisteet ovat nyt Kirjanmerkki-painikkeen sisällä. Klikkaa tallentaaksesi kirjanmerkin, tai hallitse kaikkia pisteitä pienellä nuolella tai oikealla klikkauksella, myös poista ne kaikki kerralla.",
+        "la": "Imperia sub vecte quaerendi ordinatiora: globulus horologii somni duplex sublatus est (utere tabula Horologii), et Puncta nunc in globulo Signaculi insunt. Preme ut signaculum serves, aut sagittula vel dextro pressu omnia puncta rege, etiam omnia simul delendo."
+      },
+      {
+        "en": "The preamp now has its own section with fine 0.1 dB steps and typed values.",
+        "pl": "Przedwzmacniacz ma teraz własną sekcję z dokładnymi krokami co 0,1 dB i możliwością wpisania wartości.",
+        "de": "Der Vorverstärker hat jetzt einen eigenen Bereich mit feinen 0,1-dB-Schritten und direkter Werteingabe.",
+        "fi": "Esivahvistimella on nyt oma osionsa tarkoin 0,1 dB:n askelin ja kirjoitettavin arvoin.",
+        "la": "Praeamplificator nunc suam sectionem habet cum gradibus subtilibus 0,1 dB et valoribus scribendis."
+      },
+      {
+        "en": "The step buttons next to the pitch, tempo and rate sliders now sit in a more natural order, with the small steps on the outside.",
+        "pl": "Przyciski kroku przy suwakach wysokości, tempa i prędkości są teraz w bardziej naturalnej kolejności, z małymi krokami na zewnątrz.",
+        "de": "Die Schrittknöpfe neben den Reglern für Tonhöhe, Tempo und Rate sind jetzt natürlicher angeordnet, mit den kleinen Schritten außen.",
+        "fi": "Sävelkorkeuden, tempon ja nopeuden liukusäätimien askelpainikkeet ovat nyt luontevammassa järjestyksessä, pienet askeleet ulompana.",
+        "la": "Globuli graduum iuxta cursores soni, temporis et celeritatis nunc ordine naturaliore stant, gradibus parvis extra positis."
+      },
+      {
+        "en": "The Now Playing waveform now starts in Mirror Spectrum, listed first in the style picker; your saved choice is kept.",
+        "pl": "Fala w Teraz odtwarzane domyślnie używa teraz stylu Lustrzane widmo, pierwszego na liście; zapisany wybór pozostaje bez zmian.",
+        "de": "Die Wellenform unter Aktuelle Wiedergabe startet jetzt im Stil Spiegelspektrum, der als erster in der Auswahl steht; deine gespeicherte Wahl bleibt erhalten.",
+        "fi": "Nyt soi -näkymän aaltomuoto alkaa nyt Peilispektri-tyylillä, joka on valitsimessa ensimmäisenä; tallentamasi valinta säilyy.",
+        "la": "Unda in Nunc Ludit nunc Spectro Speculari incipit, primo in electore stilorum posito; electio tua servata manet."
+      }
+    ],
+    "fixed": [
+      {
+        "en": "A-B loops now keep playback inside the loop when you click the seekbar, the \"Edit A-B loop\" editor opens again, and loop points are cleared when you switch songs.",
+        "pl": "Pętle A-B utrzymują odtwarzanie w pętli po kliknięciu paska przewijania, edytor „Edytuj pętlę A-B” znów się otwiera, a punkty pętli są czyszczone po zmianie utworu.",
+        "de": "A-B-Schleifen halten die Wiedergabe beim Klick auf die Zeitleiste innerhalb der Schleife, der Editor „A-B-Schleife bearbeiten“ öffnet sich wieder, und Schleifenpunkte werden beim Titelwechsel gelöscht.",
+        "fi": "A-B-silmukat pitävät toiston silmukan sisällä hakupalkkia klikattaessa, ”Muokkaa A-B-silmukkaa” -editori aukeaa taas, ja silmukkapisteet tyhjennetään kappaletta vaihdettaessa.",
+        "la": "Ansae A-B lusum intra ansam servant cum vectem quaerendi premis, editor „Ansam A-B mutare” iterum aperitur, et puncta ansae cantu mutato delentur."
+      },
+      {
+        "en": "The Key & BPM window now shows the correct output key when you change the playback rate, and Tap Tempo keeps the tempo you tapped.",
+        "pl": "Okno Tonacja i BPM pokazuje teraz poprawną tonację wyjściową po zmianie prędkości odtwarzania, a Tap Tempo zachowuje wystukane tempo.",
+        "de": "Das Fenster Tonart & BPM zeigt jetzt die richtige Ausgangstonart bei geänderter Wiedergaberate, und Tap Tempo behält das getippte Tempo.",
+        "fi": "Sävellaji ja BPM -ikkuna näyttää nyt oikean lähtösävellajin toistonopeutta muutettaessa, ja Tap Tempo säilyttää napautetun tempon.",
+        "la": "Fenestra Toni et BPM nunc tonum exitus rectum ostendit cum celeritatem lusus mutas, et Tap Tempo tempus pulsatum servat."
+      },
+      {
+        "en": "Dragging a slider past the edge of a popup no longer closes it, and clicking outside the queue panel now closes the panel; its close button is red and easier to hit.",
+        "pl": "Przeciągnięcie suwaka poza krawędź okienka już go nie zamyka, a kliknięcie poza panelem kolejki zamyka panel; jego przycisk zamknięcia jest czerwony i łatwiejszy do trafienia.",
+        "de": "Ein über den Rand eines Popups gezogener Regler schließt es nicht mehr, und ein Klick außerhalb der Warteschlange schließt sie jetzt; ihr Schließen-Knopf ist rot und leichter zu treffen.",
+        "fi": "Liukusäätimen vetäminen ponnahdusikkunan reunan yli ei enää sulje sitä, ja jonopaneelin ulkopuolelle klikkaaminen sulkee paneelin; sen sulkupainike on punainen ja helpompi osua.",
+        "la": "Trahere cursorem ultra marginem fenestellae eam iam non claudit, et premere extra tabulam ordinis eam claudit; globulus claudendi ruber est et facilius tangitur."
+      },
+      {
+        "en": "The volume popup no longer appears while the sleep timer fades the music out.",
+        "pl": "Okienko głośności nie pojawia się już, gdy wyłącznik czasowy wycisza muzykę.",
+        "de": "Das Lautstärke-Popup erscheint nicht mehr, während der Schlaftimer die Musik ausblendet.",
+        "fi": "Äänenvoimakkuuden ponnahdus ei enää näy, kun uniajastin hiljentää musiikin.",
+        "la": "Fenestella voluminis iam non apparet dum horologium somni musicam paulatim exstinguit."
+      },
+      {
+        "en": "The graphic and parametric EQ now stay off until you switch them on and remember their on/off state, and Bass Boost works on its own without moving your EQ sliders.",
+        "pl": "Korektor graficzny i parametryczny pozostają wyłączone, dopóki ich nie włączysz, i pamiętają swój stan, a Bass Boost działa niezależnie, nie ruszając suwaków korektora.",
+        "de": "Grafischer und parametrischer EQ bleiben aus, bis du sie einschaltest, und merken sich ihren Zustand; Bass Boost arbeitet eigenständig, ohne deine EQ-Regler zu verschieben.",
+        "fi": "Graafinen ja parametrinen EQ pysyvät pois päältä, kunnes kytket ne päälle, ja muistavat tilansa; Bass Boost toimii itsenäisesti siirtämättä EQ-liukusäätimiä.",
+        "la": "EQ graphicus et parametricus exstincti manent donec eos accendis et statum suum meminerunt, et Bass Boost per se operatur sine cursoribus EQ movendis."
+      },
+      {
+        "en": "Changing pitch, tempo or speed now shows up in the waveform and visualizer almost instantly.",
+        "pl": "Zmiana wysokości, tempa lub prędkości jest teraz niemal natychmiast widoczna na fali i w wizualizerze.",
+        "de": "Änderungen an Tonhöhe, Tempo oder Geschwindigkeit erscheinen jetzt fast sofort in Wellenform und Visualizer.",
+        "fi": "Sävelkorkeuden, tempon tai nopeuden muutos näkyy nyt aaltomuodossa ja visualisoinnissa lähes heti.",
+        "la": "Mutatio soni, temporis aut celeritatis nunc paene statim in unda et visualizatore apparet."
+      },
+      {
+        "en": "Recap \"All time\" now matches \"Last year\" when your history is shorter than a year, and long track or artist names no longer spill out of their cards.",
+        "pl": "„Cały czas” w Podsumowaniu zgadza się teraz z „Ostatnim rokiem”, gdy historia jest krótsza niż rok, a długie nazwy utworów i wykonawców nie wychodzą poza karty.",
+        "de": "„Gesamte Zeit“ im Rückblick stimmt jetzt mit „Letztes Jahr“ überein, wenn deine Historie kürzer als ein Jahr ist, und lange Titel- oder Künstlernamen ragen nicht mehr aus ihren Karten.",
+        "fi": "Koosteen ”Koko aika” vastaa nyt ”Viime vuotta”, kun historia on alle vuoden, eivätkä pitkät kappale- tai artistinimet enää valu korttien yli.",
+        "la": "Recapitulatio „Omne tempus” nunc „Anno proximo” congruit cum historia brevior anno est, et longa nomina cantuum artificumque iam e chartis non effluunt."
+      },
+      {
+        "en": "The effects indicator in the bottom player bar now greys out when DSP is bypassed.",
+        "pl": "Wskaźnik efektów na dolnym pasku odtwarzacza jest teraz wyszarzony, gdy DSP jest pominięte.",
+        "de": "Die Effektanzeige in der unteren Player-Leiste wird jetzt ausgegraut, wenn DSP umgangen wird.",
+        "fi": "Alapalkin efektien ilmaisin harmaantuu nyt, kun DSP ohitetaan.",
+        "la": "Index effectuum in vecte inferiore lusoris nunc canescit cum DSP praetermittitur."
+      },
+      {
+        "en": "The crossfade time you pick in Settings now stays exactly where you set it, including after a restart.",
+        "pl": "Czas przenikania wybrany w Ustawieniach pozostaje teraz dokładnie taki, jak go ustawisz, także po ponownym uruchomieniu.",
+        "de": "Die in den Einstellungen gewählte Überblendzeit bleibt jetzt genau so, wie du sie eingestellt hast, auch nach einem Neustart.",
+        "fi": "Asetuksista valittu ristihäivytyksen aika pysyy nyt juuri asettamanasi, myös uudelleenkäynnistyksen jälkeen.",
+        "la": "Tempus transitus in Optionibus electum nunc prorsus manet ut statuisti, etiam post iterum incipiendum."
+      },
+      {
+        "en": "Exporting a section of a track with tempo or speed changes applied now keeps the whole selected section instead of cutting it short.",
+        "pl": "Eksport fragmentu utworu ze zmienionym tempem lub prędkością zachowuje teraz cały wybrany fragment, zamiast go ucinać.",
+        "de": "Beim Export eines Titelabschnitts mit Tempo- oder Geschwindigkeitsänderung bleibt jetzt der ganze gewählte Abschnitt erhalten, statt abgeschnitten zu werden.",
+        "fi": "Kappaleen osan vienti tempo- tai nopeusmuutoksin säilyttää nyt koko valitun osan sen sijaan, että se katkeaisi.",
+        "la": "Exportatio partis cantus cum tempore aut celeritate mutata nunc totam partem electam servat neque eam praecidit."
+      },
+      {
+        "en": "Radio stations now show a LIVE badge and a listening timer instead of a seek bar that ran out and froze.",
+        "pl": "Stacje radiowe pokazują teraz znaczek NA ŻYWO i licznik słuchania zamiast paska przewijania, który dobiegał końca i zamierał.",
+        "de": "Radiosender zeigen jetzt ein LIVE-Abzeichen und einen Hörzeit-Zähler statt einer Zeitleiste, die ablief und einfror.",
+        "fi": "Radioasemat näyttävät nyt LIVE-merkin ja kuunteluajastimen hakupalkin sijaan, joka loppui ja jumittui.",
+        "la": "Stationes radiophonicae nunc signum VIVUM et horologium auditionis ostendunt pro vecte quaerendi qui finiebatur et congelabatur."
+      }
+    ]
+  },
+  {
     "version": "2.0.0",
     "codename": "Lune",
     "date": "2026-11-27",
