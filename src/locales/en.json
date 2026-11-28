@@ -124,6 +124,7 @@
     "clickToJump": "Click to jump",
     "loadTrackToManageBookmarks": "Load track to manage cue points",
     "pointsLabel": "Points",
+    "bookmarkOptions": "Bookmark options and points",
     "bookmarksModalTitle": "Bookmarks and Cue Points ({0})",
     "setPointAAtCurrent": "Set Point A at current position (Key: A)",
     "setPointBAtCurrent": "Set Point B at current position (Key: B)",
@@ -1656,6 +1657,9 @@
     "saveBookmarksTitle": "Save points A and B permanently in database for this track"
   },
   "trackBookmarks": {
+    "deleteAll": "Delete all",
+    "deleteAllConfirm": "Delete all {0} points of this track? This cannot be undone.",
+    "deleteAllConfirmYes": "Yes, delete all",
     "title": "Track Bookmarks & Cue Points",
     "subtitle": "Manage saved cue points, loop regions, and time markers",
     "addBookmark": "Add Bookmark",

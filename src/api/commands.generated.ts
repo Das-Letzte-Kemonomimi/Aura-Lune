@@ -22,6 +22,7 @@ export const COMMAND_NAMES = [
   'create_playlist',
   'create_stem_project',
   'delete_ai_model',
+  'delete_all_track_bookmarks',
   'delete_bookmark',
   'delete_playlist',
   'delete_stem_project',

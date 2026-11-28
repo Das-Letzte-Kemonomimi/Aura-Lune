@@ -59,3 +59,27 @@ async fn test_multi_cue_track_bookmarks() {
     assert_eq!(bms_after_del.len(), 1);
     assert_eq!(bms_after_del[0].id, bm1.id);
 }
+
+#[tokio::test]
+async fn test_delete_all_track_bookmarks_only_affects_one_track() {
+    let db = setup_test_db().await;
+    let track_a = db
+        .upsert_track(&make_dummy_track("/music/a.flac", "A", "Artist"))
+        .await
+        .unwrap();
+    let track_b = db
+        .upsert_track(&make_dummy_track("/music/b.flac", "B", "Artist"))
+        .await
+        .unwrap();
+
+    db.add_track_bookmark(track_a, "One", 1000).await.unwrap();
+    db.add_track_bookmark(track_a, "Two", 2000).await.unwrap();
+    db.add_track_bookmark(track_b, "Keep", 3000).await.unwrap();
+
+    assert_eq!(db.delete_all_track_bookmarks(track_a).await.unwrap(), 2);
+    assert!(db.get_track_bookmarks(track_a).await.unwrap().is_empty());
+    assert_eq!(db.get_track_bookmarks(track_b).await.unwrap().len(), 1);
+
+    // Deleting from a track with no markers is a harmless no-op.
+    assert_eq!(db.delete_all_track_bookmarks(track_a).await.unwrap(), 0);
+}

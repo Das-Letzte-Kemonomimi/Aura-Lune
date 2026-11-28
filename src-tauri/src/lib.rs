@@ -298,6 +298,7 @@ pub fn run() {
             add_track_bookmark,
             update_track_bookmark,
             delete_track_bookmark,
+            delete_all_track_bookmarks,
             find_duplicate_tracks,
             delete_track_record,
             preview_rename_tracks,

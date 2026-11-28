@@ -46,6 +46,7 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
   const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const titleId = useId();
 
   const loadBookmarks = useCallback(async () => {
@@ -140,6 +141,18 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
     }
   };
 
+  const handleDeleteAll = async () => {
+    try {
+      await invoke('delete_all_track_bookmarks', { trackId });
+      setConfirmingDeleteAll(false);
+      await loadBookmarks();
+      onBookmarksUpdated?.();
+    } catch (err) {
+      setConfirmingDeleteAll(false);
+      setError(String(err));
+    }
+  };
+
   return (
     <ModalShell onClose={onClose} layer="studio" size="md" labelledBy={titleId}>
       <ModalHeader
@@ -194,9 +207,31 @@ export const TrackBookmarksModal: React.FC<TrackBookmarksModalProps> = ({
 
         {/* Bookmark list */}
         <div className="flex flex-col gap-2">
-          <span className="text-ui font-semibold text-fg-secondary">
-            {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-ui font-semibold text-fg-secondary">
+              {loc.trackBookmarks.savedBookmarks} ({bookmarks.length})
+            </span>
+            {bookmarks.length > 0 && !confirmingDeleteAll && (
+              <Button variant="danger" size="sm" onClick={() => setConfirmingDeleteAll(true)}>
+                <Trash2 size={13} />
+                {loc.trackBookmarks.deleteAll}
+              </Button>
+            )}
+          </div>
+
+          {confirmingDeleteAll && (
+            <Callout tone="danger" className="flex items-center justify-between gap-3">
+              <span className="text-ui text-accent-red">{fmt(loc.trackBookmarks.deleteAllConfirm, String(bookmarks.length))}</span>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" onClick={() => setConfirmingDeleteAll(false)}>
+                  {loc.common.cancel}
+                </Button>
+                <Button variant="danger" size="sm" onClick={handleDeleteAll}>
+                  {loc.trackBookmarks.deleteAllConfirmYes}
+                </Button>
+              </div>
+            </Callout>
+          )}
 
           {bookmarks.length >= 2 && onExportRange && (
             <Callout tone="cyan" className="mb-1 flex items-center justify-between gap-3">
