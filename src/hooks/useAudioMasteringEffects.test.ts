@@ -83,11 +83,11 @@ describe('useAudioMasteringEffects', () => {
     expect(showMessage).toHaveBeenCalledWith(loc.notifications.limiterOff);
   });
 
-  it('adjusts bass boost and updates equalizer bands', async () => {
+  it('applies bass boost through its own stage and never touches the EQ', async () => {
     const setStatus = vi.fn();
     const { result } = renderHook(() =>
       useAudioMasteringEffects({
-        status: baseStatus,
+        status: { ...baseStatus, equalizer_bands: [1, -2, 3, 0, 0, 0, 0, 0, 0, 0] },
         setStatus,
         showMessage: vi.fn(),
         loc,
@@ -97,17 +97,18 @@ describe('useAudioMasteringEffects', () => {
     await act(async () => {
       await result.current.handleBassBoostChange(4.0);
     });
+    await act(async () => {
+      await result.current.handleBassBoostChange(0);
+    });
 
-    expect(result.current.bassBoost).toBe(4.0);
-    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', {
-      key: 'bass_boost',
-      value: '4',
-    });
-    expect(invokeMock).toHaveBeenCalledWith('set_equalizer_params', {
-      enabled: true,
-      bands: [4.0, 3.0, 1.6, 0, 0, 0, 0, 0, 0, 0],
-    });
-    expect(setStatus).toHaveBeenCalled();
+    expect(result.current.bassBoost).toBe(0);
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'bass_boost', value: '4' });
+    expect(invokeMock).toHaveBeenCalledWith('set_bass_boost', { boostDb: 4 });
+    expect(invokeMock).toHaveBeenCalledWith('set_app_setting', { key: 'bass_boost', value: '0' });
+    expect(invokeMock).toHaveBeenCalledWith('set_bass_boost', { boostDb: 0 });
+    const touchedEq = invokeMock.mock.calls.some(([cmd]) => String(cmd).startsWith('set_equalizer'));
+    expect(touchedEq).toBe(false);
+    expect(setStatus).not.toHaveBeenCalled();
   });
 
   it('toggles stereo widener', async () => {

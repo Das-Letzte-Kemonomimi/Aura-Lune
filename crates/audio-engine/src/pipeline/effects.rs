@@ -286,4 +286,36 @@ impl AudioEngine {
     pub fn reset_clip_indicator(&self) {
         self.clip_latched.store(false, Ordering::Relaxed);
     }
+
+    /// Sets the Bass Boost gain in dB (`0.0..=12.0`, 0 = off).
+    ///
+    /// Bass Boost is its own low-shelf stage: it never reads or writes the graphic EQ or the
+    /// parametric EQ state, so switching it off leaves the user's EQ exactly as it was.
+    pub fn set_bass_boost(&self, boost_db: f64) {
+        let boost_db = domain::equalizer::clamp_bass_boost_db(boost_db);
+        let mut inner = self.inner.lock_safe();
+        inner.bass_boost_db = boost_db;
+        let enabled = boost_db > 0.0;
+        if let Ok(child_proxy) = inner.bass_boost.clone().dynamic_cast::<gst::ChildProxy>() {
+            if let Some(child) = child_proxy.child_by_index(0) {
+                child.set_property("freq", domain::equalizer::BASS_BOOST_FREQ_HZ);
+                // Shelf slope: bandwidth equal to the corner frequency gives a gentle, musical roll-off.
+                child.set_property("bandwidth", domain::equalizer::BASS_BOOST_FREQ_HZ);
+                child.set_property("gain", boost_db);
+                child.set_property_from_str("type", "low-shelf");
+            }
+        }
+        if let Ok(transform) = inner
+            .bass_boost
+            .clone()
+            .dynamic_cast::<gst_base::BaseTransform>()
+        {
+            transform.set_passthrough(!enabled);
+        }
+    }
+
+    /// Returns the current Bass Boost gain in dB (0 = off).
+    pub fn get_bass_boost(&self) -> f64 {
+        self.inner.lock_safe().bass_boost_db
+    }
 }
