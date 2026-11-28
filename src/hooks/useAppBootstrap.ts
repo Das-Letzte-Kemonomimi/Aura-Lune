@@ -167,7 +167,10 @@ export function useAppBootstrap({
           .then((val) => {
             if (!disposed && val) {
               const num = parseFloat(val);
-              if (!isNaN(num)) setBassBoost(num);
+              if (!isNaN(num)) {
+                setBassBoost(num);
+                invoke('set_bass_boost', { boostDb: num }).catch(() => {});
+              }
             }
           })
           .catch((e) => console.warn('Failed to read bass_boost:', e)),

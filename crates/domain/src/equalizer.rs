@@ -146,3 +146,17 @@ pub fn combined_preamp_db(
     };
     (user + geq + peq).clamp(TOTAL_PREAMP_MIN_DB, TOTAL_PREAMP_MAX_DB)
 }
+
+/// Maximum Bass Boost gain in dB (the UI offers 0–12 dB).
+pub const BASS_BOOST_MAX_DB: f64 = 12.0;
+/// Corner frequency of the Bass Boost low shelf in Hz.
+pub const BASS_BOOST_FREQ_HZ: f64 = 120.0;
+
+/// Clamps a requested Bass Boost gain to `0.0..=BASS_BOOST_MAX_DB`. Non-finite input means off.
+pub fn clamp_bass_boost_db(db: f64) -> f64 {
+    if db.is_finite() {
+        db.clamp(0.0, BASS_BOOST_MAX_DB)
+    } else {
+        0.0
+    }
+}

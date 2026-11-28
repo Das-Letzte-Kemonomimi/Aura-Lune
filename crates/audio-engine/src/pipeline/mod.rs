@@ -70,6 +70,8 @@ struct PipelineInner {
     equalizer: gst::Element,
     peq_preamp: gst::Element,
     peq_equalizer: gst::Element,
+    /// Dedicated low-shelf stage for Bass Boost (independent of the graphic EQ and the PEQ).
+    bass_boost: gst::Element,
     compressor: gst::Element,
     compressor_makeup: gst::Element,
     _saturator: gst::Element,
@@ -93,6 +95,8 @@ struct PipelineInner {
     last_active_dsp: Option<DspParams>,
     equalizer_state: EqualizerState,
     eq_preamp_db: f64,
+    /// Bass Boost low-shelf gain in dB (0 = off); independent of `equalizer_state`.
+    bass_boost_db: f64,
     /// User preamp (dB), always applied regardless of the equalisers.
     user_preamp_db: f64,
     parametric_eq_state: ParametricEqState,

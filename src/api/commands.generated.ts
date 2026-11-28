@@ -149,6 +149,7 @@ export const COMMAND_NAMES = [
   'set_app_icon_style',
   'set_app_setting',
   'set_audio_buffer_duration_ms',
+  'set_bass_boost',
   'set_bluetooth_codec',
   'set_card_profile',
   'set_crossfade_duration',

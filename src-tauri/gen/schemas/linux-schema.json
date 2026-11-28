@@ -44,44 +44,19 @@
         "permissions"
       ],
       "properties": {
-        "identifier": {
-          "description": "Identifier of the capability.\n\n## Example\n\n`main-user-files-write`",
-          "type": "string"
-        },
         "description": {
           "description": "Description of what the capability is intended to allow on associated windows.\n\nIt should contain a description of what the grouped permissions should allow.\n\n## Example\n\nThis capability allows the `main` window access to `filesystem` write related commands and `dialog` commands to enable programmatic access to files selected by the user.",
           "default": "",
           "type": "string"
         },
-        "remote": {
-          "description": "Configure remote URLs that can use the capability permissions.\n\nThis setting is optional and defaults to not being set, as our default use case is that the content is served from our local application.\n\n:::caution Make sure you understand the security implications of providing remote sources with local system access. :::\n\n## Example\n\n```json { \"urls\": [\"https://*.mydomain.dev\"] } ```",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/CapabilityRemote"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "identifier": {
+          "description": "Identifier of the capability.\n\n## Example\n\n`main-user-files-write`",
+          "type": "string"
         },
         "local": {
           "description": "Whether this capability is enabled for local app URLs or not. Defaults to `true`.",
           "default": true,
           "type": "boolean"
-        },
-        "windows": {
-          "description": "List of windows that are affected by this capability. Can be a glob pattern.\n\nIf a window label matches any of the patterns in this list, the capability will be enabled on all the webviews of that window, regardless of the value of [`Self::webviews`].\n\nOn multiwebview windows, prefer specifying [`Self::webviews`] and omitting [`Self::windows`] for a fine grained access control.\n\n## Example\n\n`[\"main\"]`",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "webviews": {
-          "description": "List of webviews that are affected by this capability. Can be a glob pattern.\n\nThe capability will be enabled on all the webviews whose label matches any of the patterns in this list, regardless of whether the webview's window label matches a pattern in [`Self::windows`].\n\n## Example\n\n`[\"sub-webview-one\", \"sub-webview-two\"]`",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         },
         "permissions": {
           "description": "List of permissions attached to this capability.\n\nMust include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`. For commands directly implemented in the application itself only `${permission-name}` is required.\n\n## Example\n\n```json [ \"core:default\", \"shell:allow-open\", \"dialog:open\", { \"identifier\": \"fs:allow-write-text-file\", \"allow\": [{ \"path\": \"$HOME/test.txt\" }] } ] ```",
@@ -99,6 +74,31 @@
           ],
           "items": {
             "$ref": "#/definitions/Target"
+          }
+        },
+        "remote": {
+          "description": "Configure remote URLs that can use the capability permissions.\n\nThis setting is optional and defaults to not being set, as our default use case is that the content is served from our local application.\n\n:::caution Make sure you understand the security implications of providing remote sources with local system access. :::\n\n## Example\n\n```json { \"urls\": [\"https://*.mydomain.dev\"] } ```",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CapabilityRemote"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "webviews": {
+          "description": "List of webviews that are affected by this capability. Can be a glob pattern.\n\nThe capability will be enabled on all the webviews whose label matches any of the patterns in this list, regardless of whether the webview's window label matches a pattern in [`Self::windows`].\n\n## Example\n\n`[\"sub-webview-one\", \"sub-webview-two\"]`",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "windows": {
+          "description": "List of windows that are affected by this capability. Can be a glob pattern.\n\nIf a window label matches any of the patterns in this list, the capability will be enabled on all the webviews of that window, regardless of the value of [`Self::webviews`].\n\nOn multiwebview windows, prefer specifying [`Self::webviews`] and omitting [`Self::windows`] for a fine grained access control.\n\n## Example\n\n`[\"main\"]`",
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }
@@ -118,60 +118,6 @@
           }
         }
       }
-    },
-    "PermissionEntry": {
-      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`] or an object that references a permission and extends its scope.",
-      "anyOf": [
-        {
-          "description": "Reference a permission or permission set by identifier.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Identifier"
-            }
-          ]
-        },
-        {
-          "description": "Reference a permission or permission set by identifier and extends its scope.",
-          "type": "object",
-          "allOf": [
-            {
-              "properties": {
-                "identifier": {
-                  "description": "Identifier of the permission or permission set.",
-                  "allOf": [
-                    {
-                      "$ref": "#/definitions/Identifier"
-                    }
-                  ]
-                },
-                "allow": {
-                  "description": "Data that defines what is allowed by the scope.",
-                  "type": [
-                    "array",
-                    "null"
-                  ],
-                  "items": {
-                    "$ref": "#/definitions/Value"
-                  }
-                },
-                "deny": {
-                  "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
-                  "type": [
-                    "array",
-                    "null"
-                  ],
-                  "items": {
-                    "$ref": "#/definitions/Value"
-                  }
-                }
-              }
-            }
-          ],
-          "required": [
-            "identifier"
-          ]
-        }
-      ]
     },
     "Identifier": {
       "description": "Permission identifier",
@@ -225,6 +171,12 @@
           "markdownDescription": "Enables the fetch_data_store_identifiers command without any pre-configured scope."
         },
         {
+          "description": "Enables the fetch_profile_identifiers command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:app:allow-fetch-profile-identifiers",
+          "markdownDescription": "Enables the fetch_profile_identifiers command without any pre-configured scope."
+        },
+        {
           "description": "Enables the identifier command without any pre-configured scope.",
           "type": "string",
           "const": "core:app:allow-identifier",
@@ -253,6 +205,12 @@
           "type": "string",
           "const": "core:app:allow-remove-listener",
           "markdownDescription": "Enables the remove_listener command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the remove_profile command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:app:allow-remove-profile",
+          "markdownDescription": "Enables the remove_profile command without any pre-configured scope."
         },
         {
           "description": "Enables the set_app_theme command without any pre-configured scope.",
@@ -321,6 +279,12 @@
           "markdownDescription": "Denies the fetch_data_store_identifiers command without any pre-configured scope."
         },
         {
+          "description": "Denies the fetch_profile_identifiers command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:app:deny-fetch-profile-identifiers",
+          "markdownDescription": "Denies the fetch_profile_identifiers command without any pre-configured scope."
+        },
+        {
           "description": "Denies the identifier command without any pre-configured scope.",
           "type": "string",
           "const": "core:app:deny-identifier",
@@ -349,6 +313,12 @@
           "type": "string",
           "const": "core:app:deny-remove-listener",
           "markdownDescription": "Denies the remove_listener command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the remove_profile command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:app:deny-remove-profile",
+          "markdownDescription": "Denies the remove_profile command without any pre-configured scope."
         },
         {
           "description": "Denies the set_app_theme command without any pre-configured scope.",
@@ -771,10 +741,10 @@
           "markdownDescription": "Denies the text command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-resolve-directory`\n- `allow-resolve`\n- `allow-normalize`\n- `allow-join`\n- `allow-dirname`\n- `allow-extname`\n- `allow-basename`\n- `allow-is-absolute`",
+          "description": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-resolve-directory`\n- `allow-resolve-external-bin`\n- `allow-resolve`\n- `allow-normalize`\n- `allow-join`\n- `allow-dirname`\n- `allow-extname`\n- `allow-basename`\n- `allow-is-absolute`",
           "type": "string",
           "const": "core:path:default",
-          "markdownDescription": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-resolve-directory`\n- `allow-resolve`\n- `allow-normalize`\n- `allow-join`\n- `allow-dirname`\n- `allow-extname`\n- `allow-basename`\n- `allow-is-absolute`"
+          "markdownDescription": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-resolve-directory`\n- `allow-resolve-external-bin`\n- `allow-resolve`\n- `allow-normalize`\n- `allow-join`\n- `allow-dirname`\n- `allow-extname`\n- `allow-basename`\n- `allow-is-absolute`"
         },
         {
           "description": "Enables the basename command without any pre-configured scope.",
@@ -825,6 +795,12 @@
           "markdownDescription": "Enables the resolve_directory command without any pre-configured scope."
         },
         {
+          "description": "Enables the resolve_external_bin command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:path:allow-resolve-external-bin",
+          "markdownDescription": "Enables the resolve_external_bin command without any pre-configured scope."
+        },
+        {
           "description": "Denies the basename command without any pre-configured scope.",
           "type": "string",
           "const": "core:path:deny-basename",
@@ -873,6 +849,12 @@
           "markdownDescription": "Denies the resolve_directory command without any pre-configured scope."
         },
         {
+          "description": "Denies the resolve_external_bin command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:path:deny-resolve-external-bin",
+          "markdownDescription": "Denies the resolve_external_bin command without any pre-configured scope."
+        },
+        {
           "description": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-close`",
           "type": "string",
           "const": "core:resources:default",
@@ -891,10 +873,10 @@
           "markdownDescription": "Denies the close command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-new`\n- `allow-get-by-id`\n- `allow-remove-by-id`\n- `allow-set-icon`\n- `allow-set-menu`\n- `allow-set-tooltip`\n- `allow-set-title`\n- `allow-set-visible`\n- `allow-set-temp-dir-path`\n- `allow-set-icon-as-template`\n- `allow-set-icon-with-as-template`\n- `allow-set-show-menu-on-left-click`",
+          "description": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-new`\n- `allow-get-by-id`\n- `allow-remove-by-id`\n- `allow-set-icon`\n- `allow-set-menu`\n- `allow-set-tooltip`\n- `allow-set-title`\n- `allow-set-visible`\n- `allow-set-temp-dir-path`\n- `allow-set-icon-templated`\n- `allow-set-native-icon`\n- `allow-set-show-menu-on-left-click`\n- `allow-set-show-menu-on-right-click`\n- `allow-show-menu`\n- `allow-set-icon-as-template`\n- `allow-set-icon-with-as-template`",
           "type": "string",
           "const": "core:tray:default",
-          "markdownDescription": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-new`\n- `allow-get-by-id`\n- `allow-remove-by-id`\n- `allow-set-icon`\n- `allow-set-menu`\n- `allow-set-tooltip`\n- `allow-set-title`\n- `allow-set-visible`\n- `allow-set-temp-dir-path`\n- `allow-set-icon-as-template`\n- `allow-set-icon-with-as-template`\n- `allow-set-show-menu-on-left-click`"
+          "markdownDescription": "Default permissions for the plugin, which enables all commands.\n#### This default permission set includes:\n\n- `allow-new`\n- `allow-get-by-id`\n- `allow-remove-by-id`\n- `allow-set-icon`\n- `allow-set-menu`\n- `allow-set-tooltip`\n- `allow-set-title`\n- `allow-set-visible`\n- `allow-set-temp-dir-path`\n- `allow-set-icon-templated`\n- `allow-set-native-icon`\n- `allow-set-show-menu-on-left-click`\n- `allow-set-show-menu-on-right-click`\n- `allow-show-menu`\n- `allow-set-icon-as-template`\n- `allow-set-icon-with-as-template`"
         },
         {
           "description": "Enables the get_by_id command without any pre-configured scope.",
@@ -927,6 +909,12 @@
           "markdownDescription": "Enables the set_icon_as_template command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_icon_templated command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:allow-set-icon-templated",
+          "markdownDescription": "Enables the set_icon_templated command without any pre-configured scope."
+        },
+        {
           "description": "Enables the set_icon_with_as_template command without any pre-configured scope.",
           "type": "string",
           "const": "core:tray:allow-set-icon-with-as-template",
@@ -939,10 +927,22 @@
           "markdownDescription": "Enables the set_menu command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_native_icon command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:allow-set-native-icon",
+          "markdownDescription": "Enables the set_native_icon command without any pre-configured scope."
+        },
+        {
           "description": "Enables the set_show_menu_on_left_click command without any pre-configured scope.",
           "type": "string",
           "const": "core:tray:allow-set-show-menu-on-left-click",
           "markdownDescription": "Enables the set_show_menu_on_left_click command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_show_menu_on_right_click command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:allow-set-show-menu-on-right-click",
+          "markdownDescription": "Enables the set_show_menu_on_right_click command without any pre-configured scope."
         },
         {
           "description": "Enables the set_temp_dir_path command without any pre-configured scope.",
@@ -967,6 +967,12 @@
           "type": "string",
           "const": "core:tray:allow-set-visible",
           "markdownDescription": "Enables the set_visible command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the show_menu command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:allow-show-menu",
+          "markdownDescription": "Enables the show_menu command without any pre-configured scope."
         },
         {
           "description": "Denies the get_by_id command without any pre-configured scope.",
@@ -999,6 +1005,12 @@
           "markdownDescription": "Denies the set_icon_as_template command without any pre-configured scope."
         },
         {
+          "description": "Denies the set_icon_templated command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:deny-set-icon-templated",
+          "markdownDescription": "Denies the set_icon_templated command without any pre-configured scope."
+        },
+        {
           "description": "Denies the set_icon_with_as_template command without any pre-configured scope.",
           "type": "string",
           "const": "core:tray:deny-set-icon-with-as-template",
@@ -1011,10 +1023,22 @@
           "markdownDescription": "Denies the set_menu command without any pre-configured scope."
         },
         {
+          "description": "Denies the set_native_icon command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:deny-set-native-icon",
+          "markdownDescription": "Denies the set_native_icon command without any pre-configured scope."
+        },
+        {
           "description": "Denies the set_show_menu_on_left_click command without any pre-configured scope.",
           "type": "string",
           "const": "core:tray:deny-set-show-menu-on-left-click",
           "markdownDescription": "Denies the set_show_menu_on_left_click command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_show_menu_on_right_click command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:deny-set-show-menu-on-right-click",
+          "markdownDescription": "Denies the set_show_menu_on_right_click command without any pre-configured scope."
         },
         {
           "description": "Denies the set_temp_dir_path command without any pre-configured scope.",
@@ -1039,6 +1063,12 @@
           "type": "string",
           "const": "core:tray:deny-set-visible",
           "markdownDescription": "Denies the set_visible command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the show_menu command without any pre-configured scope.",
+          "type": "string",
+          "const": "core:tray:deny-show-menu",
+          "markdownDescription": "Denies the show_menu command without any pre-configured scope."
         },
         {
           "description": "Default permissions for the plugin.\n#### This default permission set includes:\n\n- `allow-get-all-webviews`\n- `allow-webview-position`\n- `allow-webview-size`\n- `allow-internal-toggle-devtools`",
@@ -2218,45 +2248,6 @@
         }
       ]
     },
-    "Value": {
-      "description": "All supported ACL values.",
-      "anyOf": [
-        {
-          "description": "Represents a null JSON value.",
-          "type": "null"
-        },
-        {
-          "description": "Represents a [`bool`].",
-          "type": "boolean"
-        },
-        {
-          "description": "Represents a valid ACL [`Number`].",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Number"
-            }
-          ]
-        },
-        {
-          "description": "Represents a [`String`].",
-          "type": "string"
-        },
-        {
-          "description": "Represents a list of other [`Value`]s.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Value"
-          }
-        },
-        {
-          "description": "Represents a map of [`String`] keys to [`Value`]s.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Value"
-          }
-        }
-      ]
-    },
     "Number": {
       "description": "A valid ACL number.",
       "anyOf": [
@@ -2269,6 +2260,60 @@
           "description": "Represents a [`f64`].",
           "type": "number",
           "format": "double"
+        }
+      ]
+    },
+    "PermissionEntry": {
+      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`] or an object that references a permission and extends its scope.",
+      "anyOf": [
+        {
+          "description": "Reference a permission or permission set by identifier.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Identifier"
+            }
+          ]
+        },
+        {
+          "description": "Reference a permission or permission set by identifier and extends its scope.",
+          "type": "object",
+          "allOf": [
+            {
+              "properties": {
+                "allow": {
+                  "description": "Data that defines what is allowed by the scope.",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/definitions/Value"
+                  }
+                },
+                "deny": {
+                  "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/definitions/Value"
+                  }
+                },
+                "identifier": {
+                  "description": "Identifier of the permission or permission set.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Identifier"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "required": [
+            "identifier"
+          ]
         }
       ]
     },
@@ -2309,6 +2354,45 @@
           "enum": [
             "iOS"
           ]
+        }
+      ]
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
         }
       ]
     }

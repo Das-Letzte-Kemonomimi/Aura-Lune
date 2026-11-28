@@ -77,6 +77,17 @@ impl AudioEngine {
             transform.set_passthrough(true); // Off by default (bit-perfect bypass)
         }
 
+        // Bass boost: its own 1-band low shelf, separate from the graphic EQ and the PEQ so that
+        // toggling it never touches the user's EQ settings. Passthrough until a boost is set.
+        let bass_boost = gst::ElementFactory::make("equalizer-nbands")
+            .name("bass_boost")
+            .property("num-bands", 1u32)
+            .build()
+            .map_err(|_| AudioEngineError::MissingElement("equalizer-nbands"))?;
+        if let Ok(transform) = bass_boost.clone().dynamic_cast::<gst_base::BaseTransform>() {
+            transform.set_passthrough(true);
+        }
+
         // Dynamics Studio modules:
         // 1. Dynamics compressor (audiodynamic)
         let compressor = match gst::ElementFactory::make("audiodynamic")
@@ -282,6 +293,7 @@ impl AudioEngine {
             &equalizer,
             &peq_preamp,
             &peq_equalizer,
+            &bass_boost,
             &compressor,
             &compressor_makeup,
             &saturator,
@@ -341,9 +353,12 @@ impl AudioEngine {
             AudioEngineError::ElementLink("Failed to link peq_preamp to peq_equalizer".into())
         })?;
 
-        // peq_equalizer -> compressor -> compressor_makeup -> saturator
-        peq_equalizer.link(&compressor).map_err(|_| {
-            AudioEngineError::ElementLink("Failed to link peq_equalizer to compressor".into())
+        // peq_equalizer -> bass_boost -> compressor -> compressor_makeup -> saturator
+        peq_equalizer.link(&bass_boost).map_err(|_| {
+            AudioEngineError::ElementLink("Failed to link peq_equalizer to bass_boost".into())
+        })?;
+        bass_boost.link(&compressor).map_err(|_| {
+            AudioEngineError::ElementLink("Failed to link bass_boost to compressor".into())
         })?;
         compressor.link(&compressor_makeup).map_err(|_| {
             AudioEngineError::ElementLink("Failed to link compressor to compressor_makeup".into())
@@ -401,6 +416,7 @@ impl AudioEngine {
             equalizer,
             peq_preamp,
             peq_equalizer,
+            bass_boost,
             compressor,
             compressor_makeup,
             _saturator: saturator,
@@ -422,6 +438,7 @@ impl AudioEngine {
             cached_capabilities: DspParams::default().engine.capabilities(),
             last_active_dsp: None,
             equalizer_state: EqualizerState::default(),
+            bass_boost_db: 0.0,
             eq_preamp_db: 0.0,
             user_preamp_db: 0.0,
             parametric_eq_state: ParametricEqState::default(),

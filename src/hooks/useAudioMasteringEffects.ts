@@ -14,8 +14,6 @@ export interface UseAudioMasteringEffectsOptions {
 }
 
 export function useAudioMasteringEffects({
-  status,
-  setStatus,
   showMessage,
   loc,
 }: UseAudioMasteringEffectsOptions) {
@@ -60,12 +58,8 @@ export function useAudioMasteringEffects({
     }
     try {
       await setSetting('bass_boost', clamped.toString());
-      const baseBands = [...(status.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
-      baseBands[0] = Math.min(12, Math.max(-24, clamped * 1.0));
-      baseBands[1] = Math.min(12, Math.max(-24, clamped * 0.75));
-      baseBands[2] = Math.min(12, Math.max(-24, clamped * 0.4));
-      await invoke('set_equalizer_params', { enabled: true, bands: baseBands });
-      setStatus((prev) => ({ ...prev, equalizer_bands: baseBands, equalizer_enabled: true }));
+      // Bass Boost is its own engine stage: it must never write into the graphic EQ bands.
+      await invoke('set_bass_boost', { boostDb: clamped });
       if (clamped > 0 && !limiterEnabled) {
         handleToggleLimiter(true);
       }
