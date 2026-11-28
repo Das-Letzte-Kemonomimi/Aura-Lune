@@ -134,6 +134,19 @@ impl PipelineInner {
         &self.queue_sink
     }
 
+    /// Pushes the stored graphic EQ gains to the filter, or flat gains while the EQ is off,
+    /// so a disabled equaliser never colours the sound.
+    fn apply_equalizer_bands(&self) {
+        for i in 0..10 {
+            let val = if self.equalizer_state.enabled {
+                self.equalizer_state.bands[i]
+            } else {
+                0.0
+            };
+            self.equalizer.set_property(&format!("band{i}"), val);
+        }
+    }
+
     fn update_preamp_volume(&self) {
         let total_db = domain::equalizer::combined_preamp_db(
             self.user_preamp_db,

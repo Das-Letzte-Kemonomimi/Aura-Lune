@@ -17,7 +17,6 @@ import {
 } from '../../../components/ui';
 import { cn } from '../../../utils/cn';
 import { presetLabel } from '../../../utils/dspPresetLabels';
-import { PreampControl } from './PreampControl';
 
 export type DspGraphicEqRackProps = Pick<
   DspStudioViewProps,
@@ -33,12 +32,6 @@ export type DspGraphicEqRackProps = Pick<
   | 'handleToggleEqAutoStartup'
   | 'eqAutoStartup'
   | 'handleEqBandChange'
-  | 'preampDb'
-  | 'preampAuto'
-  | 'autoPreampValue'
-  | 'handlePreampChange'
-  | 'handleTogglePreampAuto'
-  | 'handleResetClipIndicator'
 > & {
   status: PlaybackStatus;
 };
@@ -46,20 +39,14 @@ export type DspGraphicEqRackProps = Pick<
 const formatGain = (gain: number) => `${gain > 0 ? '+' : ''}${gain.toFixed(1)} dB`;
 
 export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
-  autoPreampValue,
   eqAutoStartup,
   eqPresets,
   handleApplyEqPreset,
   handleEqBandChange,
   handleEqToggle,
-  handlePreampChange,
-  handleResetClipIndicator,
   handleResetEq,
   handleToggleEqAutoStartup,
-  handleTogglePreampAuto,
   loc,
-  preampAuto,
-  preampDb,
   selectedEqPreset,
   setIsAutoEqOpen,
   setIsDynamicsStudioOpen,
@@ -172,20 +159,8 @@ export const DspGraphicEqRack: React.FC<DspGraphicEqRackProps> = ({
         </Chip>
       </div>
 
-      {/* Preamp vertical rail on the left beside the 10-band EQ grid */}
-      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-stretch">
-        <PreampControl
-          loc={loc}
-          preampDb={preampDb}
-          preampAuto={preampAuto}
-          autoPreampValue={autoPreampValue}
-          equalizerEnabled={Boolean(status.equalizer_enabled)}
-          onPreampChange={handlePreampChange}
-          onToggleAuto={handleTogglePreampAuto}
-          clipDetected={Boolean(status.clip_detected)}
-          onResetClip={handleResetClipIndicator}
-        />
-
+      {/* 10 bands; the preamp lives in its own block above */}
+      <div className="mt-4">
         {/* 10 bands in responsive 1-2 columns */}
         <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
           {EQUALIZER_BANDS.map((band, idx) => {

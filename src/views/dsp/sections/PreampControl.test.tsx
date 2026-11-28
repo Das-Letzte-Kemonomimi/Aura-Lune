@@ -25,27 +25,56 @@ function renderControl(overrides: Partial<PreampControlProps> = {}) {
 }
 
 describe('PreampControl', () => {
-  it('shows the value as signed dB', () => {
+  it('shows the value in the dB field', () => {
     renderControl({ preampDb: 3.5 });
-    expect(screen.getByText('+3.5 dB')).toBeTruthy();
+    expect((screen.getByTestId('preamp-input') as HTMLInputElement).value).toBe('3.5');
   });
 
-  it('steps 0.5 dB with arrows and 0.1 dB with Shift', () => {
+  it('steps 0.1 dB with arrows and 1 dB with Shift', () => {
     const props = renderControl({ preampDb: 1 });
     const slider = screen.getByRole('slider', { name: loc.dsp.preamp });
     fireEvent.keyDown(slider, { key: 'ArrowUp' });
-    expect(props.onPreampChange).toHaveBeenLastCalledWith(1.5);
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(1.1);
     fireEvent.keyDown(slider, { key: 'ArrowDown', shiftKey: true });
-    expect(props.onPreampChange).toHaveBeenLastCalledWith(0.9);
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(0);
+  });
+
+  it('applies a typed value on Enter', () => {
+    const props = renderControl({ preampDb: 0 });
+    const input = screen.getByTestId('preamp-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '-3,7' } });
+    expect(props.onPreampChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(-3.7);
+  });
+
+  it('applies a typed value on blur, clamped to the range', () => {
+    const props = renderControl({ preampDb: 0 });
+    const input = screen.getByTestId('preamp-input');
+    fireEvent.change(input, { target: { value: '40' } });
+    fireEvent.blur(input);
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(15);
+  });
+
+  it('reverts invalid or escaped input without changing the preamp', () => {
+    const props = renderControl({ preampDb: 2 });
+    const input = screen.getByTestId('preamp-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'abc' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('2.0');
+    fireEvent.change(input, { target: { value: '9' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('2.0');
+    expect(props.onPreampChange).not.toHaveBeenCalled();
   });
 
   it('steps with the mouse wheel', () => {
     const props = renderControl({ preampDb: 0 });
     const slider = screen.getByRole('slider', { name: loc.dsp.preamp });
     fireEvent.wheel(slider, { deltaY: -100 });
-    expect(props.onPreampChange).toHaveBeenLastCalledWith(0.5);
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(0.1);
     fireEvent.wheel(slider, { deltaY: 100, shiftKey: true });
-    expect(props.onPreampChange).toHaveBeenLastCalledWith(-0.1);
+    expect(props.onPreampChange).toHaveBeenLastCalledWith(-1);
   });
 
   it('resets to 0 dB on double-click and with the 0 dB button', () => {

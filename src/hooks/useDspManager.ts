@@ -491,7 +491,8 @@ export function useDspManager({
         setStatus((prev) => {
           const newBands = [...(prev.equalizer_bands || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])];
           newBands[bandIndex] = gainDb;
-          return { ...prev, equalizer_bands: newBands, equalizer_enabled: true };
+          // A band edit never flips the EQ switch: only the user's toggle enables it.
+          return { ...prev, equalizer_bands: newBands };
         });
         setSelectedEqPreset(CUSTOM_EQ_PRESET_ID);
       } catch (e: unknown) {
@@ -524,31 +525,31 @@ export function useDspManager({
       setIsEqPresetMenuOpen(false);
 
       try {
-        await invoke('set_equalizer_params', { enabled: true, bands: targetBands });
+        await invoke('set_equalizer_params', { enabled: Boolean(status.equalizer_enabled), bands: targetBands });
         await invoke('set_equalizer_bands', { bands: targetBands }).catch(() => {});
-        setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands], equalizer_enabled: true }));
+        setStatus((prev) => ({ ...prev, equalizer_bands: [...targetBands] }));
         showMessage(fmt(loc.notifications.eqAppliedPreset, presetLabel(loc, 'eq', presetId, preset?.name ?? presetId)));
       } catch (e: unknown) {
         showMessage(`${loc.common.errorPrefix} ${e}`, true);
       }
     },
-    [eqPresets, setStatus, showMessage, loc]
+    [eqPresets, status.equalizer_enabled, setStatus, showMessage, loc]
   );
 
   const handleResetEq = useCallback(async () => {
     const flatBands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     try {
-      await invoke('set_equalizer_params', { enabled: true, bands: flatBands });
+      await invoke('set_equalizer_params', { enabled: Boolean(status.equalizer_enabled), bands: flatBands });
       await invoke('set_equalizer_bands', { bands: flatBands }).catch(() => {});
       await invoke('set_equalizer_preamp', { preampDb: 0.0 }).catch(() => {});
       setSelectedEqPreset(FLAT_EQ_PRESET_ID);
       setIsEqPresetMenuOpen(false);
-      setStatus((prev) => ({ ...prev, equalizer_bands: flatBands, equalizer_enabled: true }));
+      setStatus((prev) => ({ ...prev, equalizer_bands: flatBands }));
       showMessage(loc.notifications.dspPresetFlat);
     } catch (e: unknown) {
       showMessage(`${loc.common.errorPrefix} ${e}`, true);
     }
-  }, [setStatus, showMessage, loc]);
+  }, [status.equalizer_enabled, setStatus, showMessage, loc]);
 
   // Preamp Handlers
   const handlePreampChange = useCallback(async (db: number) => {
