@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeBarLayout,
+  LOADING_PULSE_PERIOD_MS,
+  loadingPulseAlpha,
   resampleBands,
   resamplePeaks,
   sanitizeBands,
@@ -52,6 +54,27 @@ describe('computeBarLayout', () => {
     const tiny = computeBarLayout(1, 160, 3, 2);
     expect(tiny.count).toBe(1);
     expect(tiny.barWidth).toBe(1);
+  });
+});
+
+describe('loadingPulseAlpha', () => {
+  it('blinks lightly: dim at the start of a cycle, brightest in the middle, never fully invisible', () => {
+    expect(loadingPulseAlpha(0)).toBeCloseTo(0.35, 6);
+    expect(loadingPulseAlpha(LOADING_PULSE_PERIOD_MS / 2)).toBeCloseTo(1, 6);
+    for (let t = 0; t < LOADING_PULSE_PERIOD_MS * 2; t += 37) {
+      const a = loadingPulseAlpha(t);
+      expect(a).toBeGreaterThanOrEqual(0.35 - 1e-9);
+      expect(a).toBeLessThanOrEqual(1 + 1e-9);
+    }
+  });
+
+  it('repeats every period', () => {
+    expect(loadingPulseAlpha(300)).toBeCloseTo(loadingPulseAlpha(300 + LOADING_PULSE_PERIOD_MS * 3), 6);
+  });
+
+  it('holds one steady value with reduced motion', () => {
+    const values = new Set([0, 200, 700, 1111].map((t) => loadingPulseAlpha(t, true)));
+    expect(values.size).toBe(1);
   });
 });
 

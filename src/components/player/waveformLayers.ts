@@ -74,10 +74,15 @@ function hasSpectral(spec: WaveLayerSpec): boolean {
   return spec.bands.length > 0 && spec.bands.length === spec.peaks.length;
 }
 
-function barLayoutFor(spec: WaveLayerSpec) {
+/**
+ * Bar layout of the `bars` / `mirror` styles. The gaps and minimum widths are small on purpose: the
+ * track is analysed into many fine buckets (see `WAVEFORM_BUCKETS`), so a wave 1200 px wide shows
+ * several hundred thin bars. Narrower canvases pool the buckets down to what fits.
+ */
+export function barLayoutFor(spec: Pick<WaveLayerSpec, 'style' | 'width' | 'peaks'>) {
   return spec.style === 'mirror'
-    ? computeBarLayout(spec.width, spec.peaks.length, 2.5, 2)
-    : computeBarLayout(spec.width, spec.peaks.length, 3, 2.5);
+    ? computeBarLayout(spec.width, spec.peaks.length, 1, 1.5)
+    : computeBarLayout(spec.width, spec.peaks.length, 1.5, 1.5);
 }
 
 /**
@@ -211,6 +216,7 @@ function drawMirror(ctx: CanvasRenderingContext2D, spec: WaveLayerSpec, played: 
   const barBands = hasSpectral(spec) ? resampleBands(spec.bands, layout.count) : [];
   const { barWidth, step } = layout;
   const midY = height / 2;
+  const cap = Math.min(barWidth / 2, 3);
 
   if (barBands.length === barPeaks.length && barBands.length > 0) {
     for (let i = 0; i < barPeaks.length; i++) {
@@ -223,12 +229,12 @@ function drawMirror(ctx: CanvasRenderingContext2D, spec: WaveLayerSpec, played: 
 
       ctx.fillStyle = spectralColor(barBands[i], played ? 0.95 : 0.22);
       ctx.beginPath();
-      roundRectPath(ctx, x, midY - upperHeight - 1, barWidth, upperHeight, [3, 3, 0, 0]);
+      roundRectPath(ctx, x, midY - upperHeight - 1, barWidth, upperHeight, [cap, cap, 0, 0]);
       ctx.fill();
 
       ctx.fillStyle = spectralColor([low, mid * 0.7, high * 0.4], played ? 0.48 : 0.14);
       ctx.beginPath();
-      roundRectPath(ctx, x, midY + 1, barWidth, lowerHeight, [0, 0, 3, 3]);
+      roundRectPath(ctx, x, midY + 1, barWidth, lowerHeight, [0, 0, cap, cap]);
       ctx.fill();
     }
   } else {
@@ -238,14 +244,14 @@ function drawMirror(ctx: CanvasRenderingContext2D, spec: WaveLayerSpec, played: 
     ctx.beginPath();
     for (let i = 0; i < barPeaks.length; i++) {
       const h = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
-      roundRectPath(ctx, i * step, midY - h - 1, barWidth, h, [3, 3, 0, 0]);
+      roundRectPath(ctx, i * step, midY - h - 1, barWidth, h, [cap, cap, 0, 0]);
     }
     ctx.fill();
     ctx.globalAlpha = played ? 0.45 : 0.15;
     ctx.beginPath();
     for (let i = 0; i < barPeaks.length; i++) {
       const h = Math.max(5, (Math.max(12, barPeaks[i]) / 100) * (midY - 4));
-      roundRectPath(ctx, i * step, midY + 1, barWidth, h * 0.75, [0, 0, 3, 3]);
+      roundRectPath(ctx, i * step, midY + 1, barWidth, h * 0.75, [0, 0, cap, cap]);
     }
     ctx.fill();
     ctx.restore();
@@ -306,6 +312,117 @@ export function blitWaveLayers(ctx: CanvasRenderingContext2D, layers: WaveLayers
   if (clipPx > 0) {
     ctx.drawImage(layers.played, 0, 0, clipPx, backingHeight, 0, 0, clipPx, backingHeight);
   }
+  ctx.restore();
+}
+
+/** Everything the scrolling wave's strips depend on (not the canvas width or the playback position). */
+export interface ScrollLayerSpec {
+  peaks: number[];
+  /** Spectral colours per peak (empty or a different length = monochrome gradient). */
+  bands: SpectralBandTriple[];
+  /** CSS height (px). */
+  height: number;
+  /** Horizontal slot of one bar (px). */
+  unitWidth: number;
+  /** Drawn width of one bar (px), at most `unitWidth`. */
+  barWidth: number;
+  colors: WaveColors;
+}
+
+const SCROLL_BAR_RADIUS = 0.75;
+
+function scrollBarHeight(peak: number, height: number): number {
+  return Math.max(10, (Math.max(16, peak) / 100) * (height - 8));
+}
+
+function renderScrollLayer(spec: ScrollLayerSpec, scaleX: number, scaleY: number, played: boolean): HTMLCanvasElement | null {
+  const layer = document.createElement('canvas');
+  layer.width = Math.max(1, Math.ceil(spec.peaks.length * spec.unitWidth * scaleX));
+  layer.height = Math.max(1, Math.round(spec.height * scaleY));
+  const ctx = layer.getContext('2d');
+  if (!ctx) return null;
+  ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+  const midY = spec.height / 2;
+  const { peaks, bands, unitWidth, barWidth } = spec;
+
+  if (bands.length > 0 && bands.length === peaks.length) {
+    for (let i = 0; i < peaks.length; i++) {
+      const h = scrollBarHeight(peaks[i], spec.height);
+      ctx.fillStyle = spectralColor(bands[i], played ? 0.95 : 0.25);
+      ctx.beginPath();
+      roundRectPath(ctx, i * unitWidth, midY - h / 2, barWidth, h, SCROLL_BAR_RADIUS);
+      ctx.fill();
+    }
+    return layer;
+  }
+
+  ctx.fillStyle = played ? verticalPlayedGradient(ctx, spec.height, spec.colors) : 'rgba(255, 255, 255, 0.22)';
+  ctx.beginPath();
+  for (let i = 0; i < peaks.length; i++) {
+    const h = scrollBarHeight(peaks[i], spec.height);
+    roundRectPath(ctx, i * unitWidth, midY - h / 2, barWidth, h, SCROLL_BAR_RADIUS);
+  }
+  ctx.fill();
+  return layer;
+}
+
+/**
+ * Draws the whole scrolling wave once, as a played and an unplayed strip (`peaks.length × unitWidth` px wide).
+ * `scaleX` / `scaleY` map CSS px to backing pixels. A tick then only blits a window of the strips
+ * ([`blitScrollLayers`]) instead of filling every visible bar again.
+ */
+export function renderScrollLayers(spec: ScrollLayerSpec, scaleX: number, scaleY: number): WaveLayers | null {
+  if (spec.peaks.length === 0 || spec.height <= 0 || scaleX <= 0 || scaleY <= 0) return null;
+  const unplayed = renderScrollLayer(spec, scaleX, scaleY, false);
+  const played = renderScrollLayer(spec, scaleX, scaleY, true);
+  if (!unplayed || !played) return null;
+  return { unplayed, played };
+}
+
+/**
+ * How many bars lie at or left of the needle (they are the played ones) when the wave is scrolled by
+ * `offset` px, and the strip x (px) where the played part ends: in the gap after the last played bar.
+ */
+export function scrollPlayedSplit(
+  offset: number,
+  unitWidth: number,
+  barWidth: number,
+  count: number,
+): { played: number; clipX: number } {
+  const played = Math.max(0, Math.min(count, Math.floor(offset / unitWidth) + 1));
+  const clipX = played >= count ? count * unitWidth : played * unitWidth - (unitWidth - barWidth) / 2;
+  return { played, clipX };
+}
+
+/**
+ * Blits the visible window of the scrolling strips. The strip origin sits `offset` px left of the needle
+ * (`playheadX`); the played strip fills everything left of the split, the unplayed strip the rest.
+ * Positions are snapped to whole device pixels so the bars stay crisp.
+ */
+export function blitScrollLayers(
+  ctx: CanvasRenderingContext2D,
+  layers: WaveLayers,
+  view: { playheadX: number; offset: number; unitWidth: number; barWidth: number; count: number; scaleX: number },
+): void {
+  const { playheadX, offset, unitWidth, barWidth, count, scaleX } = view;
+  const stripWidth = layers.unplayed.width;
+  const stripHeight = layers.unplayed.height;
+  const canvasWidth = ctx.canvas.width;
+  const originX = Math.round((playheadX - offset) * scaleX);
+  const { clipX } = scrollPlayedSplit(offset, unitWidth, barWidth, count);
+  const clip = Math.max(0, Math.min(stripWidth, Math.round(clipX * scaleX)));
+
+  const slice = (strip: HTMLCanvasElement, from: number, to: number) => {
+    const start = Math.max(from, -originX);
+    const end = Math.min(to, canvasWidth - originX);
+    if (end <= start) return;
+    ctx.drawImage(strip, start, 0, end - start, stripHeight, originX + start, 0, end - start, stripHeight);
+  };
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  slice(layers.played, 0, clip);
+  slice(layers.unplayed, clip, stripWidth);
   ctx.restore();
 }
 

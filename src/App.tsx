@@ -33,12 +33,11 @@ import { BackgroundLayer } from './components/layout/BackgroundLayer';
 import { DragDropOverlay } from './components/layout/DragDropOverlay';
 import { QueueDrawer } from './components/layout/QueueDrawer';
 import { StartupSplash } from './components/layout/StartupSplash';
-import { SettingsModalSkeleton } from './components/layout/ViewLoadingSkeleton';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 
-const AppSettingsModal = lazy(() =>
-  import('./views/settings/AppSettingsModal').then((m) => ({ default: m.AppSettingsModal })),
-);
+import { loadAppSettingsModal } from './views/settings/loadAppSettingsModal';
+
+const AppSettingsModal = lazy(loadAppSettingsModal);
 import { currentPositionMs } from './state/livePlayback';
 import { errorMessage, invoke } from './api/ipc';
 import { setSetting } from './api/settings';
@@ -1284,7 +1283,7 @@ export default function App() {
       )}
 
       {isSettingsOpen && (
-        <Suspense fallback={<SettingsModalSkeleton loc={loc} activeTab={settingsTab} onClose={closeSettings} />}>
+        <Suspense fallback={null}>
           <AppSettingsModal
             isOpen={isSettingsOpen}
             onClose={closeSettings}

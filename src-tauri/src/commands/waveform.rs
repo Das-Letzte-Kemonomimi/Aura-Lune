@@ -21,7 +21,7 @@ use tokio::sync::watch;
 
 /// Bucket count the player's seekbar requests (`WAVEFORM_BUCKETS` in
 /// `src/hooks/useCurrentTrackInfo.ts`). The silence trimmer's shared decode builds this size.
-pub(crate) const DEFAULT_WAVEFORM_BUCKETS: usize = 160;
+pub(crate) const DEFAULT_WAVEFORM_BUCKETS: usize = 480;
 const MIN_WAVEFORM_BUCKETS: usize = 32;
 const MAX_WAVEFORM_BUCKETS: usize = 512;
 const WAVEFORM_MEMORY_CACHE_CAP: usize = 32;

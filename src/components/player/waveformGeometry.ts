@@ -126,3 +126,19 @@ export function computeBarLayout(
   const barWidth = count === 1 ? safeWidth : (safeWidth - (count - 1) * gap) / count;
   return { count, barWidth, gap, step: barWidth + gap };
 }
+
+/** Duration of one loading pulse (ms). */
+export const LOADING_PULSE_PERIOD_MS = 1400;
+const LOADING_PULSE_MIN = 0.35;
+const LOADING_PULSE_STILL = 0.7;
+
+/**
+ * Opacity (0.35..1) of the "analysing the track" placeholder at time `nowMs`: a slow, light blink.
+ * With reduced motion it stays at one steady value, so nothing flashes.
+ */
+export function loadingPulseAlpha(nowMs: number, reducedMotion = false): number {
+  if (reducedMotion) return LOADING_PULSE_STILL;
+  const phase = (nowMs % LOADING_PULSE_PERIOD_MS) / LOADING_PULSE_PERIOD_MS;
+  const wave = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2); // 0 → 1 → 0, starts dim
+  return LOADING_PULSE_MIN + (1 - LOADING_PULSE_MIN) * wave;
+}

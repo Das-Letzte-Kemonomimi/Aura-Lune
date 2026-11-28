@@ -111,6 +111,27 @@ fn test_accumulator_covers_inputs_longer_than_the_old_20m_sample_cap() {
 }
 
 #[test]
+fn test_waveform_follows_loudness_not_just_sample_peaks() {
+    // Both halves reach the same sample peak (0.9), but the first is a sustained loud tone and the
+    // second a quiet tone with sparse spikes. A peak-driven wave draws two equal blocks.
+    let half = 22_050usize;
+    let mut samples = Vec::with_capacity(half * 2);
+    for i in 0..half {
+        samples.push(0.9 * (i as f32 * 0.05).sin());
+    }
+    for i in 0..half {
+        let spike = if i % 100 == 0 { 0.9 } else { 0.0 };
+        samples.push(0.05 * (i as f32 * 0.05).sin() + spike);
+    }
+    let mut acc = WaveformAccumulator::new();
+    acc.push(&samples);
+    let peaks = acc.finish(10);
+    assert_eq!(peaks.len(), 10);
+    assert!(peaks[..4].iter().all(|&p| p > 0.9), "{peaks:?}");
+    assert!(peaks[6..].iter().all(|&p| p < 0.5), "{peaks:?}");
+}
+
+#[test]
 fn test_accumulator_with_more_buckets_than_blocks_pads_with_floor() {
     let mut acc = WaveformAccumulator::new();
     acc.push(&[0.5; 300]);

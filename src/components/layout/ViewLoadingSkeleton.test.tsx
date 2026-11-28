@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 import {
   LibraryContentSkeleton,
   PlaylistTracksSkeleton,
-  SettingsModalSkeleton,
   StemProjectsCardSkeleton,
   ViewLoadingSkeleton,
 } from './ViewLoadingSkeleton';
@@ -108,15 +107,5 @@ describe('ViewLoadingSkeleton', () => {
 
     expect(screen.getByRole('status', { name: 'Loading tracks' }).getAttribute('aria-busy')).toBe('true');
     expect(screen.getByRole('status', { name: 'Loading projects' }).getAttribute('aria-busy')).toBe('true');
-  });
-
-  it('renders SettingsModalSkeleton for activeTab and allows closing while loading', () => {
-    const onClose = vi.fn();
-    render(<SettingsModalSkeleton loc={loc} activeTab="updates" onClose={onClose} />);
-
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getAllByText(`Loading ${loc.updates.title}…`).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: loc.settings.close }));
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
