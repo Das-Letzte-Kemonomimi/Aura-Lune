@@ -4,20 +4,21 @@ import {
   clampPreampDb,
   formatSignedDb,
   parseFiniteSetting,
+  parsePreampInput,
   preampStepSize,
   stepPreampDb,
   wheelPreampStep,
 } from './preamp';
 
 describe('preamp steps', () => {
-  it('steps 0.5 dB, or 0.1 dB with Shift', () => {
-    expect(preampStepSize({})).toBe(0.5);
-    expect(preampStepSize({ shiftKey: true })).toBe(0.1);
+  it('steps 0.1 dB, or 1 dB with Shift', () => {
+    expect(preampStepSize({})).toBe(0.1);
+    expect(preampStepSize({ shiftKey: true })).toBe(1);
   });
 
   it('maps wheel direction to the sign of the step', () => {
-    expect(wheelPreampStep(-100, {})).toBe(0.5);
-    expect(wheelPreampStep(100, { shiftKey: true })).toBe(-0.1);
+    expect(wheelPreampStep(-100, {})).toBe(0.1);
+    expect(wheelPreampStep(100, { shiftKey: true })).toBe(-1);
     expect(wheelPreampStep(0, {})).toBe(0);
   });
 
@@ -74,5 +75,27 @@ describe('parseFiniteSetting', () => {
     expect(parseFiniteSetting('', -6)).toBe(-6);
     expect(parseFiniteSetting('abc', -6)).toBe(-6);
     expect(parseFiniteSetting('NaN', -6)).toBe(-6);
+  });
+});
+
+describe('parsePreampInput', () => {
+  it('accepts signed decimals, comma separators and a dB suffix', () => {
+    expect(parsePreampInput('3.5')).toBe(3.5);
+    expect(parsePreampInput(' +3,5 ')).toBe(3.5);
+    expect(parsePreampInput('-6 dB')).toBe(-6);
+    expect(parsePreampInput('.5')).toBe(0.5);
+  });
+
+  it('rounds to 0.1 dB and clamps to the range', () => {
+    expect(parsePreampInput('1.26')).toBe(1.3);
+    expect(parsePreampInput('99')).toBe(15);
+    expect(parsePreampInput('-99')).toBe(-15);
+  });
+
+  it('rejects text that is not a number', () => {
+    expect(parsePreampInput('')).toBeNull();
+    expect(parsePreampInput('abc')).toBeNull();
+    expect(parsePreampInput('1e3')).toBeNull();
+    expect(parsePreampInput('--2')).toBeNull();
   });
 });

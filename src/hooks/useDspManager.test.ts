@@ -95,7 +95,7 @@ describe('useDspManager', () => {
         await result.current.handleApplyEqPreset('bass-boost');
       });
       expect(result.current.selectedEqPreset).toBe('bass-boost');
-      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_params', { enabled: true, bands: bass.bands });
+      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_params', { enabled: false, bands: bass.bands });
       expect(showMessage).toHaveBeenCalledWith(fmt(loc.notifications.eqAppliedPreset, loc.dsp.eqPreset['bass-boost']));
     });
 
@@ -113,7 +113,18 @@ describe('useDspManager', () => {
       await act(async () => {
         await result.current.handleApplyEqPreset('flat');
       });
-      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_params', { enabled: true, bands: new Array(10).fill(0) });
+      expect(mockInvoke).toHaveBeenCalledWith('set_equalizer_params', { enabled: false, bands: new Array(10).fill(0) });
+    });
+
+    it('does not enable the EQ when a band, preset or reset is applied while it is off', async () => {
+      const { result } = await setupWithPresets();
+      await act(async () => {
+        await result.current.handleEqBandChange(3, 2.5);
+        await result.current.handleApplyEqPreset('bass-boost');
+        await result.current.handleResetEq();
+      });
+      expect(mockInvoke).not.toHaveBeenCalledWith('set_equalizer_enabled', expect.anything());
+      expect(mockInvoke).not.toHaveBeenCalledWith('set_equalizer_params', expect.objectContaining({ enabled: true }));
     });
 
     it('marks the selection as custom after a band is dragged, and flat after a reset', async () => {

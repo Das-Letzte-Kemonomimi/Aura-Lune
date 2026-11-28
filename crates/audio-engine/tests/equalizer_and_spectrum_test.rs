@@ -10,7 +10,7 @@ fn test_audio_engine_equalizer_and_spectrum() {
     assert_eq!(default_bands, [0.0; 10]);
     assert!(!engine.is_equalizer_enabled());
 
-    // Set a single band (this enables the equalizer automatically)
+    // Set a single band: the gain is stored, but only the user switch enables the equalizer
     engine
         .set_equalizer_band(0, 6.0)
         .expect("set band 0 failed");
@@ -20,7 +20,7 @@ fn test_audio_engine_equalizer_and_spectrum() {
     let current_bands = engine.get_equalizer_bands();
     assert_eq!(current_bands[0], 6.0);
     assert_eq!(current_bands[5], -4.5);
-    assert!(engine.is_equalizer_enabled());
+    assert!(!engine.is_equalizer_enabled());
 
     // Preamp
     engine.set_equalizer_preamp(-3.5);
@@ -33,13 +33,14 @@ fn test_audio_engine_equalizer_and_spectrum() {
         .set_equalizer_bands(&bass_preset.bands)
         .expect("set preset failed");
     assert_eq!(engine.get_equalizer_bands(), bass_preset.bands);
-    assert!(engine.is_equalizer_enabled());
-
-    // Disabling (bypassing) the EQ
-    engine.set_equalizer_enabled(false);
     assert!(!engine.is_equalizer_enabled());
+
+    // The user switch enables and bypasses the EQ; the stored bands survive the bypass.
     engine.set_equalizer_enabled(true);
     assert!(engine.is_equalizer_enabled());
+    engine.set_equalizer_enabled(false);
+    assert!(!engine.is_equalizer_enabled());
+    assert_eq!(engine.get_equalizer_bands(), bass_preset.bands);
 }
 
 #[test]

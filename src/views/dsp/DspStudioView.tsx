@@ -5,6 +5,7 @@ import { type EqualizerPreset } from '../../types/equalizer';
 import type { DspPresetRecord, PlaybackStatus } from '../../types/player';
 import { type Language, getTranslations } from '../../i18n';
 import { DspGraphicEqRack } from './sections/DspGraphicEqRack';
+import { DspPreampRack } from './sections/DspPreampRack';
 import { DspMasteringRack } from './sections/DspMasteringRack';
 import { DspPresetManager } from './sections/DspPresetManager';
 import { DspReverbPanel } from './sections/DspReverbPanel';
@@ -170,6 +171,9 @@ export const DspStudioView: React.FC<DspStudioViewProps> = (props) => {
 
       {/* DSP presets (SQLite) and the signature profiles */}
       <DspPresetManager {...props} />
+
+      {/* Standalone preamp / gain: applied whatever the EQ switch says */}
+      <DspPreampRack {...props} status={status} />
 
       {/* 10-band graphic equalizer */}
       <DspGraphicEqRack {...props} status={status} />
