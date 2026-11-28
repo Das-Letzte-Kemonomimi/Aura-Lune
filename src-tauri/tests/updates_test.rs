@@ -9,7 +9,8 @@ use auralune_desktop::updater::install::{
     looks_like_appimage, restart_target, staging_path, validate_asset_url,
 };
 use auralune_desktop::updater::{
-    is_skipped, should_check, InstallKind, UpdateAsset, CHECK_INTERVAL_SECS,
+    background_check_due, is_skipped, should_check, InstallKind, UpdateAsset, CHECK_INTERVAL_SECS,
+    RETRY_AFTER_FAILURE_SECS,
 };
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -206,6 +207,40 @@ fn background_checks_are_throttled_to_six_hours() {
     assert!(
         should_check(now, Some(now + 500), false),
         "clock set back → check again"
+    );
+}
+
+#[test]
+fn background_loop_follows_the_saved_last_check_not_its_own_timer() {
+    let now = 1_000_000;
+    assert!(background_check_due(now, None, None), "never checked");
+    assert!(
+        !background_check_due(now, Some(now - CHECK_INTERVAL_SECS + 1), None),
+        "restart just before the 6 h mark: wait for the remaining seconds, not another 6 h"
+    );
+    assert!(
+        background_check_due(now, Some(now - CHECK_INTERVAL_SECS), None),
+        "6 h of wall-clock time (e.g. after suspend) makes a check due"
+    );
+}
+
+#[test]
+fn background_loop_pauses_after_a_failed_check() {
+    let now = 1_000_000;
+    let old = Some(now - CHECK_INTERVAL_SECS - 10);
+    assert!(background_check_due(now, old, None));
+    assert!(
+        !background_check_due(now, old, Some(now + RETRY_AFTER_FAILURE_SECS)),
+        "no hammering GitHub while offline or rate limited"
+    );
+    assert!(background_check_due(
+        now + RETRY_AFTER_FAILURE_SECS,
+        old,
+        Some(now + RETRY_AFTER_FAILURE_SECS)
+    ));
+    assert!(
+        !background_check_due(now, Some(now - 60), Some(now - 1)),
+        "an expired pause does not override the 6 h throttle"
     );
 }
 

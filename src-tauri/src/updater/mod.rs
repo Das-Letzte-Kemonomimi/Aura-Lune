@@ -34,8 +34,13 @@ pub const SETTING_ENABLED: &str = "update_check_enabled";
 pub const SETTING_LAST_CHECKED: &str = "update_last_checked";
 pub const SETTING_LAST_RESULT: &str = "update_last_result";
 
-/// Minimum interval between non-forced checks, and the background loop period.
+/// Minimum interval between non-forced checks.
 pub const CHECK_INTERVAL_SECS: u64 = 6 * 60 * 60;
+/// How often the background loop re-reads the wall clock and the saved last-check time. Short, so a
+/// resume from suspend or a restart close to the 6 h mark is noticed within a minute.
+pub const POLL_INTERVAL_SECS: u64 = 60;
+/// Pause after a failed background check (offline, rate limit) before the next attempt.
+pub const RETRY_AFTER_FAILURE_SECS: u64 = 15 * 60;
 /// Delay of the first check after start-up, so it does not slow the launch.
 pub const STARTUP_DELAY_SECS: u64 = 30;
 
@@ -183,6 +188,23 @@ pub fn should_check(now: u64, last_checked: Option<u64>, force: bool) -> bool {
         Some(last) if now < last => true,
         Some(last) => now - last >= CHECK_INTERVAL_SECS,
     }
+}
+
+/// Whether the background loop should query GitHub now. `last_checked` is the persisted time of the
+/// last successful check and `retry_not_before` the end of the pause after a failed attempt (in memory).
+///
+/// Driven by the wall clock and the persisted timestamp on purpose: a long in-process sleep uses the
+/// monotonic clock, which stands still while the machine is suspended, and it knows nothing about a
+/// check made before the app was restarted.
+pub fn background_check_due(
+    now: u64,
+    last_checked: Option<u64>,
+    retry_not_before: Option<u64>,
+) -> bool {
+    if retry_not_before.is_some_and(|until| now < until) {
+        return false;
+    }
+    should_check(now, last_checked, false)
 }
 
 /// Whether a release ID (version or commit) matches the one the user skipped.
