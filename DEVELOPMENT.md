@@ -469,9 +469,9 @@ After running `npm run tauri build`, the distribution artifacts are placed in th
 ```
 target/release/bundle/
 ├── appimage/
-│   └── Auralune_2.1.0_amd64.AppImage
+│   └── Auralune_2.1.1_amd64.AppImage
 └── deb/
-    └── auralune_2.1.0_amd64.deb
+    └── auralune_2.1.1_amd64.deb
 ```
 
 To test the generated AppImage:

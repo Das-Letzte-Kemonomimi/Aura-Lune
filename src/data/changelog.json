@@ -1,11 +1,10 @@
 [
   {
-    "version": "2.1.1-dev",
-    "codename": "Development Channel",
+    "version": "2.1.1",
+    "codename": "Liquid Waveform",
     "date": "2026-11-28",
     "author": "Das Letzte Kemonomimi & Kamuri",
-    "isDev": true,
-    "isLatest": false,
+    "isLatest": true,
     "added": [
       {
         "en": "While a new track's waveform is still being prepared, the progress bar now blinks gently so you can tell it is loading.",
@@ -46,7 +45,7 @@
     "codename": "Soundscape Bloom",
     "date": "2026-11-28",
     "author": "Das Letzte Kemonomimi & Kamuri",
-    "isLatest": true,
+    "isLatest": false,
     "added": [
       {
         "en": "The Soundscape window now has an on/off switch that keeps your mix, and rain drops, crackle and chimes come back properly when you turn it on.",
