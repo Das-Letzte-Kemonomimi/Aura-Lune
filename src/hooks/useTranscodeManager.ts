@@ -421,10 +421,13 @@ export function useTranscodeManager({
         const fileName = cleanOutput.split('/').pop() || cleanOutput;
         const lastDot = fileName.lastIndexOf('.');
         const title = lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
-        const calculatedDuration =
+        // The range is in source time; the DSP tempo and rate stretch the exported file.
+        const speed = dspSettings ? dspSettings.tempo_ratio * dspSettings.rate_ratio : 1;
+        const sourceMs =
           transcodeApplyRange && timeRange && timeRange.end_ms
             ? timeRange.end_ms - timeRange.start_ms
             : currentPlayingTrack?.duration_ms || 180000;
+        const calculatedDuration = speed > 0 ? Math.round(sourceMs / speed) : sourceMs;
         renderedTrack = {
           id: Date.now(),
           path: cleanOutput,

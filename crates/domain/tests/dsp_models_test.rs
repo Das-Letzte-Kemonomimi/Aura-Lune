@@ -375,3 +375,28 @@ fn test_replaygain_two_preamps_map_to_rgvolume() {
     assert_eq!(p.pre_amp_db, 12.0);
     assert_eq!(p.pre_amp_db + p.fallback_gain_db, -15.0);
 }
+
+#[test]
+fn export_range_duration_scales_with_dsp_speed() {
+    use domain::transcode::{scale_by_speed, DspExportSettings, TimeRange};
+
+    let range = TimeRange::new(1_000, Some(5_000)).unwrap();
+    // Faster playback shortens the file, slower playback lengthens it.
+    assert_eq!(range.output_duration_ms(60_000, 2.0), 2_000);
+    assert_eq!(range.output_duration_ms(60_000, 0.5), 8_000);
+    assert_eq!(range.output_duration_ms(60_000, 1.0), 4_000);
+
+    // An open-ended range runs to the end of the source.
+    let open = TimeRange::new(10_000, None).unwrap();
+    assert_eq!(open.output_duration_ms(30_000, 0.5), 40_000);
+
+    // Tempo and rate multiply; invalid speeds fall back to source time.
+    let dsp = DspExportSettings {
+        tempo_ratio: 1.25,
+        rate_ratio: 0.8,
+        ..DspExportSettings::default()
+    };
+    assert!((dsp.speed_ratio() - 1.0).abs() < 1e-9);
+    assert_eq!(scale_by_speed(1_000, 0.0), 1_000);
+    assert_eq!(scale_by_speed(1_000, f64::NAN), 1_000);
+}
