@@ -9,7 +9,37 @@ use std::time::Duration;
 
 /// Cache version for the FFT spectral waveform extractor.
 /// Bump whenever FFT binning, compression, or normalisation changes.
-pub const WAVEFORM_ANALYZER_VERSION: &str = "fft-v1";
+pub const WAVEFORM_ANALYZER_VERSION: &str = "fft-v2";
+
+/// Weight of the bucket's sample peak in the drawn amplitude. Kept small: on loud masters the
+/// sample peak sits near full scale in almost every bucket and would flatten the wave into a block.
+const PEAK_WEIGHT: f32 = 0.25;
+/// Weight of the bucket's RMS (perceived loudness) in the drawn amplitude.
+const RMS_WEIGHT: f32 = 0.75;
+/// Amplitudes are scaled so this percentile of the buckets reaches 1.0; a few transients cannot
+/// squash the rest of the track.
+const NORMALISE_PERCENTILE: f32 = 0.98;
+/// Contrast exponent (> 1) applied after normalising, so mid-level buckets stand clearly below loud ones.
+const CONTRAST_EXPONENT: f32 = 1.5;
+/// Smallest drawn amplitude, so silence still leaves a visible stub.
+const MIN_AMPLITUDE: f32 = 0.05;
+
+/// Turns raw per-bucket levels into drawable amplitudes in `MIN_AMPLITUDE..=1.0`, rounded to 3 decimals.
+fn shape_levels(raw: &[f32]) -> Vec<f32> {
+    if raw.is_empty() {
+        return Vec::new();
+    }
+    let mut sorted: Vec<f32> = raw.to_vec();
+    sorted.sort_by(f32::total_cmp);
+    let idx = ((sorted.len() - 1) as f32 * NORMALISE_PERCENTILE).round() as usize;
+    let reference = sorted[idx.min(sorted.len() - 1)].max(0.0001);
+    raw.iter()
+        .map(|&level| {
+            let norm = (level / reference).clamp(0.0, 1.0).powf(CONTRAST_EXPONENT);
+            (norm.clamp(MIN_AMPLITUDE, 1.0) * 1000.0).round() / 1000.0
+        })
+        .collect()
+}
 
 /// Decode sample rate for the amplitude-only waveform helper.
 const WAVEFORM_SAMPLE_RATE: u32 = 11_025;
@@ -55,19 +85,18 @@ impl WaveformAccumulator {
         self.blocks.is_empty() && self.current.2 == 0
     }
 
-    /// `count` normalised values in `0.05..=1.0` (0.7 × peak + 0.3 × RMS).
+    /// `count` normalised values in `0.05..=1.0` (loudness-weighted: see [`PEAK_WEIGHT`], [`RMS_WEIGHT`]).
     pub fn finish(mut self, count: usize) -> Vec<f32> {
         if self.current.2 > 0 {
             self.blocks.push(self.current);
         }
         let nb = self.blocks.len();
         let mut peaks = Vec::with_capacity(count);
-        let mut max_global_peak: f32 = 0.0001;
         for i in 0..count {
             let start = i * nb / count;
             let end = ((i + 1) * nb / count).min(nb);
             if start >= end {
-                peaks.push(0.05);
+                peaks.push(0.0);
                 continue;
             }
             let (mut max_val, mut sum_sq, mut n) = (0.0f32, 0.0f64, 0u64);
@@ -77,15 +106,9 @@ impl WaveformAccumulator {
                 n += c as u64;
             }
             let rms = (sum_sq / n.max(1) as f64).sqrt() as f32;
-            let bucket_val = 0.7 * max_val + 0.3 * rms;
-            max_global_peak = max_global_peak.max(bucket_val);
-            peaks.push(bucket_val);
+            peaks.push(PEAK_WEIGHT * max_val + RMS_WEIGHT * rms);
         }
-        for p in peaks.iter_mut() {
-            let norm = (*p / max_global_peak).clamp(0.05, 1.0);
-            *p = (norm * 1000.0).round() / 1000.0;
-        }
-        peaks
+        shape_levels(&peaks)
     }
 }
 
@@ -244,7 +267,6 @@ impl SpectralWaveformAccumulator {
 
         let mut raw_peaks = Vec::with_capacity(count);
         let mut raw_bands = Vec::with_capacity(count);
-        let mut max_global_peak = 0.0001f32;
         let mut max_global_band = 0.0001f32;
 
         for i in 0..count {
@@ -278,8 +300,7 @@ impl SpectralWaveformAccumulator {
             let high = (sum_high_sq / n).sqrt();
             let spectral_rms = ((sum_low_sq + sum_mid_sq + sum_high_sq) / n).sqrt();
 
-            let combined = 0.65 * max_peak + 0.35 * rms.max(spectral_rms);
-            max_global_peak = max_global_peak.max(combined);
+            let combined = PEAK_WEIGHT * max_peak + RMS_WEIGHT * rms.max(spectral_rms);
             max_global_band = max_global_band.max(low).max(mid).max(high);
 
             raw_peaks.push(combined);
@@ -287,13 +308,7 @@ impl SpectralWaveformAccumulator {
         }
 
         let log_denom = (1.0 + BAND_LOG_GAMMA).ln();
-        let peaks: Vec<f32> = raw_peaks
-            .into_iter()
-            .map(|p| {
-                let norm = (p / max_global_peak).clamp(0.05, 1.0);
-                (norm * 1000.0).round() / 1000.0
-            })
-            .collect();
+        let peaks = shape_levels(&raw_peaks);
 
         let bands: Vec<[f32; 3]> = raw_bands
             .into_iter()
