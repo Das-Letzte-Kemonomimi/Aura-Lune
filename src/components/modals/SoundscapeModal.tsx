@@ -6,8 +6,6 @@ import {
   Flame,
   Wind,
   Coffee,
-  Volume2,
-  VolumeX,
   Sparkles,
   RotateCcw,
 } from '../ui/icons';
@@ -20,8 +18,8 @@ import {
 } from '../../utils/soundscapeAudio';
 import { cn } from '../../utils/cn';
 import { ToggleSwitch } from '../common/ToggleSwitch';
-import { Button, Card, IconButton, ModalBody, ModalHeader, ModalShell, RangeSlider, SettingRow, type Tone } from '../ui';
-import { iconTileTones, textTones, tintedTones } from '../ui/tones';
+import { Button, Card, ModalBody, ModalHeader, ModalShell, RangeSlider, SettingRow, type Tone } from '../ui';
+import { iconTileTones, textTones } from '../ui/tones';
 
 interface SoundscapeModalProps {
   isOpen: boolean;
@@ -62,9 +60,9 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
     setVolumes(soundscapeEngine.getVolumes());
   };
 
-  const handleToggleMute = () => {
-    const muted = soundscapeEngine.toggleMute();
-    setIsMuted(muted);
+  const handleToggleEnabled = (enabled: boolean) => {
+    soundscapeEngine.setEnabled(enabled);
+    setIsMuted(!enabled);
   };
 
   const handleApplyPreset = (preset: SoundscapePreset) => {
@@ -151,22 +149,14 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
       <Card padding="none" className="flex flex-col gap-3 px-4.5 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <IconButton
-              variant="secondary"
-              label={isMuted ? loc.soundscape.unmute : loc.soundscape.mute}
-              aria-pressed={isMuted}
-              onClick={handleToggleMute}
-              className={tintedTones[isMuted ? 'red' : 'purple']}
-            >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </IconButton>
+            <ToggleSwitch checked={!isMuted} onChange={handleToggleEnabled} label={loc.soundscape.power} />
             <div>
               <span className="text-md font-semibold">
                 {loc.soundscape.masterVolume}
               </span>
               <div className="text-ui text-fg-secondary">
                 {isMuted
-                  ? loc.soundscape.muted
+                  ? loc.soundscape.off
                   : isAnyActive
                   ? loc.soundscape.active
                   : loc.soundscape.allSilent}
@@ -176,7 +166,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
 
           <div className="flex items-center gap-2.5">
             <span className="min-w-10 text-right text-sm font-bold">
-              {isMuted ? '0%' : `${Math.round(volumes.master * 100)}%`}
+              {`${Math.round(volumes.master * 100)}%`}
             </span>
             <Button size="sm" onClick={handleResetAll}>
               <RotateCcw size={12} /> {loc.soundscape.resetZero}
@@ -188,7 +178,7 @@ export const SoundscapeModal: React.FC<SoundscapeModalProps> = ({
           min={0}
           max={1}
           step={0.01}
-          value={isMuted ? 0 : volumes.master}
+          value={volumes.master}
           onChange={handleMasterChange}
           aria-label={loc.soundscape.masterVolume}
         />

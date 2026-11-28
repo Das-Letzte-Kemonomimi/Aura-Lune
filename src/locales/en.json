@@ -1632,6 +1632,8 @@
     "channelCafeDesc": "Deep brown noise for focus & relaxation",
     "masterVolume": "Master Soundscape Volume",
     "muted": "Muted",
+    "power": "Soundscape on/off",
+    "off": "Off (your mix is kept)",
     "active": "Soundscape active",
     "allSilent": "All channels silent",
     "resetZero": "Reset",
