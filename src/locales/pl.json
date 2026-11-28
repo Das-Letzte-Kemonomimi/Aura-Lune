@@ -1061,6 +1061,7 @@
   "bottomDock": {
     "openFullPlayer": "Kliknij, aby otworzyć pełny ekran Odtwarzacza",
     "seekLabel": "Pozycja utworu",
+    "live": "NA ŻYWO",
     "prevTooltip": "Poprzedni utwór",
     "nextTooltip": "Następny utwór",
     "playTooltip": "Odtwórz",

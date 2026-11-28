@@ -205,4 +205,33 @@ describe('BottomPlaybackDock component', () => {
     fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.maximizeTooltip }));
     expect(onToggleMiniPlayer).toHaveBeenCalledTimes(1);
   });
+
+  it('shows a seekable slider with a duration for a normal track', () => {
+    render(<BottomPlaybackDock {...defaultProps} />);
+    expect(screen.getByRole('slider', { name: loc.bottomDock.seekLabel })).toBeDefined();
+    expect(screen.queryByText(loc.bottomDock.live)).toBeNull();
+    expect(screen.getByText('3:00')).toBeDefined();
+  });
+
+  it('shows a LIVE badge and no seek slider when the stream has no duration', () => {
+    render(
+      <BottomPlaybackDock
+        {...defaultProps}
+        status={{ ...defaultProps.status, state: 'Playing', position_ms: 0, duration_ms: null }}
+      />
+    );
+    expect(screen.getByText(loc.bottomDock.live)).toBeDefined();
+    expect(screen.queryByRole('slider', { name: loc.bottomDock.seekLabel })).toBeNull();
+  });
+
+  it('shows LIVE for an http stream source even if a duration is reported', () => {
+    render(
+      <BottomPlaybackDock
+        {...defaultProps}
+        filePath="https://x.test/stream"
+      />
+    );
+    expect(screen.getByText(loc.bottomDock.live)).toBeDefined();
+    expect(screen.queryByRole('slider', { name: loc.bottomDock.seekLabel })).toBeNull();
+  });
 });

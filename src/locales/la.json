@@ -1061,6 +1061,7 @@
   "bottomDock": {
     "openFullPlayer": "Premito ad aperiendam plenam faciem Lusoris",
     "seekLabel": "Locus cantus",
+    "live": "VIVUM",
     "prevTooltip": "Praecedens cantus",
     "nextTooltip": "Sequens cantus",
     "playTooltip": "Canta",
