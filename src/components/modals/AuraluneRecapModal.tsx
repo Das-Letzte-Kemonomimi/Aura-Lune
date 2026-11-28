@@ -214,19 +214,19 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
         return (
           <>
             {/* Main counter tiles */}
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(--spacing(55),1fr))] gap-3.5">
               {/* Total time */}
               <div
-                className="flex items-center gap-4 rounded-2xl border border-accent-pink/35 bg-linear-135 from-accent-pink/15 to-accent-purple/10 p-5"
+                className="flex min-w-0 items-center gap-4 rounded-2xl border border-accent-pink/35 bg-linear-135 from-accent-pink/15 to-accent-purple/10 p-5"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-pink/25">
                   <Clock size={24} className="text-accent-pink" />
                 </div>
-                <div>
-                  <div className="text-ui font-semibold text-fg-muted">
+                <div className="min-w-0">
+                  <div className="text-ui font-semibold text-fg-muted wrap-break-word">
                     {loc.recapModal.totalTimeSpent}
                   </div>
-                  <div className="text-3xl font-extrabold tracking-tight text-fg">
+                  <div className="truncate text-3xl font-extrabold tracking-tight text-fg">
                     {formatHoursMins(totalSeconds)}
                   </div>
                 </div>
@@ -234,16 +234,16 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
 
               {/* Tracks listened to */}
               <div
-                className="flex items-center gap-4 rounded-2xl border border-accent-cyan/35 bg-linear-135 from-accent-cyan/15 to-blue-500/10 p-5"
+                className="flex min-w-0 items-center gap-4 rounded-2xl border border-accent-cyan/35 bg-linear-135 from-accent-cyan/15 to-blue-500/10 p-5"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-cyan/25">
                   <Music size={24} className="text-accent-cyan" />
                 </div>
-                <div>
-                  <div className="text-ui font-semibold text-fg-muted">
+                <div className="min-w-0">
+                  <div className="text-ui font-semibold text-fg-muted wrap-break-word">
                     {loc.recapModal.tracksPlayed}
                   </div>
-                  <div className="text-3xl font-extrabold tracking-tight text-fg">
+                  <div className="truncate text-3xl font-extrabold tracking-tight text-fg">
                     {totalTracks}
                   </div>
                 </div>
@@ -267,12 +267,12 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                       <div
                         key={track.id}
                         className={cn(
-                          'flex items-center justify-between rounded-xl border px-3.5 py-2.5',
+                          'flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5',
                           isTop1 ? 'bg-linear-to-r from-accent-pink/20 to-white/3' : 'bg-white/2',
                           isTop1 ? 'border-accent-pink/35' : 'border-transparent',
                         )}
                       >
-                        <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="flex min-w-0 items-center gap-3">
                           <span
                             className={cn(
                               'w-5 text-center text-sm font-extrabold',
@@ -282,7 +282,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                             #{index + 1}
                           </span>
 
-                          <div className="overflow-hidden">
+                          <div className="min-w-0">
                             <div className="truncate text-sm font-bold text-fg">
                               {track.title}
                             </div>
@@ -293,7 +293,7 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                         </div>
 
                         <div className="flex shrink-0 items-center gap-3.5">
-                          <div className="text-right">
+                          <div className="text-right whitespace-nowrap">
                             <div className="text-ui font-bold text-accent-cyan">
                               {track.play_count} {loc.recapModal.plays}
                             </div>
@@ -334,16 +334,16 @@ export const AuraluneRecapModal: React.FC<AuraluneRecapModalProps> = ({
                   {normalizedArtists.map((artist, idx) => (
                     <div
                       key={`${artist.artist}-${idx}`}
-                      className="flex items-center gap-2 rounded-xl border border-accent-purple/30 bg-accent-purple/10 px-3.5 py-2"
+                      className="flex max-w-full min-w-0 items-center gap-2 rounded-xl border border-accent-purple/30 bg-accent-purple/10 px-3.5 py-2"
                     >
                       <span className="text-xs font-extrabold text-accent-purple">
                         #{idx + 1}
                       </span>
-                      <span className="text-ui font-bold text-fg">
+                      <span className="min-w-0 truncate text-ui font-bold text-fg" title={artist.artist}>
                         {artist.artist}
                       </span>
                       {artist.play_count > 0 && (
-                        <span className="text-xs text-fg-muted">
+                        <span className="shrink-0 text-xs text-fg-muted">
                           ({artist.play_count} {loc.recapModal.plays})
                         </span>
                       )}
