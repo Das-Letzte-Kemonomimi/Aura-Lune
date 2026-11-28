@@ -205,4 +205,32 @@ describe('BottomPlaybackDock component', () => {
     fireEvent.click(screen.getByRole('button', { name: loc.bottomDock.maximizeTooltip }));
     expect(onToggleMiniPlayer).toHaveBeenCalledTimes(1);
   });
+
+  describe('DSP bypass indicator', () => {
+    const withEngine = (engine: 'Bypass' | 'RubberBand') => ({
+      ...defaultProps,
+      status: { ...defaultProps.status, engine, pitch_semitones: 2, tempo_ratio: 1.15 },
+    });
+
+    it('greys out the engine pill and effect badges while bypass is on', () => {
+      const { container } = render(<BottomPlaybackDock {...withEngine('Bypass')} />);
+      const pill = container.querySelector('[data-bypassed]');
+      expect(pill).not.toBeNull();
+      expect(pill?.className).toContain('opacity-60');
+      expect(pill?.className).not.toContain('text-accent-green');
+      const pitch = screen.getByText('+2 st');
+      expect(pitch.className).toContain('opacity-60');
+      expect(pitch.className).not.toContain('text-accent-pink');
+      expect(pitch.getAttribute('title')).toContain(loc.bottomDock.bypassedTooltip);
+      expect(screen.getByText('1.15x').getAttribute('title')).toContain(loc.bottomDock.bypassedTooltip);
+    });
+
+    it('keeps the accent colours when a DSP engine is active', () => {
+      const { container } = render(<BottomPlaybackDock {...withEngine('RubberBand')} />);
+      expect(container.querySelector('[data-bypassed]')).toBeNull();
+      const pitch = screen.getByText('+2 st');
+      expect(pitch.className).toContain('text-accent-pink');
+      expect(pitch.className).not.toContain('opacity-60');
+    });
+  });
 });

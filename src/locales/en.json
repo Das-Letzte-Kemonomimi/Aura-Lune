@@ -1071,6 +1071,7 @@
     "pauseTooltip": "Pause",
     "pitchTooltip": "Pitch shift",
     "tempoTooltip": "Tempo stretch",
+    "bypassedTooltip": "DSP is bypassed (effect inactive)",
     "mutedTooltip": "Muted (click to unmute)",
     "volumeTooltip": "Volume",
     "maximizeTooltip": "Open full Player view",
