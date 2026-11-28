@@ -1,11 +1,10 @@
 [
   {
-    "version": "2.0.1-dev",
-    "codename": "Development Channel",
+    "version": "2.1.0",
+    "codename": "Soundscape Bloom",
     "date": "2026-11-28",
     "author": "Das Letzte Kemonomimi",
-    "isDev": true,
-    "isLatest": false,
+    "isLatest": true,
     "added": [
       {
         "en": "The Soundscape window now has an on/off switch that keeps your mix, and rain drops, crackle and chimes come back properly when you turn it on.",
@@ -130,7 +129,7 @@
     "codename": "Lune",
     "date": "2026-11-27",
     "author": "Das Letzte Kemonomimi & Kamuri",
-    "isLatest": true,
+    "isLatest": false,
     "added": [
       {
         "pl": "Przewijanie przeciąganiem na wszystkich czterech stylach falogramu — działa myszą i dotykiem, z podglądem czasu na żywo oraz płynnym skokiem po puszczeniu.",
